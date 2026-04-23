@@ -246,9 +246,6 @@ function secaoIcon(tipo) {
 .secao-header {
   cursor: pointer;
   background: rgb(var(--v-theme-surface));
-  position: sticky;
-  top: 0;
-  z-index: 1;
 }
 .secao-header:hover {
   background: rgba(var(--v-theme-primary), 0.06);
