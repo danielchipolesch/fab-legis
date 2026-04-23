@@ -1,0 +1,29 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -c ' *)",
+      "Bash(py --version)",
+      "Bash(where python*)",
+      "Bash(node -e ' *)",
+      "Bash(where node *)",
+      "Bash(where npm *)",
+      "Bash(where npx *)",
+      "Read(//usr/**)",
+      "Read(//usr/local/**)",
+      "Bash(cmd.exe /c \"node --version\")",
+      "Bash(cmd.exe /c \"npm --version\")",
+      "PowerShell(node --version)",
+      "PowerShell(npm --version)",
+      "PowerShell(Get-Command node -ErrorAction SilentlyContinue; Get-Command npm -ErrorAction SilentlyContinue; $env:PATH -split ';' | Where-Object { $_ -match 'node|npm' })",
+      "PowerShell(Get-ChildItem \"C:\\\\Program Files\\\\nodejs\\\\\" -ErrorAction SilentlyContinue; Get-ChildItem \"C:\\\\Program Files \\(x86\\)\\\\nodejs\\\\\" -ErrorAction SilentlyContinue; Get-ChildItem \"$env:APPDATA\\\\npm\\\\\" -ErrorAction SilentlyContinue; Test-Path \"C:\\\\Program Files\\\\nodejs\\\\node.exe\")",
+      "PowerShell(Get-ChildItem \"C:\\\\Users\\\\Daniel Chipolesch\\\\AppData\\\\Roaming\\\\\" | Where-Object { $_.Name -match 'nvm|node|volta|fnm' }; Get-ChildItem \"C:\\\\Users\\\\Daniel Chipolesch\\\\AppData\\\\Local\\\\\" | Where-Object { $_.Name -match 'nvm|node|volta|fnm' })",
+      "PowerShell(head -20)",
+      "PowerShell(python --version)",
+      "PowerShell(py --version)",
+      "PowerShell(py -3 -c \"from pypdf import PdfReader; reader = PdfReader\\(r'C:\\\\Users\\\\Daniel Chipolesch\\\\Downloads\\\\estrutura-normas.pdf'\\); print\\(f'Pages: {len\\(reader.pages\\)}'\\); [print\\(f'=====PAGE {i+1}=====\\\\n{p.extract_text\\(\\)}'\\) for i, p in enumerate\\(reader.pages\\)]\" 2>&1)",
+      "PowerShell(node -e \"require\\('fs'\\).readFileSync\\(String.raw`C:\\\\Users\\\\Daniel Chipolesch\\\\Downloads\\\\estrutura-normas.pdf`\\).toString\\('utf8'\\).substring\\(0,200\\)\" 2>&1)",
+      "Bash(pdftotext -layout \"C:/Users/Daniel Chipolesch/Downloads/estrutura-normas.pdf\" -)",
+      "Bash(\"C:\\\\Program Files\\\\Git\\\\mingw64\\\\bin\\\\pdftotext.exe\" -layout \"C:\\\\Users\\\\Daniel Chipolesch\\\\Downloads\\\\estrutura-normas.pdf\" -)"
+    ]
+  }
+}
