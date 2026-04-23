@@ -317,13 +317,16 @@
 </template>
 
 <script setup>
-import { ref, computed, reactive } from 'vue'
+import { ref, computed, reactive, onMounted } from 'vue'
 import { useDocumentsStore } from '@/stores/documents.js'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import NewDocumentDialog from '@/components/common/NewDocumentDialog.vue'
 import { gerarPdf } from '@/services/pdfService.js'
 
 const store = useDocumentsStore()
+
+// Mock: no-op (dados já carregados no state). Real: busca do backend com ETag.
+onMounted(() => store.fetchAll())
 
 const dialogNovoDoc = ref(false)
 const viewMode = ref('tabela')

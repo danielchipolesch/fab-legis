@@ -268,7 +268,7 @@
 
 <script setup>
 import { ref, computed, watch, onMounted, nextTick } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useEditorStore } from '@/stores/editor.js'
 import { useDocumentsStore } from '@/stores/documents.js'
 import { formatLabel, elementIcon, renumberElements } from '@/utils/numbering.js'
@@ -280,6 +280,7 @@ import DocumentPreview from '@/components/editor/DocumentPreview.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 
 const route = useRoute()
+const router = useRouter()
 const editorStore = useEditorStore()
 const docStore = useDocumentsStore()
 
@@ -363,11 +364,14 @@ function hasChildren(el) {
 
 onMounted(async () => {
   if (documentoId.value) {
-    editorStore.load(documentoId.value)
+    const ok = editorStore.load(documentoId.value)
+    if (!ok) {
+      router.replace({ name: 'home' })
+      return
+    }
   } else {
     editorStore.loadNew()
   }
-  // Garante que o editor renderiza antes de montar o preview pesado
   await nextTick()
   previewMounted.value = true
 })
