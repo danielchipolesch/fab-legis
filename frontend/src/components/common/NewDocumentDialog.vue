@@ -85,9 +85,9 @@
 
       <v-divider />
 
-      <v-card-actions class="pa-4">
+      <v-card-actions class="pa-4 gap-2">
         <v-spacer />
-        <v-btn variant="text" color="grey" @click="fechar">Cancelar</v-btn>
+        <v-btn variant="text" @click="fechar">Cancelar</v-btn>
         <v-btn
           color="primary"
           prepend-icon="mdi-check"

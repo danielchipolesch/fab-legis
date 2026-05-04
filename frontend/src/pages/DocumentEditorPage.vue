@@ -19,6 +19,24 @@
         </div>
       </div>
 
+      <!-- Auto-save status indicator — centralizado na barra -->
+      <div class="save-indicator d-flex align-center gap-1">
+        <template v-if="saveStatus === 'saving'">
+          <v-progress-circular size="14" width="2" indeterminate color="primary" />
+          <span class="text-caption text-medium-emphasis">Salvando…</span>
+        </template>
+        <template v-else-if="saveStatus === 'dirty'">
+          <v-icon size="14" color="warning">mdi-circle-medium</v-icon>
+          <span class="text-caption text-medium-emphasis">Não salvo</span>
+        </template>
+        <template v-else>
+          <v-icon size="16" color="success">mdi-check-circle-outline</v-icon>
+          <span class="text-caption text-success">Salvo</span>
+        </template>
+      </div>
+
+      <div class="flex-grow-1" />
+
       <StatusBadge v-if="documento" :status="documento.status" />
 
       <v-btn
@@ -26,6 +44,7 @@
         color="primary"
         prepend-icon="mdi-source-branch"
         size="small"
+        class="ms-2"
         :to="{ name: 'documento-comparar', params: { id: documentoId } }"
       >
         Comparar versões
@@ -33,24 +52,13 @@
 
       <v-btn
         variant="outlined"
-        color="error"
         prepend-icon="mdi-file-pdf-box"
         size="small"
+        class="ms-2"
         :loading="pdfLoading"
         @click="baixarPdf"
       >
         PDF
-      </v-btn>
-
-      <v-btn
-        color="primary"
-        prepend-icon="mdi-content-save-outline"
-        size="small"
-        :loading="saving"
-        :disabled="!editorStore.isDirty"
-        @click="salvar"
-      >
-        Salvar
       </v-btn>
     </div>
 
@@ -135,13 +143,13 @@
                     {{ formatLabel(selectedElement) }}
                   </h2>
                 </div>
-                <div class="d-flex gap-2">
+                <div class="d-flex">
                   <v-btn
                     v-if="!isGroupingEl && hasChildren(selectedElement)"
                     size="small"
                     variant="outlined"
-                    color="secondary"
                     prepend-icon="mdi-arrow-expand-down"
+                    class="ms-2"
                     @click="editorStore.demote(selectedElement.id)"
                   >
                     Rebaixar
@@ -150,8 +158,8 @@
                     v-if="!isGroupingEl"
                     size="small"
                     variant="outlined"
-                    color="secondary"
                     prepend-icon="mdi-arrow-collapse-up"
+                    class="ms-2"
                     @click="editorStore.promote(selectedElement.id)"
                   >
                     Promover
@@ -161,6 +169,7 @@
                     variant="outlined"
                     color="error"
                     prepend-icon="mdi-delete-outline"
+                    class="ms-2"
                     @click="editorStore.removeElement(selectedElement.id)"
                   >
                     Remover
@@ -193,15 +202,16 @@
             />
 
             <!-- Add child element shortcuts -->
-            <div v-if="childOptions.length && !isReadonly" class="mt-4 d-flex flex-wrap gap-2">
-              <span class="text-caption text-medium-emphasis align-self-center">Adicionar:</span>
+            <div v-if="childOptions.length && !isReadonly" class="mt-4 d-flex flex-wrap align-center">
+              <span class="text-caption text-medium-emphasis">Adicionar:</span>
               <v-btn
                 v-for="opt in childOptions"
                 :key="opt.tipo"
                 size="small"
-                variant="tonal"
+                variant="outlined"
                 color="primary"
                 :prepend-icon="elementIcon(opt.tipo)"
+                class="ms-2"
                 @click="editorStore.addFilho(selectedElement.id, opt.tipo)"
               >
                 {{ opt.label }}
@@ -209,9 +219,9 @@
               <v-btn
                 v-if="!isGroupingEl"
                 size="small"
-                variant="tonal"
-                color="secondary"
+                variant="outlined"
                 prepend-icon="mdi-plus"
+                class="ms-2"
                 @click="editorStore.addSibling(selectedElement.id, selectedElement.tipo)"
               >
                 Mesmo nível
@@ -222,7 +232,8 @@
         </template>
 
       </div>
-      <!-- PDF Preview panel — sempre visível, carrega após o editor -->
+
+      <!-- PDF Preview panel -->
       <div class="preview-panel overflow-y-auto">
         <template v-if="previewMounted && documento">
           <DocumentPreview
@@ -237,20 +248,6 @@
       </div>
 
     </div>
-
-    <!-- Dirty indicator snackbar -->
-    <v-snackbar
-      v-model="showDirtySnack"
-      location="bottom right"
-      color="warning"
-      timeout="3000"
-    >
-      <v-icon start>mdi-alert-circle-outline</v-icon>
-      Há alterações não salvas.
-      <template #actions>
-        <v-btn variant="text" @click="salvar">Salvar agora</v-btn>
-      </template>
-    </v-snackbar>
 
     <!-- PDF error snackbar -->
     <v-snackbar
@@ -267,7 +264,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted, nextTick } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useEditorStore } from '@/stores/editor.js'
 import { useDocumentsStore } from '@/stores/documents.js'
@@ -284,17 +281,40 @@ const router = useRouter()
 const editorStore = useEditorStore()
 const docStore = useDocumentsStore()
 
-const saving = ref(false)
-const showMeta = ref(false)
-const sidebarOpen = ref(true)
+const showMeta      = ref(false)
+const sidebarOpen   = ref(true)
 const previewMounted = ref(false)
-const showDirtySnack = ref(false)
-const pdfLoading = ref(false)
-const showPdfError = ref(false)
-const pdfErrorMsg = ref('')
+const pdfLoading    = ref(false)
+const showPdfError  = ref(false)
+const pdfErrorMsg   = ref('')
 
-const documentoId = computed(() => route.params.id)
-const documento = computed(() => editorStore.documento)
+// ── Auto-save ────────────────────────────────────────────────────────────────
+// Estados: 'idle' | 'dirty' | 'saving' | 'saved'
+const saveStatus = ref('idle')
+let autoSaveTimer = null
+
+function scheduleAutoSave() {
+  saveStatus.value = 'dirty'
+  clearTimeout(autoSaveTimer)
+  autoSaveTimer = setTimeout(autoSave, 2000)
+}
+
+async function autoSave() {
+  if (!editorStore.isDirty) return
+  saveStatus.value = 'saving'
+  await new Promise(r => setTimeout(r, 350))
+  editorStore.save()
+  saveStatus.value = 'idle'
+}
+
+onUnmounted(() => {
+  clearTimeout(autoSaveTimer)
+  if (editorStore.isDirty) editorStore.save()
+})
+// ─────────────────────────────────────────────────────────────────────────────
+
+const documentoId    = computed(() => route.params.id)
+const documento      = computed(() => editorStore.documento)
 const selectedElement = computed(() => editorStore.selectedElement)
 
 const isReadonly = computed(() =>
@@ -376,17 +396,6 @@ onMounted(async () => {
   previewMounted.value = true
 })
 
-watch(() => editorStore.isDirty, (val) => {
-  if (val) showDirtySnack.value = true
-})
-
-async function salvar() {
-  saving.value = true
-  await new Promise(r => setTimeout(r, 300))
-  editorStore.save()
-  saving.value = false
-}
-
 async function baixarPdf() {
   if (!documento.value) return
   pdfLoading.value = true
@@ -404,12 +413,14 @@ async function baixarPdf() {
 function onContentUpdate(html) {
   if (selectedElement.value) {
     editorStore.updateContent(selectedElement.value.id, html)
+    scheduleAutoSave()
   }
 }
 
 function onTituloUpdate(titulo) {
   if (selectedElement.value) {
     editorStore.updateTitulo(selectedElement.value.id, titulo)
+    scheduleAutoSave()
   }
 }
 
@@ -417,6 +428,7 @@ function onMetaUpdate(meta) {
   if (editorStore.documento) {
     Object.assign(editorStore.documento, meta)
     editorStore.isDirty = true
+    scheduleAutoSave()
   }
 }
 
@@ -426,6 +438,7 @@ function onReorderNormativa(newElements) {
     secao.elementos = newElements
     renumberElements(secao.elementos)
     editorStore.isDirty = true
+    scheduleAutoSave()
   }
 }
 
@@ -443,10 +456,12 @@ function addArtigo() {
   renumberElements(secao.elementos)
   editorStore.selectedElementId = novo.id
   editorStore.isDirty = true
+  scheduleAutoSave()
 }
 
 function addCapitulo(titulo) {
   editorStore.addCapitulo(titulo)
+  scheduleAutoSave()
 }
 </script>
 
@@ -500,5 +515,9 @@ function addCapitulo(titulo) {
 .element-header {
   padding-bottom: 16px;
   border-bottom: 2px solid rgba(var(--v-theme-primary), 0.12);
+}
+.save-indicator {
+  min-width: 96px;
+  justify-content: center;
 }
 </style>

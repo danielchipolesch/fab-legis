@@ -56,7 +56,7 @@
             />
           </v-col>
           <v-col cols="12" md="4" class="d-flex justify-end gap-2">
-            <v-btn variant="outlined" color="primary" prepend-icon="mdi-filter-off" @click="limparFiltros">
+            <v-btn variant="text" prepend-icon="mdi-filter-off" @click="limparFiltros">
               Limpar
             </v-btn>
             <v-btn-toggle v-model="viewMode" mandatory color="primary" density="compact" rounded="md">
@@ -111,7 +111,7 @@
           </template>
 
           <template #item.actions="{ item }">
-            <div class="d-flex gap-1">
+            <div class="d-flex gap-2">
 
               <!-- Editar — só RASCUNHO e MINUTA -->
               <v-btn
@@ -133,7 +133,6 @@
                 icon="mdi-eye-outline"
                 size="small"
                 variant="text"
-                color="secondary"
                 :to="{ name: 'documento-editar', params: { id: item.id } }"
               >
                 <v-icon />
@@ -145,7 +144,6 @@
                 icon="mdi-source-branch"
                 size="small"
                 variant="text"
-                color="info"
                 :disabled="!item.versoes?.length"
                 :to="item.versoes?.length ? { name: 'documento-comparar', params: { id: item.id } } : undefined"
               >
@@ -160,7 +158,6 @@
                 icon="mdi-content-copy"
                 size="small"
                 variant="text"
-                color="secondary"
                 @click="clonar(item)"
               >
                 <v-icon />
@@ -172,7 +169,6 @@
                 icon="mdi-file-pdf-box"
                 size="small"
                 variant="text"
-                color="error"
                 @click="baixarPdf(item)"
               >
                 <v-icon />
@@ -245,7 +241,7 @@
 
             <v-divider />
 
-            <v-card-actions class="pa-2">
+            <v-card-actions class="pa-3 gap-1">
               <v-btn
                 size="small"
                 variant="text"
@@ -257,20 +253,19 @@
                 Editar
               </v-btn>
               <v-spacer />
-              <v-btn size="small" icon="mdi-content-copy" variant="text" color="secondary" @click="clonar(doc)">
+              <v-btn size="small" icon="mdi-content-copy" variant="text" @click="clonar(doc)">
                 <v-tooltip activator="parent" location="top">Clonar</v-tooltip>
               </v-btn>
               <v-btn
                 size="small"
                 icon="mdi-source-branch"
                 variant="text"
-                color="info"
                 :disabled="!doc.versoes?.length"
                 :to="doc.versoes?.length ? { name: 'documento-comparar', params: { id: doc.id } } : undefined"
               >
                 <v-tooltip activator="parent" location="top">Comparar versões</v-tooltip>
               </v-btn>
-              <v-btn size="small" icon="mdi-file-pdf-box" variant="text" color="error" @click="baixarPdf(doc)">
+              <v-btn size="small" icon="mdi-file-pdf-box" variant="text" @click="baixarPdf(doc)">
                 <v-tooltip activator="parent" location="top">Baixar PDF</v-tooltip>
               </v-btn>
             </v-card-actions>
@@ -305,10 +300,10 @@
           <strong>{{ dialog.target?.especie }} {{ dialog.target?.numero_basico }}</strong>
           será removido permanentemente.
         </v-card-text>
-        <v-card-actions class="px-6 pb-5">
+        <v-card-actions class="px-6 pb-5 gap-2">
           <v-spacer />
           <v-btn variant="text" @click="dialog.delete = false">Cancelar</v-btn>
-          <v-btn color="error" @click="excluir">Excluir</v-btn>
+          <v-btn variant="flat" color="error" @click="excluir">Excluir</v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>

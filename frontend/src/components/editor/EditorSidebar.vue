@@ -93,7 +93,7 @@
                       <template #activator="{ props: mp }">
                         <v-btn
                           v-bind="mp"
-                          variant="tonal"
+                          variant="outlined"
                           color="primary"
                           size="small"
                           prepend-icon="mdi-folder-plus-outline"
@@ -133,7 +133,6 @@
                   <v-btn
                     v-bind="tp"
                     variant="outlined"
-                    color="secondary"
                     size="small"
                     prepend-icon="mdi-plus"
                     :disabled="hasCapitulos"
