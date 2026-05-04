@@ -48,3 +48,29 @@ Thumbs.db
 
 # Claude
 .claude/
+
+# ── Java / Maven (backend) ────────────────────────────────────────────────────
+backend/target/
+!backend/.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+# IntelliJ IDEA — arquivos de projeto
+*.iws
+*.iml
+*.ipr
+
+# Spring Tool Suite (STS)
+backend/.apt_generated
+backend/.classpath
+backend/.factorypath
+backend/.project
+backend/.settings
+backend/.springBeans
+backend/.sts4-cache
+
+# NetBeans
+backend/nbproject/private/
+backend/nbbuild/
+backend/nbdist/
+backend/.nb-gradle/

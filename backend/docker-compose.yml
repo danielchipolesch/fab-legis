@@ -1,0 +1,71 @@
+version: '3.8'
+
+services:
+    postgres-dev:
+        image: postgres:latest
+        environment:
+            POSTGRES_USER: postgres
+            POSTGRES_PASSWORD: 123456
+            POSTGRES_DB: fab-legis-dev
+        ports:
+            - "5432:5432"
+#        depends_on:
+#            -   mongodb-dev
+
+#    mongodb-dev:
+#        image: mongo
+#        environment:
+#            MONGO_INITDB_DATABASE: fab-legisDB
+#            MONGO_INITDB_ROOT_USERNAME: root
+#            MONGO_INITDB_ROOT_PASSWORD: 123456
+#        ports:
+#            - "27018:27017"
+#        volumes:
+#            - /home/renatogroffe/Desenvolvimento/Docker/Volumes/MongoDB:/data/db
+#       networks:
+#            - mongo-compose-network
+#    postgres-prod:
+#        image: postgres:latest
+#        environment:
+#            POSTGRES_USER: postgres
+#            POSTGRES_PASSWORD: 123456
+#            POSTGRES_DB: fab-legis-prod
+#        ports:
+#            - "5433:5432"
+#        depends_on:
+#            - postgres-dev
+
+#        networks:
+#            - mynetwork
+    
+#    mongodb:
+#        image: mongo:latest
+#        ports:
+#            - "27017:27017"
+#        networks:
+#            - mynetwork
+#
+#    rabbitmq:
+#        image: rabbitmq:3-management
+#        ports:
+#            - "5672:5672"
+#            - "15672:15672"
+#        networks:
+#            - mynetwork
+#
+#    productsapi:
+#        build:
+#            context: .
+#            dockerfile: Dockerfile
+#        ports:
+#            - "8082:8082"
+#        depends_on:
+#            - postgres
+#            - mongodb
+#            - rabbitmq
+#        networks:
+#            - mynetwork
+
+#networks:
+#    mynetwork:
+#        driver: bridge
