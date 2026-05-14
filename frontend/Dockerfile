@@ -2,7 +2,7 @@
 FROM node:20-alpine AS base
 WORKDIR /app
 COPY frontend/package*.json ./
-RUN npm ci --prefer-offline
+RUN npm install
 
 # ── Estágio de desenvolvimento (Vite HMR) ─────────────────────────────────────
 FROM base AS development
