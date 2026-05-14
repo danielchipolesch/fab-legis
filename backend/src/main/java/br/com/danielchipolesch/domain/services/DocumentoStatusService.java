@@ -30,25 +30,29 @@ public class DocumentoStatusService {
         throw new StatusCannotBeUpdatedException(DocumentException.CANNOT_BE_UPDATED.getMessage());
     }
 
-    /* TODO Must review statuses and its usability. */
+    public DocumentoResponseSemAnexoTextualDto changeStatus(Long id, DocumentoStatusEnum novoStatus) throws RuntimeException {
 
-    public DocumentoResponseSemAnexoTextualDto publishDocument(){
-        /* TODO Insert logic to publish documents (PUBLICADO). To choose this status, current status must be APROVADO. */
-        return null;
-    }
+        Documento document = documentoRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException(DocumentException.NOT_FOUND.getMessage()));
 
-    public DocumentoResponseSemAnexoTextualDto archiveDocument(){
-        /* TODO Insert logic to archive documents (ARQUIVADO). To choose this status, current status must be XYZ. */
-        return null;
-    }
+        DocumentoStatusEnum current = document.getDocumentoStatus();
 
-    public DocumentoResponseSemAnexoTextualDto cancelDocument(){
-        /* TODO Insert logic to cancel documents (CANCELADO). To choose this status, current status must be ZYX. */
-        return null;
-    }
+        boolean transicaoValida = switch (novoStatus) {
+            case MINUTA    -> current == DocumentoStatusEnum.RASCUNHO || current == DocumentoStatusEnum.APROVADO;
+            case APROVADO  -> current == DocumentoStatusEnum.RASCUNHO || current == DocumentoStatusEnum.MINUTA;
+            case PUBLICADO -> current == DocumentoStatusEnum.APROVADO;
+            case ARQUIVADO -> current == DocumentoStatusEnum.PUBLICADO;
+            case REVOGADO  -> current == DocumentoStatusEnum.PUBLICADO;
+            case CANCELADO -> current == DocumentoStatusEnum.RASCUNHO || current == DocumentoStatusEnum.MINUTA;
+            default        -> false;
+        };
 
-    public DocumentoResponseSemAnexoTextualDto revokeDocument(){
-        /* TODO Insert logic to revoke documents (REVOGAR). To choose this status, current status must be AAAAA. */
-        return null;
+        if (!transicaoValida) {
+            throw new StatusCannotBeUpdatedException(DocumentException.CANNOT_BE_UPDATED.getMessage());
+        }
+
+        document.setDocumentoStatus(novoStatus);
+        documentoRepository.save(document);
+        return DocumentoMapper.documentoToDocumentoSemAnexoTextualResponseDto(document);
     }
 }

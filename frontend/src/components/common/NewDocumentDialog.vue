@@ -15,63 +15,116 @@
         <v-form ref="formRef" v-model="valido" @submit.prevent="confirmar">
           <v-row dense>
 
-            <!-- Organização Militar -->
-            <v-col cols="12">
-              <v-select
-                v-model="form.organizacao"
-                :items="organizacoes"
-                label="Organização Militar *"
-                :rules="[obrigatorio]"
-                prepend-inner-icon="mdi-domain"
-              />
-            </v-col>
+            <!-- MODO MOCK ─────────────────────────────────────────────── -->
+            <template v-if="useMock">
 
-            <!-- Espécie Normativa -->
-            <v-col cols="12" sm="6">
-              <v-select
-                v-model="form.especie"
-                :items="especies"
-                label="Espécie Normativa *"
-                :rules="[obrigatorio]"
-                prepend-inner-icon="mdi-tag-outline"
-                @update:model-value="atualizarNumero"
-              />
-            </v-col>
+              <!-- Organização Militar -->
+              <v-col cols="12">
+                <v-select
+                  v-model="form.organizacao"
+                  :items="organizacoes"
+                  label="Organização Militar *"
+                  :rules="[obrigatorio]"
+                  prepend-inner-icon="mdi-domain"
+                />
+              </v-col>
 
-            <!-- Numeração Básica (sequencial, somente leitura) -->
-            <v-col cols="12" sm="6">
-              <v-text-field
-                :model-value="proximoNumero"
-                label="Numeração Básica"
-                readonly
-                prepend-inner-icon="mdi-numeric"
-                hint="Gerada automaticamente pelo sistema"
-                persistent-hint
-              >
-                <template #append-inner>
-                  <v-icon icon="mdi-lock-outline" size="16" color="grey" />
-                </template>
-              </v-text-field>
-            </v-col>
+              <!-- Espécie Normativa -->
+              <v-col cols="12" sm="6">
+                <v-select
+                  v-model="form.especie"
+                  :items="especiesMock"
+                  label="Espécie Normativa *"
+                  :rules="[obrigatorio]"
+                  prepend-inner-icon="mdi-tag-outline"
+                />
+              </v-col>
 
-            <!-- Assunto Básico -->
-            <v-col cols="12">
-              <v-text-field
-                v-model="form.assunto_basico"
-                label="Assunto Básico *"
-                :rules="[obrigatorio, minLen]"
-                prepend-inner-icon="mdi-text-short"
-                counter="200"
-                maxlength="200"
-              />
-            </v-col>
+              <!-- Numeração Básica (somente leitura) -->
+              <v-col cols="12" sm="6">
+                <v-text-field
+                  :model-value="proximoNumeroMock"
+                  label="Numeração Básica"
+                  readonly
+                  prepend-inner-icon="mdi-numeric"
+                  hint="Gerada automaticamente pelo sistema"
+                  persistent-hint
+                >
+                  <template #append-inner>
+                    <v-icon icon="mdi-lock-outline" size="16" color="grey" />
+                  </template>
+                </v-text-field>
+              </v-col>
+
+              <!-- Assunto Básico (texto livre no mock) -->
+              <v-col cols="12">
+                <v-text-field
+                  v-model="form.assunto_basico"
+                  label="Assunto Básico *"
+                  :rules="[obrigatorio, minLen]"
+                  prepend-inner-icon="mdi-text-short"
+                  counter="200"
+                  maxlength="200"
+                />
+              </v-col>
+
+            </template>
+
+            <!-- MODO REAL ─────────────────────────────────────────────── -->
+            <template v-else>
+
+              <!-- Espécie Normativa (select do backend) -->
+              <v-col cols="12">
+                <v-autocomplete
+                  v-model="form.especieNormativa"
+                  :items="especiesReal"
+                  :loading="carregandoRefs"
+                  item-title="label"
+                  item-value="id"
+                  label="Espécie Normativa *"
+                  :rules="[obrigatorio]"
+                  prepend-inner-icon="mdi-tag-outline"
+                  return-object
+                  no-data-text="Nenhuma espécie encontrada"
+                />
+              </v-col>
+
+              <!-- Assunto Básico (select do backend) -->
+              <v-col cols="12">
+                <v-autocomplete
+                  v-model="form.assuntoBasico"
+                  :items="assuntosReal"
+                  :loading="carregandoRefs"
+                  item-title="label"
+                  item-value="id"
+                  label="Assunto Básico *"
+                  :rules="[obrigatorio]"
+                  prepend-inner-icon="mdi-book-outline"
+                  return-object
+                  no-data-text="Nenhum assunto encontrado"
+                />
+              </v-col>
+
+              <!-- Título do documento -->
+              <v-col cols="12">
+                <v-text-field
+                  v-model="form.titulo"
+                  label="Título do Documento *"
+                  :rules="[obrigatorio, minLen]"
+                  prepend-inner-icon="mdi-format-title"
+                  counter="500"
+                  maxlength="500"
+                />
+              </v-col>
+
+            </template>
 
           </v-row>
         </v-form>
 
-        <!-- Preview do identificador -->
+        <!-- Preview do identificador (mock) -->
         <v-alert
-          v-if="form.especie && proximoNumero"
+          v-if="useMock && form.especie && proximoNumeroMock"
           type="info"
           variant="tonal"
           density="compact"
@@ -79,7 +132,20 @@
           icon="mdi-identifier"
         >
           O documento será identificado como
-          <strong>{{ form.especie }} {{ proximoNumero }}</strong>.
+          <strong>{{ form.especie }} {{ proximoNumeroMock }}</strong>.
+        </v-alert>
+
+        <!-- Preview do identificador (real) -->
+        <v-alert
+          v-if="!useMock && form.especieNormativa && form.assuntoBasico"
+          type="info"
+          variant="tonal"
+          density="compact"
+          class="mt-2"
+          icon="mdi-identifier"
+        >
+          {{ form.especieNormativa?.sigla }} {{ form.assuntoBasico?.codigo }}-<em>N</em>
+          (N gerado automaticamente pelo servidor)
         </v-alert>
       </v-card-text>
 
@@ -91,7 +157,8 @@
         <v-btn
           color="primary"
           prepend-icon="mdi-check"
-          :disabled="!valido"
+          :disabled="!valido || salvando"
+          :loading="salvando"
           @click="confirmar"
         >
           Criar Documento
@@ -103,27 +170,60 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, watch } from 'vue'
+import { ref, reactive, computed, watch, onMounted } from 'vue'
 import { useDocumentsStore } from '@/stores/documents.js'
 import { useRouter } from 'vue-router'
+import { USE_MOCK } from '@/api/documents.js'
+import { listEspeciesNormativas, listAssuntosBasicos, normalizeEspecie, normalizeAssunto } from '@/api/referencias.js'
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
 })
 const emit = defineEmits(['update:modelValue'])
 
-const router = useRouter()
-const store  = useDocumentsStore()
+const router  = useRouter()
+const store   = useDocumentsStore()
+const useMock = USE_MOCK
 
-const formRef = ref(null)
-const valido  = ref(false)
+const formRef  = ref(null)
+const valido   = ref(false)
+const salvando = ref(false)
 
-const aberto = computed({
-  get: () => props.modelValue,
-  set: (v) => emit('update:modelValue', v),
+// ─── Referências (modo real) ──────────────────────────────────────────────────
+
+const carregandoRefs = ref(false)
+const especiesReal   = ref([])
+const assuntosReal   = ref([])
+
+async function carregarReferencias() {
+  if (useMock || especiesReal.value.length) return
+  carregandoRefs.value = true
+  try {
+    const [especies, assuntos] = await Promise.all([
+      listEspeciesNormativas(),
+      listAssuntosBasicos(),
+    ])
+    especiesReal.value = especies.map(normalizeEspecie)
+    assuntosReal.value = assuntos.map(normalizeAssunto)
+  } finally {
+    carregandoRefs.value = false
+  }
+}
+
+// ─── Form ──────────────────────────────────────────────────────────────────────
+
+const form = reactive({
+  // Mock
+  organizacao:   '',
+  especie:       '',
+  assunto_basico: '',
+  // Real
+  especieNormativa: null,
+  assuntoBasico:    null,
+  titulo:           '',
 })
 
-const form = reactive({ organizacao: '', especie: '', assunto_basico: '' })
+// ─── Modo mock ─────────────────────────────────────────────────────────────────
 
 const organizacoes = [
   'COMAER — Comando da Aeronáutica',
@@ -138,40 +238,68 @@ const organizacoes = [
   'COMAER/SJC — Subdepartamento de Gestão',
 ]
 
-const especies = ['ICA', 'NSCA', 'Portaria', 'Resolução', 'Decreto', 'Aviso', 'Mensagem']
+const especiesMock = ['ICA', 'NSCA', 'MCA', 'RCA', 'DCA', 'PCA', 'OCA', 'TCA']
 
-const proximoNumero = computed(() =>
+const proximoNumeroMock = computed(() =>
   form.especie ? store.getNextBasicNumber(form.especie) : ''
 )
 
-const obrigatorio = (v) => !!v?.trim() || 'Campo obrigatório'
-const minLen      = (v) => (v?.trim().length ?? 0) >= 5 || 'Mínimo de 5 caracteres'
+// ─── Validações ────────────────────────────────────────────────────────────────
 
-function atualizarNumero() {
-  // Apenas força recompute do proximoNumero via getter reativo
-}
+const obrigatorio = (v) => (v != null && String(v).trim() !== '') || 'Campo obrigatório'
+const minLen      = (v) => (String(v ?? '').trim().length >= 5) || 'Mínimo de 5 caracteres'
+
+// ─── Dialog ────────────────────────────────────────────────────────────────────
+
+const aberto = computed({
+  get: () => props.modelValue,
+  set: (v) => emit('update:modelValue', v),
+})
+
+watch(aberto, async (v) => {
+  if (v) {
+    formRef.value?.reset()
+    await carregarReferencias()
+  }
+})
+
+// ─── Ações ─────────────────────────────────────────────────────────────────────
 
 async function confirmar() {
   const { valid } = await formRef.value.validate()
   if (!valid) return
 
-  const doc = store.createDocumento({
-    organizacao:    form.organizacao,
-    especie:        form.especie,
-    assunto_basico: form.assunto_basico,
-    numero_basico:  proximoNumero.value,
-  })
+  salvando.value = true
+  try {
+    let doc
+    if (useMock) {
+      doc = await store.createDocumento({
+        organizacao:    form.organizacao,
+        especie:        form.especie,
+        assunto_basico: form.assunto_basico,
+        numero_basico:  proximoNumeroMock.value,
+      })
+    } else {
+      doc = await store.createDocumento({
+        idEspecieNormativa: form.especieNormativa.id,
+        idAssuntoBasico:    form.assuntoBasico.id,
+        tituloDocumento:    form.titulo,
+      })
+    }
 
-  fechar()
-  router.push({ name: 'documento-editar', params: { id: doc.id } })
+    fechar()
+    if (doc?.id) router.push({ name: 'documento-editar', params: { id: doc.id } })
+  } finally {
+    salvando.value = false
+  }
 }
 
 function fechar() {
   aberto.value = false
   formRef.value?.reset()
-  Object.assign(form, { organizacao: '', especie: '', assunto_basico: '' })
+  Object.assign(form, {
+    organizacao: '', especie: '', assunto_basico: '',
+    especieNormativa: null, assuntoBasico: null, titulo: '',
+  })
 }
-
-// Limpa o form ao abrir
-watch(aberto, (v) => { if (v) formRef.value?.reset() })
 </script>

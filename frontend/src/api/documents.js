@@ -4,18 +4,14 @@
  * Modo mock  (VITE_USE_MOCK_API=true  — padrão de desenvolvimento):
  *   Lê e grava no localStorage; não faz requisições de rede.
  *
- * Modo real  (VITE_USE_MOCK_API=false — quando o backend estiver disponível):
+ * Modo real  (VITE_USE_MOCK_API=false — com backend rodando):
  *   Delega para client.js, que aplica cache ETag/304 automaticamente.
- *
- * Para ativar o backend:
- *   1. Defina VITE_USE_MOCK_API=false em .env.local
- *   2. Defina VITE_API_BASE_URL=http://seu-backend em .env.local
- *   3. Os dados do localStorage mock não são migrados automaticamente.
+ *   VITE_API_BASE_URL deve apontar para http://localhost:8081/v1
  */
 
 import * as http from './client.js'
 
-const USE_MOCK = import.meta.env.VITE_USE_MOCK_API !== 'false'
+export const USE_MOCK = import.meta.env.VITE_USE_MOCK_API !== 'false'
 
 // ─── Mock: persistência local ─────────────────────────────────────────────────
 
@@ -29,22 +25,49 @@ function writeDocs(docs) {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(docs)) } catch {}
 }
 
-// ─── Interface pública ────────────────────────────────────────────────────────
-// Todas as funções retornam Promise para interface uniforme entre modos.
+// ─── Mapeamento backend ↔ frontend ────────────────────────────────────────────
 
 /**
- * Carrega os dados iniciais de forma síncrona (mock) ou retorna null (real).
- * Usado pelo store para popular o estado antes do primeiro render.
+ * Converte um documento retornado pelo backend para o modelo do frontend.
+ * Suporta tanto DocumentoResponseSemAnexoTextualDto quanto Com (inclui itens).
  */
+export function backendParaFrontend(doc) {
+  if (!doc) return null
+  return {
+    id: doc.idDocumento,
+    especie: doc.siglaEspecieNormativa,
+    numero_basico: doc.codigoAssuntoBasico,
+    numero_secundario: doc.numeroSecundario != null ? String(doc.numeroSecundario) : null,
+    assunto_basico: doc.nomeAssuntoBasico ?? doc.codigoAssuntoBasico,
+    titulo: doc.tituloDocumento,
+    codigo_documento: doc.codigoDocumento,
+    data_criacao: doc.dtCriacao ? doc.dtCriacao.split('T')[0] : null,
+    data_publicacao: null,
+    status: doc.statusDocumento,
+    versoes: [],
+    itens: doc.itens ?? [],
+    secoes: [],
+  }
+}
+
+/**
+ * Converte o payload do frontend para o formato esperado pelo backend na criação.
+ */
+export function frontendParaBackendCreate(payload) {
+  return {
+    idEspecieNormativa: payload.idEspecieNormativa ?? payload.IdEspecieNormativa,
+    idAssuntoBasico:    payload.idAssuntoBasico    ?? payload.IdAssuntoBasico,
+    tituloDocumento:    payload.tituloDocumento,
+  }
+}
+
+// ─── Interface pública ────────────────────────────────────────────────────────
+
 export function loadInitial() {
   if (!USE_MOCK) return null
   return readDocs()
 }
 
-/**
- * Persiste o array completo de documentos (mock only).
- * No modo real, a persistência é por operação via CRUD abaixo.
- */
 export function persist(docs) {
   if (USE_MOCK) writeDocs(docs)
 }
@@ -53,8 +76,9 @@ export function persist(docs) {
 
 export async function listDocumentos() {
   if (USE_MOCK) return readDocs() ?? []
-  // ETag cache aplicado automaticamente por client.get()
-  return http.get('/documentos')
+  const data = await http.get('/documentos/obter-todos?size=100&sortBy=id')
+  const items = Array.isArray(data) ? data : []
+  return items.map(backendParaFrontend)
 }
 
 export async function getDocumento(id) {
@@ -62,16 +86,25 @@ export async function getDocumento(id) {
     const docs = readDocs() ?? []
     return docs.find(d => d.id === id) ?? null
   }
-  // 304 → retorna dado em cache sem transferência de corpo
-  return http.get(`/documentos/${id}`)
+  const data = await http.get(`/documentos/${id}`)
+  return backendParaFrontend(data)
 }
 
 export async function createDocumento(payload) {
   if (USE_MOCK) {
-    // Implementação mock mantida no store (depende de lógica de negócio local)
     throw new Error('createDocumento mock deve ser chamado pelo store')
   }
-  return http.post('/documentos', payload)
+  const body = frontendParaBackendCreate(payload)
+  const data = await http.post('/documentos', body)
+  return backendParaFrontend(data)
+}
+
+export async function cloneDocumento(id) {
+  if (USE_MOCK) {
+    throw new Error('cloneDocumento mock deve ser chamado pelo store')
+  }
+  const data = await http.post(`/documentos/${id}/clonar`)
+  return backendParaFrontend(data)
 }
 
 export async function updateDocumento(id, data) {
@@ -81,15 +114,17 @@ export async function updateDocumento(id, data) {
     if (idx !== -1) { docs[idx] = data; writeDocs(docs) }
     return data
   }
-  return http.put(`/documentos/${id}`, data)
+  const body = { tituloDocumento: data.titulo ?? data.tituloDocumento }
+  const result = await http.put(`/documentos/${id}`, body)
+  return backendParaFrontend(result)
 }
 
 export async function changeDocumentoStatus(id, novoStatus) {
   if (USE_MOCK) {
-    // Implementação mock mantida no store (depende de lógica de negócio local)
     throw new Error('changeDocumentoStatus mock deve ser chamado pelo store')
   }
-  return http.patch(`/documentos/${id}/status`, { status: novoStatus })
+  const result = await http.patch(`/documentos/${id}/status`, { status: novoStatus })
+  return backendParaFrontend(result)
 }
 
 export async function deleteDocumento(id) {

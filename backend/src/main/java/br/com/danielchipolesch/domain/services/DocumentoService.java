@@ -1,6 +1,7 @@
 package br.com.danielchipolesch.domain.services;
 
 import br.com.danielchipolesch.application.dtos.documentoDtos.DocumentoRequestCreateDto;
+import br.com.danielchipolesch.application.dtos.documentoDtos.DocumentoRequestUpdateDto;
 import br.com.danielchipolesch.application.dtos.documentoDtos.DocumentoResponseSemAnexoTextualDto;
 import br.com.danielchipolesch.domain.builders.DocumentoBuilder;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.Documento;
@@ -10,6 +11,7 @@ import br.com.danielchipolesch.domain.entities.numeracaoDocumento.EspecieNormati
 import br.com.danielchipolesch.domain.handlers.exceptions.ResourceNotFoundException;
 import br.com.danielchipolesch.domain.handlers.exceptions.enums.BasicSubjectException;
 import br.com.danielchipolesch.domain.handlers.exceptions.enums.DocumentException;
+import br.com.danielchipolesch.domain.handlers.exceptions.StatusCannotBeUpdatedException;
 import br.com.danielchipolesch.domain.handlers.exceptions.enums.DocumentationTypeException;
 import br.com.danielchipolesch.domain.mappers.DocumentoMapper;
 import br.com.danielchipolesch.infrastructure.repositories.*;
@@ -101,6 +103,21 @@ public class DocumentoService {
 //        throw new StatusCannotBeUpdatedException(DocumentException.CANNOT_BE_UPDATED.getMessage());
 //
 //    }
+
+    @Transactional
+    public DocumentoResponseSemAnexoTextualDto update(Long id, DocumentoRequestUpdateDto request) throws RuntimeException {
+
+        Documento document = documentoRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException(DocumentException.NOT_FOUND.getMessage()));
+
+        if (document.getDocumentoStatus() != DocumentoStatusEnum.RASCUNHO
+                && document.getDocumentoStatus() != DocumentoStatusEnum.MINUTA) {
+            throw new StatusCannotBeUpdatedException(DocumentException.CANNOT_BE_UPDATED.getMessage());
+        }
+
+        document.setTituloDocumento(request.getTituloDocumento());
+        return DocumentoMapper.documentoToDocumentoSemAnexoTextualResponseDto(documentoRepository.save(document));
+    }
 
     public DocumentoResponseSemAnexoTextualDto delete(Long id) throws RuntimeException {
 

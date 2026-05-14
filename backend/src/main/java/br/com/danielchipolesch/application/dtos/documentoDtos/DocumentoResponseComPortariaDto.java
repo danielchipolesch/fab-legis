@@ -11,9 +11,9 @@ public class DocumentoResponseComPortariaDto {
     private Long idDocumento;
     private String siglaEspecieNormativa;
     private String codigoAssuntoBasico;
+    private String nomeAssuntoBasico;
     private Integer numeroSecundario;
     private String codigoDocumento;
-    //    private String nomeAssuntoBasico;
     private String tituloDocumento;
     private DocumentoStatusEnum statusDocumento;
 }

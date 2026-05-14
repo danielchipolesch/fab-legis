@@ -68,24 +68,17 @@ export default defineConfig({
 
   server: {
     port: 5173,
-    host: true,
+    host: '0.0.0.0',
     // Polling necessário no Windows + Docker: eventos de filesystem (inotify)
     // não chegam ao container a partir do volume montado no host Windows.
     watch: {
       usePolling: true,
-      interval: 300,       // ms entre cada verificação de mudança
-    },
-    proxy: {
-      '/api': {
-        target: process.env.VITE_API_BASE_URL ?? 'http://localhost:8080',
-        changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api/, '/api'),
-      },
+      interval: 300,
     },
   },
 
   preview: {
     port: 8080,
-    host: true,
+    host: '0.0.0.0',
   },
 })

@@ -24,10 +24,12 @@ function mockDocumento(overrides = {}) {
     numero_basico: '21',
     numero_secundario: '1',
     assunto_basico: 'Organização do Sistema de Ensino da Aeronáutica',
+    titulo: 'Regulamento do Sistema de Ensino da Aeronáutica',
     data_criacao: '2024-01-15',
     data_publicacao: null,
     status: 'RASCUNHO',
     versoes: [],
+    itens: [],
     secoes: [
       {
         id: uuidv4(),
@@ -100,11 +102,11 @@ function mockDocumento(overrides = {}) {
 const MOCK_DOCUMENTOS = [
   mockDocumento({ status: 'PUBLICADO', especie: 'NSCA', numero_basico: '5', numero_secundario: '3', assunto_basico: 'Elaboração e Gestão de Atos Normativos do COMAER', data_publicacao: '2023-06-01' }),
   mockDocumento({ status: 'APROVADO',  especie: 'ICA',  numero_basico: '21', numero_secundario: '1', assunto_basico: 'Organização do Sistema de Ensino da Aeronáutica' }),
-  mockDocumento({ status: 'MINUTA',    especie: 'Portaria', numero_basico: '314', numero_secundario: null, assunto_basico: 'Designação de Oficial para Função de Confiança' }),
+  mockDocumento({ status: 'MINUTA',    especie: 'ICA',  numero_basico: '55', numero_secundario: '3', assunto_basico: 'Regulamento de Tráfego Aéreo' }),
   mockDocumento({ status: 'RASCUNHO',  especie: 'ICA',  numero_basico: '55', numero_secundario: '17', assunto_basico: 'Regulamento de Tráfego Aéreo' }),
-  mockDocumento({ status: 'ARQUIVADO', especie: 'NSCA', numero_basico: '3', numero_secundario: '6', assunto_basico: 'Normas para Contratação de Serviços' }),
+  mockDocumento({ status: 'ARQUIVADO', especie: 'NSCA', numero_basico: '3',  numero_secundario: '6',  assunto_basico: 'Normas para Contratação de Serviços' }),
   mockDocumento({ status: 'CANCELADO', especie: 'ICA',  numero_basico: '100', numero_secundario: '2', assunto_basico: 'Procedimentos de Segurança de Voo' }),
-  mockDocumento({ status: 'REVOGADO',  especie: 'Portaria', numero_basico: '201', numero_secundario: null, assunto_basico: 'Organização Interna da DIRENS' }),
+  mockDocumento({ status: 'REVOGADO',  especie: 'ICA',  numero_basico: '21', numero_secundario: '2',  assunto_basico: 'Organização Interna da DIRENS' }),
 ]
 
 function cloneDoc(doc) {
@@ -115,8 +117,6 @@ function cloneDoc(doc) {
 
 export const useDocumentsStore = defineStore('documents', {
   state: () => {
-    // Mock: carrega do localStorage imediatamente (render síncrono sem flash)
-    // Real: começa vazio; fetchAll() popula após o mount
     const stored = api.loadInitial()
     if (stored === null) api.persist(MOCK_DOCUMENTOS)
     return {
@@ -126,7 +126,7 @@ export const useDocumentsStore = defineStore('documents', {
   },
 
   getters: {
-    getById: (state) => (id) => state.documentos.find(d => d.id === id) ?? null,
+    getById: (state) => (id) => state.documentos.find(d => String(d.id) === String(id)) ?? null,
 
     getNextBasicNumber: (state) => (especie) => {
       const numeros = state.documentos
@@ -137,13 +137,9 @@ export const useDocumentsStore = defineStore('documents', {
   },
 
   actions: {
-    /**
-     * Carrega a lista de documentos do backend (real) ou é no-op (mock).
-     * Chamar em onMounted das páginas que listam documentos.
-     */
     async fetchAll() {
-      // Mock: dados já carregados sincronamente no state()
-      if (this.documentos.length) return
+      if (api.USE_MOCK) return
+      if (this.loading) return
       this.loading = true
       try {
         this.documentos = await api.listDocumentos()
@@ -152,96 +148,118 @@ export const useDocumentsStore = defineStore('documents', {
       }
     },
 
-    /**
-     * Recarrega um documento individual do backend.
-     * No modo real, aproveita o cache ETag: só transfere corpo se houve mudança.
-     */
     async fetchDocumento(id) {
       const doc = await api.getDocumento(id)
       if (!doc) return null
-      const idx = this.documentos.findIndex(d => d.id === id)
+      const idx = this.documentos.findIndex(d => String(d.id) === String(id))
       if (idx !== -1) this.documentos[idx] = doc
+      else this.documentos.push(doc)
       return doc
     },
 
-    createDocumento(payload) {
-      const base = mockDocumento({})
-      const novo = {
-        ...base,
-        id: uuidv4(),
-        especie:           payload.especie          ?? base.especie,
-        organizacao:       payload.organizacao       ?? '',
-        assunto_basico:    payload.assunto_basico    ?? base.assunto_basico,
-        numero_basico:     payload.numero_basico     ?? base.numero_basico,
-        numero_secundario: null,
-        data_criacao:      new Date().toISOString().slice(0, 10),
-        data_publicacao:   null,
-        status:            'RASCUNHO',
-        versoes:           [],
+    async createDocumento(payload) {
+      if (api.USE_MOCK) {
+        const base = mockDocumento({})
+        const novo = {
+          ...base,
+          id: uuidv4(),
+          especie:           payload.especie          ?? base.especie,
+          assunto_basico:    payload.assunto_basico    ?? base.assunto_basico,
+          numero_basico:     payload.numero_basico     ?? base.numero_basico,
+          numero_secundario: null,
+          data_criacao:      new Date().toISOString().slice(0, 10),
+          data_publicacao:   null,
+          status:            'RASCUNHO',
+          versoes:           [],
+          itens:             [],
+        }
+        this.documentos.unshift(novo)
+        api.persist(this.documentos)
+        return novo
       }
+      const novo = await api.createDocumento(payload)
       this.documentos.unshift(novo)
-      api.persist(this.documentos)
-      // Modo real: trocar pela chamada abaixo e remover as linhas acima:
-      // return api.createDocumento(payload)
       return novo
     },
 
-    cloneDocumento(id) {
-      const original = this.documentos.find(d => d.id === id)
-      if (!original) return null
+    async cloneDocumento(id) {
+      if (api.USE_MOCK) {
+        const original = this.documentos.find(d => String(d.id) === String(id))
+        if (!original) return null
 
-      const irmaos = this.documentos.filter(
-        d => d.especie === original.especie && d.numero_basico === original.numero_basico
-      )
-      const maxSec = Math.max(0, ...irmaos
-        .map(d => parseInt(d.numero_secundario) || 0)
-        .filter(n => !isNaN(n))
-      )
+        const irmaos = this.documentos.filter(
+          d => d.especie === original.especie && d.numero_basico === original.numero_basico
+        )
+        const maxSec = Math.max(0, ...irmaos
+          .map(d => parseInt(d.numero_secundario) || 0)
+          .filter(n => !isNaN(n))
+        )
 
-      const clone       = cloneDoc(original)
-      clone.id          = uuidv4()
-      clone.numero_secundario = String(maxSec + 1)
-      clone.status      = 'RASCUNHO'
-      clone.versoes     = []
-      clone.data_criacao    = new Date().toISOString().slice(0, 10)
-      clone.data_publicacao = null
+        const clone = cloneDoc(original)
+        clone.id = uuidv4()
+        clone.numero_secundario = String(maxSec + 1)
+        clone.status = 'RASCUNHO'
+        clone.versoes = []
+        clone.data_criacao    = new Date().toISOString().slice(0, 10)
+        clone.data_publicacao = null
 
-      this.documentos.unshift(clone)
-      api.persist(this.documentos)
-      // Modo real: trocar por api.createDocumento({ ...clone })
+        this.documentos.unshift(clone)
+        api.persist(this.documentos)
+        return clone
+      }
+      const clone = await api.cloneDocumento(id)
+      if (clone) this.documentos.unshift(clone)
       return clone
     },
 
-    saveDocumento(documento) {
-      const idx = this.documentos.findIndex(d => d.id === documento.id)
+    async saveDocumento(documento) {
+      const idx = this.documentos.findIndex(d => String(d.id) === String(documento.id))
       if (idx === -1) return
-      this.documentos[idx] = cloneDoc(documento)
-      api.persist(this.documentos)
-      // Modo real: trocar por await api.updateDocumento(documento.id, documento)
+
+      if (api.USE_MOCK) {
+        this.documentos[idx] = cloneDoc(documento)
+        api.persist(this.documentos)
+        return
+      }
+
+      const atualizado = await api.updateDocumento(documento.id, documento)
+      if (atualizado) this.documentos[idx] = { ...this.documentos[idx], ...atualizado }
     },
 
-    changeStatus(id, novoStatus) {
-      const doc = this.documentos.find(d => d.id === id)
-      if (!doc) return
-      const snapshot = cloneDoc(doc)
-      snapshot.status = doc.status
-      doc.versoes.push({ ...snapshot, versao_id: uuidv4(), data_snapshot: new Date().toISOString() })
-      doc.status = novoStatus
-      if (novoStatus === 'PUBLICADO') doc.data_publicacao = new Date().toISOString().slice(0, 10)
-      api.persist(this.documentos)
-      // Modo real: trocar por await api.changeDocumentoStatus(id, novoStatus)
+    async changeStatus(id, novoStatus) {
+      if (api.USE_MOCK) {
+        const doc = this.documentos.find(d => String(d.id) === String(id))
+        if (!doc) return
+        const snapshot = cloneDoc(doc)
+        snapshot.status = doc.status
+        doc.versoes.push({ ...snapshot, versao_id: uuidv4(), data_snapshot: new Date().toISOString() })
+        doc.status = novoStatus
+        if (novoStatus === 'PUBLICADO') doc.data_publicacao = new Date().toISOString().slice(0, 10)
+        api.persist(this.documentos)
+        return
+      }
+
+      const atualizado = await api.changeDocumentoStatus(id, novoStatus)
+      if (atualizado) {
+        const idx = this.documentos.findIndex(d => String(d.id) === String(id))
+        if (idx !== -1) this.documentos[idx] = { ...this.documentos[idx], ...atualizado }
+      }
     },
 
-    deleteDocumento(id) {
-      this.documentos = this.documentos.filter(d => d.id !== id)
-      api.persist(this.documentos)
-      // Modo real: trocar por await api.deleteDocumento(id)
+    async deleteDocumento(id) {
+      if (api.USE_MOCK) {
+        this.documentos = this.documentos.filter(d => String(d.id) !== String(id))
+        api.persist(this.documentos)
+        return
+      }
+      await api.deleteDocumento(id)
+      this.documentos = this.documentos.filter(d => String(d.id) !== String(id))
     },
 
     addElemento(documentoId, parentId, tipo) {
-      const doc = this.documentos.find(d => d.id === documentoId)
+      const doc = this.documentos.find(d => String(d.id) === String(documentoId))
       if (!doc) return
-      const secaoNormativa = doc.secoes.find(s => s.tipo === 'parte_normativa')
+      const secaoNormativa = doc.secoes?.find(s => s.tipo === 'parte_normativa')
       if (!secaoNormativa) return
 
       const novoEl = makeElement(tipo, 0, '<p></p>', [])
@@ -261,7 +279,6 @@ export const useDocumentsStore = defineStore('documents', {
 
       renumberElements(secaoNormativa.elementos)
       api.persist(this.documentos)
-      // Modo real: trocar por await api.updateDocumento(documentoId, doc)
     },
   },
 })
