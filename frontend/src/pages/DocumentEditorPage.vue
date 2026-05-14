@@ -384,13 +384,11 @@ function hasChildren(el) {
 
 onMounted(async () => {
   if (documentoId.value) {
-    const ok = editorStore.load(documentoId.value)
+    const ok = await editorStore.load(documentoId.value)
     if (!ok) {
       router.replace({ name: 'home' })
       return
     }
-  } else {
-    editorStore.loadNew()
   }
   await nextTick()
   previewMounted.value = true
@@ -442,26 +440,12 @@ function onReorderNormativa(newElements) {
   }
 }
 
-function addArtigo() {
-  const secao = editorStore.normativaSecao
-  if (!secao) return
-  const novo = {
-    id: crypto.randomUUID(),
-    tipo: 'artigo',
-    numero: 0,
-    conteudo: '<p></p>',
-    filhos: [],
-  }
-  secao.elementos.push(novo)
-  renumberElements(secao.elementos)
-  editorStore.selectedElementId = novo.id
-  editorStore.isDirty = true
-  scheduleAutoSave()
+async function addArtigo() {
+  await editorStore.addArtigo()
 }
 
-function addCapitulo(titulo) {
-  editorStore.addCapitulo(titulo)
-  scheduleAutoSave()
+async function addCapitulo(titulo) {
+  await editorStore.addCapitulo(titulo)
 }
 </script>
 
