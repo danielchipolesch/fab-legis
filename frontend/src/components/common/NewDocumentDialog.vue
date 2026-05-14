@@ -15,12 +15,19 @@
         <v-form ref="formRef" v-model="valido" @submit.prevent="confirmar">
           <v-row dense>
 
+<<<<<<< HEAD
             <!-- Espécie Normativa -->
+=======
+>>>>>>> 95ae163 (Remove mock: conecta frontend ao backend via SRP por contexto de controller)
             <v-col cols="12">
               <v-autocomplete
                 v-model="form.especieNormativa"
                 :items="especies"
+<<<<<<< HEAD
                 :loading="carregandoRefs"
+=======
+                :loading="carregando"
+>>>>>>> 95ae163 (Remove mock: conecta frontend ao backend via SRP por contexto de controller)
                 item-title="label"
                 item-value="id"
                 label="Espécie Normativa *"
@@ -31,12 +38,19 @@
               />
             </v-col>
 
+<<<<<<< HEAD
             <!-- Assunto Básico -->
+=======
+>>>>>>> 95ae163 (Remove mock: conecta frontend ao backend via SRP por contexto de controller)
             <v-col cols="12">
               <v-autocomplete
                 v-model="form.assuntoBasico"
                 :items="assuntos"
+<<<<<<< HEAD
                 :loading="carregandoRefs"
+=======
+                :loading="carregando"
+>>>>>>> 95ae163 (Remove mock: conecta frontend ao backend via SRP por contexto de controller)
                 item-title="label"
                 item-value="id"
                 label="Assunto Básico *"
@@ -47,7 +61,10 @@
               />
             </v-col>
 
+<<<<<<< HEAD
             <!-- Título do documento -->
+=======
+>>>>>>> 95ae163 (Remove mock: conecta frontend ao backend via SRP por contexto de controller)
             <v-col cols="12">
               <v-text-field
                 v-model="form.titulo"
@@ -70,7 +87,11 @@
           class="mt-2"
           icon="mdi-identifier"
         >
+<<<<<<< HEAD
           {{ form.especieNormativa?.sigla }} {{ form.assuntoBasico?.codigo }}-<em>N</em>
+=======
+          {{ form.especieNormativa.sigla }} {{ form.assuntoBasico.codigo }}-<em>N</em>
+>>>>>>> 95ae163 (Remove mock: conecta frontend ao backend via SRP por contexto de controller)
           (N gerado automaticamente pelo servidor)
         </v-alert>
       </v-card-text>
@@ -99,19 +120,30 @@
 import { ref, reactive, computed, watch } from 'vue'
 import { useDocumentsStore } from '@/stores/documents.js'
 import { useRouter } from 'vue-router'
+<<<<<<< HEAD
 import { listEspeciesNormativas, listAssuntosBasicos, normalizeEspecie, normalizeAssunto } from '@/api/referencias.js'
+=======
+import { listar as listarEspecies } from '@/api/especiesNormativas.js'
+import { listar as listarAssuntos } from '@/api/assuntosBasicos.js'
+>>>>>>> 95ae163 (Remove mock: conecta frontend ao backend via SRP por contexto de controller)
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
 })
 const emit = defineEmits(['update:modelValue'])
 
+<<<<<<< HEAD
 const router = useRouter()
 const store  = useDocumentsStore()
+=======
+const router  = useRouter()
+const store   = useDocumentsStore()
+>>>>>>> 95ae163 (Remove mock: conecta frontend ao backend via SRP por contexto de controller)
 
 const formRef  = ref(null)
 const valido   = ref(false)
 const salvando = ref(false)
+<<<<<<< HEAD
 
 const carregandoRefs = ref(false)
 const especies       = ref([])
@@ -131,13 +163,33 @@ async function carregarReferencias() {
     carregandoRefs.value = false
   }
 }
+=======
+const carregando = ref(false)
+const especies = ref([])
+const assuntos = ref([])
+>>>>>>> 95ae163 (Remove mock: conecta frontend ao backend via SRP por contexto de controller)
 
 const form = reactive({
   especieNormativa: null,
-  assuntoBasico:    null,
-  titulo:           '',
+  assuntoBasico: null,
+  titulo: '',
 })
 
+<<<<<<< HEAD
+=======
+async function carregarReferencias() {
+  if (especies.value.length) return
+  carregando.value = true
+  try {
+    const [esp, ass] = await Promise.all([listarEspecies(), listarAssuntos()])
+    especies.value = esp
+    assuntos.value = ass
+  } finally {
+    carregando.value = false
+  }
+}
+
+>>>>>>> 95ae163 (Remove mock: conecta frontend ao backend via SRP por contexto de controller)
 const aberto = computed({
   get: () => props.modelValue,
   set: (v) => emit('update:modelValue', v),

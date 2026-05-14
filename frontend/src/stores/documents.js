@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia'
+<<<<<<< HEAD
 import { v4 as uuidv4 } from 'uuid'
 import { renumberElements } from '@/utils/numbering.js'
 import * as api from '@/api/documents.js'
@@ -82,6 +83,9 @@ function gerarSecoesTemplate(doc) {
     },
   ]
 }
+=======
+import * as api from '@/api/documentos.js'
+>>>>>>> 95ae163 (Remove mock: conecta frontend ao backend via SRP por contexto de controller)
 
 export const useDocumentsStore = defineStore('documents', {
   state: () => ({
@@ -98,15 +102,19 @@ export const useDocumentsStore = defineStore('documents', {
       if (this.loading) return
       this.loading = true
       try {
+<<<<<<< HEAD
         const docs = await api.listDocumentos()
         this.documentos = docs.map(d => ({ ...d, secoes: gerarSecoesTemplate(d) }))
+=======
+        this.documentos = await api.listar()
+>>>>>>> 95ae163 (Remove mock: conecta frontend ao backend via SRP por contexto de controller)
       } finally {
         this.loading = false
       }
     },
 
     async fetchDocumento(id) {
-      const doc = await api.getDocumento(id)
+      const doc = await api.obterPorId(id)
       if (!doc) return null
       if (!doc.secoes) doc.secoes = gerarSecoesTemplate(doc)
       const idx = this.documentos.findIndex(d => String(d.id) === String(id))
@@ -116,24 +124,34 @@ export const useDocumentsStore = defineStore('documents', {
     },
 
     async createDocumento(payload) {
+<<<<<<< HEAD
       const novo = await api.createDocumento(payload)
       novo.secoes = gerarSecoesTemplate(novo)
+=======
+      const novo = await api.criar(payload)
+>>>>>>> 95ae163 (Remove mock: conecta frontend ao backend via SRP por contexto de controller)
       this.documentos.unshift(novo)
       return novo
     },
 
     async cloneDocumento(id) {
+<<<<<<< HEAD
       const clone = await api.cloneDocumento(id)
       if (clone) {
         clone.secoes = gerarSecoesTemplate(clone)
         this.documentos.unshift(clone)
       }
+=======
+      const clone = await api.clonar(id)
+      if (clone) this.documentos.unshift(clone)
+>>>>>>> 95ae163 (Remove mock: conecta frontend ao backend via SRP por contexto de controller)
       return clone
     },
 
     async saveDocumento(documento) {
       const idx = this.documentos.findIndex(d => String(d.id) === String(documento.id))
       if (idx === -1) return
+<<<<<<< HEAD
       const [atualizado] = await Promise.all([
         api.updateDocumento(documento.id, documento),
         documento.secoes ? api.saveSecoes(documento.id, documento.secoes) : Promise.resolve(null),
@@ -145,6 +163,14 @@ export const useDocumentsStore = defineStore('documents', {
 
     async changeStatus(id, novoStatus) {
       const atualizado = await api.changeDocumentoStatus(id, novoStatus)
+=======
+      const atualizado = await api.atualizar(documento.id, documento.titulo ?? documento.tituloDocumento)
+      if (atualizado) this.documentos[idx] = { ...this.documentos[idx], ...atualizado }
+    },
+
+    async changeStatus(id, novoStatus) {
+      const atualizado = await api.mudarStatus(id, novoStatus)
+>>>>>>> 95ae163 (Remove mock: conecta frontend ao backend via SRP por contexto de controller)
       if (atualizado) {
         const idx = this.documentos.findIndex(d => String(d.id) === String(id))
         if (idx !== -1) this.documentos[idx] = { ...this.documentos[idx], ...atualizado }
@@ -152,6 +178,7 @@ export const useDocumentsStore = defineStore('documents', {
     },
 
     async deleteDocumento(id) {
+<<<<<<< HEAD
       const doc = this.documentos.find(d => String(d.id) === String(id))
       if (doc && !['RASCUNHO', 'MINUTA'].includes(doc.status)) {
         throw new Error(`Não é possível excluir um documento com status "${doc.status}". Somente documentos em RASCUNHO ou MINUTA podem ser excluídos.`)
@@ -183,5 +210,10 @@ export const useDocumentsStore = defineStore('documents', {
 
       renumberElements(secaoNormativa.elementos)
     },
+=======
+      await api.excluir(id)
+      this.documentos = this.documentos.filter(d => String(d.id) !== String(id))
+    },
+>>>>>>> 95ae163 (Remove mock: conecta frontend ao backend via SRP por contexto de controller)
   },
 })

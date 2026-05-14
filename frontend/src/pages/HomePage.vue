@@ -321,10 +321,21 @@ import { useDocumentsStore } from '@/stores/documents.js'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import NewDocumentDialog from '@/components/common/NewDocumentDialog.vue'
 import { gerarPdf } from '@/services/pdfService.js'
+import { listar as listarEspecies } from '@/api/especiesNormativas.js'
 
 const store = useDocumentsStore()
 
+<<<<<<< HEAD
 onMounted(() => store.fetchAll())
+=======
+onMounted(async () => {
+  await store.fetchAll()
+  try {
+    const esp = await listarEspecies()
+    especies.value = esp.map(e => e.sigla)
+  } catch { /* mantém lista vazia se backend indisponível */ }
+})
+>>>>>>> 95ae163 (Remove mock: conecta frontend ao backend via SRP por contexto de controller)
 
 const dialogNovoDoc = ref(false)
 const viewMode = ref('tabela')
@@ -332,7 +343,7 @@ const filtros = reactive({ busca: '', especie: null, status: null })
 const showPdfError = ref(false)
 const pdfErrorMsg = ref('')
 
-const especies = ['ICA', 'NSCA', 'Portaria', 'Resolução', 'Decreto', 'Aviso']
+const especies = ref([])
 const statusOptions = ['RASCUNHO', 'MINUTA', 'APROVADO', 'PUBLICADO', 'ARQUIVADO', 'CANCELADO', 'REVOGADO']
 
 const headers = [
