@@ -61,22 +61,25 @@ public class AssuntoBasicoService {
     public AssuntoBasicoResponseDto getById(Long id) throws Exception {
         AssuntoBasico assuntoBasico = assuntoBasicoRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException(BasicSubjectException.NOT_FOUND.getMessage()));
-
-        return modelMapper.map(assuntoBasico, AssuntoBasicoResponseDto.class);
+        return toDto(assuntoBasico);
     }
 
     public AssuntoBasicoResponseDto getByNumber(String number) throws Exception {
         AssuntoBasico assuntoBasico = assuntoBasicoRepository.findByCodigo(number);
-//                .orElseThrow(() -> new Exception(BasicSubjectException.NOT_FOUND.getMessage()));
-
-        return modelMapper.map(assuntoBasico, AssuntoBasicoResponseDto.class);
+        return toDto(assuntoBasico);
     }
 
     public List<AssuntoBasicoResponseDto> getAll(Pageable pageable) throws Exception {
         Page<AssuntoBasico> basicSubjects = assuntoBasicoRepository.findAll(pageable);
+        return basicSubjects.stream().map(this::toDto).toList();
+    }
 
-        List<AssuntoBasicoResponseDto> responseDtos = basicSubjects.stream().map(basicSubject -> modelMapper.map(basicSubject, AssuntoBasicoResponseDto.class)).toList();
-
-        return responseDtos;
+    private AssuntoBasicoResponseDto toDto(AssuntoBasico a) {
+        AssuntoBasicoResponseDto dto = new AssuntoBasicoResponseDto();
+        dto.setIdAssuntoBasico(a.getId());
+        dto.setCodigo(a.getCodigo());
+        dto.setNome(a.getNome());
+        dto.setDescricao(a.getDescricao());
+        return dto;
     }
 }

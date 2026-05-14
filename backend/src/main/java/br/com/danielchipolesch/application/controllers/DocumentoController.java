@@ -2,8 +2,10 @@ package br.com.danielchipolesch.application.controllers;
 
 import br.com.danielchipolesch.application.dtos.ExceptionDto;
 import br.com.danielchipolesch.application.dtos.documentoDtos.DocumentoRequestCreateDto;
+import br.com.danielchipolesch.application.dtos.documentoDtos.DocumentoRequestUpdateDto;
 import br.com.danielchipolesch.application.dtos.documentoDtos.DocumentoResponseComAnexoTextualDto;
 import br.com.danielchipolesch.application.dtos.documentoDtos.DocumentoResponseSemAnexoTextualDto;
+import br.com.danielchipolesch.application.dtos.documentoDtos.DocumentoStatusRequestDto;
 import br.com.danielchipolesch.application.dtos.itemAnexoParteNormativaDtos.ItemAnexoParteNormativaRequestDto;
 import br.com.danielchipolesch.application.helpers.DocumentoHelper;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.Documento;
@@ -130,10 +132,23 @@ public class DocumentoController {
     }
 
     @PutMapping("{id}/aprovar")
-    public ResponseEntity<DocumentoResponseSemAnexoTextualDto> setDocumentAsApproved (@PathVariable(value = "id") Long id){
+    public ResponseEntity<DocumentoResponseSemAnexoTextualDto> setDocumentAsApproved(@PathVariable(value = "id") Long id) {
         return ResponseEntity.status(HttpStatus.OK).body(documentoStatusService.approveDocument(id));
     }
-    //TODO Create methods to change Document status, for example: setDocumentAsArchived...
+
+    @PatchMapping("{id}/status")
+    public ResponseEntity<DocumentoResponseSemAnexoTextualDto> changeStatus(
+            @PathVariable(value = "id") Long id,
+            @RequestBody @Valid DocumentoStatusRequestDto request) throws RuntimeException {
+        return ResponseEntity.status(HttpStatus.OK).body(documentoStatusService.changeStatus(id, request.getStatus()));
+    }
+
+    @PutMapping("{id}")
+    public ResponseEntity<DocumentoResponseSemAnexoTextualDto> update(
+            @PathVariable(value = "id") Long id,
+            @RequestBody @Valid DocumentoRequestUpdateDto request) throws RuntimeException {
+        return ResponseEntity.status(HttpStatus.OK).body(documentoService.update(id, request));
+    }
 
     @PutMapping("{idDocumento}/adicionar-item-anexo-parte-textual")
     public ResponseEntity<DocumentoResponseComAnexoTextualDto> addItemAnexoParteNormativa(

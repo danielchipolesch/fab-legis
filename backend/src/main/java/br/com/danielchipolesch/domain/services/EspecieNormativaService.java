@@ -60,15 +60,22 @@ public class EspecieNormativaService {
     }
 
     public DocumentationTypeResponseDto getById(Long id) throws Exception {
-
-        EspecieNormativa especieNormativa = especieNormativaRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException(DocumentationTypeException.NOT_FOUND.getMessage()));
-
-        return modelMapper.map(especieNormativa, DocumentationTypeResponseDto.class);
+        EspecieNormativa especieNormativa = especieNormativaRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException(DocumentationTypeException.NOT_FOUND.getMessage()));
+        return toDto(especieNormativa);
     }
 
     public List<DocumentationTypeResponseDto> getAll(Pageable pageable) throws Exception {
         Page<EspecieNormativa> documentationTypes = especieNormativaRepository.findAll(pageable);
+        return documentationTypes.stream().map(this::toDto).toList();
+    }
 
-        return documentationTypes.stream().map(documentationType -> modelMapper.map(documentationType, DocumentationTypeResponseDto.class)).toList();
+    private DocumentationTypeResponseDto toDto(EspecieNormativa e) {
+        DocumentationTypeResponseDto dto = new DocumentationTypeResponseDto();
+        dto.setId(e.getId());
+        dto.setAcronym(e.getSigla());
+        dto.setName(e.getNome());
+        dto.setDescription(e.getDescricao());
+        return dto;
     }
 }
