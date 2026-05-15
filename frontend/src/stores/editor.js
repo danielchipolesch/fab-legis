@@ -11,6 +11,7 @@ export const useEditorStore = defineStore('editor', {
     selectedElementId: null,
     isDirty: false,
     sidebarOpen: true,
+    adicionando: false,
   }),
 
   getters: {
@@ -61,44 +62,64 @@ export const useEditorStore = defineStore('editor', {
     },
 
     async addFilho(parentId, tipo) {
-      const updatedDoc = await apiDocs.adicionarItem(this.documentoId, {
-        parentId: parseInt(parentId),
-        tipo: tipoParaBackend(tipo),
-        titulo: null,
-        conteuto: '<p></p>',
-      })
-      if (updatedDoc) this._aplicarItens(updatedDoc)
+      this.adicionando = true
+      try {
+        const updatedDoc = await apiDocs.adicionarItem(this.documentoId, {
+          parentId: parseInt(parentId),
+          tipo: tipoParaBackend(tipo),
+          titulo: null,
+          conteuto: '<p></p>',
+        })
+        if (updatedDoc) this._aplicarItens(updatedDoc)
+      } finally {
+        this.adicionando = false
+      }
     },
 
     async addSibling(siblingId, tipo) {
-      const rawParentId = this._encontrarParentId(siblingId)
-      const updatedDoc = await apiDocs.adicionarItem(this.documentoId, {
-        parentId: rawParentId !== null ? parseInt(rawParentId) : null,
-        tipo: tipoParaBackend(tipo),
-        titulo: null,
-        conteuto: '<p></p>',
-      })
-      if (updatedDoc) this._aplicarItens(updatedDoc)
+      this.adicionando = true
+      try {
+        const rawParentId = this._encontrarParentId(siblingId)
+        const updatedDoc = await apiDocs.adicionarItem(this.documentoId, {
+          parentId: rawParentId !== null ? parseInt(rawParentId) : null,
+          tipo: tipoParaBackend(tipo),
+          titulo: null,
+          conteuto: '<p></p>',
+        })
+        if (updatedDoc) this._aplicarItens(updatedDoc)
+      } finally {
+        this.adicionando = false
+      }
     },
 
     async addArtigo() {
-      const updatedDoc = await apiDocs.adicionarItem(this.documentoId, {
-        parentId: null,
-        tipo: 'ARTIGO',
-        titulo: null,
-        conteuto: '<p></p>',
-      })
-      if (updatedDoc) this._aplicarItens(updatedDoc)
+      this.adicionando = true
+      try {
+        const updatedDoc = await apiDocs.adicionarItem(this.documentoId, {
+          parentId: null,
+          tipo: 'ARTIGO',
+          titulo: null,
+          conteuto: '<p></p>',
+        })
+        if (updatedDoc) this._aplicarItens(updatedDoc)
+      } finally {
+        this.adicionando = false
+      }
     },
 
     async addCapitulo(titulo = '') {
-      const updatedDoc = await apiDocs.adicionarItem(this.documentoId, {
-        parentId: null,
-        tipo: 'CAPITULO',
-        titulo: titulo || null,
-        conteuto: null,
-      })
-      if (updatedDoc) this._aplicarItens(updatedDoc)
+      this.adicionando = true
+      try {
+        const updatedDoc = await apiDocs.adicionarItem(this.documentoId, {
+          parentId: null,
+          tipo: 'CAPITULO',
+          titulo: titulo || null,
+          conteuto: null,
+        })
+        if (updatedDoc) this._aplicarItens(updatedDoc)
+      } finally {
+        this.adicionando = false
+      }
     },
 
     removeElement(id) {
@@ -169,17 +190,26 @@ export const useEditorStore = defineStore('editor', {
 
     _aplicarItens(updatedDoc) {
       const normativa = updatedDoc.secoes?.find(s => s.tipo === 'parte_normativa')
-      const local = this.normativaSecao
-      if (normativa && local) {
-        local.elementos = normativa.elementos
-        renumberElements(local.elementos)
-        // Seleciona o elemento com maior ID (recém adicionado pelo banco)
-        const todos = flattenElements(local.elementos)
-        if (todos.length > 0) {
-          const ultimo = todos.reduce((max, el) =>
-            parseInt(el.id) > parseInt(max.id) ? el : max, todos[0])
-          this.selectedElementId = ultimo.id
-        }
+      if (!normativa || !this.documento) return
+
+      const elementos = normativa.elementos
+      renumberElements(elementos)
+
+      // Substitui this.documento por novo objeto para garantir reatividade Vue.
+      // Mutação de propriedade aninhada não é detectada como dependência no computed
+      // que retorna apenas a referência raiz do documento.
+      this.documento = {
+        ...this.documento,
+        secoes: this.documento.secoes.map(s =>
+          s.tipo === 'parte_normativa' ? { ...s, elementos } : s
+        ),
+      }
+
+      const todos = flattenElements(elementos)
+      if (todos.length > 0) {
+        const ultimo = todos.reduce((max, el) =>
+          parseInt(el.id) > parseInt(max.id) ? el : max, todos[0])
+        this.selectedElementId = ultimo.id
       }
       this.isDirty = false
     },

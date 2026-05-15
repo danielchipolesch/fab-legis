@@ -85,7 +85,10 @@
 
     <!-- TABLE VIEW -->
     <template v-if="viewMode === 'tabela'">
-      <v-card>
+      <v-card v-if="store.loading">
+        <v-skeleton-loader type="table-heading,table-row@8" />
+      </v-card>
+      <v-card v-else>
         <v-data-table
           :headers="headers"
           :items="documentosFiltrados"
@@ -215,7 +218,12 @@
 
     <!-- CARDS VIEW -->
     <template v-else>
-      <v-row>
+      <v-row v-if="store.loading">
+        <v-col v-for="n in 8" :key="n" cols="12" sm="6" md="4" lg="3">
+          <v-skeleton-loader type="card" />
+        </v-col>
+      </v-row>
+      <v-row v-else>
         <v-col
           v-for="doc in documentosFiltrados"
           :key="doc.id"
@@ -289,10 +297,14 @@
       v-model="snackbar.show"
       :color="snackbar.color"
       location="bottom right"
-      :timeout="3000"
+      :timeout="5000"
     >
       <v-icon start>{{ snackbar.color === 'success' ? 'mdi-check-circle-outline' : 'mdi-alert-circle-outline' }}</v-icon>
       {{ snackbar.text }}
+      <template #actions>
+        <v-btn variant="text" @click="abrirDocCriado">Editar agora</v-btn>
+        <v-btn icon="mdi-close" variant="text" size="small" @click="snackbar.show = false" />
+      </template>
     </v-snackbar>
 
     <!-- PDF error snackbar -->
@@ -328,12 +340,14 @@
 
 <script setup>
 import { ref, computed, reactive, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { useDocumentsStore } from '@/stores/documents.js'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import NewDocumentDialog from '@/components/common/NewDocumentDialog.vue'
 import { gerarPdf } from '@/services/pdfService.js'
 import { listar as listarEspecies } from '@/api/especiesNormativas.js'
 
+const router = useRouter()
 const store = useDocumentsStore()
 
 onMounted(async () => {
@@ -350,8 +364,10 @@ const filtros = reactive({ busca: '', especie: null, status: null })
 const showPdfError = ref(false)
 const pdfErrorMsg = ref('')
 const snackbar = reactive({ show: false, text: '', color: 'success' })
+const docCriado = ref(null)
 
 function onDocumentoCriado(doc) {
+  docCriado.value = doc
   if (doc) {
     const numero = doc.numero_secundario
       ? `${doc.especie} ${doc.numero_basico}-${doc.numero_secundario}`
@@ -363,6 +379,13 @@ function onDocumentoCriado(doc) {
     snackbar.color = 'warning'
   }
   snackbar.show = true
+}
+
+function abrirDocCriado() {
+  if (docCriado.value?.id) {
+    router.push({ name: 'documento-editar', params: { id: docCriado.value.id } })
+  }
+  snackbar.show = false
 }
 
 const especies = ref([])

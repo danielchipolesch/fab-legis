@@ -88,8 +88,20 @@
 
     <v-divider />
 
+    <!-- Skeleton enquanto documento carrega -->
+    <div v-if="carregando" class="d-flex flex-grow-1 overflow-hidden">
+      <div class="pa-4" style="width:290px;border-right:1px solid rgba(0,0,0,.12)">
+        <v-skeleton-loader type="list-item-two-line@6" />
+      </div>
+      <div class="pa-6 flex-grow-1">
+        <v-skeleton-loader type="heading" class="mb-5" />
+        <v-skeleton-loader type="paragraph" class="mb-4" />
+        <v-skeleton-loader type="paragraph" />
+      </div>
+    </div>
+
     <!-- Main editor area -->
-    <div class="editor-body d-flex flex-grow-1 overflow-hidden">
+    <div v-else class="editor-body d-flex flex-grow-1 overflow-hidden">
 
       <!-- Left sidebar -->
       <EditorSidebar
@@ -281,6 +293,7 @@ const router = useRouter()
 const editorStore = useEditorStore()
 const docStore = useDocumentsStore()
 
+const carregando    = ref(true)
 const showMeta      = ref(false)
 const sidebarOpen   = ref(true)
 const previewMounted = ref(false)
@@ -383,6 +396,7 @@ function hasChildren(el) {
 }
 
 onMounted(async () => {
+  carregando.value = true
   if (documentoId.value) {
     const ok = await editorStore.load(documentoId.value)
     if (!ok) {
@@ -391,6 +405,7 @@ onMounted(async () => {
     }
   }
   await nextTick()
+  carregando.value = false
   previewMounted.value = true
 })
 

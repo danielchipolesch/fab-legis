@@ -125,7 +125,6 @@
 <script setup>
 import { ref, reactive, computed, watch } from 'vue'
 import { useDocumentsStore } from '@/stores/documents.js'
-import { useRouter } from 'vue-router'
 import { listar as listarEspecies } from '@/api/especiesNormativas.js'
 import { listar as listarAssuntos } from '@/api/assuntosBasicos.js'
 
@@ -134,8 +133,7 @@ const props = defineProps({
 })
 const emit = defineEmits(['update:modelValue', 'created'])
 
-const router  = useRouter()
-const store   = useDocumentsStore()
+const store = useDocumentsStore()
 
 const formRef    = ref(null)
 const valido     = ref(false)
@@ -196,9 +194,8 @@ async function confirmar() {
       idAssuntoBasico:    form.assuntoBasico.id,
       tituloDocumento:    form.titulo,
     })
-    fechar()
     emit('created', doc)
-    if (doc?.id) router.push({ name: 'documento-editar', params: { id: doc.id } })
+    fechar()
   } catch (e) {
     erroCriacao.value = `Erro ao criar o documento: ${e?.message ?? 'erro desconhecido'}`
   } finally {
