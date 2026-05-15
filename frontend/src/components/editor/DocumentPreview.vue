@@ -1,6 +1,6 @@
 <template>
   <div class="preview-outer" ref="outerRef">
-    <div class="preview-hint">Prévia aproximada · NSCA 5-3 Anexo II</div>
+    <div class="preview-hint">Prévia aproximada · {{ docId }} {{ documento?.titulo ? '— ' + documento.titulo : '' }}</div>
 
     <!--
       Todas as páginas têm largura A4 fixa (794 px).
