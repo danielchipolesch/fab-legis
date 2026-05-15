@@ -132,7 +132,7 @@ import { listar as listarAssuntos } from '@/api/assuntosBasicos.js'
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
 })
-const emit = defineEmits(['update:modelValue'])
+const emit = defineEmits(['update:modelValue', 'created'])
 
 const router  = useRouter()
 const store   = useDocumentsStore()
@@ -197,6 +197,7 @@ async function confirmar() {
       tituloDocumento:    form.titulo,
     })
     fechar()
+    emit('created', doc)
     if (doc?.id) router.push({ name: 'documento-editar', params: { id: doc.id } })
   } catch (e) {
     erroCriacao.value = `Erro ao criar o documento: ${e?.message ?? 'erro desconhecido'}`

@@ -53,6 +53,10 @@ function itemParaElemento(item) {
 
 function parsarData(valor) {
   if (!valor) return null
+  if (typeof valor === 'number') {
+    const d = new Date(valor)
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
+  }
   if (typeof valor === 'string') return valor.split('T')[0]
   if (Array.isArray(valor)) return `${valor[0]}-${String(valor[1]).padStart(2,'0')}-${String(valor[2]).padStart(2,'0')}`
   return null
