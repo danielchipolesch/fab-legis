@@ -292,21 +292,6 @@
       </v-row>
     </template>
 
-    <!-- Snackbar de documento criado com sucesso -->
-    <v-snackbar
-      v-model="snackbar.show"
-      :color="snackbar.color"
-      location="bottom right"
-      :timeout="5000"
-    >
-      <v-icon start>{{ snackbar.color === 'success' ? 'mdi-check-circle-outline' : 'mdi-alert-circle-outline' }}</v-icon>
-      {{ snackbar.text }}
-      <template #actions>
-        <v-btn variant="text" @click="abrirDocCriado">Editar agora</v-btn>
-        <v-btn icon="mdi-close" variant="text" size="small" @click="snackbar.show = false" />
-      </template>
-    </v-snackbar>
-
     <!-- PDF error snackbar -->
     <v-snackbar
       v-model="showPdfError"
@@ -363,29 +348,17 @@ const viewMode = ref('tabela')
 const filtros = reactive({ busca: '', especie: null, status: null })
 const showPdfError = ref(false)
 const pdfErrorMsg = ref('')
-const snackbar = reactive({ show: false, text: '', color: 'success' })
-const docCriado = ref(null)
 
 function onDocumentoCriado(doc) {
-  docCriado.value = doc
-  if (doc) {
-    const numero = doc.numero_secundario
-      ? `${doc.especie} ${doc.numero_basico}-${doc.numero_secundario}`
-      : `${doc.especie} ${doc.numero_basico}`
-    snackbar.text = `Documento ${numero} — "${doc.titulo}" criado com sucesso!`
-    snackbar.color = 'success'
-  } else {
-    snackbar.text = 'Documento criado, mas não foi possível obter os detalhes.'
-    snackbar.color = 'warning'
-  }
-  snackbar.show = true
-}
-
-function abrirDocCriado() {
-  if (docCriado.value?.id) {
-    router.push({ name: 'documento-editar', params: { id: docCriado.value.id } })
-  }
-  snackbar.show = false
+  if (!doc?.id) return
+  const numero = doc.numero_secundario
+    ? `${doc.especie} ${doc.numero_basico}-${doc.numero_secundario}`
+    : `${doc.especie} ${doc.numero_basico}`
+  router.push({
+    name: 'documento-editar',
+    params: { id: doc.id },
+    state: { sucessoCriacao: `Documento ${numero} — "${doc.titulo}" criado com sucesso!` },
+  })
 }
 
 const especies = ref([])
