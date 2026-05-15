@@ -446,6 +446,7 @@ onMounted(async () => {
   if (history.state?.sucessoCriacao) {
     msgCriacao.value = history.state.sucessoCriacao
     showCriacao.value = true
+    history.replaceState({ ...history.state, sucessoCriacao: undefined }, '')
   }
 })
 
