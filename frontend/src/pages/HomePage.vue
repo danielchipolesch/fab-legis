@@ -106,6 +106,10 @@
             </span>
           </template>
 
+          <template #item.data_criacao="{ item }">
+            {{ formatarData(item.data_criacao) }}
+          </template>
+
           <template #item.status="{ item }">
             <StatusBadge :status="item.status" />
           </template>
@@ -227,7 +231,7 @@
               <v-card-title class="text-subtitle-2 font-weight-bold">
                 {{ doc.especie }} {{ doc.numero_basico }}<template v-if="doc.numero_secundario">-{{ doc.numero_secundario }}</template>
               </v-card-title>
-              <v-card-subtitle class="text-caption">{{ doc.data_criacao }}</v-card-subtitle>
+              <v-card-subtitle class="text-caption">{{ formatarData(doc.data_criacao) }}</v-card-subtitle>
               <template #append>
                 <StatusBadge :status="doc.status" size="x-small" />
               </template>
@@ -457,6 +461,12 @@ function excluir() {
   if (dialog.target) store.deleteDocumento(dialog.target.id)
   dialog.delete = false
   dialog.target = null
+}
+
+function formatarData(valor) {
+  if (!valor) return '—'
+  const [ano, mes, dia] = valor.split('-')
+  return `${dia}/${mes}/${ano}`
 }
 
 function limparFiltros() {
