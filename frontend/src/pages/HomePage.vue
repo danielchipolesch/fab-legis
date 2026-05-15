@@ -19,7 +19,7 @@
       </v-btn>
     </div>
 
-    <NewDocumentDialog v-model="dialogNovoDoc" />
+    <NewDocumentDialog v-model="dialogNovoDoc" @created="onDocumentoCriado" />
 
     <!-- Filters -->
     <v-card class="mb-5" color="surface-card">
@@ -284,6 +284,17 @@
       </v-row>
     </template>
 
+    <!-- Snackbar de documento criado com sucesso -->
+    <v-snackbar
+      v-model="snackbar.show"
+      :color="snackbar.color"
+      location="bottom right"
+      :timeout="3000"
+    >
+      <v-icon start>{{ snackbar.color === 'success' ? 'mdi-check-circle-outline' : 'mdi-alert-circle-outline' }}</v-icon>
+      {{ snackbar.text }}
+    </v-snackbar>
+
     <!-- PDF error snackbar -->
     <v-snackbar
       v-model="showPdfError"
@@ -342,15 +353,36 @@ const viewMode = ref('tabela')
 const filtros = reactive({ busca: '', especie: null, status: null })
 const showPdfError = ref(false)
 const pdfErrorMsg = ref('')
+const snackbar = reactive({ show: false, text: '', color: 'success' })
+
+function onDocumentoCriado(doc) {
+  if (doc) {
+    const numero = doc.numero_secundario
+      ? `${doc.especie} ${doc.numero_basico}-${doc.numero_secundario}`
+      : `${doc.especie} ${doc.numero_basico}`
+    snackbar.text = `Documento ${numero} — "${doc.titulo}" criado com sucesso!`
+    snackbar.color = 'success'
+  } else {
+    snackbar.text = 'Documento criado, mas não foi possível obter os detalhes.'
+    snackbar.color = 'warning'
+  }
+  snackbar.show = true
+}
 
 const especies = ref([])
 const statusOptions = ['RASCUNHO', 'MINUTA', 'APROVADO', 'PUBLICADO', 'ARQUIVADO', 'CANCELADO', 'REVOGADO']
 
 const headers = [
   { title: 'Espécie', key: 'especie', sortable: true, width: '100px' },
+<<<<<<< HEAD
   { title: 'Número',  key: 'numero',  sortable: false },
   { title: 'Título',  key: 'titulo',  sortable: true },
   { title: 'Assunto Básico', key: 'assunto_basico', sortable: true },
+=======
+  { title: 'Número',  key: 'numero',  sortable: false, width: '160px' },
+  { title: 'Assunto Básico', key: 'assunto_basico', sortable: true, width: '180px' },
+  { title: 'Título',  key: 'titulo',  sortable: true },
+>>>>>>> 01a0f6b (Feedback de criação, coluna Título e correção da data no grid)
   { title: 'Data',    key: 'data_criacao', sortable: true, width: '120px' },
   { title: 'Status',  key: 'status',  sortable: true, width: '140px' },
   { title: 'Ações',   key: 'actions', sortable: false, width: '220px', align: 'end' },
