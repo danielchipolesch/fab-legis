@@ -479,6 +479,12 @@ function excluir() {
   dialog.target = null
 }
 
+function formatarData(valor) {
+  if (!valor) return '—'
+  const [ano, mes, dia] = valor.split('-')
+  return `${dia}/${mes}/${ano}`
+}
+
 function limparFiltros() {
   filtros.busca = ''
   filtros.especie = null
