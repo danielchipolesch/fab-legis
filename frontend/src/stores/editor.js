@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { renumberElements, removeById, promoteType, demoteType } from '@/utils/numbering.js'
 import { useDocumentsStore } from './documents.js'
 import * as apiDocs from '@/api/documentos.js'
+import { tipoParaBackend } from '@/api/documentos.js'
 
 export const useEditorStore = defineStore('editor', {
   state: () => ({
@@ -62,7 +63,7 @@ export const useEditorStore = defineStore('editor', {
     async addFilho(parentId, tipo) {
       const updatedDoc = await apiDocs.adicionarItem(this.documentoId, {
         parentId: parseInt(parentId),
-        tipo: tipo.toUpperCase(),
+        tipo: tipoParaBackend(tipo),
         titulo: null,
         conteuto: '<p></p>',
       })
@@ -73,7 +74,7 @@ export const useEditorStore = defineStore('editor', {
       const rawParentId = this._encontrarParentId(siblingId)
       const updatedDoc = await apiDocs.adicionarItem(this.documentoId, {
         parentId: rawParentId !== null ? parseInt(rawParentId) : null,
-        tipo: tipo.toUpperCase(),
+        tipo: tipoParaBackend(tipo),
         titulo: null,
         conteuto: '<p></p>',
       })

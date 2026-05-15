@@ -1,11 +1,47 @@
 import * as http from './client.js'
 
+// ─── Mapeamento de tipos entre backend (enum) e frontend (string) ─────────────
+
+const TIPO_BACKEND_PARA_FRONTEND = {
+  TITULO:             'titulo',
+  CAPITULO:           'capitulo',
+  SECAO:              'secao_normativa',
+  SUBSECAO:           'subsecao_normativa',
+  ARTIGO:             'artigo',
+  PARAGRAFO_NUMERADO: 'paragrafo',
+  PARAGRAFO_UNICO:    'paragrafo_unico',
+  INCISO:             'inciso',
+  ALINEA:             'alinea',
+  ITEM:               'sub_alinea',
+}
+
+const TIPO_FRONTEND_PARA_BACKEND = {
+  titulo:              'TITULO',
+  capitulo:            'CAPITULO',
+  secao_normativa:     'SECAO',
+  subsecao_normativa:  'SUBSECAO',
+  artigo:              'ARTIGO',
+  paragrafo:           'PARAGRAFO_NUMERADO',
+  paragrafo_unico:     'PARAGRAFO_UNICO',
+  inciso:              'INCISO',
+  alinea:              'ALINEA',
+  sub_alinea:          'ITEM',
+}
+
+export function tipoParaBackend(tipoFrontend) {
+  return TIPO_FRONTEND_PARA_BACKEND[tipoFrontend] ?? tipoFrontend.toUpperCase()
+}
+
+export function tipoParaFrontend(tipoBackend) {
+  return TIPO_BACKEND_PARA_FRONTEND[tipoBackend] ?? tipoBackend.toLowerCase()
+}
+
 // ─── Normalização backend → frontend ─────────────────────────────────────────
 
 function itemParaElemento(item) {
   return {
     id: String(item.id),
-    tipo: (item.tipo ?? 'ARTIGO').toLowerCase(),
+    tipo: tipoParaFrontend(item.tipo ?? 'ARTIGO'),
     numero: 0,
     titulo: item.titulo ?? '',
     conteudo: item.conteuto ?? '<p></p>',
