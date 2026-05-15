@@ -38,6 +38,8 @@ export const useEditorStore = defineStore('editor', {
       this.documentoId = id
       this.selectedElementId = null
       this.isDirty = false
+      const normativa = this.normativaSecao
+      if (normativa) renumberElements(normativa.elementos)
       return true
     },
 
