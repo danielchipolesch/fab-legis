@@ -261,6 +261,17 @@
 
     </div>
 
+    <!-- Snackbar de sucesso na criação -->
+    <v-snackbar
+      v-model="showCriacao"
+      location="bottom right"
+      color="success"
+      :timeout="3000"
+    >
+      <v-icon start>mdi-check-circle-outline</v-icon>
+      {{ msgCriacao }}
+    </v-snackbar>
+
     <!-- PDF error snackbar -->
     <v-snackbar
       v-model="showPdfError"
@@ -300,6 +311,8 @@ const previewMounted = ref(false)
 const pdfLoading    = ref(false)
 const showPdfError  = ref(false)
 const pdfErrorMsg   = ref('')
+const showCriacao   = ref(false)
+const msgCriacao    = ref('')
 
 // ── Auto-save ────────────────────────────────────────────────────────────────
 // Estados: 'idle' | 'dirty' | 'saving' | 'saved'
@@ -429,6 +442,11 @@ onMounted(async () => {
   await nextTick()
   carregando.value = false
   previewMounted.value = true
+
+  if (history.state?.sucessoCriacao) {
+    msgCriacao.value = history.state.sucessoCriacao
+    showCriacao.value = true
+  }
 })
 
 async function baixarPdf() {
