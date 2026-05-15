@@ -51,6 +51,13 @@ function itemParaElemento(item) {
   }
 }
 
+function parsarData(valor) {
+  if (!valor) return null
+  if (typeof valor === 'string') return valor.split('T')[0]
+  if (Array.isArray(valor)) return `${valor[0]}-${String(valor[1]).padStart(2,'0')}-${String(valor[2]).padStart(2,'0')}`
+  return null
+}
+
 export function normalizar(doc) {
   if (!doc) return null
 
@@ -73,7 +80,7 @@ export function normalizar(doc) {
     assunto_basico: doc.nomeAssuntoBasico ?? doc.codigoAssuntoBasico,
     titulo: doc.tituloDocumento,
     codigo_documento: doc.codigoDocumento,
-    data_criacao: doc.dtCriacao ? doc.dtCriacao.split('T')[0] : null,
+    data_criacao: parsarData(doc.dtCriacao),
     status: doc.statusDocumento,
     itens: todosItens,
     secoes: [
