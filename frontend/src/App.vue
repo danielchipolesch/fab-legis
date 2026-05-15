@@ -13,7 +13,10 @@ import AppTopBar from '@/components/common/AppTopBar.vue'
 
 <style>
 html,
-body {
-  background-color: #e8e8e8 !important;
+body,
+.v-application,
+.v-application__wrap,
+.v-main {
+  background-color: #F0F0F0 !important;
 }
 </style>
