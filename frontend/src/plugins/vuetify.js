@@ -7,7 +7,7 @@ import * as directives from 'vuetify/directives'
 const fabTheme = {
   dark: false,
   colors: {
-    background: '#F0F0F0',
+    background: '#e8e8e8',
     surface: '#FFFFFF',
     'surface-card': '#F8F8F8',
     primary: '#1A2E5A',
