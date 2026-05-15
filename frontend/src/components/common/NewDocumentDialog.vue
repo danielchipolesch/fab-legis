@@ -149,10 +149,13 @@
 <script setup>
 import { ref, reactive, computed, watch } from 'vue'
 import { useDocumentsStore } from '@/stores/documents.js'
+<<<<<<< HEAD
 import { useRouter } from 'vue-router'
 <<<<<<< HEAD
 import { listEspeciesNormativas, listAssuntosBasicos, normalizeEspecie, normalizeAssunto } from '@/api/referencias.js'
 =======
+=======
+>>>>>>> 3662220 (Corrige SPA: elementos aparecem imediatamente, snackbar visível, skeleton loaders)
 import { listar as listarEspecies } from '@/api/especiesNormativas.js'
 import { listar as listarAssuntos } from '@/api/assuntosBasicos.js'
 >>>>>>> 95ae163 (Remove mock: conecta frontend ao backend via SRP por contexto de controller)
@@ -163,12 +166,16 @@ const props = defineProps({
 const emit = defineEmits(['update:modelValue', 'created'])
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 const router = useRouter()
 const store  = useDocumentsStore()
 =======
 const router  = useRouter()
 const store   = useDocumentsStore()
 >>>>>>> 95ae163 (Remove mock: conecta frontend ao backend via SRP por contexto de controller)
+=======
+const store = useDocumentsStore()
+>>>>>>> 3662220 (Corrige SPA: elementos aparecem imediatamente, snackbar visível, skeleton loaders)
 
 <<<<<<< HEAD
 const formRef  = ref(null)
@@ -260,9 +267,8 @@ async function confirmar() {
       idAssuntoBasico:    form.assuntoBasico.id,
       tituloDocumento:    form.titulo,
     })
-    fechar()
     emit('created', doc)
-    if (doc?.id) router.push({ name: 'documento-editar', params: { id: doc.id } })
+    fechar()
   } catch (e) {
     erroCriacao.value = `Erro ao criar o documento: ${e?.message ?? 'erro desconhecido'}`
   } finally {
