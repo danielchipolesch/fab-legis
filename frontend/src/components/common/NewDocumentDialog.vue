@@ -12,6 +12,20 @@
       <v-divider />
 
       <v-card-text class="pa-5">
+
+        <!-- Erro de carregamento de referências -->
+        <v-alert
+          v-if="erroRefs"
+          type="error"
+          variant="tonal"
+          density="compact"
+          closable
+          class="mb-4"
+          @click:close="erroRefs = ''"
+        >
+          {{ erroRefs }}
+        </v-alert>
+
         <v-form ref="formRef" v-model="valido" @submit.prevent="confirmar">
           <v-row dense>
 
@@ -27,6 +41,7 @@
                 prepend-inner-icon="mdi-tag-outline"
                 return-object
                 no-data-text="Nenhuma espécie encontrada"
+                :disabled="carregando"
               />
             </v-col>
 
@@ -42,6 +57,7 @@
                 prepend-inner-icon="mdi-book-outline"
                 return-object
                 no-data-text="Nenhum assunto encontrado"
+                :disabled="carregando"
               />
             </v-col>
 
@@ -64,23 +80,37 @@
           type="info"
           variant="tonal"
           density="compact"
-          class="mt-2"
+          class="mt-3"
           icon="mdi-identifier"
         >
           {{ form.especieNormativa.sigla }} {{ form.assuntoBasico.codigo }}-<em>N</em>
           (N gerado automaticamente pelo servidor)
         </v-alert>
+
+        <!-- Erro de criação -->
+        <v-alert
+          v-if="erroCriacao"
+          type="error"
+          variant="tonal"
+          density="compact"
+          closable
+          class="mt-3"
+          @click:close="erroCriacao = ''"
+        >
+          {{ erroCriacao }}
+        </v-alert>
+
       </v-card-text>
 
       <v-divider />
 
       <v-card-actions class="pa-4 gap-2">
         <v-spacer />
-        <v-btn variant="text" @click="fechar">Cancelar</v-btn>
+        <v-btn variant="text" :disabled="salvando" @click="fechar">Cancelar</v-btn>
         <v-btn
           color="primary"
           prepend-icon="mdi-check"
-          :disabled="!valido || salvando"
+          :disabled="!valido || salvando || carregando"
           :loading="salvando"
           @click="confirmar"
         >
@@ -107,10 +137,13 @@ const emit = defineEmits(['update:modelValue'])
 const router  = useRouter()
 const store   = useDocumentsStore()
 
-const formRef  = ref(null)
-const valido   = ref(false)
-const salvando = ref(false)
+const formRef    = ref(null)
+const valido     = ref(false)
+const salvando   = ref(false)
 const carregando = ref(false)
+const erroRefs   = ref('')
+const erroCriacao = ref('')
+
 const especies = ref([])
 const assuntos = ref([])
 
@@ -123,10 +156,13 @@ const form = reactive({
 async function carregarReferencias() {
   if (especies.value.length) return
   carregando.value = true
+  erroRefs.value = ''
   try {
     const [esp, ass] = await Promise.all([listarEspecies(), listarAssuntos()])
     especies.value = esp
     assuntos.value = ass
+  } catch (e) {
+    erroRefs.value = `Não foi possível carregar as referências: ${e?.message ?? 'erro desconhecido'}. Verifique se o backend está rodando.`
   } finally {
     carregando.value = false
   }
@@ -139,6 +175,7 @@ const aberto = computed({
 
 watch(aberto, async (v) => {
   if (v) {
+    erroCriacao.value = ''
     formRef.value?.reset()
     await carregarReferencias()
   }
@@ -152,6 +189,7 @@ async function confirmar() {
   if (!valid) return
 
   salvando.value = true
+  erroCriacao.value = ''
   try {
     const doc = await store.createDocumento({
       idEspecieNormativa: form.especieNormativa.id,
@@ -160,14 +198,18 @@ async function confirmar() {
     })
     fechar()
     if (doc?.id) router.push({ name: 'documento-editar', params: { id: doc.id } })
+  } catch (e) {
+    erroCriacao.value = `Erro ao criar o documento: ${e?.message ?? 'erro desconhecido'}`
   } finally {
     salvando.value = false
   }
 }
 
 function fechar() {
+  if (salvando.value) return
   aberto.value = false
   formRef.value?.reset()
   Object.assign(form, { especieNormativa: null, assuntoBasico: null, titulo: '' })
+  erroCriacao.value = ''
 }
 </script>
