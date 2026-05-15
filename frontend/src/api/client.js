@@ -60,7 +60,13 @@ export async function get(path) {
 export async function post(path, body) {
 >>>>>>> c23bdb3 (Corrige criação de documento: @NoArgsConstructor, tipo enum mapping e error handling)
   const res = await fetch(`${BASE_URL}${path}`, {
+<<<<<<< HEAD
     headers: { 'Accept': 'application/json' },
+=======
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    body: JSON.stringify(body),
+>>>>>>> 40c3ff6 (Adiciona Accept: application/json nos métodos POST, PUT e PATCH do client.js)
   })
   if (!res.ok) await throwHttpError(res)
   return res.json()
@@ -79,7 +85,11 @@ export async function post(path, body) {
 export async function put(path, body) {
   const res = await fetch(`${BASE_URL}${path}`, {
     method: 'PUT',
+<<<<<<< HEAD
     headers: JSON_HEADERS,
+=======
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+>>>>>>> 40c3ff6 (Adiciona Accept: application/json nos métodos POST, PUT e PATCH do client.js)
     body: JSON.stringify(body),
   })
   if (!res.ok) await throwHttpError(res)
@@ -89,7 +99,11 @@ export async function put(path, body) {
 export async function patch(path, body) {
   const res = await fetch(`${BASE_URL}${path}`, {
     method: 'PATCH',
+<<<<<<< HEAD
     headers: JSON_HEADERS,
+=======
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+>>>>>>> 40c3ff6 (Adiciona Accept: application/json nos métodos POST, PUT e PATCH do client.js)
     body: JSON.stringify(body),
   })
   if (!res.ok) await throwHttpError(res)
