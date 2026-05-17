@@ -1,11 +1,15 @@
 const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? ''
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> 1e3a00414085c7fbd6b74578b3e5b54391f7d9fd
 
 const JSON_HEADERS = {
   'Content-Type': 'application/json',
   'Accept': 'application/json',
 }
 
+<<<<<<< HEAD
 <<<<<<< HEAD
 export async function get(path) {
 =======
@@ -55,6 +59,9 @@ const JSON_HEADERS = {
 }
 
 export async function get(path) {
+=======
+export async function get(path) {
+>>>>>>> 1e3a00414085c7fbd6b74578b3e5b54391f7d9fd
   const res = await fetch(`${BASE_URL}${path}`, {
     headers: { 'Accept': 'application/json' },
   })
@@ -63,6 +70,7 @@ export async function get(path) {
 }
 
 export async function post(path, body) {
+<<<<<<< HEAD
 >>>>>>> c23bdb3 (Corrige criação de documento: @NoArgsConstructor, tipo enum mapping e error handling)
   const res = await fetch(`${BASE_URL}${path}`, {
 <<<<<<< HEAD
@@ -83,6 +91,8 @@ export async function post(path, body) {
 }
 
 export async function post(path, body) {
+=======
+>>>>>>> 1e3a00414085c7fbd6b74578b3e5b54391f7d9fd
   const res = await fetch(`${BASE_URL}${path}`, {
     method: 'POST',
     headers: JSON_HEADERS,
@@ -97,6 +107,7 @@ export async function put(path, body) {
     method: 'PUT',
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
     headers: JSON_HEADERS,
 =======
     headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
@@ -104,6 +115,9 @@ export async function put(path, body) {
 =======
     headers: JSON_HEADERS,
 >>>>>>> ffd8177 (Uso do HATEOAS)
+=======
+    headers: JSON_HEADERS,
+>>>>>>> 1e3a00414085c7fbd6b74578b3e5b54391f7d9fd
     body: JSON.stringify(body),
   })
   if (!res.ok) throw new Error(`${res.status} ${res.statusText}`)
@@ -115,6 +129,7 @@ export async function patch(path, body) {
     method: 'PATCH',
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
     headers: JSON_HEADERS,
 =======
     headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
@@ -122,6 +137,9 @@ export async function patch(path, body) {
 =======
     headers: JSON_HEADERS,
 >>>>>>> ffd8177 (Uso do HATEOAS)
+=======
+    headers: JSON_HEADERS,
+>>>>>>> 1e3a00414085c7fbd6b74578b3e5b54391f7d9fd
     body: JSON.stringify(body),
   })
   if (!res.ok) throw new Error(`${res.status} ${res.statusText}`)
@@ -131,8 +149,11 @@ export async function patch(path, body) {
 export async function del(path) {
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
 >>>>>>> ffd8177 (Uso do HATEOAS)
+=======
+>>>>>>> 1e3a00414085c7fbd6b74578b3e5b54391f7d9fd
   const res = await fetch(`${BASE_URL}${path}`, {
     method: 'DELETE',
     headers: { 'Accept': 'application/json' },

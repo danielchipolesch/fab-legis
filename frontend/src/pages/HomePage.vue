@@ -327,6 +327,9 @@ const store = useDocumentsStore()
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> 1e3a00414085c7fbd6b74578b3e5b54391f7d9fd
 onMounted(() => store.fetchAll())
 =======
 onMounted(async () => {

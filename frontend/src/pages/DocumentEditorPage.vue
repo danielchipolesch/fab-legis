@@ -387,8 +387,11 @@ onMounted(async () => {
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
 >>>>>>> 1e3a004 (Correção de bugs)
+=======
+>>>>>>> 1e3a00414085c7fbd6b74578b3e5b54391f7d9fd
     let ok = editorStore.load(documentoId.value)
     if (!ok) {
       // Document not in store yet — fetch from API (direct URL access or page refresh)
@@ -400,6 +403,7 @@ onMounted(async () => {
       ok = editorStore.load(documentoId.value)
     }
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
     const ok = await editorStore.load(documentoId.value)
 >>>>>>> 95ae163 (Remove mock: conecta frontend ao backend via SRP por contexto de controller)
@@ -408,10 +412,13 @@ onMounted(async () => {
 >>>>>>> ffd8177 (Uso do HATEOAS)
 =======
 >>>>>>> 1e3a004 (Correção de bugs)
+=======
+>>>>>>> 1e3a00414085c7fbd6b74578b3e5b54391f7d9fd
     if (!ok) {
       router.replace({ name: 'home' })
       return
     }
+<<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
@@ -420,6 +427,8 @@ onMounted(async () => {
 >>>>>>> ffd8177 (Uso do HATEOAS)
 =======
 >>>>>>> 1e3a004 (Correção de bugs)
+=======
+>>>>>>> 1e3a00414085c7fbd6b74578b3e5b54391f7d9fd
     const doc = editorStore.documento
     const prelim = doc?.secoes?.find(s => s.tipo === 'parte_preliminar')
     const primeiro = prelim?.elementos?.[0]

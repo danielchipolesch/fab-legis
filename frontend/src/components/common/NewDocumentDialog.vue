@@ -18,16 +18,21 @@
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
             <!-- Espécie Normativa -->
 =======
 >>>>>>> 95ae163 (Remove mock: conecta frontend ao backend via SRP por contexto de controller)
 =======
             <!-- Espécie Normativa -->
 >>>>>>> 1e3a004 (Correção de bugs)
+=======
+            <!-- Espécie Normativa -->
+>>>>>>> 1e3a00414085c7fbd6b74578b3e5b54391f7d9fd
             <v-col cols="12">
               <v-autocomplete
                 v-model="form.especieNormativa"
                 :items="especies"
+<<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
                 :loading="carregandoRefs"
@@ -37,6 +42,9 @@
 =======
                 :loading="carregandoRefs"
 >>>>>>> 1e3a004 (Correção de bugs)
+=======
+                :loading="carregandoRefs"
+>>>>>>> 1e3a00414085c7fbd6b74578b3e5b54391f7d9fd
                 item-title="label"
                 item-value="id"
                 label="Espécie Normativa *"
@@ -44,6 +52,7 @@
                 prepend-inner-icon="mdi-tag-outline"
                 return-object
                 no-data-text="Nenhuma espécie encontrada"
+<<<<<<< HEAD
 <<<<<<< HEAD
                 :disabled="carregando"
               />
@@ -94,6 +103,10 @@
               />
             </v-col>
 >>>>>>> 1e3a004 (Correção de bugs)
+=======
+              />
+            </v-col>
+>>>>>>> 1e3a00414085c7fbd6b74578b3e5b54391f7d9fd
 
             <!-- Assunto Básico -->
             <v-col cols="12">
@@ -111,6 +124,7 @@
               />
             </v-col>
 
+<<<<<<< HEAD
 <<<<<<< HEAD
               <!-- Espécie Normativa -->
               <v-col cols="12" sm="6">
@@ -203,6 +217,8 @@
             </template>
 >>>>>>> ffd8177 (Uso do HATEOAS)
 =======
+=======
+>>>>>>> 1e3a00414085c7fbd6b74578b3e5b54391f7d9fd
             <!-- Título do documento -->
             <v-col cols="12">
               <v-text-field
@@ -214,12 +230,16 @@
                 maxlength="500"
               />
             </v-col>
+<<<<<<< HEAD
 >>>>>>> 1e3a004 (Correção de bugs)
+=======
+>>>>>>> 1e3a00414085c7fbd6b74578b3e5b54391f7d9fd
 
           </v-row>
         </v-form>
 
         <v-alert
+<<<<<<< HEAD
 <<<<<<< HEAD
           v-if="useMock && form.especie && proximoNumeroMock"
           type="info"
@@ -247,6 +267,9 @@
 =======
           v-if="form.especieNormativa && form.assuntoBasico"
 >>>>>>> 1e3a004 (Correção de bugs)
+=======
+          v-if="form.especieNormativa && form.assuntoBasico"
+>>>>>>> 1e3a00414085c7fbd6b74578b3e5b54391f7d9fd
           type="info"
           variant="tonal"
           density="compact"
@@ -285,6 +308,9 @@ import { useDocumentsStore } from '@/stores/documents.js'
 <<<<<<< HEAD
 import { useRouter } from 'vue-router'
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> 1e3a00414085c7fbd6b74578b3e5b54391f7d9fd
 import { listEspeciesNormativas, listAssuntosBasicos, normalizeEspecie, normalizeAssunto } from '@/api/referencias.js'
 =======
 =======
@@ -302,6 +328,7 @@ const props = defineProps({
 })
 const emit = defineEmits(['update:modelValue'])
 
+<<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
@@ -361,17 +388,24 @@ const useMock = USE_MOCK
 const router = useRouter()
 const store  = useDocumentsStore()
 >>>>>>> 1e3a004 (Correção de bugs)
+=======
+const router = useRouter()
+const store  = useDocumentsStore()
+>>>>>>> 1e3a00414085c7fbd6b74578b3e5b54391f7d9fd
 
 const formRef  = ref(null)
 const valido   = ref(false)
 const salvando = ref(false)
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 // ─── Referências (modo real) ──────────────────────────────────────────────────
 >>>>>>> ffd8177 (Uso do HATEOAS)
 
 =======
 >>>>>>> 1e3a004 (Correção de bugs)
+=======
+>>>>>>> 1e3a00414085c7fbd6b74578b3e5b54391f7d9fd
 const carregandoRefs = ref(false)
 const especies       = ref([])
 const assuntos       = ref([])
@@ -395,18 +429,22 @@ async function carregarReferencias() {
 
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 >>>>>>> 95ae163 (Remove mock: conecta frontend ao backend via SRP por contexto de controller)
 =======
 // ─── Form ──────────────────────────────────────────────────────────────────────
 
 =======
 >>>>>>> 1e3a004 (Correção de bugs)
+=======
+>>>>>>> 1e3a00414085c7fbd6b74578b3e5b54391f7d9fd
 const form = reactive({
   especieNormativa: null,
   assuntoBasico:    null,
   titulo:           '',
 })
 
+<<<<<<< HEAD
 <<<<<<< HEAD
 // ─── Modo mock ─────────────────────────────────────────────────────────────────
 
@@ -439,6 +477,8 @@ const minLen      = (v) => (String(v ?? '').trim().length >= 5) || 'Mínimo de 5
 >>>>>>> ffd8177 (Uso do HATEOAS)
 =======
 >>>>>>> 1e3a004 (Correção de bugs)
+=======
+>>>>>>> 1e3a00414085c7fbd6b74578b3e5b54391f7d9fd
 const aberto = computed({
   get: () => props.modelValue,
   set: (v) => emit('update:modelValue', v),

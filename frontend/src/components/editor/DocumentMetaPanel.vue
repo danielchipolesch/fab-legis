@@ -34,6 +34,7 @@
         </v-col>
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
         <v-col cols="12">
 =======
         <v-col cols="12" md="4">
@@ -49,6 +50,8 @@
         <v-col cols="12" md="8">
 >>>>>>> 95ae163 (Remove mock: conecta frontend ao backend via SRP por contexto de controller)
 =======
+=======
+>>>>>>> 1e3a00414085c7fbd6b74578b3e5b54391f7d9fd
         <v-col cols="12">
 >>>>>>> 1e3a004 (Correção de bugs)
           <v-text-field
@@ -96,10 +99,13 @@ watch(() => props.documento, (val) => Object.assign(local, val), { deep: true })
 <<<<<<< HEAD
 
 const isStatusReadonly = computed(() => ['PUBLICADO', 'ARQUIVADO', 'CANCELADO', 'REVOGADO'].includes(local.status))
+<<<<<<< HEAD
 =======
 >>>>>>> 95ae163 (Remove mock: conecta frontend ao backend via SRP por contexto de controller)
 =======
 
 const isStatusReadonly = computed(() => ['PUBLICADO', 'ARQUIVADO', 'CANCELADO', 'REVOGADO'].includes(local.status))
 >>>>>>> 1e3a004 (Correção de bugs)
+=======
+>>>>>>> 1e3a00414085c7fbd6b74578b3e5b54391f7d9fd
 </script>

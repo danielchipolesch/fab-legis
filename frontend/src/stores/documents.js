@@ -9,12 +9,15 @@ import * as api from '@/api/documents.js'
 
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
 // ---------- Helpers ----------
 
 >>>>>>> ffd8177 (Uso do HATEOAS)
 =======
 >>>>>>> 1e3a004 (Correção de bugs)
+=======
+>>>>>>> 1e3a00414085c7fbd6b74578b3e5b54391f7d9fd
 function makeElement(tipo, numero, conteudo = '', filhos = []) {
   return { id: uuidv4(), tipo, numero, conteudo, filhos }
 }
@@ -37,13 +40,17 @@ const ESPECIE_NOME = {
 function gerarSecoesTemplate(doc) {
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
 >>>>>>> 1e3a004 (Correção de bugs)
+=======
+>>>>>>> 1e3a00414085c7fbd6b74578b3e5b54391f7d9fd
   const especie   = doc.especie       ?? ''
   const numBasico = doc.numero_basico ?? ''
   const numSec    = doc.numero_secundario != null ? doc.numero_secundario : '?'
   const sigla     = `${especie} ${numBasico}-${numSec}`.trim()
   const nomeEsp   = ESPECIE_NOME[especie] ?? especie
+<<<<<<< HEAD
 <<<<<<< HEAD
 =======
   const especie    = doc.especie       ?? ''
@@ -54,6 +61,8 @@ function gerarSecoesTemplate(doc) {
 >>>>>>> ffd8177 (Uso do HATEOAS)
 =======
 >>>>>>> 1e3a004 (Correção de bugs)
+=======
+>>>>>>> 1e3a00414085c7fbd6b74578b3e5b54391f7d9fd
 
   return [
     {
@@ -107,6 +116,7 @@ function gerarSecoesTemplate(doc) {
       ],
     },
   ]
+<<<<<<< HEAD
 }
 <<<<<<< HEAD
 =======
@@ -154,6 +164,10 @@ function cloneDoc(doc) {
 
 =======
 >>>>>>> 1e3a004 (Correção de bugs)
+=======
+}
+
+>>>>>>> 1e3a00414085c7fbd6b74578b3e5b54391f7d9fd
 export const useDocumentsStore = defineStore('documents', {
   state: () => ({
     documentos: [],
@@ -171,6 +185,7 @@ export const useDocumentsStore = defineStore('documents', {
       try {
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
         const docs = await api.listDocumentos()
         this.documentos = docs.map(d => ({ ...d, secoes: gerarSecoesTemplate(d) }))
 =======
@@ -180,6 +195,10 @@ export const useDocumentsStore = defineStore('documents', {
         const docs = await api.listDocumentos()
         this.documentos = docs.map(d => ({ ...d, secoes: gerarSecoesTemplate(d) }))
 >>>>>>> ffd8177 (Uso do HATEOAS)
+=======
+        const docs = await api.listDocumentos()
+        this.documentos = docs.map(d => ({ ...d, secoes: gerarSecoesTemplate(d) }))
+>>>>>>> 1e3a00414085c7fbd6b74578b3e5b54391f7d9fd
       } finally {
         this.loading = false
       }
@@ -190,6 +209,7 @@ export const useDocumentsStore = defineStore('documents', {
       if (!doc) return null
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
       if (!doc.secoes) doc.secoes = gerarSecoesTemplate(doc)
 =======
       doc.secoes = gerarSecoesTemplate(doc)
@@ -197,6 +217,9 @@ export const useDocumentsStore = defineStore('documents', {
 =======
       if (!doc.secoes) doc.secoes = gerarSecoesTemplate(doc)
 >>>>>>> 1e3a004 (Correção de bugs)
+=======
+      if (!doc.secoes) doc.secoes = gerarSecoesTemplate(doc)
+>>>>>>> 1e3a00414085c7fbd6b74578b3e5b54391f7d9fd
       const idx = this.documentos.findIndex(d => String(d.id) === String(id))
       if (idx !== -1) this.documentos[idx] = doc
       else this.documentos.push(doc)
@@ -204,6 +227,7 @@ export const useDocumentsStore = defineStore('documents', {
     },
 
     async createDocumento(payload) {
+<<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
@@ -244,11 +268,16 @@ export const useDocumentsStore = defineStore('documents', {
       const novo = await api.createDocumento(payload)
       novo.secoes = gerarSecoesTemplate(novo)
 >>>>>>> ffd8177 (Uso do HATEOAS)
+=======
+      const novo = await api.createDocumento(payload)
+      novo.secoes = gerarSecoesTemplate(novo)
+>>>>>>> 1e3a00414085c7fbd6b74578b3e5b54391f7d9fd
       this.documentos.unshift(novo)
       return novo
     },
 
     async cloneDocumento(id) {
+<<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
@@ -290,11 +319,17 @@ export const useDocumentsStore = defineStore('documents', {
 >>>>>>> 95ae163 (Remove mock: conecta frontend ao backend via SRP por contexto de controller)
 =======
       const clone = await api.cloneDocumento(id)
+=======
+      const clone = await api.cloneDocumento(id)
+>>>>>>> 1e3a00414085c7fbd6b74578b3e5b54391f7d9fd
       if (clone) {
         clone.secoes = gerarSecoesTemplate(clone)
         this.documentos.unshift(clone)
       }
+<<<<<<< HEAD
 >>>>>>> 1e3a004 (Correção de bugs)
+=======
+>>>>>>> 1e3a00414085c7fbd6b74578b3e5b54391f7d9fd
       return clone
     },
 
@@ -304,14 +339,18 @@ export const useDocumentsStore = defineStore('documents', {
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
 >>>>>>> 1e3a004 (Correção de bugs)
+=======
+>>>>>>> 1e3a00414085c7fbd6b74578b3e5b54391f7d9fd
       const [atualizado] = await Promise.all([
         api.updateDocumento(documento.id, documento),
         documento.secoes ? api.saveSecoes(documento.id, documento.secoes) : Promise.resolve(null),
       ])
       if (atualizado) {
         this.documentos[idx] = { ...this.documentos[idx], ...atualizado, secoes: documento.secoes }
+<<<<<<< HEAD
 <<<<<<< HEAD
       }
     },
@@ -356,6 +395,12 @@ export const useDocumentsStore = defineStore('documents', {
 
     async changeStatus(id, novoStatus) {
 >>>>>>> 1e3a004 (Correção de bugs)
+=======
+      }
+    },
+
+    async changeStatus(id, novoStatus) {
+>>>>>>> 1e3a00414085c7fbd6b74578b3e5b54391f7d9fd
       const atualizado = await api.changeDocumentoStatus(id, novoStatus)
 >>>>>>> ffd8177 (Uso do HATEOAS)
       if (atualizado) {
@@ -367,8 +412,11 @@ export const useDocumentsStore = defineStore('documents', {
     async deleteDocumento(id) {
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
 >>>>>>> ffd8177 (Uso do HATEOAS)
+=======
+>>>>>>> 1e3a00414085c7fbd6b74578b3e5b54391f7d9fd
       const doc = this.documentos.find(d => String(d.id) === String(id))
       if (doc && !['RASCUNHO', 'MINUTA'].includes(doc.status)) {
         throw new Error(`Não é possível excluir um documento com status "${doc.status}". Somente documentos em RASCUNHO ou MINUTA podem ser excluídos.`)
