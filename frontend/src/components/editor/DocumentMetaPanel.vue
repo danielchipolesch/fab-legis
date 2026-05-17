@@ -13,7 +13,6 @@
             :items="especies"
             label="Espécie Normativa *"
             hide-details="auto"
-            :readonly="isReadonly"
             @update:model-value="emit('update', local)"
           />
         </v-col>
@@ -22,7 +21,6 @@
             v-model="local.numero_basico"
             label="Numeração Básica *"
             hide-details="auto"
-            :readonly="isReadonly"
             @update:model-value="emit('update', local)"
           />
         </v-col>
@@ -31,10 +29,10 @@
             v-model="local.numero_secundario"
             label="Numeração Secundária"
             hide-details="auto"
-            :readonly="isReadonly"
             @update:model-value="emit('update', local)"
           />
         </v-col>
+<<<<<<< HEAD
 <<<<<<< HEAD
         <v-col cols="12">
 =======
@@ -50,11 +48,13 @@
         </v-col>
         <v-col cols="12" md="8">
 >>>>>>> 95ae163 (Remove mock: conecta frontend ao backend via SRP por contexto de controller)
+=======
+        <v-col cols="12">
+>>>>>>> 1e3a004 (Correção de bugs)
           <v-text-field
             v-model="local.assunto_basico"
             label="Assunto Básico *"
             hide-details="auto"
-            :readonly="isReadonly"
             @update:model-value="emit('update', local)"
           />
         </v-col>
@@ -64,7 +64,7 @@
             :items="statusOptions"
             label="Status"
             hide-details="auto"
-            readonly
+            :readonly="isStatusReadonly"
           >
             <template #selection="{ item }">
               <StatusBadge :status="item.value" size="small" />
@@ -86,21 +86,20 @@ const props = defineProps({
 
 const emit = defineEmits(['update'])
 
-const READONLY_STATUS = ['PUBLICADO', 'ARQUIVADO', 'CANCELADO', 'REVOGADO']
+const especies = ['ICA', 'NSCA', 'Portaria', 'Resolução', 'Decreto', 'Aviso', 'Mensagem']
 const statusOptions = ['RASCUNHO', 'MINUTA', 'APROVADO', 'PUBLICADO', 'ARQUIVADO', 'CANCELADO', 'REVOGADO']
 
 const local = reactive({ ...props.documento })
 
-const isReadonly = computed(() => READONLY_STATUS.includes(local.status))
-
-const especies = computed(() =>
-  props.documento?.especie ? [props.documento.especie] : []
-)
-
 watch(() => props.documento, (val) => Object.assign(local, val), { deep: true })
+<<<<<<< HEAD
 <<<<<<< HEAD
 
 const isStatusReadonly = computed(() => ['PUBLICADO', 'ARQUIVADO', 'CANCELADO', 'REVOGADO'].includes(local.status))
 =======
 >>>>>>> 95ae163 (Remove mock: conecta frontend ao backend via SRP por contexto de controller)
+=======
+
+const isStatusReadonly = computed(() => ['PUBLICADO', 'ARQUIVADO', 'CANCELADO', 'REVOGADO'].includes(local.status))
+>>>>>>> 1e3a004 (Correção de bugs)
 </script>

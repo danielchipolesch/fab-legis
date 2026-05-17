@@ -106,6 +106,10 @@
             </span>
           </template>
 
+          <template #item.data_criacao="{ item }">
+            {{ formatarData(item.data_criacao) }}
+          </template>
+
           <template #item.status="{ item }">
             <StatusBadge :status="item.status" />
           </template>
@@ -227,7 +231,7 @@
               <v-card-title class="text-subtitle-2 font-weight-bold">
                 {{ doc.especie }} {{ doc.numero_basico }}<template v-if="doc.numero_secundario">-{{ doc.numero_secundario }}</template>
               </v-card-title>
-              <v-card-subtitle class="text-caption">{{ doc.data_criacao }}</v-card-subtitle>
+              <v-card-subtitle class="text-caption">{{ formatarData(doc.data_criacao) }}</v-card-subtitle>
               <template #append>
                 <StatusBadge :status="doc.status" size="x-small" />
               </template>
@@ -322,6 +326,7 @@ const store = useDocumentsStore()
 
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 onMounted(() => store.fetchAll())
 =======
 onMounted(async () => {
@@ -334,6 +339,8 @@ onMounted(async () => {
 >>>>>>> 95ae163 (Remove mock: conecta frontend ao backend via SRP por contexto de controller)
 =======
 // Mock: no-op (dados já carregados no state). Real: busca do backend com ETag.
+=======
+>>>>>>> 1e3a004 (Correção de bugs)
 onMounted(() => store.fetchAll())
 >>>>>>> ffd8177 (Uso do HATEOAS)
 
@@ -360,6 +367,7 @@ const headers = [
 >>>>>>> 01a0f6b (Feedback de criação, coluna Título e correção da data no grid)
 =======
   { title: 'Número',  key: 'numero',  sortable: false },
+  { title: 'Título',  key: 'titulo',  sortable: true },
   { title: 'Assunto Básico', key: 'assunto_basico', sortable: true },
 >>>>>>> ffd8177 (Uso do HATEOAS)
   { title: 'Data',    key: 'data_criacao', sortable: true, width: '120px' },

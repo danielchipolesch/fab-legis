@@ -8,10 +8,13 @@ import { renumberElements } from '@/utils/numbering.js'
 import * as api from '@/api/documents.js'
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
 // ---------- Helpers ----------
 
 >>>>>>> ffd8177 (Uso do HATEOAS)
+=======
+>>>>>>> 1e3a004 (Correção de bugs)
 function makeElement(tipo, numero, conteudo = '', filhos = []) {
   return { id: uuidv4(), tipo, numero, conteudo, filhos }
 }
@@ -33,11 +36,15 @@ const ESPECIE_NOME = {
 
 function gerarSecoesTemplate(doc) {
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> 1e3a004 (Correção de bugs)
   const especie   = doc.especie       ?? ''
   const numBasico = doc.numero_basico ?? ''
   const numSec    = doc.numero_secundario != null ? doc.numero_secundario : '?'
   const sigla     = `${especie} ${numBasico}-${numSec}`.trim()
   const nomeEsp   = ESPECIE_NOME[especie] ?? especie
+<<<<<<< HEAD
 =======
   const especie    = doc.especie       ?? ''
   const numBasico  = doc.numero_basico ?? ''
@@ -45,6 +52,8 @@ function gerarSecoesTemplate(doc) {
   const sigla      = `${especie} ${numBasico}-${numSec}`.trim()
   const nomeEsp    = ESPECIE_NOME[especie] ?? especie
 >>>>>>> ffd8177 (Uso do HATEOAS)
+=======
+>>>>>>> 1e3a004 (Correção de bugs)
 
   return [
     {
@@ -105,6 +114,7 @@ import * as api from '@/api/documentos.js'
 >>>>>>> 95ae163 (Remove mock: conecta frontend ao backend via SRP por contexto de controller)
 =======
 
+<<<<<<< HEAD
 function mockDoc(overrides = {}) {
   const base = {
     id: uuidv4(),
@@ -142,30 +152,20 @@ function cloneDoc(doc) {
 // ---------- Store ----------
 >>>>>>> ffd8177 (Uso do HATEOAS)
 
+=======
+>>>>>>> 1e3a004 (Correção de bugs)
 export const useDocumentsStore = defineStore('documents', {
-  state: () => {
-    const stored = api.loadInitial()
-    if (stored === null) api.persist(MOCK_DOCUMENTOS)
-    return {
-      documentos: stored ?? MOCK_DOCUMENTOS,
-      loading: false,
-    }
-  },
+  state: () => ({
+    documentos: [],
+    loading: false,
+  }),
 
   getters: {
     getById: (state) => (id) => state.documentos.find(d => String(d.id) === String(id)) ?? null,
-
-    getNextBasicNumber: (state) => (especie) => {
-      const numeros = state.documentos
-        .filter(d => d.especie === especie)
-        .map(d => parseInt(d.numero_basico) || 0)
-      return numeros.length ? String(Math.max(...numeros) + 1) : '1'
-    },
   },
 
   actions: {
     async fetchAll() {
-      if (api.USE_MOCK) return
       if (this.loading) return
       this.loading = true
       try {
@@ -189,10 +189,14 @@ export const useDocumentsStore = defineStore('documents', {
       const doc = await api.getDocumento(id)
       if (!doc) return null
 <<<<<<< HEAD
+<<<<<<< HEAD
       if (!doc.secoes) doc.secoes = gerarSecoesTemplate(doc)
 =======
       doc.secoes = gerarSecoesTemplate(doc)
 >>>>>>> ffd8177 (Uso do HATEOAS)
+=======
+      if (!doc.secoes) doc.secoes = gerarSecoesTemplate(doc)
+>>>>>>> 1e3a004 (Correção de bugs)
       const idx = this.documentos.findIndex(d => String(d.id) === String(id))
       if (idx !== -1) this.documentos[idx] = doc
       else this.documentos.push(doc)
@@ -200,6 +204,7 @@ export const useDocumentsStore = defineStore('documents', {
     },
 
     async createDocumento(payload) {
+<<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
       const novo = await api.createDocumento(payload)
@@ -234,6 +239,8 @@ export const useDocumentsStore = defineStore('documents', {
         api.persist(this.documentos)
         return novo
       }
+=======
+>>>>>>> 1e3a004 (Correção de bugs)
       const novo = await api.createDocumento(payload)
       novo.secoes = gerarSecoesTemplate(novo)
 >>>>>>> ffd8177 (Uso do HATEOAS)
@@ -242,6 +249,7 @@ export const useDocumentsStore = defineStore('documents', {
     },
 
     async cloneDocumento(id) {
+<<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
       const clone = await api.cloneDocumento(id)
@@ -280,6 +288,13 @@ export const useDocumentsStore = defineStore('documents', {
 >>>>>>> ffd8177 (Uso do HATEOAS)
       if (clone) this.documentos.unshift(clone)
 >>>>>>> 95ae163 (Remove mock: conecta frontend ao backend via SRP por contexto de controller)
+=======
+      const clone = await api.cloneDocumento(id)
+      if (clone) {
+        clone.secoes = gerarSecoesTemplate(clone)
+        this.documentos.unshift(clone)
+      }
+>>>>>>> 1e3a004 (Correção de bugs)
       return clone
     },
 
@@ -288,12 +303,16 @@ export const useDocumentsStore = defineStore('documents', {
       if (idx === -1) return
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> 1e3a004 (Correção de bugs)
       const [atualizado] = await Promise.all([
         api.updateDocumento(documento.id, documento),
         documento.secoes ? api.saveSecoes(documento.id, documento.secoes) : Promise.resolve(null),
       ])
       if (atualizado) {
         this.documentos[idx] = { ...this.documentos[idx], ...atualizado, secoes: documento.secoes }
+<<<<<<< HEAD
       }
     },
 
@@ -331,6 +350,12 @@ export const useDocumentsStore = defineStore('documents', {
         return
       }
 
+=======
+      }
+    },
+
+    async changeStatus(id, novoStatus) {
+>>>>>>> 1e3a004 (Correção de bugs)
       const atualizado = await api.changeDocumentoStatus(id, novoStatus)
 >>>>>>> ffd8177 (Uso do HATEOAS)
       if (atualizado) {
@@ -348,6 +373,7 @@ export const useDocumentsStore = defineStore('documents', {
       if (doc && !['RASCUNHO', 'MINUTA'].includes(doc.status)) {
         throw new Error(`Não é possível excluir um documento com status "${doc.status}". Somente documentos em RASCUNHO ou MINUTA podem ser excluídos.`)
       }
+<<<<<<< HEAD
 <<<<<<< HEAD
       await api.deleteDocumento(id)
       this.documentos = this.documentos.filter(d => String(d.id) !== String(id))
@@ -387,6 +413,8 @@ export const useDocumentsStore = defineStore('documents', {
         api.persist(this.documentos)
         return
       }
+=======
+>>>>>>> 1e3a004 (Correção de bugs)
       await api.deleteDocumento(id)
       this.documentos = this.documentos.filter(d => String(d.id) !== String(id))
     },
@@ -413,7 +441,6 @@ export const useDocumentsStore = defineStore('documents', {
       }
 
       renumberElements(secaoNormativa.elementos)
-      api.persist(this.documentos)
     },
 >>>>>>> ffd8177 (Uso do HATEOAS)
   },

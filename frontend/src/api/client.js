@@ -1,4 +1,5 @@
 const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? ''
+<<<<<<< HEAD
 
 const JSON_HEADERS = {
   'Content-Type': 'application/json',
@@ -45,10 +46,20 @@ export async function get(path) {
   if (etag) setCached(url, etag, data)
   return data
 }
+=======
+>>>>>>> 1e3a004 (Correção de bugs)
 
 const JSON_HEADERS = {
   'Content-Type': 'application/json',
   'Accept': 'application/json',
+}
+
+export async function get(path) {
+  const res = await fetch(`${BASE_URL}${path}`, {
+    headers: { 'Accept': 'application/json' },
+  })
+  if (!res.ok) throw new Error(`${res.status} ${res.statusText}`)
+  return res.json()
 }
 
 export async function post(path, body) {

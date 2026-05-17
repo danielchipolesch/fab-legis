@@ -17,18 +17,26 @@
 
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
             <!-- Espécie Normativa -->
 =======
 >>>>>>> 95ae163 (Remove mock: conecta frontend ao backend via SRP por contexto de controller)
+=======
+            <!-- Espécie Normativa -->
+>>>>>>> 1e3a004 (Correção de bugs)
             <v-col cols="12">
               <v-autocomplete
                 v-model="form.especieNormativa"
                 :items="especies"
 <<<<<<< HEAD
+<<<<<<< HEAD
                 :loading="carregandoRefs"
 =======
                 :loading="carregando"
 >>>>>>> 95ae163 (Remove mock: conecta frontend ao backend via SRP por contexto de controller)
+=======
+                :loading="carregandoRefs"
+>>>>>>> 1e3a004 (Correção de bugs)
                 item-title="label"
                 item-value="id"
                 label="Espécie Normativa *"
@@ -36,6 +44,7 @@
                 prepend-inner-icon="mdi-tag-outline"
                 return-object
                 no-data-text="Nenhuma espécie encontrada"
+<<<<<<< HEAD
                 :disabled="carregando"
               />
             </v-col>
@@ -81,18 +90,28 @@
 =======
             <!-- MODO MOCK ─────────────────────────────────────────────── -->
             <template v-if="useMock">
+=======
+              />
+            </v-col>
+>>>>>>> 1e3a004 (Correção de bugs)
 
-              <!-- Organização Militar -->
-              <v-col cols="12">
-                <v-select
-                  v-model="form.organizacao"
-                  :items="organizacoes"
-                  label="Organização Militar *"
-                  :rules="[obrigatorio]"
-                  prepend-inner-icon="mdi-domain"
-                />
-              </v-col>
+            <!-- Assunto Básico -->
+            <v-col cols="12">
+              <v-autocomplete
+                v-model="form.assuntoBasico"
+                :items="assuntos"
+                :loading="carregandoRefs"
+                item-title="label"
+                item-value="id"
+                label="Assunto Básico *"
+                :rules="[obrigatorio]"
+                prepend-inner-icon="mdi-book-outline"
+                return-object
+                no-data-text="Nenhum assunto encontrado"
+              />
+            </v-col>
 
+<<<<<<< HEAD
               <!-- Espécie Normativa -->
               <v-col cols="12" sm="6">
                 <v-select
@@ -183,12 +202,25 @@
 
             </template>
 >>>>>>> ffd8177 (Uso do HATEOAS)
+=======
+            <!-- Título do documento -->
+            <v-col cols="12">
+              <v-text-field
+                v-model="form.titulo"
+                label="Título do Documento *"
+                :rules="[obrigatorio, minLen]"
+                prepend-inner-icon="mdi-format-title"
+                counter="500"
+                maxlength="500"
+              />
+            </v-col>
+>>>>>>> 1e3a004 (Correção de bugs)
 
           </v-row>
         </v-form>
 
-        <!-- Preview do identificador (mock) -->
         <v-alert
+<<<<<<< HEAD
           v-if="useMock && form.especie && proximoNumeroMock"
           type="info"
           variant="tonal"
@@ -212,6 +244,9 @@
         <!-- Preview do identificador (real) -->
         <v-alert
           v-if="!useMock && form.especieNormativa && form.assuntoBasico"
+=======
+          v-if="form.especieNormativa && form.assuntoBasico"
+>>>>>>> 1e3a004 (Correção de bugs)
           type="info"
           variant="tonal"
           density="compact"
@@ -244,7 +279,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, watch, onMounted } from 'vue'
+import { ref, reactive, computed, watch } from 'vue'
 import { useDocumentsStore } from '@/stores/documents.js'
 <<<<<<< HEAD
 <<<<<<< HEAD
@@ -259,7 +294,6 @@ import { listar as listarAssuntos } from '@/api/assuntosBasicos.js'
 >>>>>>> 95ae163 (Remove mock: conecta frontend ao backend via SRP por contexto de controller)
 =======
 import { useRouter } from 'vue-router'
-import { USE_MOCK } from '@/api/documents.js'
 import { listEspeciesNormativas, listAssuntosBasicos, normalizeEspecie, normalizeAssunto } from '@/api/referencias.js'
 >>>>>>> ffd8177 (Uso do HATEOAS)
 
@@ -268,6 +302,7 @@ const props = defineProps({
 })
 const emit = defineEmits(['update:modelValue'])
 
+<<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
@@ -322,51 +357,57 @@ const assuntos = ref([])
 const router  = useRouter()
 const store   = useDocumentsStore()
 const useMock = USE_MOCK
+=======
+const router = useRouter()
+const store  = useDocumentsStore()
+>>>>>>> 1e3a004 (Correção de bugs)
 
 const formRef  = ref(null)
 const valido   = ref(false)
 const salvando = ref(false)
 
+<<<<<<< HEAD
 // ─── Referências (modo real) ──────────────────────────────────────────────────
 >>>>>>> ffd8177 (Uso do HATEOAS)
 
+=======
+>>>>>>> 1e3a004 (Correção de bugs)
 const carregandoRefs = ref(false)
-const especiesReal   = ref([])
-const assuntosReal   = ref([])
+const especies       = ref([])
+const assuntos       = ref([])
 
 <<<<<<< HEAD
 =======
 async function carregarReferencias() {
-  if (useMock || especiesReal.value.length) return
+  if (especies.value.length) return
   carregandoRefs.value = true
   try {
-    const [especies, assuntos] = await Promise.all([
+    const [esp, ass] = await Promise.all([
       listEspeciesNormativas(),
       listAssuntosBasicos(),
     ])
-    especiesReal.value = especies.map(normalizeEspecie)
-    assuntosReal.value = assuntos.map(normalizeAssunto)
+    especies.value = esp.map(normalizeEspecie)
+    assuntos.value = ass.map(normalizeAssunto)
   } finally {
     carregandoRefs.value = false
   }
 }
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 >>>>>>> 95ae163 (Remove mock: conecta frontend ao backend via SRP por contexto de controller)
 =======
 // ─── Form ──────────────────────────────────────────────────────────────────────
 
+=======
+>>>>>>> 1e3a004 (Correção de bugs)
 const form = reactive({
-  // Mock
-  organizacao:   '',
-  especie:       '',
-  assunto_basico: '',
-  // Real
   especieNormativa: null,
   assuntoBasico:    null,
   titulo:           '',
 })
 
+<<<<<<< HEAD
 // ─── Modo mock ─────────────────────────────────────────────────────────────────
 
 const organizacoes = [
@@ -396,6 +437,8 @@ const minLen      = (v) => (String(v ?? '').trim().length >= 5) || 'Mínimo de 5
 // ─── Dialog ────────────────────────────────────────────────────────────────────
 
 >>>>>>> ffd8177 (Uso do HATEOAS)
+=======
+>>>>>>> 1e3a004 (Correção de bugs)
 const aberto = computed({
   get: () => props.modelValue,
   set: (v) => emit('update:modelValue', v),
@@ -408,7 +451,8 @@ watch(aberto, async (v) => {
   }
 })
 
-// ─── Ações ─────────────────────────────────────────────────────────────────────
+const obrigatorio = (v) => (v != null && String(v).trim() !== '') || 'Campo obrigatório'
+const minLen      = (v) => (String(v ?? '').trim().length >= 5) || 'Mínimo de 5 caracteres'
 
 async function confirmar() {
   const { valid } = await formRef.value.validate()
@@ -416,22 +460,11 @@ async function confirmar() {
 
   salvando.value = true
   try {
-    let doc
-    if (useMock) {
-      doc = await store.createDocumento({
-        organizacao:    form.organizacao,
-        especie:        form.especie,
-        assunto_basico: form.assunto_basico,
-        numero_basico:  proximoNumeroMock.value,
-      })
-    } else {
-      doc = await store.createDocumento({
-        idEspecieNormativa: form.especieNormativa.id,
-        idAssuntoBasico:    form.assuntoBasico.id,
-        tituloDocumento:    form.titulo,
-      })
-    }
-
+    const doc = await store.createDocumento({
+      idEspecieNormativa: form.especieNormativa.id,
+      idAssuntoBasico:    form.assuntoBasico.id,
+      tituloDocumento:    form.titulo,
+    })
     fechar()
     if (doc?.id) router.push({ name: 'documento-editar', params: { id: doc.id } })
   } finally {
@@ -442,9 +475,6 @@ async function confirmar() {
 function fechar() {
   aberto.value = false
   formRef.value?.reset()
-  Object.assign(form, {
-    organizacao: '', especie: '', assunto_basico: '',
-    especieNormativa: null, assuntoBasico: null, titulo: '',
-  })
+  Object.assign(form, { especieNormativa: null, assuntoBasico: null, titulo: '' })
 }
 </script>

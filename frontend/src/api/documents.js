@@ -1,38 +1,61 @@
-/**
- * Camada de acesso a dados de documentos.
- *
- * Modo mock  (VITE_USE_MOCK_API=true  — padrão de desenvolvimento):
- *   Lê e grava no localStorage; não faz requisições de rede.
- *
- * Modo real  (VITE_USE_MOCK_API=false — com backend rodando):
- *   Delega para client.js, que aplica cache ETag/304 automaticamente.
- *   VITE_API_BASE_URL deve apontar para http://localhost:8081/v1
- */
-
 import * as http from './client.js'
 
-export const USE_MOCK = import.meta.env.VITE_USE_MOCK_API !== 'false'
-
-// ─── Mock: persistência local ─────────────────────────────────────────────────
-
-const STORAGE_KEY = 'fab-legis-documents'
-
-function readDocs() {
-  try { return JSON.parse(localStorage.getItem(STORAGE_KEY) ?? 'null') } catch { return null }
+const SECAO_CONFIG = {
+  PARTE_PRELIMINAR: { tipo: 'parte_preliminar', titulo: 'Parte Preliminar', ordem: 1 },
+  PARTE_NORMATIVA:  { tipo: 'parte_normativa',  titulo: 'Parte Normativa',  ordem: 2 },
+  PARTE_FINAL:      { tipo: 'parte_final',      titulo: 'Parte Final',      ordem: 3 },
 }
 
-function writeDocs(docs) {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(docs)) } catch {}
+const SECAO_ENUM_MAP = {
+  parte_preliminar: 'PARTE_PRELIMINAR',
+  parte_normativa:  'PARTE_NORMATIVA',
+  parte_final:      'PARTE_FINAL',
 }
 
-// ─── Mapeamento backend ↔ frontend ────────────────────────────────────────────
+function parseDtCriacao(dt) {
+  if (!dt) return null
+  if (typeof dt === 'number') return new Date(dt).toISOString().slice(0, 10)
+  return String(dt).slice(0, 10)
+}
 
-/**
- * Converte um documento retornado pelo backend para o modelo do frontend.
- * Suporta tanto DocumentoResponseSemAnexoTextualDto quanto Com (inclui itens).
- */
+function apiItemParaFrontend(item) {
+  return {
+    id: String(item.id),
+    tipo: (item.tipo ?? '').toLowerCase(),
+    numero: null,
+    titulo: item.titulo ?? null,
+    conteudo: item.conteuto ?? null,
+    filhos: (item.children ?? []).map(apiItemParaFrontend),
+  }
+}
+
+function apiItensParaSecoes(itens) {
+  if (!itens?.length) return null
+  const map = {}
+  for (const item of itens) {
+    const key = item.secao ?? 'PARTE_NORMATIVA'
+    if (!map[key]) map[key] = { ...SECAO_CONFIG[key], id: crypto.randomUUID(), elementos: [] }
+    map[key].elementos.push(apiItemParaFrontend(item))
+  }
+  return ['PARTE_PRELIMINAR', 'PARTE_NORMATIVA', 'PARTE_FINAL']
+    .filter(k => map[k])
+    .map(k => map[k])
+}
+
+function converterElemento(el, secaoEnum) {
+  return {
+    secao: secaoEnum,
+    tipo: (el.tipo ?? '').toUpperCase(),
+    titulo: el.titulo ?? null,
+    conteudo: el.conteudo ?? null,
+    filhos: (el.filhos ?? []).map(f => converterElemento(f, secaoEnum)),
+  }
+}
+
 export function backendParaFrontend(doc) {
   if (!doc) return null
+  const itens = doc.itens ?? []
+  const secoes = itens.length ? apiItensParaSecoes(itens) : null
   return {
     id: doc.idDocumento,
     especie: doc.siglaEspecieNormativa,
@@ -41,97 +64,69 @@ export function backendParaFrontend(doc) {
     assunto_basico: doc.nomeAssuntoBasico ?? doc.codigoAssuntoBasico,
     titulo: doc.tituloDocumento,
     codigo_documento: doc.codigoDocumento,
-    data_criacao: doc.dtCriacao ? doc.dtCriacao.split('T')[0] : null,
+    data_criacao: parseDtCriacao(doc.dtCriacao),
     data_publicacao: null,
     status: doc.statusDocumento,
     versoes: [],
-    itens: doc.itens ?? [],
-    secoes: [],
+    itens,
+    secoes,
   }
 }
 
-/**
- * Converte o payload do frontend para o formato esperado pelo backend na criação.
- */
 export function frontendParaBackendCreate(payload) {
   return {
-    idEspecieNormativa: payload.idEspecieNormativa ?? payload.IdEspecieNormativa,
-    idAssuntoBasico:    payload.idAssuntoBasico    ?? payload.IdAssuntoBasico,
+    idEspecieNormativa: payload.idEspecieNormativa,
+    idAssuntoBasico:    payload.idAssuntoBasico,
     tituloDocumento:    payload.tituloDocumento,
   }
 }
 
-// ─── Interface pública ────────────────────────────────────────────────────────
-
-export function loadInitial() {
-  if (!USE_MOCK) return null
-  return readDocs()
-}
-
-export function persist(docs) {
-  if (USE_MOCK) writeDocs(docs)
-}
-
-// ─── CRUD assíncrono ──────────────────────────────────────────────────────────
-
 export async function listDocumentos() {
-  if (USE_MOCK) return readDocs() ?? []
-  const data = await http.get('/documentos/obter-todos?size=100&sortBy=id')
+  const data = await http.get('/documentos/obter-todos?size=200&sortBy=id')
   const items = Array.isArray(data) ? data : []
   return items.map(backendParaFrontend)
 }
 
 export async function getDocumento(id) {
-  if (USE_MOCK) {
-    const docs = readDocs() ?? []
-    return docs.find(d => d.id === id) ?? null
-  }
   const data = await http.get(`/documentos/${id}`)
   return backendParaFrontend(data)
 }
 
 export async function createDocumento(payload) {
-  if (USE_MOCK) {
-    throw new Error('createDocumento mock deve ser chamado pelo store')
-  }
   const body = frontendParaBackendCreate(payload)
   const data = await http.post('/documentos', body)
   return backendParaFrontend(data)
 }
 
 export async function cloneDocumento(id) {
-  if (USE_MOCK) {
-    throw new Error('cloneDocumento mock deve ser chamado pelo store')
-  }
   const data = await http.post(`/documentos/${id}/clonar`)
   return backendParaFrontend(data)
 }
 
 export async function updateDocumento(id, data) {
-  if (USE_MOCK) {
-    const docs = readDocs() ?? []
-    const idx = docs.findIndex(d => d.id === id)
-    if (idx !== -1) { docs[idx] = data; writeDocs(docs) }
-    return data
-  }
   const body = { tituloDocumento: data.titulo ?? data.tituloDocumento }
   const result = await http.put(`/documentos/${id}`, body)
   return backendParaFrontend(result)
 }
 
 export async function changeDocumentoStatus(id, novoStatus) {
-  if (USE_MOCK) {
-    throw new Error('changeDocumentoStatus mock deve ser chamado pelo store')
-  }
   const result = await http.patch(`/documentos/${id}/status`, { status: novoStatus })
   return backendParaFrontend(result)
 }
 
-export async function deleteDocumento(id) {
-  if (USE_MOCK) {
-    const docs = readDocs() ?? []
-    writeDocs(docs.filter(d => d.id !== id))
-    return null
+export async function saveSecoes(id, secoes) {
+  if (!secoes?.length) return null
+  const itens = []
+  for (const secao of secoes) {
+    const secaoEnum = SECAO_ENUM_MAP[secao.tipo]
+    if (!secaoEnum) continue
+    for (const el of secao.elementos ?? []) {
+      itens.push(converterElemento(el, secaoEnum))
+    }
   }
+  return http.put(`/documentos/${id}/secoes`, { itens })
+}
+
+export async function deleteDocumento(id) {
   return http.del(`/documentos/${id}`)
 }
