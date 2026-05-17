@@ -1,6 +1,8 @@
 import { defineStore } from 'pinia'
-import { renumberElements, removeById, findById, promoteType, demoteType } from '@/utils/numbering.js'
+import { renumberElements, removeById, promoteType, demoteType } from '@/utils/numbering.js'
 import { useDocumentsStore } from './documents.js'
+import * as apiDocs from '@/api/documentos.js'
+import { tipoParaBackend } from '@/api/documentos.js'
 
 export const useEditorStore = defineStore('editor', {
   state: () => ({
@@ -9,12 +11,13 @@ export const useEditorStore = defineStore('editor', {
     selectedElementId: null,
     isDirty: false,
     sidebarOpen: true,
+    adicionando: false,
   }),
 
   getters: {
     selectedElement(state) {
       if (!state.documento || !state.selectedElementId) return null
-      for (const secao of state.documento.secoes) {
+      for (const secao of state.documento.secoes ?? []) {
         const found = findInElements(secao.elementos, state.selectedElementId)
         if (found) return found
       }
@@ -27,24 +30,17 @@ export const useEditorStore = defineStore('editor', {
   },
 
   actions: {
-    load(id) {
-      const store = useDocumentsStore()
-      const doc = store.getById(id)
+    async load(id) {
+      const docsStore = useDocumentsStore()
+      const doc = await docsStore.fetchDocumento(id)
       if (!doc) return false
       this.documento = JSON.parse(JSON.stringify(doc))
       this.documentoId = id
       this.selectedElementId = null
       this.isDirty = false
+      const normativa = this.normativaSecao
+      if (normativa) renumberElements(normativa.elementos)
       return true
-    },
-
-    loadNew() {
-      const store = useDocumentsStore()
-      const doc = store.createDocumento({})
-      this.documento = JSON.parse(JSON.stringify(doc))
-      this.documentoId = doc.id
-      this.selectedElementId = null
-      this.isDirty = false
     },
 
     selectElement(id) {
@@ -56,46 +52,76 @@ export const useEditorStore = defineStore('editor', {
       if (el) { el.conteudo = html; this.isDirty = true }
     },
 
-    save() {
-      const store = useDocumentsStore()
-      store.saveDocumento(this.documento)
-      this.isDirty = false
-    },
-
-    addFilho(parentId, tipo) {
-      const parent = this.findElement(parentId)
-      if (!parent) return
-      const novo = makeNormEl(tipo)
-      parent.filhos = parent.filhos ?? []
-      parent.filhos.push(novo)
-      this.renumberNormativa()
-      this.selectedElementId = novo.id
-      this.isDirty = true
-    },
-
-    addSibling(siblingId, tipo) {
-      const secaoNorm = this.normativaSecao
-      if (!secaoNorm) return
-      const inserted = insertAfterInTree(secaoNorm.elementos, siblingId, makeNormEl(tipo))
-      if (inserted) {
-        this.renumberNormativa()
-        this.isDirty = true
-      }
-    },
-
-    addCapitulo(titulo = '') {
-      const secao = this.normativaSecao
-      if (!secao) return
-      const novo = { id: crypto.randomUUID(), tipo: 'capitulo', numero: 0, titulo, filhos: [] }
-      secao.elementos.push(novo)
-      this.renumberNormativa()
-      this.selectedElementId = novo.id
-      this.isDirty = true
-    },
-
     updateTitulo(elementId, titulo) {
       const el = this.findElement(elementId)
       if (el) { el.titulo = titulo; this.isDirty = true }
+    },
+
+    async save() {
+      const store = useDocumentsStore()
+      await store.saveDocumento(this.documento)
+      this.isDirty = false
+    },
+
+    async addFilho(parentId, tipo) {
+      this.adicionando = true
+      try {
+        const updatedDoc = await apiDocs.adicionarItem(this.documentoId, {
+          parentId: parseInt(parentId),
+          tipo: tipoParaBackend(tipo),
+          titulo: null,
+          conteuto: '<p></p>',
+        })
+        if (updatedDoc) this._aplicarItens(updatedDoc)
+      } finally {
+        this.adicionando = false
+      }
+    },
+
+    async addSibling(siblingId, tipo) {
+      this.adicionando = true
+      try {
+        const rawParentId = this._encontrarParentId(siblingId)
+        const updatedDoc = await apiDocs.adicionarItem(this.documentoId, {
+          parentId: rawParentId !== null ? parseInt(rawParentId) : null,
+          tipo: tipoParaBackend(tipo),
+          titulo: null,
+          conteuto: '<p></p>',
+        })
+        if (updatedDoc) this._aplicarItens(updatedDoc)
+      } finally {
+        this.adicionando = false
+      }
+    },
+
+    async addArtigo() {
+      this.adicionando = true
+      try {
+        const updatedDoc = await apiDocs.adicionarItem(this.documentoId, {
+          parentId: null,
+          tipo: 'ARTIGO',
+          titulo: null,
+          conteuto: '<p></p>',
+        })
+        if (updatedDoc) this._aplicarItens(updatedDoc)
+      } finally {
+        this.adicionando = false
+      }
+    },
+
+    async addCapitulo(titulo = '') {
+      this.adicionando = true
+      try {
+        const updatedDoc = await apiDocs.adicionarItem(this.documentoId, {
+          parentId: null,
+          tipo: 'CAPITULO',
+          titulo: titulo || null,
+          conteuto: null,
+        })
+        if (updatedDoc) this._aplicarItens(updatedDoc)
+      } finally {
+        this.adicionando = false
+      }
     },
 
     removeElement(id) {
@@ -131,7 +157,6 @@ export const useEditorStore = defineStore('editor', {
     },
 
     promote(id) {
-      // Move element up one level in the hierarchy (becomes sibling of its parent)
       for (const secao of this.documento.secoes) {
         if (promoteInTree(secao.elementos, id)) {
           this.renumberNormativa()
@@ -142,7 +167,6 @@ export const useEditorStore = defineStore('editor', {
     },
 
     demote(id) {
-      // Move element down one level (becomes child of its previous sibling)
       for (const secao of this.documento.secoes) {
         if (demoteInTree(secao.elementos, id)) {
           this.renumberNormativa()
@@ -159,24 +183,50 @@ export const useEditorStore = defineStore('editor', {
 
     findElement(id) {
       if (!this.documento) return null
-      for (const secao of this.documento.secoes) {
+      for (const secao of this.documento.secoes ?? []) {
         const found = findInElements(secao.elementos, id)
         if (found) return found
+      }
+      return null
+    },
+
+    _aplicarItens(updatedDoc) {
+      const normativa = updatedDoc.secoes?.find(s => s.tipo === 'parte_normativa')
+      if (!normativa || !this.documento) return
+
+      const elementos = normativa.elementos
+      renumberElements(elementos)
+
+      // Substitui this.documento por novo objeto para garantir reatividade Vue.
+      // Mutação de propriedade aninhada não é detectada como dependência no computed
+      // que retorna apenas a referência raiz do documento.
+      this.documento = {
+        ...this.documento,
+        secoes: this.documento.secoes.map(s =>
+          s.tipo === 'parte_normativa' ? { ...s, elementos } : s
+        ),
+      }
+
+      const todos = flattenElements(elementos)
+      if (todos.length > 0) {
+        const ultimo = todos.reduce((max, el) =>
+          parseInt(el.id) > parseInt(max.id) ? el : max, todos[0])
+        this.selectedElementId = ultimo.id
+      }
+      this.isDirty = false
+    },
+
+    _encontrarParentId(childId) {
+      for (const secao of this.documento?.secoes ?? []) {
+        const pid = findParentId(secao.elementos, childId)
+        if (pid !== undefined) return pid
       }
       return null
     },
   },
 })
 
-// ---------- Tree helpers ----------
-
-const GROUPING_TYPES = new Set(['capitulo', 'secao_normativa', 'subsecao_normativa'])
-
-function makeNormEl(tipo) {
-  return GROUPING_TYPES.has(tipo)
-    ? { id: crypto.randomUUID(), tipo, numero: 0, titulo: '', filhos: [] }
-    : { id: crypto.randomUUID(), tipo, numero: 0, conteudo: '<p></p>', filhos: [] }
-}
+// ─── Helpers de árvore ────────────────────────────────────────────────────────
 
 function findInElements(elements, id) {
   if (!elements) return null
@@ -188,14 +238,30 @@ function findInElements(elements, id) {
   return null
 }
 
+function findParentId(elements, targetId) {
+  for (const el of elements) {
+    if ((el.filhos ?? []).some(c => c.id === targetId)) return el.id
+    const found = findParentId(el.filhos ?? [], targetId)
+    if (found !== undefined) return found
+  }
+  return undefined
+}
+
+function flattenElements(elements) {
+  const result = []
+  for (const el of elements ?? []) {
+    result.push(el)
+    if (el.filhos?.length) result.push(...flattenElements(el.filhos))
+  }
+  return result
+}
+
 function moveInTree(elements, id, direction) {
   for (let i = 0; i < elements.length; i++) {
     if (elements[i].id === id) {
       const newIdx = i + direction
       if (newIdx < 0 || newIdx >= elements.length) return false
-      const tmp = elements[i]
-      elements[i] = elements[newIdx]
-      elements[newIdx] = tmp
+      const tmp = elements[i]; elements[i] = elements[newIdx]; elements[newIdx] = tmp
       return true
     }
     if (elements[i].filhos?.length && moveInTree(elements[i].filhos, id, direction)) return true
@@ -205,10 +271,7 @@ function moveInTree(elements, id, direction) {
 
 function insertAfterInTree(elements, afterId, newEl) {
   for (let i = 0; i < elements.length; i++) {
-    if (elements[i].id === afterId) {
-      elements.splice(i + 1, 0, newEl)
-      return true
-    }
+    if (elements[i].id === afterId) { elements.splice(i + 1, 0, newEl); return true }
     if (elements[i].filhos?.length && insertAfterInTree(elements[i].filhos, afterId, newEl)) return true
   }
   return false

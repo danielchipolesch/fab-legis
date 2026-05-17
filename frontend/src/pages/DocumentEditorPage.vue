@@ -88,8 +88,20 @@
 
     <v-divider />
 
+    <!-- Skeleton enquanto documento carrega -->
+    <div v-if="carregando" class="d-flex flex-grow-1 overflow-hidden">
+      <div class="pa-4" style="width:290px;border-right:1px solid rgba(0,0,0,.12)">
+        <v-skeleton-loader type="list-item-two-line@6" />
+      </div>
+      <div class="pa-6 flex-grow-1">
+        <v-skeleton-loader type="heading" class="mb-5" />
+        <v-skeleton-loader type="paragraph" class="mb-4" />
+        <v-skeleton-loader type="paragraph" />
+      </div>
+    </div>
+
     <!-- Main editor area -->
-    <div class="editor-body d-flex flex-grow-1 overflow-hidden">
+    <div v-else class="editor-body d-flex flex-grow-1 overflow-hidden">
 
       <!-- Left sidebar -->
       <EditorSidebar
@@ -249,6 +261,17 @@
 
     </div>
 
+    <!-- Snackbar de sucesso na criação -->
+    <v-snackbar
+      v-model="showCriacao"
+      location="bottom right"
+      color="success"
+      :timeout="3000"
+    >
+      <v-icon start>mdi-check-circle-outline</v-icon>
+      {{ msgCriacao }}
+    </v-snackbar>
+
     <!-- PDF error snackbar -->
     <v-snackbar
       v-model="showPdfError"
@@ -281,12 +304,15 @@ const router = useRouter()
 const editorStore = useEditorStore()
 const docStore = useDocumentsStore()
 
+const carregando    = ref(true)
 const showMeta      = ref(false)
 const sidebarOpen   = ref(true)
 const previewMounted = ref(false)
 const pdfLoading    = ref(false)
 const showPdfError  = ref(false)
 const pdfErrorMsg   = ref('')
+const showCriacao   = ref(false)
+const msgCriacao    = ref('')
 
 // ── Auto-save ────────────────────────────────────────────────────────────────
 // Estados: 'idle' | 'dirty' | 'saving' | 'saved'
@@ -383,17 +409,23 @@ function hasChildren(el) {
 }
 
 onMounted(async () => {
+  carregando.value = true
   if (documentoId.value) {
-    const ok = editorStore.load(documentoId.value)
+    const ok = await editorStore.load(documentoId.value)
     if (!ok) {
       router.replace({ name: 'home' })
       return
     }
-  } else {
-    editorStore.loadNew()
   }
   await nextTick()
+  carregando.value = false
   previewMounted.value = true
+
+  if (history.state?.sucessoCriacao) {
+    msgCriacao.value = history.state.sucessoCriacao
+    showCriacao.value = true
+    history.replaceState({ ...history.state, sucessoCriacao: undefined }, '')
+  }
 })
 
 async function baixarPdf() {
@@ -442,26 +474,12 @@ function onReorderNormativa(newElements) {
   }
 }
 
-function addArtigo() {
-  const secao = editorStore.normativaSecao
-  if (!secao) return
-  const novo = {
-    id: crypto.randomUUID(),
-    tipo: 'artigo',
-    numero: 0,
-    conteudo: '<p></p>',
-    filhos: [],
-  }
-  secao.elementos.push(novo)
-  renumberElements(secao.elementos)
-  editorStore.selectedElementId = novo.id
-  editorStore.isDirty = true
-  scheduleAutoSave()
+async function addArtigo() {
+  await editorStore.addArtigo()
 }
 
-function addCapitulo(titulo) {
-  editorStore.addCapitulo(titulo)
-  scheduleAutoSave()
+async function addCapitulo(titulo) {
+  await editorStore.addCapitulo(titulo)
 }
 </script>
 

@@ -7,6 +7,14 @@
     border="e"
     permanent
   >
+    <!-- Barra de progresso ao adicionar elemento -->
+    <v-progress-linear
+      :active="editorStore.adicionando"
+      indeterminate
+      color="primary"
+      height="2"
+    />
+
     <!-- Header -->
     <div class="sidebar-header pa-3 d-flex align-center">
       <v-icon icon="mdi-file-tree-outline" color="primary" class="mr-2" />
@@ -97,7 +105,8 @@
                           color="primary"
                           size="small"
                           prepend-icon="mdi-folder-plus-outline"
-                          :disabled="hasTopLevelArtigos"
+                          :disabled="hasTopLevelArtigos || editorStore.adicionando"
+                          :loading="editorStore.adicionando"
                           block
                         >
                           Novo Capítulo
@@ -135,7 +144,8 @@
                     variant="outlined"
                     size="small"
                     prepend-icon="mdi-plus"
-                    :disabled="hasCapitulos"
+                    :disabled="hasCapitulos || editorStore.adicionando"
+                    :loading="editorStore.adicionando"
                     block
                     @click="$emit('add-artigo')"
                   >
@@ -160,6 +170,9 @@ import { reactive, computed } from 'vue'
 import draggable from 'vuedraggable'
 import SectionTreeItem from './SectionTreeItem.vue'
 import { formatLabel, elementIcon } from '@/utils/numbering.js'
+import { useEditorStore } from '@/stores/editor.js'
+
+const editorStore = useEditorStore()
 
 const props = defineProps({
   modelValue: { type: Boolean, default: true },
