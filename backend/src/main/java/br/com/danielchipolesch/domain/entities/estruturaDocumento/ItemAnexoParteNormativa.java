@@ -30,6 +30,10 @@ public class ItemAnexoParteNormativa {
 //    @Column(name = "parent_id")
 //    private Long parentItem;
 
+    @Column(name = "sg_secao")
+    @Enumerated(EnumType.STRING)
+    private SecaoDocumentoEnum secao;
+
     @Column(name = "sg_tipo_item", nullable = false)
     @Enumerated(EnumType.STRING)
     private ItemAnexoParteNormativaTipoEnum tipo;  // Ex: "CAPÍTULO", "SEÇÃO", "ARTIGO"

@@ -6,6 +6,8 @@ import br.com.danielchipolesch.application.dtos.documentoDtos.DocumentoResponseC
 import br.com.danielchipolesch.application.dtos.documentoDtos.DocumentoResponseSemAnexoTextualDto;
 import br.com.danielchipolesch.application.dtos.documentoDtos.DocumentoStatusRequestDto;
 import br.com.danielchipolesch.application.dtos.itemAnexoParteNormativaDtos.ItemAnexoParteNormativaRequestDto;
+import br.com.danielchipolesch.application.dtos.itemAnexoParteNormativaDtos.SecoesSaveRequestDto;
+import br.com.danielchipolesch.domain.mappers.DocumentoMapper;
 import br.com.danielchipolesch.domain.services.DocumentoParteNormativaService;
 import br.com.danielchipolesch.domain.services.DocumentoService;
 import br.com.danielchipolesch.domain.services.DocumentoStatusService;
@@ -94,7 +96,10 @@ public class DocumentoController {
             @RequestParam(defaultValue = "id") String sortBy) throws RuntimeException {
         Pageable pageable = PageRequest.of(page, size, Sort.by(sortBy));
         List<EntityModel<DocumentoResponseSemAnexoTextualDto>> models = documentoService
-                .getAllAsDtos(pageable).stream().map(this::toModel).toList();
+                .getAll(pageable).stream()
+                .map(DocumentoMapper::documentoToDocumentoSemAnexoTextualResponseDto)
+                .map(this::toModel)
+                .toList();
         return ResponseEntity.ok(models);
     }
 
@@ -129,6 +134,14 @@ public class DocumentoController {
                 Link.of(BASE + "/obter-todos").withRel("documentos")
         );
         return ResponseEntity.ok(model);
+    }
+
+    @PutMapping("{id}/secoes")
+    public ResponseEntity<Void> saveSecoes(
+            @PathVariable(value = "id") Long id,
+            @RequestBody SecoesSaveRequestDto request) throws RuntimeException {
+        documentoParteNormativaService.salvarSecoes(id, request);
+        return ResponseEntity.noContent().build();
     }
 
     @DeleteMapping("{id}")

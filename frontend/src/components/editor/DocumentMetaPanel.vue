@@ -32,15 +32,6 @@
             @update:model-value="emit('update', local)"
           />
         </v-col>
-        <v-col cols="12" md="4">
-          <v-text-field
-            v-model="local.data_criacao"
-            label="Data"
-            type="date"
-            hide-details="auto"
-            @update:model-value="emit('update', local)"
-          />
-        </v-col>
         <v-col cols="12">
           <v-text-field
             v-model="local.assunto_basico"
@@ -68,7 +59,7 @@
 </template>
 
 <script setup>
-import { reactive, watch } from 'vue'
+import { reactive, computed, watch } from 'vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 
 const props = defineProps({
@@ -85,9 +76,4 @@ const local = reactive({ ...props.documento })
 watch(() => props.documento, (val) => Object.assign(local, val), { deep: true })
 
 const isStatusReadonly = computed(() => ['PUBLICADO', 'ARQUIVADO', 'CANCELADO', 'REVOGADO'].includes(local.status))
-</script>
-
-<script>
-import { computed } from 'vue'
-export default { name: 'DocumentMetaPanel' }
 </script>

@@ -108,7 +108,7 @@ export const useDocumentsStore = defineStore('documents', {
     async fetchDocumento(id) {
       const doc = await api.getDocumento(id)
       if (!doc) return null
-      doc.secoes = gerarSecoesTemplate(doc)
+      if (!doc.secoes) doc.secoes = gerarSecoesTemplate(doc)
       const idx = this.documentos.findIndex(d => String(d.id) === String(id))
       if (idx !== -1) this.documentos[idx] = doc
       else this.documentos.push(doc)
@@ -134,8 +134,13 @@ export const useDocumentsStore = defineStore('documents', {
     async saveDocumento(documento) {
       const idx = this.documentos.findIndex(d => String(d.id) === String(documento.id))
       if (idx === -1) return
-      const atualizado = await api.updateDocumento(documento.id, documento)
-      if (atualizado) this.documentos[idx] = { ...this.documentos[idx], ...atualizado }
+      const [atualizado] = await Promise.all([
+        api.updateDocumento(documento.id, documento),
+        documento.secoes ? api.saveSecoes(documento.id, documento.secoes) : Promise.resolve(null),
+      ])
+      if (atualizado) {
+        this.documentos[idx] = { ...this.documentos[idx], ...atualizado, secoes: documento.secoes }
+      }
     },
 
     async changeStatus(id, novoStatus) {
