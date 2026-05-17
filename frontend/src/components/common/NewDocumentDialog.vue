@@ -12,105 +12,152 @@
       <v-divider />
 
       <v-card-text class="pa-5">
-
-        <!-- Erro de carregamento de referências -->
-        <v-alert
-          v-if="erroRefs"
-          type="error"
-          variant="tonal"
-          density="compact"
-          closable
-          class="mb-4"
-          @click:close="erroRefs = ''"
-        >
-          {{ erroRefs }}
-        </v-alert>
-
         <v-form ref="formRef" v-model="valido" @submit.prevent="confirmar">
           <v-row dense>
 
-            <v-col cols="12">
-              <v-autocomplete
-                v-model="form.especieNormativa"
-                :items="especies"
-                :loading="carregando"
-                item-title="label"
-                item-value="id"
-                label="Espécie Normativa *"
-                :rules="[obrigatorio]"
-                prepend-inner-icon="mdi-tag-outline"
-                return-object
-                no-data-text="Nenhuma espécie encontrada"
-                :disabled="carregando"
-              />
-            </v-col>
+            <!-- MODO MOCK ─────────────────────────────────────────────── -->
+            <template v-if="useMock">
 
-            <v-col cols="12">
-              <v-autocomplete
-                v-model="form.assuntoBasico"
-                :items="assuntos"
-                :loading="carregando"
-                item-title="label"
-                item-value="id"
-                label="Assunto Básico *"
-                :rules="[obrigatorio]"
-                prepend-inner-icon="mdi-book-outline"
-                return-object
-                no-data-text="Nenhum assunto encontrado"
-                :disabled="carregando"
-              />
-            </v-col>
+              <!-- Organização Militar -->
+              <v-col cols="12">
+                <v-select
+                  v-model="form.organizacao"
+                  :items="organizacoes"
+                  label="Organização Militar *"
+                  :rules="[obrigatorio]"
+                  prepend-inner-icon="mdi-domain"
+                />
+              </v-col>
 
-            <v-col cols="12">
-              <v-text-field
-                v-model="form.titulo"
-                label="Título do Documento *"
-                :rules="[obrigatorio, minLen]"
-                prepend-inner-icon="mdi-format-title"
-                counter="500"
-                maxlength="500"
-              />
-            </v-col>
+              <!-- Espécie Normativa -->
+              <v-col cols="12" sm="6">
+                <v-select
+                  v-model="form.especie"
+                  :items="especiesMock"
+                  label="Espécie Normativa *"
+                  :rules="[obrigatorio]"
+                  prepend-inner-icon="mdi-tag-outline"
+                />
+              </v-col>
+
+              <!-- Numeração Básica (somente leitura) -->
+              <v-col cols="12" sm="6">
+                <v-text-field
+                  :model-value="proximoNumeroMock"
+                  label="Numeração Básica"
+                  readonly
+                  prepend-inner-icon="mdi-numeric"
+                  hint="Gerada automaticamente pelo sistema"
+                  persistent-hint
+                >
+                  <template #append-inner>
+                    <v-icon icon="mdi-lock-outline" size="16" color="grey" />
+                  </template>
+                </v-text-field>
+              </v-col>
+
+              <!-- Assunto Básico (texto livre no mock) -->
+              <v-col cols="12">
+                <v-text-field
+                  v-model="form.assunto_basico"
+                  label="Assunto Básico *"
+                  :rules="[obrigatorio, minLen]"
+                  prepend-inner-icon="mdi-text-short"
+                  counter="200"
+                  maxlength="200"
+                />
+              </v-col>
+
+            </template>
+
+            <!-- MODO REAL ─────────────────────────────────────────────── -->
+            <template v-else>
+
+              <!-- Espécie Normativa (select do backend) -->
+              <v-col cols="12">
+                <v-autocomplete
+                  v-model="form.especieNormativa"
+                  :items="especiesReal"
+                  :loading="carregandoRefs"
+                  item-title="label"
+                  item-value="id"
+                  label="Espécie Normativa *"
+                  :rules="[obrigatorio]"
+                  prepend-inner-icon="mdi-tag-outline"
+                  return-object
+                  no-data-text="Nenhuma espécie encontrada"
+                />
+              </v-col>
+
+              <!-- Assunto Básico (select do backend) -->
+              <v-col cols="12">
+                <v-autocomplete
+                  v-model="form.assuntoBasico"
+                  :items="assuntosReal"
+                  :loading="carregandoRefs"
+                  item-title="label"
+                  item-value="id"
+                  label="Assunto Básico *"
+                  :rules="[obrigatorio]"
+                  prepend-inner-icon="mdi-book-outline"
+                  return-object
+                  no-data-text="Nenhum assunto encontrado"
+                />
+              </v-col>
+
+              <!-- Título do documento -->
+              <v-col cols="12">
+                <v-text-field
+                  v-model="form.titulo"
+                  label="Título do Documento *"
+                  :rules="[obrigatorio, minLen]"
+                  prepend-inner-icon="mdi-format-title"
+                  counter="500"
+                  maxlength="500"
+                />
+              </v-col>
+
+            </template>
 
           </v-row>
         </v-form>
 
+        <!-- Preview do identificador (mock) -->
         <v-alert
-          v-if="form.especieNormativa && form.assuntoBasico"
+          v-if="useMock && form.especie && proximoNumeroMock"
           type="info"
           variant="tonal"
           density="compact"
-          class="mt-3"
+          class="mt-2"
           icon="mdi-identifier"
         >
-          {{ form.especieNormativa.sigla }} {{ form.assuntoBasico.codigo }}-<em>N</em>
-          (N gerado automaticamente pelo servidor)
+          O documento será identificado como
+          <strong>{{ form.especie }} {{ proximoNumeroMock }}</strong>.
         </v-alert>
 
-        <!-- Erro de criação -->
+        <!-- Preview do identificador (real) -->
         <v-alert
-          v-if="erroCriacao"
-          type="error"
+          v-if="!useMock && form.especieNormativa && form.assuntoBasico"
+          type="info"
           variant="tonal"
           density="compact"
-          closable
-          class="mt-3"
-          @click:close="erroCriacao = ''"
+          class="mt-2"
+          icon="mdi-identifier"
         >
-          {{ erroCriacao }}
+          {{ form.especieNormativa?.sigla }} {{ form.assuntoBasico?.codigo }}-<em>N</em>
+          (N gerado automaticamente pelo servidor)
         </v-alert>
-
       </v-card-text>
 
       <v-divider />
 
       <v-card-actions class="pa-4 gap-2">
         <v-spacer />
-        <v-btn variant="text" :disabled="salvando" @click="fechar">Cancelar</v-btn>
+        <v-btn variant="text" @click="fechar">Cancelar</v-btn>
         <v-btn
           color="primary"
           prepend-icon="mdi-check"
-          :disabled="!valido || salvando || carregando"
+          :disabled="!valido || salvando"
           :loading="salvando"
           @click="confirmar"
         >
@@ -123,48 +170,86 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, watch } from 'vue'
+import { ref, reactive, computed, watch, onMounted } from 'vue'
 import { useDocumentsStore } from '@/stores/documents.js'
-import { listar as listarEspecies } from '@/api/especiesNormativas.js'
-import { listar as listarAssuntos } from '@/api/assuntosBasicos.js'
+import { useRouter } from 'vue-router'
+import { USE_MOCK } from '@/api/documents.js'
+import { listEspeciesNormativas, listAssuntosBasicos, normalizeEspecie, normalizeAssunto } from '@/api/referencias.js'
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
 })
-const emit = defineEmits(['update:modelValue', 'created'])
+const emit = defineEmits(['update:modelValue'])
 
-const store = useDocumentsStore()
+const router  = useRouter()
+const store   = useDocumentsStore()
+const useMock = USE_MOCK
 
-const formRef    = ref(null)
-const valido     = ref(false)
-const salvando   = ref(false)
-const carregando = ref(false)
-const erroRefs   = ref('')
-const erroCriacao = ref('')
+const formRef  = ref(null)
+const valido   = ref(false)
+const salvando = ref(false)
 
-const especies = ref([])
-const assuntos = ref([])
+// ─── Referências (modo real) ──────────────────────────────────────────────────
 
-const form = reactive({
-  especieNormativa: null,
-  assuntoBasico: null,
-  titulo: '',
-})
+const carregandoRefs = ref(false)
+const especiesReal   = ref([])
+const assuntosReal   = ref([])
 
 async function carregarReferencias() {
-  if (especies.value.length) return
-  carregando.value = true
-  erroRefs.value = ''
+  if (useMock || especiesReal.value.length) return
+  carregandoRefs.value = true
   try {
-    const [esp, ass] = await Promise.all([listarEspecies(), listarAssuntos()])
-    especies.value = esp
-    assuntos.value = ass
-  } catch (e) {
-    erroRefs.value = `Não foi possível carregar as referências: ${e?.message ?? 'erro desconhecido'}. Verifique se o backend está rodando.`
+    const [especies, assuntos] = await Promise.all([
+      listEspeciesNormativas(),
+      listAssuntosBasicos(),
+    ])
+    especiesReal.value = especies.map(normalizeEspecie)
+    assuntosReal.value = assuntos.map(normalizeAssunto)
   } finally {
-    carregando.value = false
+    carregandoRefs.value = false
   }
 }
+
+// ─── Form ──────────────────────────────────────────────────────────────────────
+
+const form = reactive({
+  // Mock
+  organizacao:   '',
+  especie:       '',
+  assunto_basico: '',
+  // Real
+  especieNormativa: null,
+  assuntoBasico:    null,
+  titulo:           '',
+})
+
+// ─── Modo mock ─────────────────────────────────────────────────────────────────
+
+const organizacoes = [
+  'COMAER — Comando da Aeronáutica',
+  'EMAER — Estado-Maior da Aeronáutica',
+  'DEPENS — Departamento de Ensino',
+  'DECEA — Departamento de Controle do Espaço Aéreo',
+  'DCTA — Departamento de Ciência e Tecnologia Aeroespacial',
+  'DIRENS — Diretoria de Ensino',
+  'DIRINT — Diretoria de Inteligência',
+  'DIRSA — Diretoria de Saúde',
+  'COMARA — Comando Aéreo Regional Amazônico',
+  'COMAER/SJC — Subdepartamento de Gestão',
+]
+
+const especiesMock = ['ICA', 'NSCA', 'MCA', 'RCA', 'DCA', 'PCA', 'OCA', 'TCA']
+
+const proximoNumeroMock = computed(() =>
+  form.especie ? store.getNextBasicNumber(form.especie) : ''
+)
+
+// ─── Validações ────────────────────────────────────────────────────────────────
+
+const obrigatorio = (v) => (v != null && String(v).trim() !== '') || 'Campo obrigatório'
+const minLen      = (v) => (String(v ?? '').trim().length >= 5) || 'Mínimo de 5 caracteres'
+
+// ─── Dialog ────────────────────────────────────────────────────────────────────
 
 const aberto = computed({
   get: () => props.modelValue,
@@ -173,41 +258,48 @@ const aberto = computed({
 
 watch(aberto, async (v) => {
   if (v) {
-    erroCriacao.value = ''
     formRef.value?.reset()
     await carregarReferencias()
   }
 })
 
-const obrigatorio = (v) => (v != null && String(v).trim() !== '') || 'Campo obrigatório'
-const minLen      = (v) => (String(v ?? '').trim().length >= 5) || 'Mínimo de 5 caracteres'
+// ─── Ações ─────────────────────────────────────────────────────────────────────
 
 async function confirmar() {
   const { valid } = await formRef.value.validate()
   if (!valid) return
 
   salvando.value = true
-  erroCriacao.value = ''
   try {
-    const doc = await store.createDocumento({
-      idEspecieNormativa: form.especieNormativa.id,
-      idAssuntoBasico:    form.assuntoBasico.id,
-      tituloDocumento:    form.titulo,
-    })
-    emit('created', doc)
+    let doc
+    if (useMock) {
+      doc = await store.createDocumento({
+        organizacao:    form.organizacao,
+        especie:        form.especie,
+        assunto_basico: form.assunto_basico,
+        numero_basico:  proximoNumeroMock.value,
+      })
+    } else {
+      doc = await store.createDocumento({
+        idEspecieNormativa: form.especieNormativa.id,
+        idAssuntoBasico:    form.assuntoBasico.id,
+        tituloDocumento:    form.titulo,
+      })
+    }
+
     fechar()
-  } catch (e) {
-    erroCriacao.value = `Erro ao criar o documento: ${e?.message ?? 'erro desconhecido'}`
+    if (doc?.id) router.push({ name: 'documento-editar', params: { id: doc.id } })
   } finally {
     salvando.value = false
   }
 }
 
 function fechar() {
-  if (salvando.value) return
   aberto.value = false
   formRef.value?.reset()
-  Object.assign(form, { especieNormativa: null, assuntoBasico: null, titulo: '' })
-  erroCriacao.value = ''
+  Object.assign(form, {
+    organizacao: '', especie: '', assunto_basico: '',
+    especieNormativa: null, assuntoBasico: null, titulo: '',
+  })
 }
 </script>
