@@ -86,6 +86,12 @@ public class DocumentoService {
         }
     }
 
+    public List<DocumentoResponseSemAnexoTextualDto> getAllAsDtos(Pageable pageable) throws RuntimeException {
+        return getAll(pageable).stream()
+                .map(DocumentoMapper::documentoToDocumentoSemAnexoTextualResponseDto)
+                .toList();
+    }
+
 //    @Transactional
 //    public DocumentResponseDto updateDocumentAttachment(Long id, DocumentAttachmentUpdateRequestDto request) throws RuntimeException {
 //
@@ -119,11 +125,15 @@ public class DocumentoService {
         return DocumentoMapper.documentoToDocumentoSemAnexoTextualResponseDto(documentoRepository.save(document));
     }
 
-    public DocumentoResponseSemAnexoTextualDto delete(Long id) throws RuntimeException {
-
-        Documento document = documentoRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException(DocumentException.NOT_FOUND.getMessage()));
+    @Transactional
+    public void delete(Long id) throws RuntimeException {
+        Documento document = documentoRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException(DocumentException.NOT_FOUND.getMessage()));
+        if (document.getDocumentoStatus() != DocumentoStatusEnum.RASCUNHO
+                && document.getDocumentoStatus() != DocumentoStatusEnum.MINUTA) {
+            throw new StatusCannotBeUpdatedException(DocumentException.CANNOT_BE_UPDATED.getMessage());
+        }
         documentoRepository.delete(document);
-        return DocumentoMapper.documentoToDocumentoSemAnexoTextualResponseDto(document);
     }
 
 

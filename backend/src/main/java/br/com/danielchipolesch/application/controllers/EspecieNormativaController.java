@@ -17,7 +17,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping(value = "/v1/especie-normativa")
+@RequestMapping(value = "/v1/especie-normativa", produces = org.springframework.http.MediaType.APPLICATION_JSON_VALUE)
 //@CrossOrigin(origins = "*")
 @Tag(name = "Espécie Normativa", description = "Inserir descrição")
 public class EspecieNormativaController {

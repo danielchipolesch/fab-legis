@@ -17,7 +17,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping(value = "/v1/assunto-basico")
+@RequestMapping(value = "/v1/assunto-basico", produces = org.springframework.http.MediaType.APPLICATION_JSON_VALUE)
 @Tag(name = "Assunto Básico", description = "Colocar descrição")
 public class AssuntoBasicoController {
 

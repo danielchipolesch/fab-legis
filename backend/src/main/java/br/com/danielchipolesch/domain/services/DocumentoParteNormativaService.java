@@ -63,6 +63,11 @@ public class DocumentoParteNormativaService {
         return documento;
     }
 
+    public DocumentoResponseComAnexoTextualDto getDocumentoComAnexoTextualDtoById(Long documentoId) {
+        Documento documento = getDocumentoComAnexoTextualById(documentoId, true);
+        return DocumentoMapper.documentoToDocumentoComAnexoTextualResponseDto(documento);
+    }
+
     public DocumentoResponseComAnexoTextualDto adicionarItemAoDocumento(Long idDocumento, ItemAnexoParteNormativaRequestDto dto) {
         Documento documento = documentoRepository.findById(idDocumento)
                 .orElseThrow(() -> new RuntimeException("Documento não encontrado"));

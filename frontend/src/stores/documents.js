@@ -3,22 +3,90 @@ import { v4 as uuidv4 } from 'uuid'
 import { renumberElements } from '@/utils/numbering.js'
 import * as api from '@/api/documents.js'
 
-// ---------- Mock data helpers ----------
+// ---------- Helpers ----------
 
 function makeElement(tipo, numero, conteudo = '', filhos = []) {
   return { id: uuidv4(), tipo, numero, conteudo, filhos }
 }
 
-function makeCapitulo(numero, titulo, filhos = []) {
-  return { id: uuidv4(), tipo: 'capitulo', numero, titulo, filhos }
+function red(texto) {
+  return `<span style="color: red; font-weight: bold">${texto}</span>`
 }
 
-function makeSecao(numero, titulo, filhos = []) {
-  return { id: uuidv4(), tipo: 'secao_normativa', numero, titulo, filhos }
+const ESPECIE_NOME = {
+  ICA:  'Instrução do Comando da Aeronáutica',
+  NSCA: 'Norma de Sistema do Comando da Aeronáutica',
+  MCA:  'Manual do Comando da Aeronáutica',
+  RCA:  'Regulamento do Comando da Aeronáutica',
+  DCA:  'Diretriz do Comando da Aeronáutica',
+  PCA:  'Portaria do Comando da Aeronáutica',
+  OCA:  'Ordem do Comando da Aeronáutica',
+  TCA:  'Técnica do Comando da Aeronáutica',
 }
 
-function mockDocumento(overrides = {}) {
-  return {
+function gerarSecoesTemplate(doc) {
+  const especie    = doc.especie       ?? ''
+  const numBasico  = doc.numero_basico ?? ''
+  const numSec     = doc.numero_secundario != null ? doc.numero_secundario : '?'
+  const sigla      = `${especie} ${numBasico}-${numSec}`.trim()
+  const nomeEsp    = ESPECIE_NOME[especie] ?? especie
+
+  return [
+    {
+      id: uuidv4(),
+      tipo: 'parte_preliminar',
+      titulo: 'Parte Preliminar',
+      ordem: 1,
+      elementos: [
+        makeElement('epigrafe', null,
+          `<p><strong>${sigla}</strong></p><p>${red('[DD DE MÊS DE AAAA]')}</p>`
+        ),
+        makeElement('ementa', null,
+          `<p>Dispõe sobre ${red('[descrição resumida do assunto]')} e dá outras providências.</p>`
+        ),
+        makeElement('preambulo', null,
+          `<p>O <strong>COMANDANTE DA AERONÁUTICA</strong>, no uso das atribuições que lhe confere o art. 12 da Lei Complementar nº 97, de 9 de junho de 1999, tendo em vista o que consta do Processo nº ${red('[NÚMERO DO PROCESSO]')}, resolve:</p>`
+        ),
+        makeElement('fundamentacao', null,
+          `<p>Considerando ${red('[justificativa ou motivação da norma]')};</p>`
+        ),
+      ],
+    },
+    {
+      id: uuidv4(),
+      tipo: 'parte_normativa',
+      titulo: 'Parte Normativa',
+      ordem: 2,
+      elementos: [],
+    },
+    {
+      id: uuidv4(),
+      tipo: 'parte_final',
+      titulo: 'Parte Final',
+      ordem: 3,
+      elementos: [
+        makeElement('clausula_revogatoria', null,
+          `<p>Ficam revogadas as disposições em contrário.</p>`
+        ),
+        makeElement('clausula_vigencia', null,
+          `<p>Esta ${nomeEsp} entra em vigor na data de sua publicação no Boletim do Comando da Aeronáutica.</p>`
+        ),
+        makeElement('fecho', null,
+          `<p>Brasília, ${red('[DD de mês de AAAA]')}.</p>`
+        ),
+        makeElement('assinatura', null,
+          `<p>${red('[NOME DO COMANDANTE DA AERONÁUTICA]')}<br/>Tenente-Brigadeiro do Ar<br/>Comandante da Aeronáutica</p>`
+        ),
+        makeElement('referenda', null,
+          `<p>${red('[NOME DO MINISTRO DE ESTADO DA DEFESA]')}<br/>Ministro de Estado da Defesa</p>`
+        ),
+      ],
+    },
+  ]
+}
+
+function mockDoc(overrides = {}) {
+  const base = {
     id: uuidv4(),
     especie: 'ICA',
     numero_basico: '21',
@@ -30,83 +98,21 @@ function mockDocumento(overrides = {}) {
     status: 'RASCUNHO',
     versoes: [],
     itens: [],
-    secoes: [
-      {
-        id: uuidv4(),
-        tipo: 'parte_preliminar',
-        titulo: 'Parte Preliminar',
-        ordem: 1,
-        elementos: [
-          makeElement('epigrafe',      null, '<p><strong>ICA 21-1</strong><br/>15 DE JANEIRO DE 2024</p>'),
-          makeElement('ementa',        null, '<p>Dispõe sobre a organização do Sistema de Ensino da Aeronáutica e dá outras providências.</p>'),
-          makeElement('preambulo',     null, '<p>O <strong>COMANDANTE DA AERONÁUTICA</strong>, no uso das atribuições que lhe confere o art. 12 da Lei Complementar nº 97, de 9 de junho de 1999, resolve:</p>'),
-          makeElement('fundamentacao', null, '<p>Considerando a necessidade de atualizar as normas relativas ao ensino no âmbito do Comando da Aeronáutica;</p>'),
-        ],
-      },
-      {
-        id: uuidv4(),
-        tipo: 'parte_normativa',
-        titulo: 'Parte Normativa',
-        ordem: 2,
-        elementos: [
-          makeCapitulo(1, 'DISPOSIÇÕES PRELIMINARES', [
-            makeSecao(1, 'Finalidade e conceituação', [
-              {
-                ...makeElement('artigo', 1, '<p>Esta Instrução estabelece as normas gerais de organização e funcionamento do Sistema de Ensino da Aeronáutica (SISEA).</p>'),
-                filhos: [
-                  {
-                    ...makeElement('paragrafo_unico', null, '<p>As normas complementares serão estabelecidas em regulamentos específicos.</p>'),
-                    filhos: [],
-                  },
-                ],
-              },
-            ]),
-          ]),
-          makeCapitulo(2, 'DISPOSIÇÕES GERAIS', [
-            {
-              ...makeElement('artigo', 2, '<p>O SISEA é composto pelos seguintes órgãos:</p>'),
-              filhos: [
-                makeElement('inciso', 1, '<p>Departamento de Ensino da Aeronáutica (DEPENS);</p>', []),
-                makeElement('inciso', 2, '<p>Academia da Força Aérea (AFA);</p>', []),
-                {
-                  ...makeElement('inciso', 3, '<p>Escolas de especialistas, que compreendem:</p>'),
-                  filhos: [
-                    makeElement('alinea', 1, '<p>Escola de Especialistas de Aeronáutica (EEAR);</p>', []),
-                    makeElement('alinea', 2, '<p>Escola de Aperfeiçoamento de Oficiais (EAOAR).</p>', []),
-                  ],
-                },
-              ],
-            },
-            makeElement('artigo', 3, '<p>Os casos omissos serão decididos pelo Comandante da Aeronáutica.</p>', []),
-          ]),
-        ],
-      },
-      {
-        id: uuidv4(),
-        tipo: 'parte_final',
-        titulo: 'Parte Final',
-        ordem: 3,
-        elementos: [
-          makeElement('clausula_revogatoria', null, '<p>Ficam revogadas as disposições em contrário.</p>'),
-          makeElement('clausula_vigencia',    null, '<p>Esta Instrução entra em vigor na data de sua publicação.</p>'),
-          makeElement('fecho',               null, '<p>Brasília, 15 de janeiro de 2024.</p>'),
-          makeElement('assinatura',          null, '<p><strong>MARCELO KANITZ DAMASCENO</strong><br/>Tenente-Brigadeiro do Ar<br/>Comandante da Aeronáutica</p>'),
-          makeElement('referenda',           null, '<p><strong>JOSÉ MUCIO MONTEIRO</strong><br/>Ministro de Estado da Defesa</p>'),
-        ],
-      },
-    ],
+    secoes: [],
     ...overrides,
   }
+  base.secoes = gerarSecoesTemplate(base)
+  return base
 }
 
 const MOCK_DOCUMENTOS = [
-  mockDocumento({ status: 'PUBLICADO', especie: 'NSCA', numero_basico: '5', numero_secundario: '3', assunto_basico: 'Elaboração e Gestão de Atos Normativos do COMAER', data_publicacao: '2023-06-01' }),
-  mockDocumento({ status: 'APROVADO',  especie: 'ICA',  numero_basico: '21', numero_secundario: '1', assunto_basico: 'Organização do Sistema de Ensino da Aeronáutica' }),
-  mockDocumento({ status: 'MINUTA',    especie: 'ICA',  numero_basico: '55', numero_secundario: '3', assunto_basico: 'Regulamento de Tráfego Aéreo' }),
-  mockDocumento({ status: 'RASCUNHO',  especie: 'ICA',  numero_basico: '55', numero_secundario: '17', assunto_basico: 'Regulamento de Tráfego Aéreo' }),
-  mockDocumento({ status: 'ARQUIVADO', especie: 'NSCA', numero_basico: '3',  numero_secundario: '6',  assunto_basico: 'Normas para Contratação de Serviços' }),
-  mockDocumento({ status: 'CANCELADO', especie: 'ICA',  numero_basico: '100', numero_secundario: '2', assunto_basico: 'Procedimentos de Segurança de Voo' }),
-  mockDocumento({ status: 'REVOGADO',  especie: 'ICA',  numero_basico: '21', numero_secundario: '2',  assunto_basico: 'Organização Interna da DIRENS' }),
+  mockDoc({ status: 'PUBLICADO', especie: 'NSCA', numero_basico: '5',   numero_secundario: '3',  assunto_basico: 'Elaboração e Gestão de Atos Normativos do COMAER', data_publicacao: '2023-06-01' }),
+  mockDoc({ status: 'APROVADO',  especie: 'ICA',  numero_basico: '21',  numero_secundario: '1',  assunto_basico: 'Organização do Sistema de Ensino da Aeronáutica' }),
+  mockDoc({ status: 'MINUTA',    especie: 'ICA',  numero_basico: '55',  numero_secundario: '3',  assunto_basico: 'Regulamento de Tráfego Aéreo' }),
+  mockDoc({ status: 'RASCUNHO',  especie: 'ICA',  numero_basico: '55',  numero_secundario: '17', assunto_basico: 'Regulamento de Tráfego Aéreo' }),
+  mockDoc({ status: 'ARQUIVADO', especie: 'NSCA', numero_basico: '3',   numero_secundario: '6',  assunto_basico: 'Normas para Contratação de Serviços' }),
+  mockDoc({ status: 'CANCELADO', especie: 'ICA',  numero_basico: '100', numero_secundario: '2',  assunto_basico: 'Procedimentos de Segurança de Voo' }),
+  mockDoc({ status: 'REVOGADO',  especie: 'ICA',  numero_basico: '21',  numero_secundario: '2',  assunto_basico: 'Organização Interna da DIRENS' }),
 ]
 
 function cloneDoc(doc) {
@@ -142,7 +148,8 @@ export const useDocumentsStore = defineStore('documents', {
       if (this.loading) return
       this.loading = true
       try {
-        this.documentos = await api.listDocumentos()
+        const docs = await api.listDocumentos()
+        this.documentos = docs.map(d => ({ ...d, secoes: gerarSecoesTemplate(d) }))
       } finally {
         this.loading = false
       }
@@ -151,6 +158,7 @@ export const useDocumentsStore = defineStore('documents', {
     async fetchDocumento(id) {
       const doc = await api.getDocumento(id)
       if (!doc) return null
+      doc.secoes = gerarSecoesTemplate(doc)
       const idx = this.documentos.findIndex(d => String(d.id) === String(id))
       if (idx !== -1) this.documentos[idx] = doc
       else this.documentos.push(doc)
@@ -159,25 +167,33 @@ export const useDocumentsStore = defineStore('documents', {
 
     async createDocumento(payload) {
       if (api.USE_MOCK) {
-        const base = mockDocumento({})
+        const especie     = payload.especie       ?? ''
+        const numBasico   = payload.numero_basico  ?? ''
+        const irmaos      = this.documentos.filter(
+          d => d.especie === especie && d.numero_basico === numBasico
+        )
+        const maxSec      = Math.max(0, ...irmaos.map(d => parseInt(d.numero_secundario) || 0))
         const novo = {
-          ...base,
-          id: uuidv4(),
-          especie:           payload.especie          ?? base.especie,
-          assunto_basico:    payload.assunto_basico    ?? base.assunto_basico,
-          numero_basico:     payload.numero_basico     ?? base.numero_basico,
-          numero_secundario: null,
+          id:                uuidv4(),
+          especie,
+          assunto_basico:    payload.assunto_basico ?? '',
+          numero_basico:     numBasico,
+          numero_secundario: String(maxSec + 1),
+          titulo:            payload.titulo         ?? '',
           data_criacao:      new Date().toISOString().slice(0, 10),
           data_publicacao:   null,
           status:            'RASCUNHO',
           versoes:           [],
           itens:             [],
+          secoes:            [],
         }
+        novo.secoes = gerarSecoesTemplate(novo)
         this.documentos.unshift(novo)
         api.persist(this.documentos)
         return novo
       }
       const novo = await api.createDocumento(payload)
+      novo.secoes = gerarSecoesTemplate(novo)
       this.documentos.unshift(novo)
       return novo
     },
@@ -247,6 +263,10 @@ export const useDocumentsStore = defineStore('documents', {
     },
 
     async deleteDocumento(id) {
+      const doc = this.documentos.find(d => String(d.id) === String(id))
+      if (doc && !['RASCUNHO', 'MINUTA'].includes(doc.status)) {
+        throw new Error(`Não é possível excluir um documento com status "${doc.status}". Somente documentos em RASCUNHO ou MINUTA podem ser excluídos.`)
+      }
       if (api.USE_MOCK) {
         this.documentos = this.documentos.filter(d => String(d.id) !== String(id))
         api.persist(this.documentos)

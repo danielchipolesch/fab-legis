@@ -389,6 +389,11 @@ onMounted(async () => {
       router.replace({ name: 'home' })
       return
     }
+    // Auto-seleciona o primeiro elemento da parte preliminar (Epígrafe)
+    const doc = editorStore.documento
+    const prelim = doc?.secoes?.find(s => s.tipo === 'parte_preliminar')
+    const primeiro = prelim?.elementos?.[0]
+    if (primeiro) editorStore.selectElement(primeiro.id)
   } else {
     editorStore.loadNew()
   }

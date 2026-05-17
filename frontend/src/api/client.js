@@ -55,20 +55,25 @@ export async function get(path) {
   return data
 }
 
+const JSON_HEADERS = {
+  'Content-Type': 'application/json',
+  'Accept': 'application/json',
+}
+
 export async function post(path, body) {
   const res = await fetch(`${BASE_URL}${path}`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
+    headers: JSON_HEADERS,
+    body: body !== undefined ? JSON.stringify(body) : undefined,
   })
   if (!res.ok) throw new Error(`${res.status} ${res.statusText}`)
-  return res.json()
+  return res.status === 204 ? null : res.json()
 }
 
 export async function put(path, body) {
   const res = await fetch(`${BASE_URL}${path}`, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
+    headers: JSON_HEADERS,
     body: JSON.stringify(body),
   })
   if (!res.ok) throw new Error(`${res.status} ${res.statusText}`)
@@ -78,7 +83,7 @@ export async function put(path, body) {
 export async function patch(path, body) {
   const res = await fetch(`${BASE_URL}${path}`, {
     method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
+    headers: JSON_HEADERS,
     body: JSON.stringify(body),
   })
   if (!res.ok) throw new Error(`${res.status} ${res.statusText}`)
@@ -86,7 +91,10 @@ export async function patch(path, body) {
 }
 
 export async function del(path) {
-  const res = await fetch(`${BASE_URL}${path}`, { method: 'DELETE' })
+  const res = await fetch(`${BASE_URL}${path}`, {
+    method: 'DELETE',
+    headers: { 'Accept': 'application/json' },
+  })
   if (!res.ok) throw new Error(`${res.status} ${res.statusText}`)
   return null
 }
