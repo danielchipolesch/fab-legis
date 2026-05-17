@@ -19,7 +19,7 @@
       </v-btn>
     </div>
 
-    <NewDocumentDialog v-model="dialogNovoDoc" @created="onDocumentoCriado" />
+    <NewDocumentDialog v-model="dialogNovoDoc" />
 
     <!-- Filters -->
     <v-card class="mb-5" color="surface-card">
@@ -85,10 +85,7 @@
 
     <!-- TABLE VIEW -->
     <template v-if="viewMode === 'tabela'">
-      <v-card v-if="store.loading">
-        <v-skeleton-loader type="table-heading,table-row@8" />
-      </v-card>
-      <v-card v-else>
+      <v-card>
         <v-data-table
           :headers="headers"
           :items="documentosFiltrados"
@@ -107,10 +104,6 @@
             <span class="font-weight-medium text-primary">
               {{ item.especie }} {{ item.numero_basico }}<template v-if="item.numero_secundario">-{{ item.numero_secundario }}</template>
             </span>
-          </template>
-
-          <template #item.data_criacao="{ item }">
-            {{ formatarData(item.data_criacao) }}
           </template>
 
           <template #item.status="{ item }">
@@ -218,12 +211,7 @@
 
     <!-- CARDS VIEW -->
     <template v-else>
-      <v-row v-if="store.loading">
-        <v-col v-for="n in 8" :key="n" cols="12" sm="6" md="4" lg="3">
-          <v-skeleton-loader type="card" />
-        </v-col>
-      </v-row>
-      <v-row v-else>
+      <v-row>
         <v-col
           v-for="doc in documentosFiltrados"
           :key="doc.id"
@@ -239,7 +227,7 @@
               <v-card-title class="text-subtitle-2 font-weight-bold">
                 {{ doc.especie }} {{ doc.numero_basico }}<template v-if="doc.numero_secundario">-{{ doc.numero_secundario }}</template>
               </v-card-title>
-              <v-card-subtitle class="text-caption">{{ formatarData(doc.data_criacao) }}</v-card-subtitle>
+              <v-card-subtitle class="text-caption">{{ doc.data_criacao }}</v-card-subtitle>
               <template #append>
                 <StatusBadge :status="doc.status" size="x-small" />
               </template>
@@ -325,16 +313,14 @@
 
 <script setup>
 import { ref, computed, reactive, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
 import { useDocumentsStore } from '@/stores/documents.js'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import NewDocumentDialog from '@/components/common/NewDocumentDialog.vue'
 import { gerarPdf } from '@/services/pdfService.js'
-import { listar as listarEspecies } from '@/api/especiesNormativas.js'
 
-const router = useRouter()
 const store = useDocumentsStore()
 
+<<<<<<< HEAD
 <<<<<<< HEAD
 onMounted(() => store.fetchAll())
 =======
@@ -346,6 +332,10 @@ onMounted(async () => {
   } catch { /* mantém lista vazia se backend indisponível */ }
 })
 >>>>>>> 95ae163 (Remove mock: conecta frontend ao backend via SRP por contexto de controller)
+=======
+// Mock: no-op (dados já carregados no state). Real: busca do backend com ETag.
+onMounted(() => store.fetchAll())
+>>>>>>> ffd8177 (Uso do HATEOAS)
 
 const dialogNovoDoc = ref(false)
 const viewMode = ref('tabela')
@@ -353,23 +343,12 @@ const filtros = reactive({ busca: '', especie: null, status: null })
 const showPdfError = ref(false)
 const pdfErrorMsg = ref('')
 
-function onDocumentoCriado(doc) {
-  if (!doc?.id) return
-  const numero = doc.numero_secundario
-    ? `${doc.especie} ${doc.numero_basico}-${doc.numero_secundario}`
-    : `${doc.especie} ${doc.numero_basico}`
-  router.push({
-    name: 'documento-editar',
-    params: { id: doc.id },
-    state: { sucessoCriacao: `Documento ${numero} — "${doc.titulo}" criado com sucesso!` },
-  })
-}
-
-const especies = ref([])
+const especies = ['ICA', 'NSCA', 'Portaria', 'Resolução', 'Decreto', 'Aviso']
 const statusOptions = ['RASCUNHO', 'MINUTA', 'APROVADO', 'PUBLICADO', 'ARQUIVADO', 'CANCELADO', 'REVOGADO']
 
 const headers = [
   { title: 'Espécie', key: 'especie', sortable: true, width: '100px' },
+<<<<<<< HEAD
 <<<<<<< HEAD
   { title: 'Número',  key: 'numero',  sortable: false },
   { title: 'Título',  key: 'titulo',  sortable: true },
@@ -379,6 +358,10 @@ const headers = [
   { title: 'Assunto Básico', key: 'assunto_basico', sortable: true, width: '180px' },
   { title: 'Título',  key: 'titulo',  sortable: true },
 >>>>>>> 01a0f6b (Feedback de criação, coluna Título e correção da data no grid)
+=======
+  { title: 'Número',  key: 'numero',  sortable: false },
+  { title: 'Assunto Básico', key: 'assunto_basico', sortable: true },
+>>>>>>> ffd8177 (Uso do HATEOAS)
   { title: 'Data',    key: 'data_criacao', sortable: true, width: '120px' },
   { title: 'Status',  key: 'status',  sortable: true, width: '140px' },
   { title: 'Ações',   key: 'actions', sortable: false, width: '220px', align: 'end' },
@@ -473,12 +456,6 @@ function excluir() {
   if (dialog.target) store.deleteDocumento(dialog.target.id)
   dialog.delete = false
   dialog.target = null
-}
-
-function formatarData(valor) {
-  if (!valor) return '—'
-  const [ano, mes, dia] = valor.split('-')
-  return `${dia}/${mes}/${ano}`
 }
 
 function limparFiltros() {
