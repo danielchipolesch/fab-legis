@@ -15,6 +15,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.hateoas.EntityModel;
+import org.springframework.hateoas.Link;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -27,6 +29,8 @@ import java.util.List;
 @Tag(name = "Documento", description = "Gerenciamento de documentos normativos")
 public class DocumentoController {
 
+    private static final String BASE = "/v1/documentos";
+
     @Autowired
     private DocumentoService documentoService;
 
@@ -36,69 +40,95 @@ public class DocumentoController {
     @Autowired
     private DocumentoParteNormativaService documentoParteNormativaService;
 
+    private EntityModel<DocumentoResponseSemAnexoTextualDto> toModel(DocumentoResponseSemAnexoTextualDto dto) {
+        Long id = dto.getIdDocumento();
+        return EntityModel.of(dto,
+                Link.of(BASE + "/" + id).withSelfRel(),
+                Link.of(BASE + "/obter-todos").withRel("documentos"),
+                Link.of(BASE + "/" + id + "/status").withRel("status"),
+                Link.of(BASE + "/" + id + "/clonar").withRel("clonar")
+        );
+    }
+
     @PostMapping
-    public ResponseEntity<DocumentoResponseSemAnexoTextualDto> post(
+    public ResponseEntity<EntityModel<DocumentoResponseSemAnexoTextualDto>> post(
             @RequestBody @Valid DocumentoRequestCreateDto request) throws RuntimeException {
-        return ResponseEntity.status(HttpStatus.CREATED).body(documentoService.create(request));
+        DocumentoResponseSemAnexoTextualDto dto = documentoService.create(request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(toModel(dto));
     }
 
     @PostMapping("{id}/clonar")
-    public ResponseEntity<DocumentoResponseSemAnexoTextualDto> clone(
+    public ResponseEntity<EntityModel<DocumentoResponseSemAnexoTextualDto>> clone(
             @PathVariable(value = "id") Long id) throws RuntimeException {
-        return ResponseEntity.status(HttpStatus.CREATED).body(documentoService.clone(id));
+        DocumentoResponseSemAnexoTextualDto dto = documentoService.clone(id);
+        return ResponseEntity.status(HttpStatus.CREATED).body(toModel(dto));
     }
 
     @GetMapping("{id}")
-    public ResponseEntity<DocumentoResponseComAnexoTextualDto> getById(
+    public ResponseEntity<EntityModel<DocumentoResponseComAnexoTextualDto>> getById(
             @PathVariable(value = "id") Long id) throws RuntimeException {
-        return ResponseEntity.status(HttpStatus.OK)
-                .body(documentoParteNormativaService.getDocumentoComAnexoTextualDtoById(id));
+        DocumentoResponseComAnexoTextualDto dto = documentoParteNormativaService.getDocumentoComAnexoTextualDtoById(id);
+        EntityModel<DocumentoResponseComAnexoTextualDto> model = EntityModel.of(dto,
+                Link.of(BASE + "/" + id).withSelfRel(),
+                Link.of(BASE + "/obter-todos").withRel("documentos"),
+                Link.of(BASE + "/" + id + "/clonar").withRel("clonar"),
+                Link.of(BASE + "/" + id + "/status").withRel("status")
+        );
+        return ResponseEntity.ok(model);
     }
 
     @GetMapping("filtrar")
-    public ResponseEntity<List<DocumentoResponseSemAnexoTextualDto>> getByDocumentationTypeAndBasicSubject(
+    public ResponseEntity<List<EntityModel<DocumentoResponseSemAnexoTextualDto>>> getByDocumentationTypeAndBasicSubject(
             @RequestParam(value = "especie-normativa") Long documentTypeId,
             @RequestParam(value = "assunto-basico") Long basicSubjectId) throws RuntimeException {
-        return ResponseEntity.status(HttpStatus.OK)
-                .body(documentoService.getByDocumentationTypeAndBasicSubject(documentTypeId, basicSubjectId));
+        List<EntityModel<DocumentoResponseSemAnexoTextualDto>> models = documentoService
+                .getByDocumentationTypeAndBasicSubject(documentTypeId, basicSubjectId)
+                .stream().map(this::toModel).toList();
+        return ResponseEntity.ok(models);
     }
 
     @GetMapping("/obter-todos")
-    public ResponseEntity<List<DocumentoResponseSemAnexoTextualDto>> getAll(
+    public ResponseEntity<List<EntityModel<DocumentoResponseSemAnexoTextualDto>>> getAll(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(defaultValue = "id") String sortBy) throws RuntimeException {
         Pageable pageable = PageRequest.of(page, size, Sort.by(sortBy));
-        return ResponseEntity.status(HttpStatus.OK).body(documentoService.getAllAsDtos(pageable));
+        List<EntityModel<DocumentoResponseSemAnexoTextualDto>> models = documentoService
+                .getAllAsDtos(pageable).stream().map(this::toModel).toList();
+        return ResponseEntity.ok(models);
     }
 
     @PutMapping("{id}/aprovar")
-    public ResponseEntity<DocumentoResponseSemAnexoTextualDto> setDocumentAsApproved(
+    public ResponseEntity<EntityModel<DocumentoResponseSemAnexoTextualDto>> setDocumentAsApproved(
             @PathVariable(value = "id") Long id) {
-        return ResponseEntity.status(HttpStatus.OK).body(documentoStatusService.approveDocument(id));
+        return ResponseEntity.ok(toModel(documentoStatusService.approveDocument(id)));
     }
 
     @PatchMapping("{id}/status")
-    public ResponseEntity<DocumentoResponseSemAnexoTextualDto> changeStatus(
+    public ResponseEntity<EntityModel<DocumentoResponseSemAnexoTextualDto>> changeStatus(
             @PathVariable(value = "id") Long id,
             @RequestBody @Valid DocumentoStatusRequestDto request) throws RuntimeException {
-        return ResponseEntity.status(HttpStatus.OK)
-                .body(documentoStatusService.changeStatus(id, request.getStatus()));
+        DocumentoResponseSemAnexoTextualDto dto = documentoStatusService.changeStatus(id, request.getStatus());
+        return ResponseEntity.ok(toModel(dto));
     }
 
     @PutMapping("{id}")
-    public ResponseEntity<DocumentoResponseSemAnexoTextualDto> update(
+    public ResponseEntity<EntityModel<DocumentoResponseSemAnexoTextualDto>> update(
             @PathVariable(value = "id") Long id,
             @RequestBody @Valid DocumentoRequestUpdateDto request) throws RuntimeException {
-        return ResponseEntity.status(HttpStatus.OK).body(documentoService.update(id, request));
+        return ResponseEntity.ok(toModel(documentoService.update(id, request)));
     }
 
     @PutMapping("{idDocumento}/adicionar-item-anexo-parte-textual")
-    public ResponseEntity<DocumentoResponseComAnexoTextualDto> addItemAnexoParteNormativa(
+    public ResponseEntity<EntityModel<DocumentoResponseComAnexoTextualDto>> addItemAnexoParteNormativa(
             @PathVariable(value = "idDocumento") Long idDocumento,
             @RequestBody ItemAnexoParteNormativaRequestDto request) throws RuntimeException {
-        return ResponseEntity.status(HttpStatus.OK)
-                .body(documentoParteNormativaService.adicionarItemAoDocumento(idDocumento, request));
+        DocumentoResponseComAnexoTextualDto dto = documentoParteNormativaService.adicionarItemAoDocumento(idDocumento, request);
+        EntityModel<DocumentoResponseComAnexoTextualDto> model = EntityModel.of(dto,
+                Link.of(BASE + "/" + idDocumento).withSelfRel(),
+                Link.of(BASE + "/obter-todos").withRel("documentos")
+        );
+        return ResponseEntity.ok(model);
     }
 
     @DeleteMapping("{id}")
