@@ -3,8 +3,6 @@ import { v4 as uuidv4 } from 'uuid'
 import { renumberElements } from '@/utils/numbering.js'
 import * as api from '@/api/documents.js'
 
-// ---------- Helpers ----------
-
 function makeElement(tipo, numero, conteudo = '', filhos = []) {
   return { id: uuidv4(), tipo, numero, conteudo, filhos }
 }
@@ -25,11 +23,11 @@ const ESPECIE_NOME = {
 }
 
 function gerarSecoesTemplate(doc) {
-  const especie    = doc.especie       ?? ''
-  const numBasico  = doc.numero_basico ?? ''
-  const numSec     = doc.numero_secundario != null ? doc.numero_secundario : '?'
-  const sigla      = `${especie} ${numBasico}-${numSec}`.trim()
-  const nomeEsp    = ESPECIE_NOME[especie] ?? especie
+  const especie   = doc.especie       ?? ''
+  const numBasico = doc.numero_basico ?? ''
+  const numSec    = doc.numero_secundario != null ? doc.numero_secundario : '?'
+  const sigla     = `${especie} ${numBasico}-${numSec}`.trim()
+  const nomeEsp   = ESPECIE_NOME[especie] ?? especie
 
   return [
     {
@@ -85,66 +83,18 @@ function gerarSecoesTemplate(doc) {
   ]
 }
 
-function mockDoc(overrides = {}) {
-  const base = {
-    id: uuidv4(),
-    especie: 'ICA',
-    numero_basico: '21',
-    numero_secundario: '1',
-    assunto_basico: 'Organização do Sistema de Ensino da Aeronáutica',
-    titulo: 'Regulamento do Sistema de Ensino da Aeronáutica',
-    data_criacao: '2024-01-15',
-    data_publicacao: null,
-    status: 'RASCUNHO',
-    versoes: [],
-    itens: [],
-    secoes: [],
-    ...overrides,
-  }
-  base.secoes = gerarSecoesTemplate(base)
-  return base
-}
-
-const MOCK_DOCUMENTOS = [
-  mockDoc({ status: 'PUBLICADO', especie: 'NSCA', numero_basico: '5',   numero_secundario: '3',  assunto_basico: 'Elaboração e Gestão de Atos Normativos do COMAER', data_publicacao: '2023-06-01' }),
-  mockDoc({ status: 'APROVADO',  especie: 'ICA',  numero_basico: '21',  numero_secundario: '1',  assunto_basico: 'Organização do Sistema de Ensino da Aeronáutica' }),
-  mockDoc({ status: 'MINUTA',    especie: 'ICA',  numero_basico: '55',  numero_secundario: '3',  assunto_basico: 'Regulamento de Tráfego Aéreo' }),
-  mockDoc({ status: 'RASCUNHO',  especie: 'ICA',  numero_basico: '55',  numero_secundario: '17', assunto_basico: 'Regulamento de Tráfego Aéreo' }),
-  mockDoc({ status: 'ARQUIVADO', especie: 'NSCA', numero_basico: '3',   numero_secundario: '6',  assunto_basico: 'Normas para Contratação de Serviços' }),
-  mockDoc({ status: 'CANCELADO', especie: 'ICA',  numero_basico: '100', numero_secundario: '2',  assunto_basico: 'Procedimentos de Segurança de Voo' }),
-  mockDoc({ status: 'REVOGADO',  especie: 'ICA',  numero_basico: '21',  numero_secundario: '2',  assunto_basico: 'Organização Interna da DIRENS' }),
-]
-
-function cloneDoc(doc) {
-  return JSON.parse(JSON.stringify(doc))
-}
-
-// ---------- Store ----------
-
 export const useDocumentsStore = defineStore('documents', {
-  state: () => {
-    const stored = api.loadInitial()
-    if (stored === null) api.persist(MOCK_DOCUMENTOS)
-    return {
-      documentos: stored ?? MOCK_DOCUMENTOS,
-      loading: false,
-    }
-  },
+  state: () => ({
+    documentos: [],
+    loading: false,
+  }),
 
   getters: {
     getById: (state) => (id) => state.documentos.find(d => String(d.id) === String(id)) ?? null,
-
-    getNextBasicNumber: (state) => (especie) => {
-      const numeros = state.documentos
-        .filter(d => d.especie === especie)
-        .map(d => parseInt(d.numero_basico) || 0)
-      return numeros.length ? String(Math.max(...numeros) + 1) : '1'
-    },
   },
 
   actions: {
     async fetchAll() {
-      if (api.USE_MOCK) return
       if (this.loading) return
       this.loading = true
       try {
@@ -166,32 +116,6 @@ export const useDocumentsStore = defineStore('documents', {
     },
 
     async createDocumento(payload) {
-      if (api.USE_MOCK) {
-        const especie     = payload.especie       ?? ''
-        const numBasico   = payload.numero_basico  ?? ''
-        const irmaos      = this.documentos.filter(
-          d => d.especie === especie && d.numero_basico === numBasico
-        )
-        const maxSec      = Math.max(0, ...irmaos.map(d => parseInt(d.numero_secundario) || 0))
-        const novo = {
-          id:                uuidv4(),
-          especie,
-          assunto_basico:    payload.assunto_basico ?? '',
-          numero_basico:     numBasico,
-          numero_secundario: String(maxSec + 1),
-          titulo:            payload.titulo         ?? '',
-          data_criacao:      new Date().toISOString().slice(0, 10),
-          data_publicacao:   null,
-          status:            'RASCUNHO',
-          versoes:           [],
-          itens:             [],
-          secoes:            [],
-        }
-        novo.secoes = gerarSecoesTemplate(novo)
-        this.documentos.unshift(novo)
-        api.persist(this.documentos)
-        return novo
-      }
       const novo = await api.createDocumento(payload)
       novo.secoes = gerarSecoesTemplate(novo)
       this.documentos.unshift(novo)
@@ -199,62 +123,22 @@ export const useDocumentsStore = defineStore('documents', {
     },
 
     async cloneDocumento(id) {
-      if (api.USE_MOCK) {
-        const original = this.documentos.find(d => String(d.id) === String(id))
-        if (!original) return null
-
-        const irmaos = this.documentos.filter(
-          d => d.especie === original.especie && d.numero_basico === original.numero_basico
-        )
-        const maxSec = Math.max(0, ...irmaos
-          .map(d => parseInt(d.numero_secundario) || 0)
-          .filter(n => !isNaN(n))
-        )
-
-        const clone = cloneDoc(original)
-        clone.id = uuidv4()
-        clone.numero_secundario = String(maxSec + 1)
-        clone.status = 'RASCUNHO'
-        clone.versoes = []
-        clone.data_criacao    = new Date().toISOString().slice(0, 10)
-        clone.data_publicacao = null
-
-        this.documentos.unshift(clone)
-        api.persist(this.documentos)
-        return clone
-      }
       const clone = await api.cloneDocumento(id)
-      if (clone) this.documentos.unshift(clone)
+      if (clone) {
+        clone.secoes = gerarSecoesTemplate(clone)
+        this.documentos.unshift(clone)
+      }
       return clone
     },
 
     async saveDocumento(documento) {
       const idx = this.documentos.findIndex(d => String(d.id) === String(documento.id))
       if (idx === -1) return
-
-      if (api.USE_MOCK) {
-        this.documentos[idx] = cloneDoc(documento)
-        api.persist(this.documentos)
-        return
-      }
-
       const atualizado = await api.updateDocumento(documento.id, documento)
       if (atualizado) this.documentos[idx] = { ...this.documentos[idx], ...atualizado }
     },
 
     async changeStatus(id, novoStatus) {
-      if (api.USE_MOCK) {
-        const doc = this.documentos.find(d => String(d.id) === String(id))
-        if (!doc) return
-        const snapshot = cloneDoc(doc)
-        snapshot.status = doc.status
-        doc.versoes.push({ ...snapshot, versao_id: uuidv4(), data_snapshot: new Date().toISOString() })
-        doc.status = novoStatus
-        if (novoStatus === 'PUBLICADO') doc.data_publicacao = new Date().toISOString().slice(0, 10)
-        api.persist(this.documentos)
-        return
-      }
-
       const atualizado = await api.changeDocumentoStatus(id, novoStatus)
       if (atualizado) {
         const idx = this.documentos.findIndex(d => String(d.id) === String(id))
@@ -266,11 +150,6 @@ export const useDocumentsStore = defineStore('documents', {
       const doc = this.documentos.find(d => String(d.id) === String(id))
       if (doc && !['RASCUNHO', 'MINUTA'].includes(doc.status)) {
         throw new Error(`Não é possível excluir um documento com status "${doc.status}". Somente documentos em RASCUNHO ou MINUTA podem ser excluídos.`)
-      }
-      if (api.USE_MOCK) {
-        this.documentos = this.documentos.filter(d => String(d.id) !== String(id))
-        api.persist(this.documentos)
-        return
       }
       await api.deleteDocumento(id)
       this.documentos = this.documentos.filter(d => String(d.id) !== String(id))
@@ -298,7 +177,6 @@ export const useDocumentsStore = defineStore('documents', {
       }
 
       renumberElements(secaoNormativa.elementos)
-      api.persist(this.documentos)
     },
   },
 })

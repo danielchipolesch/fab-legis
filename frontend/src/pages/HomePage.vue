@@ -320,7 +320,6 @@ import { gerarPdf } from '@/services/pdfService.js'
 
 const store = useDocumentsStore()
 
-// Mock: no-op (dados já carregados no state). Real: busca do backend com ETag.
 onMounted(() => store.fetchAll())
 
 const dialogNovoDoc = ref(false)
