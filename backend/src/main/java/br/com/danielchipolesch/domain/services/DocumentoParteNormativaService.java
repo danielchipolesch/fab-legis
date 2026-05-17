@@ -3,6 +3,8 @@ package br.com.danielchipolesch.domain.services;
 import br.com.danielchipolesch.application.dtos.documentoDtos.DocumentoRequestUpdateItemParteNormativaDto;
 import br.com.danielchipolesch.application.dtos.documentoDtos.DocumentoResponseComAnexoTextualDto;
 import br.com.danielchipolesch.application.dtos.itemAnexoParteNormativaDtos.ItemAnexoParteNormativaRequestDto;
+import br.com.danielchipolesch.application.dtos.itemAnexoParteNormativaDtos.SecaoItemRequestDto;
+import br.com.danielchipolesch.application.dtos.itemAnexoParteNormativaDtos.SecoesSaveRequestDto;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.ItemAnexoParteNormativa;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.ItemAnexoParteNormativaTipoEnum;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.Documento;
@@ -61,6 +63,11 @@ public class DocumentoParteNormativaService {
         }
 
         return documento;
+    }
+
+    public DocumentoResponseComAnexoTextualDto getDocumentoComAnexoTextualDtoById(Long documentoId) {
+        Documento documento = getDocumentoComAnexoTextualById(documentoId, true);
+        return DocumentoMapper.documentoToDocumentoComAnexoTextualResponseDto(documento);
     }
 
     public DocumentoResponseComAnexoTextualDto adicionarItemAoDocumento(Long idDocumento, ItemAnexoParteNormativaRequestDto dto) {
@@ -134,6 +141,39 @@ public class DocumentoParteNormativaService {
 //            default -> throw new StatusCannotBeUpdatedException(DocumentException.CANNOT_BE_UPDATED.getMessage());
 //        }
 //    }
+
+    @Transactional
+    public void salvarSecoes(Long documentoId, SecoesSaveRequestDto request) {
+        Documento documento = documentoRepository.findById(documentoId)
+                .orElseThrow(() -> new RuntimeException("Documento não encontrado"));
+
+        // Remove parent FK first to avoid self-referencing FK constraint on DELETE
+        itemAnexoParteNormativaRepository.nullifyParentsForDocument(documentoId);
+        itemAnexoParteNormativaRepository.deleteAllByDocumentoId(documentoId);
+
+        if (request.getItens() != null) {
+            for (SecaoItemRequestDto dto : request.getItens()) {
+                salvarItemRecursivo(documento, dto, null);
+            }
+        }
+    }
+
+    private void salvarItemRecursivo(Documento documento, SecaoItemRequestDto dto, ItemAnexoParteNormativa parent) {
+        ItemAnexoParteNormativa item = new ItemAnexoParteNormativa();
+        item.setDocumento(documento);
+        item.setSecao(dto.getSecao());
+        item.setTipo(dto.getTipo());
+        item.setTitulo(dto.getTitulo());
+        item.setConteuto(dto.getConteudo());
+        item.setParent(parent);
+        itemAnexoParteNormativaRepository.save(item);
+
+        if (dto.getFilhos() != null) {
+            for (SecaoItemRequestDto filho : dto.getFilhos()) {
+                salvarItemRecursivo(documento, filho, item);
+            }
+        }
+    }
 
     private boolean isValidChild(ItemAnexoParteNormativaTipoEnum parentType, ItemAnexoParteNormativaTipoEnum childType) {
         return switch (parentType) {

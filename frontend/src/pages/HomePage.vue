@@ -106,6 +106,10 @@
             </span>
           </template>
 
+          <template #item.data_criacao="{ item }">
+            {{ formatarData(item.data_criacao) }}
+          </template>
+
           <template #item.status="{ item }">
             <StatusBadge :status="item.status" />
           </template>
@@ -227,7 +231,7 @@
               <v-card-title class="text-subtitle-2 font-weight-bold">
                 {{ doc.especie }} {{ doc.numero_basico }}<template v-if="doc.numero_secundario">-{{ doc.numero_secundario }}</template>
               </v-card-title>
-              <v-card-subtitle class="text-caption">{{ doc.data_criacao }}</v-card-subtitle>
+              <v-card-subtitle class="text-caption">{{ formatarData(doc.data_criacao) }}</v-card-subtitle>
               <template #append>
                 <StatusBadge :status="doc.status" size="x-small" />
               </template>
@@ -320,7 +324,6 @@ import { gerarPdf } from '@/services/pdfService.js'
 
 const store = useDocumentsStore()
 
-// Mock: no-op (dados já carregados no state). Real: busca do backend com ETag.
 onMounted(() => store.fetchAll())
 
 const dialogNovoDoc = ref(false)
@@ -335,11 +338,18 @@ const statusOptions = ['RASCUNHO', 'MINUTA', 'APROVADO', 'PUBLICADO', 'ARQUIVADO
 const headers = [
   { title: 'Espécie', key: 'especie', sortable: true, width: '100px' },
   { title: 'Número',  key: 'numero',  sortable: false },
+  { title: 'Título',  key: 'titulo',  sortable: true },
   { title: 'Assunto Básico', key: 'assunto_basico', sortable: true },
   { title: 'Data',    key: 'data_criacao', sortable: true, width: '120px' },
   { title: 'Status',  key: 'status',  sortable: true, width: '140px' },
   { title: 'Ações',   key: 'actions', sortable: false, width: '220px', align: 'end' },
 ]
+
+function formatarData(isoStr) {
+  if (!isoStr) return '—'
+  const [y, m, d] = String(isoStr).slice(0, 10).split('-')
+  return `${d}/${m}/${y}`
+}
 
 const documentosFiltrados = computed(() => {
   return store.documentos.filter(doc => {

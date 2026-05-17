@@ -384,12 +384,20 @@ function hasChildren(el) {
 
 onMounted(async () => {
   if (documentoId.value) {
-    const ok = editorStore.load(documentoId.value)
+    let ok = editorStore.load(documentoId.value)
+    if (!ok) {
+      // Document not in store yet — fetch from API (direct URL access or page refresh)
+      const doc = await docStore.fetchDocumento(documentoId.value)
+      if (!doc) {
+        router.replace({ name: 'home' })
+        return
+      }
+      ok = editorStore.load(documentoId.value)
+    }
     if (!ok) {
       router.replace({ name: 'home' })
       return
     }
-    // Auto-seleciona o primeiro elemento da parte preliminar (Epígrafe)
     const doc = editorStore.documento
     const prelim = doc?.secoes?.find(s => s.tipo === 'parte_preliminar')
     const primeiro = prelim?.elementos?.[0]
