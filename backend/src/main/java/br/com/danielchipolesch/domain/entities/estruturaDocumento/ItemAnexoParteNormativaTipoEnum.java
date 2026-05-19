@@ -2,6 +2,7 @@ package br.com.danielchipolesch.domain.entities.estruturaDocumento;
 
 public enum ItemAnexoParteNormativaTipoEnum {
 
+    // Tipos legados (parte normativa)
     TITULO,
     CAPITULO,
     SECAO,
@@ -11,5 +12,24 @@ public enum ItemAnexoParteNormativaTipoEnum {
     PARAGRAFO_UNICO,
     INCISO,
     ALINEA,
-    ITEM
+    ITEM,
+
+    // Parte Preliminar
+    EPIGRAFE,
+    EMENTA,
+    PREAMBULO,
+    FUNDAMENTACAO,
+
+    // Parte Normativa (nomenclatura do frontend)
+    SECAO_NORMATIVA,
+    SUBSECAO_NORMATIVA,
+    PARAGRAFO,
+    SUB_ALINEA,
+
+    // Parte Final
+    CLAUSULA_REVOGATORIA,
+    CLAUSULA_VIGENCIA,
+    FECHO,
+    ASSINATURA,
+    REFERENDA
 }

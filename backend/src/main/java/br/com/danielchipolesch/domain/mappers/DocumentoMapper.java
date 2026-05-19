@@ -1,9 +1,13 @@
 package br.com.danielchipolesch.domain.mappers;
 
 import br.com.danielchipolesch.application.dtos.documentoDtos.DocumentoResponseComAnexoTextualDto;
-import br.com.danielchipolesch.application.dtos.documentoDtos.DocumentoResponseComPortariaDto;
 import br.com.danielchipolesch.application.dtos.documentoDtos.DocumentoResponseSemAnexoTextualDto;
+import br.com.danielchipolesch.application.dtos.itemAnexoParteNormativaDtos.ItemAnexoParteNormativaResponseDto;
+import br.com.danielchipolesch.application.dtos.itemParteFinalDtos.ItemParteFinalResponseDto;
+import br.com.danielchipolesch.application.dtos.itemPartePreliminarDtos.ItemPartePreliminarResponseDto;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.Documento;
+
+import java.util.List;
 
 public class DocumentoMapper {
 
@@ -24,7 +28,11 @@ public class DocumentoMapper {
         );
     }
 
-    public static DocumentoResponseComAnexoTextualDto documentoToDocumentoComAnexoTextualResponseDto(Documento documento) {
+    public static DocumentoResponseComAnexoTextualDto documentoToDocumentoComAnexoTextualResponseDto(
+            Documento documento,
+            List<ItemPartePreliminarResponseDto> preliminares,
+            List<ItemAnexoParteNormativaResponseDto> normativos,
+            List<ItemParteFinalResponseDto> finais) {
         return new DocumentoResponseComAnexoTextualDto(
                 documento.getId(),
                 documento.getEspecieNormativa().getSigla(),
@@ -38,21 +46,9 @@ public class DocumentoMapper {
                 documento.getTituloDocumento(),
                 documento.getDocumentoStatus(),
                 documento.getDtCriacao(),
-                documento.getItens()
-        );
-    }
-
-    public static DocumentoResponseSemAnexoTextualDto documentoDtoToDocumentoSemAnexoTextualResponseDto(DocumentoResponseComPortariaDto dto) {
-        return new DocumentoResponseSemAnexoTextualDto(
-                dto.getIdDocumento(),
-                dto.getSiglaEspecieNormativa(),
-                dto.getCodigoAssuntoBasico(),
-                dto.getNomeAssuntoBasico(),
-                dto.getNumeroSecundario(),
-                dto.getCodigoDocumento(),
-                dto.getTituloDocumento(),
-                dto.getStatusDocumento(),
-                null
+                preliminares,
+                normativos,
+                finais
         );
     }
 }
