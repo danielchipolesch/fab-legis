@@ -3,7 +3,7 @@ import * as http from './client.js'
 const SECAO_CONFIG = {
   PARTE_PRELIMINAR: { tipo: 'parte_preliminar', titulo: 'Parte Preliminar', ordem: 1 },
   PARTE_NORMATIVA:  { tipo: 'parte_normativa',  titulo: 'Parte Normativa',  ordem: 2 },
-  PARTE_FINAL:      { tipo: 'parte_final',      titulo: 'Parte Final',      ordem: 3 },
+  PARTE_FINAL:      { tipo: 'parte_final',       titulo: 'Parte Final',      ordem: 3 },
 }
 
 const SECAO_ENUM_MAP = {
@@ -21,41 +21,48 @@ function parseDtCriacao(dt) {
 function apiItemParaFrontend(item) {
   return {
     id: String(item.id),
-    tipo: (item.tipo ?? '').toLowerCase(),
+    tipo: (item.elementType ?? '').toLowerCase(),
+    elementOrder: item.elementOrder ?? null,
     numero: null,
-    titulo: item.titulo ?? null,
-    conteudo: item.conteuto ?? null,
+    titulo: item.elementTitle ?? null,
+    conteudo: item.elementContent ?? null,
+    fullTextContent: item.fullTextContent ?? null,
     filhos: (item.children ?? []).map(apiItemParaFrontend),
   }
 }
 
-function apiItensParaSecoes(itens) {
-  if (!itens?.length) return null
-  const map = {}
-  for (const item of itens) {
-    const key = item.secao ?? 'PARTE_NORMATIVA'
-    if (!map[key]) map[key] = { ...SECAO_CONFIG[key], id: crypto.randomUUID(), elementos: [] }
-    map[key].elementos.push(apiItemParaFrontend(item))
+function buildSecao(secaoKey, itensApi) {
+  if (!itensApi?.length) return null
+  return {
+    ...SECAO_CONFIG[secaoKey],
+    id: crypto.randomUUID(),
+    elementos: itensApi.map(apiItemParaFrontend),
   }
-  return ['PARTE_PRELIMINAR', 'PARTE_NORMATIVA', 'PARTE_FINAL']
-    .filter(k => map[k])
-    .map(k => map[k])
 }
 
 function converterElemento(el, secaoEnum) {
   return {
     secao: secaoEnum,
     tipo: (el.tipo ?? '').toUpperCase(),
+    elementOrder: el.elementOrder ?? null,
     titulo: el.titulo ?? null,
     conteudo: el.conteudo ?? null,
+    fullTextContent: el.fullTextContent ?? null,
     filhos: (el.filhos ?? []).map(f => converterElemento(f, secaoEnum)),
   }
 }
 
 export function backendParaFrontend(doc) {
   if (!doc) return null
-  const itens = doc.itens ?? []
-  const secoes = itens.length ? apiItensParaSecoes(itens) : null
+
+  const secoes = []
+  const preliminar = buildSecao('PARTE_PRELIMINAR', doc.itensPreliminares)
+  const normativa  = buildSecao('PARTE_NORMATIVA',  doc.itensNormativos)
+  const final_     = buildSecao('PARTE_FINAL',      doc.itensFinais)
+  if (preliminar) secoes.push(preliminar)
+  if (normativa)  secoes.push(normativa)
+  if (final_)     secoes.push(final_)
+
   return {
     id: doc.idDocumento,
     especie: doc.siglaEspecieNormativa,
@@ -68,8 +75,7 @@ export function backendParaFrontend(doc) {
     data_publicacao: null,
     status: doc.statusDocumento,
     versoes: [],
-    itens,
-    secoes,
+    secoes: secoes.length ? secoes : null,
   }
 }
 
