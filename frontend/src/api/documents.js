@@ -39,15 +39,15 @@ function buildSecao(secaoKey, itensApi) {
   }
 }
 
-function converterElemento(el, secaoEnum) {
+function converterElemento(el, secaoEnum, posicao) {
   return {
     secao: secaoEnum,
     tipo: (el.tipo ?? '').toUpperCase(),
-    elementOrder: el.elementOrder ?? null,
+    elementOrder: posicao,
     titulo: el.titulo ?? null,
     conteudo: el.conteudo ?? null,
     fullTextContent: el.fullTextContent ?? null,
-    filhos: (el.filhos ?? []).map(f => converterElemento(f, secaoEnum)),
+    filhos: (el.filhos ?? []).map((f, i) => converterElemento(f, secaoEnum, i + 1)),
   }
 }
 
@@ -131,8 +131,9 @@ export async function saveSecoes(id, secoes) {
   for (const secao of secoes) {
     const secaoEnum = SECAO_ENUM_MAP[secao.tipo]
     if (!secaoEnum) continue
-    for (const el of secao.elementos ?? []) {
-      itens.push(converterElemento(el, secaoEnum))
+    const elementos = secao.elementos ?? []
+    for (let i = 0; i < elementos.length; i++) {
+      itens.push(converterElemento(elementos[i], secaoEnum, i + 1))
     }
   }
   return http.put(`/documentos/${id}/secoes`, { itens })
