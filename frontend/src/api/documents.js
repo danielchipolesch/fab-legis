@@ -32,11 +32,10 @@ function apiItemParaFrontend(item) {
 }
 
 function buildSecao(secaoKey, itensApi) {
-  if (!itensApi?.length) return null
   return {
     ...SECAO_CONFIG[secaoKey],
     id: crypto.randomUUID(),
-    elementos: itensApi.map(apiItemParaFrontend),
+    elementos: (itensApi ?? []).map(apiItemParaFrontend),
   }
 }
 
@@ -55,13 +54,19 @@ function converterElemento(el, secaoEnum) {
 export function backendParaFrontend(doc) {
   if (!doc) return null
 
-  const secoes = []
-  const preliminar = buildSecao('PARTE_PRELIMINAR', doc.itensPreliminares)
-  const normativa  = buildSecao('PARTE_NORMATIVA',  doc.itensNormativos)
-  const final_     = buildSecao('PARTE_FINAL',      doc.itensFinais)
-  if (preliminar) secoes.push(preliminar)
-  if (normativa)  secoes.push(normativa)
-  if (final_)     secoes.push(final_)
+  const preliminarItens = doc.itensPreliminares ?? []
+  const normativaItens  = doc.itensNormativos   ?? []
+  const finalItens      = doc.itensFinais        ?? []
+
+  // Retorna null quando todas as seções estão vazias (documento novo, sem dados salvos)
+  // para que o store gere o template e salve no banco
+  const hasAnyData = preliminarItens.length > 0 || normativaItens.length > 0 || finalItens.length > 0
+
+  const secoes = hasAnyData ? [
+    buildSecao('PARTE_PRELIMINAR', preliminarItens),
+    buildSecao('PARTE_NORMATIVA',  normativaItens),
+    buildSecao('PARTE_FINAL',      finalItens),
+  ] : null
 
   return {
     id: doc.idDocumento,
@@ -75,7 +80,7 @@ export function backendParaFrontend(doc) {
     data_publicacao: null,
     status: doc.statusDocumento,
     versoes: [],
-    secoes: secoes.length ? secoes : null,
+    secoes,
   }
 }
 
