@@ -2,20 +2,20 @@ package br.com.danielchipolesch.domain.entities.estruturaDocumento;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
-import lombok.*;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
-import java.util.List;
-
 
 @Entity
-@Table(name = "t_item_parte_normativa")
+@Table(name = "t_item_parte_final")
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class ItemAnexoParteNormativa {
+public class ItemParteFinal {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -42,14 +42,6 @@ public class ItemAnexoParteNormativa {
 
     @Column(name = "tx_conteudo_completo", columnDefinition = "TEXT")
     private String fullTextContent;
-
-    @ManyToOne
-    @JoinColumn(name = "parent_id")
-    @JsonIgnore
-    private ItemAnexoParteNormativa parent;
-
-    @OneToMany(mappedBy = "parent", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<ItemAnexoParteNormativa> children;
 
     @CreationTimestamp
     @Column(name = "dt_criacao", updatable = false)

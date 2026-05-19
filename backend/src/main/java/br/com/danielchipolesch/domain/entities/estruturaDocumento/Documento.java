@@ -2,8 +2,6 @@ package br.com.danielchipolesch.domain.entities.estruturaDocumento;
 
 import br.com.danielchipolesch.domain.entities.numeracaoDocumento.AssuntoBasico;
 import br.com.danielchipolesch.domain.entities.numeracaoDocumento.EspecieNormativa;
-import com.fasterxml.jackson.annotation.JsonIdentityInfo;
-import com.fasterxml.jackson.annotation.ObjectIdGenerators;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -13,15 +11,12 @@ import org.hibernate.annotations.UpdateTimestamp;
 import org.springframework.hateoas.RepresentationModel;
 
 import java.sql.Timestamp;
-import java.util.List;
 
 @EqualsAndHashCode(callSuper = true)
 @Entity
 @Table(name = "t_documento")
 @Data
 @NoArgsConstructor
-@JsonIdentityInfo(generator = ObjectIdGenerators.PropertyGenerator.class, property = "id")
-
 public class Documento extends RepresentationModel<Documento> {
 
     @Id
@@ -47,16 +42,6 @@ public class Documento extends RepresentationModel<Documento> {
     @Enumerated(EnumType.STRING)
     private DocumentoStatusEnum documentoStatus;
 
-//    @OneToOne(cascade = CascadeType.ALL, orphanRemoval = true)
-//    @JoinColumn(name = "portaria_id")
-    @Column(name = "portaria_id")
-    private Long idPortaria;
-
-//    @OneToMany(mappedBy = "document", fetch = FetchType.LAZY) // Bidirecional
-    @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
-    @JoinColumn(name = "documento_id")
-    private List<ItemAnexoParteNormativa> itens;
-
     @Column(name = "dt_criacao", updatable = false)
     @CreationTimestamp
     private Timestamp dtCriacao;
@@ -68,6 +53,4 @@ public class Documento extends RepresentationModel<Documento> {
     @Column(name = "nr_versao", nullable = false)
     @Version
     private Integer versao;
-
-
 }

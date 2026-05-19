@@ -10,7 +10,9 @@ import java.util.List;
 public class SecaoItemRequestDto {
     private SecaoDocumentoEnum secao;
     private ItemAnexoParteNormativaTipoEnum tipo;
+    private Integer elementOrder;
     private String titulo;
     private String conteudo;
+    private String fullTextContent;
     private List<SecaoItemRequestDto> filhos;
 }

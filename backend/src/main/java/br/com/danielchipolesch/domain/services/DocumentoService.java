@@ -14,14 +14,18 @@ import br.com.danielchipolesch.domain.handlers.exceptions.enums.DocumentExceptio
 import br.com.danielchipolesch.domain.handlers.exceptions.StatusCannotBeUpdatedException;
 import br.com.danielchipolesch.domain.handlers.exceptions.enums.DocumentationTypeException;
 import br.com.danielchipolesch.domain.mappers.DocumentoMapper;
-import br.com.danielchipolesch.infrastructure.repositories.*;
+import br.com.danielchipolesch.infrastructure.repositories.AssuntoBasicoRepository;
+import br.com.danielchipolesch.infrastructure.repositories.DocumentoRepository;
+import br.com.danielchipolesch.infrastructure.repositories.EspecieNormativaRepository;
+import br.com.danielchipolesch.infrastructure.repositories.ItemAnexoParteNormativaRepository;
+import br.com.danielchipolesch.infrastructure.repositories.ItemParteFinalRepository;
+import br.com.danielchipolesch.infrastructure.repositories.ItemPartePreliminarRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
 import java.util.List;
 
 
@@ -36,6 +40,15 @@ public class DocumentoService {
 
     @Autowired
     AssuntoBasicoRepository assuntoBasicoRepository;
+
+    @Autowired
+    ItemAnexoParteNormativaRepository itemAnexoParteNormativaRepository;
+
+    @Autowired
+    ItemPartePreliminarRepository itemPartePreliminarRepository;
+
+    @Autowired
+    ItemParteFinalRepository itemParteFinalRepository;
 
 
     @Transactional
@@ -52,13 +65,8 @@ public class DocumentoService {
                 .numeroSecundario(secondaryNumber)
                 .tituloDocumento(request.getTituloDocumento())
                 .documentoStatus(DocumentoStatusEnum.RASCUNHO)
-                .itens(new ArrayList<>())
                 .build();
 
-//        var newDocument = docRepository.save(doc);
-//        TextAttachment  textAttachmentCreate = new TextAttachment();
-//        textAttachmentCreate.setDocument(newDocument);
-//        textAttachmentRepository.save(textAttachmentCreate);
         return DocumentoMapper.documentoToDocumentoSemAnexoTextualResponseDto(documentoRepository.save(documento));
     }
 
@@ -86,24 +94,6 @@ public class DocumentoService {
         }
     }
 
-//    @Transactional
-//    public DocumentResponseDto updateDocumentAttachment(Long id, DocumentAttachmentUpdateRequestDto request) throws RuntimeException {
-//
-//        Document document = documentRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException(DocumentException.NOT_FOUND.getMessage()));
-//        if(document.getDocumentStatus() == DocumentStatus.RASCUNHO || document.getDocumentStatus() == DocumentStatus.MINUTA) {
-//            var documentAttachmentId = document.getDocumentAttachment().getId();
-//            var documentAttachment = documentAttachmentRepository.findById(documentAttachmentId).orElseThrow(() -> new ResourceNotFoundException(DocumentAttachmentException.NOT_FOUND.getMessage()));
-//            documentAttachment.setTextAttachment(request.getTextAttachment().isBlank() ? documentAttachment.getTextAttachment() : request.getTextAttachment());
-//            documentAttachmentRepository.save(documentAttachment);
-//            document.setDocumentStatus(DocumentStatus.MINUTA);
-//            documentRepository.save(document);
-//            return DocumentMapper.documentToDocumentResponseDto(document);
-//        }
-//
-//        throw new StatusCannotBeUpdatedException(DocumentException.CANNOT_BE_UPDATED.getMessage());
-//
-//    }
-
     @Transactional
     public DocumentoResponseSemAnexoTextualDto update(Long id, DocumentoRequestUpdateDto request) throws RuntimeException {
 
@@ -119,20 +109,21 @@ public class DocumentoService {
         return DocumentoMapper.documentoToDocumentoSemAnexoTextualResponseDto(documentoRepository.save(document));
     }
 
+    @Transactional
     public DocumentoResponseSemAnexoTextualDto delete(Long id) throws RuntimeException {
-
-        Documento document = documentoRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException(DocumentException.NOT_FOUND.getMessage()));
+        Documento document = documentoRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException(DocumentException.NOT_FOUND.getMessage()));
+        itemPartePreliminarRepository.deleteAllByDocumentoId(id);
+        itemAnexoParteNormativaRepository.nullifyParentsForDocument(id);
+        itemAnexoParteNormativaRepository.deleteAllByDocumentoId(id);
+        itemParteFinalRepository.deleteAllByDocumentoId(id);
         documentoRepository.delete(document);
         return DocumentoMapper.documentoToDocumentoSemAnexoTextualResponseDto(document);
     }
 
-
     public DocumentoResponseSemAnexoTextualDto clone(Long id) throws RuntimeException {
 
         Documento documentOld = documentoRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException(DocumentException.NOT_FOUND.getMessage()));
-
-//        DocumentAttachment documentAttachmentCreate = new DocumentAttachment();
-//        documentAttachmentCreate.setTextAttachment(documentOld.getDocumentAttachment().getTextAttachment());
 
         var secondaryNumber = this.calculateSecondaryNumber(documentOld.getEspecieNormativa(), documentOld.getAssuntoBasico());
 
@@ -142,10 +133,8 @@ public class DocumentoService {
                 .numeroSecundario(secondaryNumber)
                 .tituloDocumento(documentOld.getTituloDocumento())
                 .documentoStatus(DocumentoStatusEnum.RASCUNHO)
-//                .documentAttachment(documentAttachmentRepository.save(documentAttachmentCreate))
                 .build();
 
-//        docRepository.save(documentNew);
         return DocumentoMapper.documentoToDocumentoSemAnexoTextualResponseDto(documentoRepository.save(documentNew));
     }
 
@@ -164,11 +153,10 @@ public class DocumentoService {
 
         for (int i = 1; i <= secondaryNumbers.size(); i++) {
             if (!secondaryNumbers.contains(i)) {
-                return i;  // Returns smaller available number
+                return i;
             }
         }
 
         return secondaryNumbers.size() + 1;
     }
-
 }

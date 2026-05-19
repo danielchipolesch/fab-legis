@@ -13,10 +13,10 @@ import java.util.List;
 @Repository
 public interface ItemAnexoParteNormativaRepository extends JpaRepository<ItemAnexoParteNormativa, Long> {
 
-    @Query("SELECT i FROM ItemAnexoParteNormativa i WHERE i.documento.id = :documentoId AND i.parent IS NULL")
+    @Query("SELECT i FROM ItemAnexoParteNormativa i WHERE i.documento.id = :documentoId AND i.parent IS NULL ORDER BY i.elementOrder ASC")
     List<ItemAnexoParteNormativa> findRootItemsByDocumentoId(@Param("documentoId") Long documentoId);
 
-    List<ItemAnexoParteNormativa> findByParent(ItemAnexoParteNormativa item);
+    List<ItemAnexoParteNormativa> findByParentOrderByElementOrderAsc(ItemAnexoParteNormativa parent);
 
     @Modifying
     @Transactional
