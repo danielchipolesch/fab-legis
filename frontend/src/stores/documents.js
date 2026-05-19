@@ -3,6 +3,11 @@ import { v4 as uuidv4 } from 'uuid'
 import { renumberElements } from '@/utils/numbering.js'
 import * as api from '@/api/documents.js'
 
+function renumerarSecaoNormativa(doc) {
+  const normativa = doc.secoes?.find(s => s.tipo === 'parte_normativa')
+  if (normativa?.elementos?.length) renumberElements(normativa.elementos)
+}
+
 function makeElement(tipo, numero, conteudo = '', filhos = []) {
   return { id: uuidv4(), tipo, numero, conteudo, filhos }
 }
@@ -113,6 +118,7 @@ export const useDocumentsStore = defineStore('documents', {
         doc._fromTemplate = true
       } else {
         doc._fromTemplate = false
+        renumerarSecaoNormativa(doc)
       }
       const idx = this.documentos.findIndex(d => String(d.id) === String(id))
       if (idx !== -1) this.documentos[idx] = doc
