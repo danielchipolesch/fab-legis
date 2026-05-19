@@ -25,7 +25,7 @@
           <v-progress-circular size="14" width="2" indeterminate color="primary" />
           <span class="text-caption text-medium-emphasis">Salvando…</span>
         </template>
-        <template v-else-if="saveStatus === 'dirty'">
+        <template v-else-if="saveStatus === 'dirty' || !hasSaved">
           <v-icon size="14" color="warning">mdi-circle-medium</v-icon>
           <span class="text-caption text-medium-emphasis">Não salvo</span>
         </template>
@@ -289,8 +289,8 @@ const showPdfError  = ref(false)
 const pdfErrorMsg   = ref('')
 
 // ── Auto-save ────────────────────────────────────────────────────────────────
-// Estados: 'idle' | 'dirty' | 'saving' | 'saved'
-const saveStatus = ref('idle')
+const saveStatus = ref('idle')   // 'idle' | 'dirty' | 'saving'
+const hasSaved   = ref(false)    // true somente após pelo menos um save bem-sucedido
 let autoSaveTimer = null
 
 function scheduleAutoSave() {
@@ -302,9 +302,14 @@ function scheduleAutoSave() {
 async function autoSave() {
   if (!editorStore.isDirty) return
   saveStatus.value = 'saving'
-  await new Promise(r => setTimeout(r, 350))
-  editorStore.save()
-  saveStatus.value = 'idle'
+  try {
+    await editorStore.save()
+    hasSaved.value = true
+    saveStatus.value = 'idle'
+  } catch (e) {
+    console.error('[AutoSave]', e)
+    saveStatus.value = 'dirty'
+  }
 }
 
 onUnmounted(() => {
@@ -384,22 +389,29 @@ function hasChildren(el) {
 
 onMounted(async () => {
   if (documentoId.value) {
-    let ok = editorStore.load(documentoId.value)
-    if (!ok) {
-      // Document not in store yet — fetch from API (direct URL access or page refresh)
-      const doc = await docStore.fetchDocumento(documentoId.value)
-      if (!doc) {
-        router.replace({ name: 'home' })
-        return
-      }
-      ok = editorStore.load(documentoId.value)
+    // Sempre busca do backend para garantir seções reais (não sobrescreve com template em memória)
+    const doc = await docStore.fetchDocumento(documentoId.value)
+    if (!doc) {
+      router.replace({ name: 'home' })
+      return
     }
+    const ok = editorStore.load(documentoId.value)
     if (!ok) {
       router.replace({ name: 'home' })
       return
     }
-    const doc = editorStore.documento
-    const prelim = doc?.secoes?.find(s => s.tipo === 'parte_preliminar')
+
+    if (doc._fromTemplate) {
+      // Backend não tinha seções — salva o template imediatamente
+      editorStore.isDirty = true
+      await autoSave()
+    } else {
+      // Seções vieram do banco — já estão salvas
+      hasSaved.value = true
+    }
+
+    const loadedDoc = editorStore.documento
+    const prelim = loadedDoc?.secoes?.find(s => s.tipo === 'parte_preliminar')
     const primeiro = prelim?.elementos?.[0]
     if (primeiro) editorStore.selectElement(primeiro.id)
   } else {

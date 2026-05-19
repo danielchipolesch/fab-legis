@@ -99,7 +99,7 @@ export const useDocumentsStore = defineStore('documents', {
       this.loading = true
       try {
         const docs = await api.listDocumentos()
-        this.documentos = docs.map(d => ({ ...d, secoes: gerarSecoesTemplate(d) }))
+        this.documentos = docs.map(d => ({ ...d }))
       } finally {
         this.loading = false
       }
@@ -108,7 +108,12 @@ export const useDocumentsStore = defineStore('documents', {
     async fetchDocumento(id) {
       const doc = await api.getDocumento(id)
       if (!doc) return null
-      if (!doc.secoes) doc.secoes = gerarSecoesTemplate(doc)
+      if (!doc.secoes) {
+        doc.secoes = gerarSecoesTemplate(doc)
+        doc._fromTemplate = true
+      } else {
+        doc._fromTemplate = false
+      }
       const idx = this.documentos.findIndex(d => String(d.id) === String(id))
       if (idx !== -1) this.documentos[idx] = doc
       else this.documentos.push(doc)
@@ -118,6 +123,7 @@ export const useDocumentsStore = defineStore('documents', {
     async createDocumento(payload) {
       const novo = await api.createDocumento(payload)
       novo.secoes = gerarSecoesTemplate(novo)
+      novo._fromTemplate = true
       this.documentos.unshift(novo)
       return novo
     },
@@ -126,6 +132,7 @@ export const useDocumentsStore = defineStore('documents', {
       const clone = await api.cloneDocumento(id)
       if (clone) {
         clone.secoes = gerarSecoesTemplate(clone)
+        clone._fromTemplate = true
         this.documentos.unshift(clone)
       }
       return clone

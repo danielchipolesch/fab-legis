@@ -56,9 +56,9 @@ export const useEditorStore = defineStore('editor', {
       if (el) { el.conteudo = html; this.isDirty = true }
     },
 
-    save() {
+    async save() {
       const store = useDocumentsStore()
-      store.saveDocumento(this.documento)
+      await store.saveDocumento(this.documento)
       this.isDirty = false
     },
 
