@@ -1,0 +1,25 @@
+:root {
+  --color-primary: #1A2E5A;
+  --color-secondary: #4A6FA5;
+  --color-accent: #6D8CC4;
+  --color-surface: #FFFFFF;
+  --color-background: #F5F7FA;
+  --color-border: 0, 0, 0;
+  --color-border-opacity: 0.12;
+  --color-error: #C10015;
+  --color-success: #21BA45;
+  --color-warning: #F2C037;
+}
+
+.dark-mode {
+  --color-surface: #1E1E1E;
+  --color-background: #121212;
+  --color-border: 255, 255, 255;
+}
+
+/* Fundo geral da aplicação (equivalente ao tema Vuetify #F0F0F0) */
+html,
+body,
+#app {
+  background-color: var(--color-background);
+}

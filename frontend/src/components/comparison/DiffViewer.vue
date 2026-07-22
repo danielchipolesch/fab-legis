@@ -2,31 +2,31 @@
   <div class="diff-viewer">
 
     <!-- Row label -->
-    <div class="diff-row-label text-caption font-weight-bold text-medium-emphasis px-3 py-1 mb-2">
+    <div class="diff-row-label text-caption text-weight-bold text-grey-7 q-px-sm q-py-xs q-mb-sm">
       {{ formatLabel(elemento) }}
     </div>
 
     <!-- Side-by-side or unified diff -->
-    <div v-if="diff.length" class="diff-content" :class="mode === 'side' ? 'd-flex gap-3' : ''">
+    <div v-if="diff.length" class="diff-content" :class="mode === 'side' ? 'row' : ''" :style="mode === 'side' ? 'gap:12px' : ''">
 
       <!-- LEFT (version A) -->
-      <div class="diff-pane flex-1" :class="{ 'diff-pane--side': mode === 'side' }">
-        <div class="diff-pane-header text-caption px-3 py-1 text-white" style="background:#1565C0">
+      <div class="diff-pane col" :class="{ 'diff-pane--side': mode === 'side' }">
+        <div class="diff-pane-header text-caption q-px-sm q-py-xs text-white" style="background:#1565C0">
           {{ labelA }}
         </div>
-        <div class="diff-pane-content pa-3" v-html="renderedA" />
+        <div class="diff-pane-content q-pa-sm" v-html="renderedA" />
       </div>
 
       <!-- RIGHT (version B) — only in side mode -->
-      <div v-if="mode === 'side'" class="diff-pane flex-1">
-        <div class="diff-pane-header text-caption px-3 py-1 text-white" style="background:#2E7D32">
+      <div v-if="mode === 'side'" class="diff-pane col">
+        <div class="diff-pane-header text-caption q-px-sm q-py-xs text-white" style="background:#2E7D32">
           {{ labelB }}
         </div>
-        <div class="diff-pane-content pa-3" v-html="renderedB" />
+        <div class="diff-pane-content q-pa-sm" v-html="renderedB" />
       </div>
 
       <!-- Unified diff -->
-      <div v-if="mode === 'unified'" class="diff-unified pa-3">
+      <div v-if="mode === 'unified'" class="diff-unified q-pa-sm">
         <span
           v-for="(part, i) in diff"
           :key="i"
@@ -41,7 +41,7 @@
     </div>
 
     <!-- No diff -->
-    <div v-else class="text-caption text-medium-emphasis px-3 py-2 font-italic">
+    <div v-else class="text-caption text-grey-7 q-px-sm q-py-sm text-italic">
       Sem alterações nesta seção.
     </div>
 
@@ -97,13 +97,13 @@ const renderedB = computed(() => {
 <style scoped>
 .diff-viewer {
   margin-bottom: 16px;
-  border: 1px solid rgba(var(--v-border-color), 0.3);
+  border: 1px solid rgba(0, 0, 0, 0.3);
   border-radius: 8px;
   overflow: hidden;
 }
 .diff-row-label {
-  background: rgba(var(--v-theme-secondary), 0.08);
-  border-bottom: 1px solid rgba(var(--v-border-color), 0.2);
+  background: rgba(74, 111, 165, 0.08);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.2);
 }
 .diff-pane { flex: 1; min-width: 0; }
 .diff-pane-header {
@@ -121,7 +121,7 @@ const renderedB = computed(() => {
   background: #FAFBFC;
 }
 .diff-pane--side + .diff-pane {
-  border-left: 1px solid rgba(var(--v-border-color), 0.3);
+  border-left: 1px solid rgba(0, 0, 0, 0.3);
 }
 </style>
 

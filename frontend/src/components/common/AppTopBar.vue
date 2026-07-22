@@ -1,56 +1,64 @@
 <template>
-  <v-app-bar
-    color="primary"
-    elevation="3"
-    height="60"
-  >
-    <v-app-bar-title>
-      <div class="d-flex align-center gap-3">
-        <v-avatar size="36" color="white" rounded="sm" class="mr-2">
-          <v-icon color="primary" icon="mdi-scale-balance" size="22" />
-        </v-avatar>
-        <div>
-          <div class="text-subtitle-1 font-weight-bold text-white lh-1">FAB Legis</div>
-          <div class="text-caption text-white" style="opacity:.75;line-height:1.1">Gestão de Legislação do COMAER</div>
+  <q-header elevated class="bg-primary text-white">
+    <q-toolbar style="height:60px">
+      <q-toolbar-title>
+        <div class="row items-center no-wrap" style="gap:12px">
+          <q-avatar size="36px" color="white" text-color="primary" rounded>
+            <q-icon name="mdi-scale-balance" size="22px" />
+          </q-avatar>
+          <div>
+            <div class="text-subtitle1 text-weight-bold text-white" style="line-height:1">FAB Legis</div>
+            <div class="text-caption text-white" style="opacity:.75;line-height:1.1">Gestão de Legislação do COMAER</div>
+          </div>
         </div>
-      </div>
-    </v-app-bar-title>
+      </q-toolbar-title>
 
-    <template #append>
-      <v-btn
+      <q-btn
         :to="{ name: 'home' }"
-        variant="text"
+        flat
         color="white"
-        prepend-icon="mdi-home-outline"
-        class="mr-1"
+        class="q-mr-xs"
       >
+        <q-icon left name="mdi-home-outline" />
         Início
-      </v-btn>
+      </q-btn>
 
-      <v-divider vertical class="mx-2" style="opacity:.4" />
+      <q-separator vertical class="q-mx-sm" style="opacity:.4" color="white" />
 
-      <v-btn icon variant="text" color="white">
-        <v-icon>mdi-bell-outline</v-icon>
-        <v-tooltip activator="parent" location="bottom">Notificações</v-tooltip>
-      </v-btn>
+      <q-btn icon="mdi-bell-outline" flat round color="white">
+        <q-tooltip anchor="bottom middle" self="top middle">Notificações</q-tooltip>
+      </q-btn>
 
-      <v-menu>
-        <template #activator="{ props: menuProps }">
-          <v-btn v-bind="menuProps" variant="text" color="white" class="ml-1">
-            <v-avatar size="30" color="secondary" class="mr-2">
-              <v-icon size="18">mdi-account</v-icon>
-            </v-avatar>
-            <span class="text-caption">Usuário</span>
-            <v-icon end>mdi-chevron-down</v-icon>
-          </v-btn>
-        </template>
-        <v-list density="compact" min-width="180">
-          <v-list-item prepend-icon="mdi-account-outline" title="Perfil" />
-          <v-list-item prepend-icon="mdi-cog-outline" title="Configurações" />
-          <v-divider />
-          <v-list-item prepend-icon="mdi-logout" title="Sair" />
-        </v-list>
-      </v-menu>
-    </template>
-  </v-app-bar>
+      <q-btn flat color="white" class="q-ml-xs">
+        <q-avatar size="30px" color="secondary" text-color="white" class="q-mr-sm">
+          <q-icon name="mdi-account" size="18px" />
+        </q-avatar>
+        <span class="text-caption">Usuário</span>
+        <q-icon right name="mdi-chevron-down" />
+        <q-menu>
+          <q-list dense style="min-width:180px">
+            <q-item clickable v-close-popup>
+              <q-item-section avatar>
+                <q-icon name="mdi-account-outline" />
+              </q-item-section>
+              <q-item-section>Perfil</q-item-section>
+            </q-item>
+            <q-item clickable v-close-popup>
+              <q-item-section avatar>
+                <q-icon name="mdi-cog-outline" />
+              </q-item-section>
+              <q-item-section>Configurações</q-item-section>
+            </q-item>
+            <q-separator />
+            <q-item clickable v-close-popup>
+              <q-item-section avatar>
+                <q-icon name="mdi-logout" />
+              </q-item-section>
+              <q-item-section>Sair</q-item-section>
+            </q-item>
+          </q-list>
+        </q-menu>
+      </q-btn>
+    </q-toolbar>
+  </q-header>
 </template>

@@ -1,61 +1,66 @@
 <template>
-  <v-card color="surface-card" rounded="lg">
-    <v-card-title class="text-subtitle-2 font-weight-bold pa-4 pb-2">
-      <v-icon icon="mdi-information-outline" size="16" class="mr-2" />
+  <q-card flat bordered>
+    <q-card-section class="text-subtitle2 text-weight-bold q-pa-md q-pb-sm row items-center">
+      <q-icon name="mdi-information-outline" size="16px" class="q-mr-sm" />
       Metadados do Documento
-    </v-card-title>
-    <v-divider />
-    <v-card-text class="pa-4">
-      <v-row dense>
-        <v-col cols="12" md="4">
-          <v-select
+    </q-card-section>
+    <q-separator />
+    <q-card-section class="q-pa-md">
+      <div class="row q-col-gutter-sm">
+        <div class="col-12 col-md-4">
+          <q-select
             v-model="local.especie"
-            :items="especies"
+            :options="especies"
             label="Espécie Normativa *"
-            hide-details="auto"
+            outlined
+            dense
             @update:model-value="emit('update', local)"
           />
-        </v-col>
-        <v-col cols="6" md="2">
-          <v-text-field
+        </div>
+        <div class="col-6 col-md-2">
+          <q-input
             v-model="local.numero_basico"
             label="Numeração Básica *"
-            hide-details="auto"
+            outlined
+            dense
             @update:model-value="emit('update', local)"
           />
-        </v-col>
-        <v-col cols="6" md="2">
-          <v-text-field
+        </div>
+        <div class="col-6 col-md-2">
+          <q-input
             v-model="local.numero_secundario"
             label="Numeração Secundária"
-            hide-details="auto"
+            outlined
+            dense
             @update:model-value="emit('update', local)"
           />
-        </v-col>
-        <v-col cols="12">
-          <v-text-field
+        </div>
+        <div class="col-12">
+          <q-input
             v-model="local.assunto_basico"
             label="Assunto Básico *"
-            hide-details="auto"
+            outlined
+            dense
             @update:model-value="emit('update', local)"
           />
-        </v-col>
-        <v-col cols="12" md="4">
-          <v-select
+        </div>
+        <div class="col-12 col-md-4">
+          <q-select
             v-model="local.status"
-            :items="statusOptions"
+            :options="statusOptions"
             label="Status"
-            hide-details="auto"
+            outlined
+            dense
             :readonly="isStatusReadonly"
           >
-            <template #selection="{ item }">
-              <StatusBadge :status="item.value" size="small" />
+            <template #selected>
+              <StatusBadge v-if="local.status" :status="local.status" size="sm" />
             </template>
-          </v-select>
-        </v-col>
-      </v-row>
-    </v-card-text>
-  </v-card>
+          </q-select>
+        </div>
+      </div>
+    </q-card-section>
+  </q-card>
 </template>
 
 <script setup>

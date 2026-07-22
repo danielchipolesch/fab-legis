@@ -1,327 +1,358 @@
 <template>
-  <v-container fluid class="pa-6">
+  <q-page class="q-pa-xl">
 
     <!-- Page header -->
-    <div class="d-flex align-center justify-space-between mb-6">
+    <div class="row items-center justify-between q-mb-xl">
       <div>
-        <h1 class="text-h5 font-weight-bold text-primary">Gestão de Legislação</h1>
-        <p class="text-body-2 text-medium-emphasis mb-0">
+        <h1 class="text-h5 text-weight-bold text-primary q-my-none">Gestão de Legislação</h1>
+        <p class="text-body2 text-grey-7 q-mb-none">
           Gerencie os atos normativos do Comando da Aeronáutica
         </p>
       </div>
-      <v-btn
+      <q-btn
         color="primary"
-        prepend-icon="mdi-plus"
-        size="large"
+        unelevated
+        size="lg"
         @click="dialogNovoDoc = true"
       >
+        <q-icon left name="mdi-plus" />
         Novo Documento
-      </v-btn>
+      </q-btn>
     </div>
 
     <NewDocumentDialog v-model="dialogNovoDoc" />
 
     <!-- Filters -->
-    <v-card class="mb-5" color="surface-card">
-      <v-card-text class="pa-4">
-        <v-row dense align="center">
-          <v-col cols="12" md="4">
-            <v-text-field
+    <q-card flat bordered class="q-mb-lg">
+      <q-card-section class="q-pa-md">
+        <div class="row q-col-gutter-sm items-center">
+          <div class="col-12 col-md-4">
+            <q-input
               v-model="filtros.busca"
-              prepend-inner-icon="mdi-magnify"
               label="Buscar por assunto ou número"
-              hide-details
+              outlined
+              dense
               clearable
-              density="comfortable"
-            />
-          </v-col>
-          <v-col cols="6" md="2">
-            <v-select
+              hide-bottom-space
+            >
+              <template #prepend>
+                <q-icon name="mdi-magnify" />
+              </template>
+            </q-input>
+          </div>
+          <div class="col-6 col-md-2">
+            <q-select
               v-model="filtros.especie"
-              :items="especies"
+              :options="especies"
               label="Espécie"
-              hide-details
+              outlined
+              dense
               clearable
-              density="comfortable"
+              hide-bottom-space
             />
-          </v-col>
-          <v-col cols="6" md="2">
-            <v-select
+          </div>
+          <div class="col-6 col-md-2">
+            <q-select
               v-model="filtros.status"
-              :items="statusOptions"
+              :options="statusOptions"
               label="Status"
-              hide-details
+              outlined
+              dense
               clearable
-              density="comfortable"
+              hide-bottom-space
             />
-          </v-col>
-          <v-col cols="12" md="4" class="d-flex justify-end gap-2">
-            <v-btn variant="text" prepend-icon="mdi-filter-off" @click="limparFiltros">
+          </div>
+          <div class="col-12 col-md-4 row justify-end items-center" style="gap:8px">
+            <q-btn flat @click="limparFiltros">
+              <q-icon left name="mdi-filter-off" />
               Limpar
-            </v-btn>
-            <v-btn-toggle v-model="viewMode" mandatory color="primary" density="compact" rounded="md">
-              <v-btn value="tabela" icon="mdi-view-list" />
-              <v-btn value="cards" icon="mdi-view-grid" />
-            </v-btn-toggle>
-          </v-col>
-        </v-row>
-      </v-card-text>
-    </v-card>
+            </q-btn>
+            <q-btn-toggle
+              v-model="viewMode"
+              no-caps
+              unelevated
+              toggle-color="primary"
+              color="grey-3"
+              text-color="grey-8"
+              :options="[
+                { value: 'tabela', icon: 'mdi-view-list' },
+                { value: 'cards', icon: 'mdi-view-grid' },
+              ]"
+            />
+          </div>
+        </div>
+      </q-card-section>
+    </q-card>
 
     <!-- Summary chips -->
-    <div class="d-flex flex-wrap gap-2 mb-5">
-      <v-chip
+    <div class="row q-gutter-sm q-mb-lg">
+      <q-chip
         v-for="s in statusSummary"
         :key="s.status"
-        :color="s.color"
-        variant="tonal"
-        size="small"
-        label
+        clickable
+        :color="s.bg"
+        :text-color="s.fg"
+        size="sm"
+        square
         @click="filtros.status = filtros.status === s.status ? null : s.status"
       >
-        {{ s.label }}: <strong class="ml-1">{{ s.count }}</strong>
-      </v-chip>
+        {{ s.label }}: <strong class="q-ml-xs">{{ s.count }}</strong>
+      </q-chip>
     </div>
 
     <!-- TABLE VIEW -->
     <template v-if="viewMode === 'tabela'">
-      <v-card>
-        <v-data-table
-          :headers="headers"
-          :items="documentosFiltrados"
-          :items-per-page="15"
-          hover
-          color="surface"
+      <q-card flat bordered>
+        <q-table
+          :rows="documentosFiltrados"
+          :columns="columns"
+          row-key="id"
+          :rows-per-page-options="[15, 25, 50]"
+          :pagination="{ rowsPerPage: 15 }"
+          flat
           class="legis-table"
         >
-          <template #item.especie="{ item }">
-            <v-chip color="secondary" variant="tonal" size="x-small" label class="font-weight-bold">
-              {{ item.especie }}
-            </v-chip>
+          <template #body-cell-especie="props">
+            <q-td :props="props">
+              <q-chip color="blue-2" text-color="secondary" size="xs" square class="text-weight-bold">
+                {{ props.row.especie }}
+              </q-chip>
+            </q-td>
           </template>
 
-          <template #item.numero="{ item }">
-            <span class="font-weight-medium text-primary">
-              {{ item.especie }} {{ item.numero_basico }}<template v-if="item.numero_secundario">-{{ item.numero_secundario }}</template>
-            </span>
+          <template #body-cell-numero="props">
+            <q-td :props="props">
+              <span class="text-weight-medium text-primary">
+                {{ props.row.especie }} {{ props.row.numero_basico }}<template v-if="props.row.numero_secundario">-{{ props.row.numero_secundario }}</template>
+              </span>
+            </q-td>
           </template>
 
-          <template #item.data_criacao="{ item }">
-            {{ formatarData(item.data_criacao) }}
+          <template #body-cell-data_criacao="props">
+            <q-td :props="props">
+              {{ formatarData(props.row.data_criacao) }}
+            </q-td>
           </template>
 
-          <template #item.status="{ item }">
-            <StatusBadge :status="item.status" />
+          <template #body-cell-status="props">
+            <q-td :props="props">
+              <StatusBadge :status="props.row.status" />
+            </q-td>
           </template>
 
-          <template #item.actions="{ item }">
-            <div class="d-flex gap-2">
+          <template #body-cell-actions="props">
+            <q-td :props="props" class="text-right">
+              <div class="row justify-end no-wrap" style="gap:4px">
 
-              <!-- Editar — só RASCUNHO e MINUTA -->
-              <v-btn
-                icon="mdi-pencil-outline"
-                size="small"
-                variant="text"
-                color="primary"
-                :disabled="!canEdit(item)"
-                :to="canEdit(item) ? { name: 'documento-editar', params: { id: item.id } } : undefined"
-              >
-                <v-icon />
-                <v-tooltip activator="parent" location="top">
-                  {{ canEdit(item) ? 'Editar' : 'Edição disponível apenas para Rascunho e Minuta' }}
-                </v-tooltip>
-              </v-btn>
+                <!-- Editar — só RASCUNHO e MINUTA -->
+                <q-btn
+                  icon="mdi-pencil-outline"
+                  size="sm"
+                  flat
+                  round
+                  dense
+                  color="primary"
+                  :disable="!canEdit(props.row)"
+                  :to="canEdit(props.row) ? { name: 'documento-editar', params: { id: props.row.id } } : undefined"
+                >
+                  <q-tooltip anchor="top middle" self="bottom middle">
+                    {{ canEdit(props.row) ? 'Editar' : 'Edição disponível apenas para Rascunho e Minuta' }}
+                  </q-tooltip>
+                </q-btn>
 
-              <!-- Visualizar — sempre habilitado -->
-              <v-btn
-                icon="mdi-eye-outline"
-                size="small"
-                variant="text"
-                :to="{ name: 'documento-editar', params: { id: item.id } }"
-              >
-                <v-icon />
-                <v-tooltip activator="parent" location="top">Visualizar</v-tooltip>
-              </v-btn>
+                <!-- Visualizar — sempre habilitado -->
+                <q-btn
+                  icon="mdi-eye-outline"
+                  size="sm"
+                  flat
+                  round
+                  dense
+                  :to="{ name: 'documento-editar', params: { id: props.row.id } }"
+                >
+                  <q-tooltip anchor="top middle" self="bottom middle">Visualizar</q-tooltip>
+                </q-btn>
 
-              <!-- Comparar versões — habilitado se houver ao menos 1 versão salva -->
-              <v-btn
-                icon="mdi-source-branch"
-                size="small"
-                variant="text"
-                :disabled="!item.versoes?.length"
-                :to="item.versoes?.length ? { name: 'documento-comparar', params: { id: item.id } } : undefined"
-              >
-                <v-icon />
-                <v-tooltip activator="parent" location="top">
-                  {{ item.versoes?.length ? 'Comparar versões' : 'Sem versões anteriores para comparar' }}
-                </v-tooltip>
-              </v-btn>
+                <!-- Comparar versões — habilitado se houver ao menos 1 versão salva -->
+                <q-btn
+                  icon="mdi-source-branch"
+                  size="sm"
+                  flat
+                  round
+                  dense
+                  :disable="!props.row.versoes?.length"
+                  :to="props.row.versoes?.length ? { name: 'documento-comparar', params: { id: props.row.id } } : undefined"
+                >
+                  <q-tooltip anchor="top middle" self="bottom middle">
+                    {{ props.row.versoes?.length ? 'Comparar versões' : 'Sem versões anteriores para comparar' }}
+                  </q-tooltip>
+                </q-btn>
 
-              <!-- Clonar — sempre habilitado -->
-              <v-btn
-                icon="mdi-content-copy"
-                size="small"
-                variant="text"
-                @click="clonar(item)"
-              >
-                <v-icon />
-                <v-tooltip activator="parent" location="top">Clonar documento</v-tooltip>
-              </v-btn>
+                <!-- Clonar — sempre habilitado -->
+                <q-btn
+                  icon="mdi-content-copy"
+                  size="sm"
+                  flat
+                  round
+                  dense
+                  @click="clonar(props.row)"
+                >
+                  <q-tooltip anchor="top middle" self="bottom middle">Clonar documento</q-tooltip>
+                </q-btn>
 
-              <!-- Baixar PDF — sempre habilitado -->
-              <v-btn
-                icon="mdi-file-pdf-box"
-                size="small"
-                variant="text"
-                @click="baixarPdf(item)"
-              >
-                <v-icon />
-                <v-tooltip activator="parent" location="top">Baixar PDF</v-tooltip>
-              </v-btn>
+                <!-- Baixar PDF — sempre habilitado -->
+                <q-btn
+                  icon="mdi-file-pdf-box"
+                  size="sm"
+                  flat
+                  round
+                  dense
+                  @click="baixarPdf(props.row)"
+                >
+                  <q-tooltip anchor="top middle" self="bottom middle">Baixar PDF</q-tooltip>
+                </q-btn>
 
-              <v-menu>
-                <template #activator="{ props: menuProps }">
-                  <v-btn v-bind="menuProps" icon="mdi-dots-vertical" size="small" variant="text" color="grey" />
-                </template>
-                <v-list density="compact" min-width="200">
-                  <v-list-item
-                    v-for="opt in statusActions(item)"
-                    :key="opt.status"
-                    :prepend-icon="opt.icon"
-                    :title="opt.label"
-                    @click="mudarStatus(item, opt.status)"
-                  />
-                  <v-divider />
-                  <v-list-item
-                    prepend-icon="mdi-delete-outline"
-                    title="Excluir"
-                    class="text-error"
-                    @click="confirmarExclusao(item)"
-                  />
-                </v-list>
-              </v-menu>
-            </div>
+                <q-btn icon="mdi-dots-vertical" size="sm" flat round dense color="grey">
+                  <q-menu>
+                    <q-list dense style="min-width:200px">
+                      <q-item
+                        v-for="opt in statusActions(props.row)"
+                        :key="opt.status"
+                        clickable
+                        v-close-popup
+                        @click="mudarStatus(props.row, opt.status)"
+                      >
+                        <q-item-section avatar>
+                          <q-icon :name="opt.icon" />
+                        </q-item-section>
+                        <q-item-section>{{ opt.label }}</q-item-section>
+                      </q-item>
+                      <q-separator />
+                      <q-item clickable v-close-popup class="text-negative" @click="confirmarExclusao(props.row)">
+                        <q-item-section avatar>
+                          <q-icon name="mdi-delete-outline" color="negative" />
+                        </q-item-section>
+                        <q-item-section>Excluir</q-item-section>
+                      </q-item>
+                    </q-list>
+                  </q-menu>
+                </q-btn>
+              </div>
+            </q-td>
           </template>
 
           <template #no-data>
-            <div class="d-flex flex-column align-center py-10 text-medium-emphasis">
-              <v-icon size="56" class="mb-3">mdi-file-search-outline</v-icon>
+            <div class="full-width column items-center q-py-xl text-grey-7">
+              <q-icon size="56px" class="q-mb-sm" name="mdi-file-search-outline" />
               <p>Nenhum documento encontrado.</p>
             </div>
           </template>
-        </v-data-table>
-      </v-card>
+        </q-table>
+      </q-card>
     </template>
 
     <!-- CARDS VIEW -->
     <template v-else>
-      <v-row>
-        <v-col
+      <div class="row q-col-gutter-md">
+        <div
           v-for="doc in documentosFiltrados"
           :key="doc.id"
-          cols="12" sm="6" md="4" lg="3"
+          class="col-12 col-sm-6 col-md-4 col-lg-3"
         >
-          <v-card height="100%" class="d-flex flex-column">
-            <v-card-item>
-              <template #prepend>
-                <v-avatar color="primary" variant="tonal" rounded="md" size="40">
-                  <v-icon>mdi-file-document-outline</v-icon>
-                </v-avatar>
-              </template>
-              <v-card-title class="text-subtitle-2 font-weight-bold">
-                {{ doc.especie }} {{ doc.numero_basico }}<template v-if="doc.numero_secundario">-{{ doc.numero_secundario }}</template>
-              </v-card-title>
-              <v-card-subtitle class="text-caption">{{ formatarData(doc.data_criacao) }}</v-card-subtitle>
-              <template #append>
-                <StatusBadge :status="doc.status" size="x-small" />
-              </template>
-            </v-card-item>
+          <q-card flat bordered style="height:100%" class="column">
+            <q-item>
+              <q-item-section avatar>
+                <q-avatar color="blue-2" text-color="primary" rounded size="40px">
+                  <q-icon name="mdi-file-document-outline" />
+                </q-avatar>
+              </q-item-section>
+              <q-item-section>
+                <q-item-label class="text-subtitle2 text-weight-bold">
+                  {{ doc.especie }} {{ doc.numero_basico }}<template v-if="doc.numero_secundario">-{{ doc.numero_secundario }}</template>
+                </q-item-label>
+                <q-item-label caption>{{ formatarData(doc.data_criacao) }}</q-item-label>
+              </q-item-section>
+              <q-item-section side top>
+                <StatusBadge :status="doc.status" size="xs" />
+              </q-item-section>
+            </q-item>
 
-            <v-card-text class="flex-grow-1">
-              <p class="text-body-2 text-medium-emphasis mb-0 text-truncate-2">
+            <q-card-section class="col">
+              <p class="text-body2 text-grey-7 q-mb-none text-truncate-2">
                 {{ doc.assunto_basico }}
               </p>
-            </v-card-text>
+            </q-card-section>
 
-            <v-divider />
+            <q-separator />
 
-            <v-card-actions class="pa-3 gap-1">
-              <v-btn
-                size="small"
-                variant="text"
+            <q-card-actions class="q-pa-sm">
+              <q-btn
+                size="sm"
+                flat
                 color="primary"
-                prepend-icon="mdi-pencil-outline"
-                :disabled="!canEdit(doc)"
+                :disable="!canEdit(doc)"
                 :to="canEdit(doc) ? { name: 'documento-editar', params: { id: doc.id } } : undefined"
               >
+                <q-icon left name="mdi-pencil-outline" />
                 Editar
-              </v-btn>
-              <v-spacer />
-              <v-btn size="small" icon="mdi-content-copy" variant="text" @click="clonar(doc)">
-                <v-tooltip activator="parent" location="top">Clonar</v-tooltip>
-              </v-btn>
-              <v-btn
-                size="small"
+              </q-btn>
+              <q-space />
+              <q-btn size="sm" icon="mdi-content-copy" flat round dense @click="clonar(doc)">
+                <q-tooltip anchor="top middle" self="bottom middle">Clonar</q-tooltip>
+              </q-btn>
+              <q-btn
+                size="sm"
                 icon="mdi-source-branch"
-                variant="text"
-                :disabled="!doc.versoes?.length"
+                flat
+                round
+                dense
+                :disable="!doc.versoes?.length"
                 :to="doc.versoes?.length ? { name: 'documento-comparar', params: { id: doc.id } } : undefined"
               >
-                <v-tooltip activator="parent" location="top">Comparar versões</v-tooltip>
-              </v-btn>
-              <v-btn size="small" icon="mdi-file-pdf-box" variant="text" @click="baixarPdf(doc)">
-                <v-tooltip activator="parent" location="top">Baixar PDF</v-tooltip>
-              </v-btn>
-            </v-card-actions>
-          </v-card>
-        </v-col>
-        <v-col v-if="!documentosFiltrados.length" cols="12">
-          <div class="d-flex flex-column align-center py-12 text-medium-emphasis">
-            <v-icon size="64" class="mb-4">mdi-file-search-outline</v-icon>
+                <q-tooltip anchor="top middle" self="bottom middle">Comparar versões</q-tooltip>
+              </q-btn>
+              <q-btn size="sm" icon="mdi-file-pdf-box" flat round dense @click="baixarPdf(doc)">
+                <q-tooltip anchor="top middle" self="bottom middle">Baixar PDF</q-tooltip>
+              </q-btn>
+            </q-card-actions>
+          </q-card>
+        </div>
+        <div v-if="!documentosFiltrados.length" class="col-12">
+          <div class="column items-center q-py-xl text-grey-7">
+            <q-icon size="64px" class="q-mb-md" name="mdi-file-search-outline" />
             <p>Nenhum documento encontrado.</p>
           </div>
-        </v-col>
-      </v-row>
+        </div>
+      </div>
     </template>
 
-    <!-- PDF error snackbar -->
-    <v-snackbar
-      v-model="showPdfError"
-      location="bottom right"
-      color="error"
-      timeout="6000"
-    >
-      <v-icon start>mdi-alert-circle-outline</v-icon>
-      {{ pdfErrorMsg }}
-    </v-snackbar>
-
     <!-- Confirm delete dialog -->
-    <v-dialog v-model="dialog.delete" max-width="420">
-      <v-card>
-        <v-card-title class="text-h6 pt-5 px-6">Excluir documento?</v-card-title>
-        <v-card-text class="px-6">
+    <q-dialog v-model="dialog.delete">
+      <q-card style="min-width:420px">
+        <q-card-section class="text-h6">Excluir documento?</q-card-section>
+        <q-card-section class="q-pt-none">
           Esta ação não pode ser desfeita. O documento
           <strong>{{ dialog.target?.especie }} {{ dialog.target?.numero_basico }}</strong>
           será removido permanentemente.
-        </v-card-text>
-        <v-card-actions class="px-6 pb-5 gap-2">
-          <v-spacer />
-          <v-btn variant="text" @click="dialog.delete = false">Cancelar</v-btn>
-          <v-btn variant="flat" color="error" @click="excluir">Excluir</v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
+        </q-card-section>
+        <q-card-actions align="right" class="q-pb-md q-px-md">
+          <q-btn flat v-close-popup>Cancelar</q-btn>
+          <q-btn unelevated color="negative" @click="excluir">Excluir</q-btn>
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
 
-  </v-container>
+  </q-page>
 </template>
 
 <script setup>
 import { ref, computed, reactive, onMounted } from 'vue'
+import { useQuasar } from 'quasar'
 import { useDocumentsStore } from '@/stores/documents.js'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import NewDocumentDialog from '@/components/common/NewDocumentDialog.vue'
 import { gerarPdf } from '@/services/pdfService.js'
 
+const $q = useQuasar()
 const store = useDocumentsStore()
 
 onMounted(() => store.fetchAll())
@@ -329,20 +360,18 @@ onMounted(() => store.fetchAll())
 const dialogNovoDoc = ref(false)
 const viewMode = ref('tabela')
 const filtros = reactive({ busca: '', especie: null, status: null })
-const showPdfError = ref(false)
-const pdfErrorMsg = ref('')
 
 const especies = ['ICA', 'NSCA', 'Portaria', 'Resolução', 'Decreto', 'Aviso']
 const statusOptions = ['RASCUNHO', 'MINUTA', 'APROVADO', 'PUBLICADO', 'ARQUIVADO', 'CANCELADO', 'REVOGADO']
 
-const headers = [
-  { title: 'Espécie', key: 'especie', sortable: true, width: '100px' },
-  { title: 'Número',  key: 'numero',  sortable: false },
-  { title: 'Título',  key: 'titulo',  sortable: true },
-  { title: 'Assunto Básico', key: 'assunto_basico', sortable: true },
-  { title: 'Data',    key: 'data_criacao', sortable: true, width: '120px' },
-  { title: 'Status',  key: 'status',  sortable: true, width: '140px' },
-  { title: 'Ações',   key: 'actions', sortable: false, width: '220px', align: 'end' },
+const columns = [
+  { name: 'especie',        label: 'Espécie',        field: 'especie',        align: 'left',  sortable: true,  style: 'width: 100px' },
+  { name: 'numero',         label: 'Número',         field: 'numero_basico',  align: 'left',  sortable: false },
+  { name: 'titulo',         label: 'Título',         field: 'titulo',         align: 'left',  sortable: true },
+  { name: 'assunto_basico', label: 'Assunto Básico', field: 'assunto_basico', align: 'left',  sortable: true },
+  { name: 'data_criacao',   label: 'Data',           field: 'data_criacao',   align: 'left',  sortable: true,  style: 'width: 120px' },
+  { name: 'status',         label: 'Status',         field: 'status',         align: 'left',  sortable: true,  style: 'width: 140px' },
+  { name: 'actions',        label: 'Ações',          field: 'actions',        align: 'right', sortable: false, style: 'width: 220px' },
 ]
 
 function formatarData(isoStr) {
@@ -367,20 +396,21 @@ const documentosFiltrados = computed(() => {
 })
 
 const STATUS_CFG = {
-  RASCUNHO:  { color: 'grey',          label: 'Rascunho'  },
-  MINUTA:    { color: 'orange-darken-2', label: 'Minuta'   },
-  APROVADO:  { color: 'success',       label: 'Aprovado'  },
-  PUBLICADO: { color: 'primary',       label: 'Publicado' },
-  ARQUIVADO: { color: 'blue-grey',     label: 'Arquivado' },
-  CANCELADO: { color: 'error',         label: 'Cancelado' },
-  REVOGADO:  { color: 'brown',         label: 'Revogado'  },
+  RASCUNHO:  { bg: 'grey-3',      fg: 'grey-9',       label: 'Rascunho'  },
+  MINUTA:    { bg: 'orange-2',    fg: 'orange-10',    label: 'Minuta'    },
+  APROVADO:  { bg: 'green-2',     fg: 'green-10',     label: 'Aprovado'  },
+  PUBLICADO: { bg: 'blue-2',      fg: 'primary',      label: 'Publicado' },
+  ARQUIVADO: { bg: 'blue-grey-2', fg: 'blue-grey-10', label: 'Arquivado' },
+  CANCELADO: { bg: 'red-2',       fg: 'red-10',       label: 'Cancelado' },
+  REVOGADO:  { bg: 'brown-2',     fg: 'brown-10',     label: 'Revogado'  },
 }
 
 const statusSummary = computed(() =>
   Object.entries(STATUS_CFG).map(([status, cfg]) => ({
     status,
     label: cfg.label,
-    color: cfg.color,
+    bg: cfg.bg,
+    fg: cfg.fg,
     count: store.documentos.filter(d => d.status === status).length,
   })).filter(s => s.count > 0)
 )
@@ -414,8 +444,12 @@ async function baixarPdf(doc) {
     await gerarPdf(doc)
   } catch (e) {
     console.error('[PDF]', e)
-    pdfErrorMsg.value = `Erro ao gerar PDF: ${e?.message ?? 'erro desconhecido'}`
-    showPdfError.value = true
+    $q.notify({
+      type: 'negative',
+      message: `Erro ao gerar PDF: ${e?.message ?? 'erro desconhecido'}`,
+      position: 'bottom-right',
+      timeout: 6000,
+    })
   }
 }
 
@@ -450,7 +484,7 @@ function limparFiltros() {
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
-.legis-table :deep(tr:hover td) {
-  background: rgb(var(--v-theme-secondary), 0.06) !important;
+.legis-table :deep(tbody tr:hover td) {
+  background: rgba(74, 111, 165, 0.06) !important;
 }
 </style>

@@ -11,76 +11,96 @@
       @click="$emit('select', element.id)"
     >
       <!-- drag handle -->
-      <v-icon
-        class="drag-handle mr-1"
-        size="14"
+      <q-icon
+        class="drag-handle q-mr-xs"
+        size="14px"
         color="grey"
-        icon="mdi-drag-vertical"
+        name="mdi-drag-vertical"
       />
 
       <!-- expand/collapse -->
-      <v-btn
+      <q-btn
         v-if="element.filhos?.length"
         :icon="expanded ? 'mdi-chevron-down' : 'mdi-chevron-right'"
-        size="x-small"
-        variant="text"
+        size="xs"
+        flat
+        round
+        dense
         color="grey"
-        class="mr-1"
+        class="q-mr-xs"
         style="min-width:20px;width:20px;height:20px"
         @click.stop="expanded = !expanded"
       />
-      <span v-else class="mr-1" style="display:inline-block;width:20px" />
+      <span v-else class="q-mr-xs" style="display:inline-block;width:20px" />
 
       <!-- icon -->
-      <v-icon :icon="elementIcon(element.tipo)" size="14" :color="iconColor" class="mr-1" />
+      <q-icon :name="elementIcon(element.tipo)" size="14px" :color="iconColor" class="q-mr-xs" />
 
       <!-- label -->
-      <span class="tree-label text-truncate flex-grow-1" :title="fullLabel">
+      <span class="tree-label ellipsis col" :title="fullLabel">
         <span :class="labelClass">{{ label }}</span>
-        <span v-if="preview" class="text-caption text-medium-emphasis ml-1">{{ preview }}</span>
+        <span v-if="preview" class="text-caption text-grey-7 q-ml-xs">{{ preview }}</span>
       </span>
 
       <!-- action buttons (shown on hover) -->
-      <div class="tree-actions d-flex gap-1">
-        <v-btn icon size="x-small" variant="text" color="grey" @click.stop="$emit('move-up', element.id)">
-          <v-icon size="12">mdi-arrow-up</v-icon>
-          <v-tooltip activator="parent" location="right">Mover acima</v-tooltip>
-        </v-btn>
-        <v-btn icon size="x-small" variant="text" color="grey" @click.stop="$emit('move-down', element.id)">
-          <v-icon size="12">mdi-arrow-down</v-icon>
-          <v-tooltip activator="parent" location="right">Mover abaixo</v-tooltip>
-        </v-btn>
-        <v-menu v-if="childOptions.length || canPromote">
-          <template #activator="{ props: mp }">
-            <v-btn v-bind="mp" icon size="x-small" variant="text" color="grey" @click.stop>
-              <v-icon size="12">mdi-plus</v-icon>
-            </v-btn>
-          </template>
-          <v-list density="compact" min-width="180">
-            <template v-if="childOptions.length">
-              <v-list-subheader>Adicionar como filho</v-list-subheader>
-              <v-list-item
-                v-for="opt in childOptions"
-                :key="opt.tipo"
-                :prepend-icon="elementIcon(opt.tipo)"
-                :title="opt.label"
-                @click="$emit('add-child', element.id, opt.tipo)"
-              />
-              <v-divider />
-            </template>
-            <template v-if="canPromote">
-              <v-list-subheader>Reorganizar</v-list-subheader>
-              <v-list-item prepend-icon="mdi-arrow-collapse-up" title="Promover nível" @click="$emit('promote', element.id)" />
-              <v-list-item prepend-icon="mdi-arrow-expand-down" title="Rebaixar nível" @click="$emit('demote', element.id)" />
-              <v-divider />
-            </template>
-            <v-list-item prepend-icon="mdi-delete-outline" title="Remover" class="text-error" @click="$emit('remove', element.id)" />
-          </v-list>
-        </v-menu>
-        <v-btn v-else icon size="x-small" variant="text" color="error" @click.stop="$emit('remove', element.id)">
-          <v-icon size="12">mdi-delete-outline</v-icon>
-          <v-tooltip activator="parent" location="right">Remover</v-tooltip>
-        </v-btn>
+      <div class="tree-actions row" style="gap:4px">
+        <q-btn round size="xs" flat dense color="grey" @click.stop="$emit('move-up', element.id)">
+          <q-icon size="12px" name="mdi-arrow-up" />
+          <q-tooltip anchor="center right" self="center left">Mover acima</q-tooltip>
+        </q-btn>
+        <q-btn round size="xs" flat dense color="grey" @click.stop="$emit('move-down', element.id)">
+          <q-icon size="12px" name="mdi-arrow-down" />
+          <q-tooltip anchor="center right" self="center left">Mover abaixo</q-tooltip>
+        </q-btn>
+        <q-btn v-if="childOptions.length || canPromote" round size="xs" flat dense color="grey" @click.stop>
+          <q-icon size="12px" name="mdi-plus" />
+          <q-menu>
+            <q-list dense style="min-width:180px">
+              <template v-if="childOptions.length">
+                <q-item-label header>Adicionar como filho</q-item-label>
+                <q-item
+                  v-for="opt in childOptions"
+                  :key="opt.tipo"
+                  clickable
+                  v-close-popup
+                  @click="$emit('add-child', element.id, opt.tipo)"
+                >
+                  <q-item-section avatar>
+                    <q-icon :name="elementIcon(opt.tipo)" />
+                  </q-item-section>
+                  <q-item-section>{{ opt.label }}</q-item-section>
+                </q-item>
+                <q-separator />
+              </template>
+              <template v-if="canPromote">
+                <q-item-label header>Reorganizar</q-item-label>
+                <q-item clickable v-close-popup @click="$emit('promote', element.id)">
+                  <q-item-section avatar>
+                    <q-icon name="mdi-arrow-collapse-up" />
+                  </q-item-section>
+                  <q-item-section>Promover nível</q-item-section>
+                </q-item>
+                <q-item clickable v-close-popup @click="$emit('demote', element.id)">
+                  <q-item-section avatar>
+                    <q-icon name="mdi-arrow-expand-down" />
+                  </q-item-section>
+                  <q-item-section>Rebaixar nível</q-item-section>
+                </q-item>
+                <q-separator />
+              </template>
+              <q-item clickable v-close-popup class="text-negative" @click="$emit('remove', element.id)">
+                <q-item-section avatar>
+                  <q-icon name="mdi-delete-outline" color="negative" />
+                </q-item-section>
+                <q-item-section>Remover</q-item-section>
+              </q-item>
+            </q-list>
+          </q-menu>
+        </q-btn>
+        <q-btn v-else round size="xs" flat dense color="negative" @click.stop="$emit('remove', element.id)">
+          <q-icon size="12px" name="mdi-delete-outline" />
+          <q-tooltip anchor="center right" self="center left">Remover</q-tooltip>
+        </q-btn>
       </div>
     </div>
 
@@ -129,9 +149,9 @@ const isSelected = computed(() => props.selectedId === props.element.id)
 const label = computed(() => formatLabel(props.element))
 
 const labelClass = computed(() => ({
-  'font-weight-bold':    isGrouping.value,
-  'font-weight-medium':  !isGrouping.value,
-  'text-uppercase':      props.element.tipo === 'capitulo',
+  'text-weight-bold':   isGrouping.value,
+  'text-weight-medium': !isGrouping.value,
+  'text-uppercase':     props.element.tipo === 'capitulo',
 }))
 
 const iconColor = computed(() => isGrouping.value ? 'primary' : 'secondary')
@@ -183,13 +203,13 @@ const childOptions = computed(() => CHILD_MAP[props.element.tipo] ?? [])
   min-height: 28px;
 }
 .tree-item:hover {
-  background: rgba(var(--v-theme-secondary), 0.1);
+  background: rgba(74, 111, 165, 0.1);
 }
 .tree-item--active {
-  background: rgba(var(--v-theme-primary), 0.15) !important;
+  background: rgba(26, 46, 90, 0.15) !important;
 }
 .tree-item--grouping {
-  border-left: 2px solid rgba(var(--v-theme-primary), 0.3);
+  border-left: 2px solid rgba(26, 46, 90, 0.3);
   margin-left: 2px;
 }
 .tree-label {

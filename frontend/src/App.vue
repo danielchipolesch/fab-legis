@@ -1,10 +1,10 @@
 <template>
-  <v-app>
+  <q-layout view="hHh lpR fFf">
     <AppTopBar />
-    <v-main>
+    <q-page-container>
       <router-view />
-    </v-main>
-  </v-app>
+    </q-page-container>
+  </q-layout>
 </template>
 
 <script setup>
@@ -14,9 +14,9 @@ import AppTopBar from '@/components/common/AppTopBar.vue'
 <style>
 html,
 body,
-.v-application,
-.v-application__wrap,
-.v-main {
-  background-color: #F0F0F0 !important;
+#app,
+.q-layout,
+.q-page-container {
+  background-color: #F0F0F0;
 }
 </style>

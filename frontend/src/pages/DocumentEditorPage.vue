@@ -1,95 +1,97 @@
 <template>
-  <div class="editor-page d-flex flex-column" style="height:calc(100vh - 60px)">
+  <div class="editor-page column" style="height:calc(100vh - 60px)">
 
     <!-- Top action bar -->
-    <div class="editor-topbar px-4 py-2 d-flex align-center gap-3">
-      <v-btn
+    <div class="editor-topbar q-px-md q-py-sm row items-center" style="gap:12px">
+      <q-btn
         :to="{ name: 'home' }"
         icon="mdi-arrow-left"
-        variant="text"
-        size="small"
+        flat
+        round
+        dense
+        size="sm"
       />
 
-      <div class="flex-grow-1">
-        <div class="text-subtitle-2 font-weight-bold text-primary">
+      <div class="col">
+        <div class="text-subtitle2 text-weight-bold text-primary">
           {{ docLabel }}
         </div>
-        <div class="text-caption text-medium-emphasis">
+        <div class="text-caption text-grey-7">
           {{ documento?.assunto_basico }}
         </div>
       </div>
 
       <!-- Auto-save status indicator — centralizado na barra -->
-      <div class="save-indicator d-flex align-center gap-1">
+      <div class="save-indicator row items-center" style="gap:4px">
         <template v-if="saveStatus === 'saving'">
-          <v-progress-circular size="14" width="2" indeterminate color="primary" />
-          <span class="text-caption text-medium-emphasis">Salvando…</span>
+          <q-circular-progress indeterminate size="14px" color="primary" :thickness="0.3" />
+          <span class="text-caption text-grey-7">Salvando…</span>
         </template>
         <template v-else-if="saveStatus === 'dirty' || !hasSaved">
-          <v-icon size="14" color="warning">mdi-circle-medium</v-icon>
-          <span class="text-caption text-medium-emphasis">Não salvo</span>
+          <q-icon size="14px" color="warning" name="mdi-circle-medium" />
+          <span class="text-caption text-grey-7">Não salvo</span>
         </template>
         <template v-else>
-          <v-icon size="16" color="success">mdi-check-circle-outline</v-icon>
-          <span class="text-caption text-success">Salvo</span>
+          <q-icon size="16px" color="positive" name="mdi-check-circle-outline" />
+          <span class="text-caption text-positive">Salvo</span>
         </template>
       </div>
 
-      <div class="flex-grow-1" />
+      <div class="col" />
 
       <StatusBadge v-if="documento" :status="documento.status" />
 
-      <v-btn
-        variant="outlined"
+      <q-btn
+        outline
         color="primary"
-        prepend-icon="mdi-source-branch"
-        size="small"
-        class="ms-2"
+        size="sm"
+        class="q-ml-sm"
         :to="{ name: 'documento-comparar', params: { id: documentoId } }"
       >
+        <q-icon left name="mdi-source-branch" />
         Comparar versões
-      </v-btn>
+      </q-btn>
 
-      <v-btn
-        variant="outlined"
-        prepend-icon="mdi-file-pdf-box"
-        size="small"
-        class="ms-2"
+      <q-btn
+        outline
+        size="sm"
+        class="q-ml-sm"
         :loading="pdfLoading"
         @click="baixarPdf"
       >
+        <q-icon left name="mdi-file-pdf-box" />
         PDF
-      </v-btn>
+      </q-btn>
     </div>
 
-    <v-divider />
+    <q-separator />
 
     <!-- Metadata panel (collapsible) -->
-    <v-expand-transition>
-      <div v-show="showMeta" class="px-4 py-3">
+    <transition name="slide-down">
+      <div v-show="showMeta" class="q-px-md q-py-sm">
         <DocumentMetaPanel
           v-if="documento"
           :documento="documento"
           @update="onMetaUpdate"
         />
       </div>
-    </v-expand-transition>
+    </transition>
 
     <div
-      class="meta-toggle d-flex align-center justify-center px-4"
+      class="meta-toggle row items-center justify-center q-px-md"
       style="cursor:pointer;user-select:none"
       @click="showMeta = !showMeta"
     >
-      <v-icon size="16" :icon="showMeta ? 'mdi-chevron-up' : 'mdi-chevron-down'" class="mr-1" />
-      <span class="text-caption text-medium-emphasis">
+      <q-icon size="16px" :name="showMeta ? 'mdi-chevron-up' : 'mdi-chevron-down'" class="q-mr-xs" />
+      <span class="text-caption text-grey-7">
         {{ showMeta ? 'Ocultar metadados' : 'Mostrar metadados' }}
       </span>
     </div>
 
-    <v-divider />
+    <q-separator />
 
     <!-- Main editor area -->
-    <div class="editor-body d-flex flex-grow-1 overflow-hidden">
+    <div class="editor-body row col" style="overflow:hidden">
 
       <!-- Left sidebar -->
       <EditorSidebar
@@ -109,24 +111,24 @@
       />
 
       <!-- Toggle sidebar button -->
-      <v-btn
+      <q-btn
         v-if="!sidebarOpen"
         icon="mdi-menu"
-        size="small"
-        variant="tonal"
+        size="sm"
+        unelevated
         color="primary"
         class="sidebar-toggle-btn"
         @click="sidebarOpen = true"
       />
 
       <!-- Content area -->
-      <div class="editor-content pa-6 overflow-y-auto">
+      <div class="editor-content q-pa-lg" style="overflow-y:auto">
 
         <!-- No element selected -->
-        <div v-if="!editorStore.selectedElementId" class="d-flex flex-column align-center justify-center h-100 text-medium-emphasis">
-          <v-icon size="80" class="mb-4" color="blue-grey-lighten-3">mdi-cursor-pointer</v-icon>
+        <div v-if="!editorStore.selectedElementId" class="column items-center justify-center text-grey-7" style="height:100%">
+          <q-icon size="80px" class="q-mb-md" color="blue-grey-3" name="mdi-cursor-pointer" />
           <p class="text-h6">Selecione um elemento no painel esquerdo</p>
-          <p class="text-body-2">Clique em qualquer seção ou artigo para editá-lo aqui.</p>
+          <p class="text-body2">Clique em qualquer seção ou artigo para editá-lo aqui.</p>
         </div>
 
         <!-- Element editor -->
@@ -134,61 +136,67 @@
           <div class="element-editor">
 
             <!-- Element breadcrumb/label -->
-            <div class="element-header mb-4">
-              <v-breadcrumbs :items="breadcrumb" density="compact" class="pa-0" />
-              <div class="d-flex align-center justify-space-between mt-2">
-                <div class="d-flex align-center gap-2">
-                  <v-icon :icon="elementIcon(selectedElement.tipo)" color="primary" size="20" />
-                  <h2 class="text-h6 font-weight-bold text-primary mb-0">
+            <div class="element-header q-mb-md">
+              <q-breadcrumbs class="q-pa-none" active-color="grey-7">
+                <q-breadcrumbs-el
+                  v-for="item in breadcrumb"
+                  :key="item.title"
+                  :label="item.title"
+                />
+              </q-breadcrumbs>
+              <div class="row items-center justify-between q-mt-sm">
+                <div class="row items-center" style="gap:8px">
+                  <q-icon :name="elementIcon(selectedElement.tipo)" color="primary" size="20px" />
+                  <h2 class="text-h6 text-weight-bold text-primary q-my-none">
                     {{ formatLabel(selectedElement) }}
                   </h2>
                 </div>
-                <div class="d-flex">
-                  <v-btn
+                <div class="row">
+                  <q-btn
                     v-if="!isGroupingEl && hasChildren(selectedElement)"
-                    size="small"
-                    variant="outlined"
-                    prepend-icon="mdi-arrow-expand-down"
-                    class="ms-2"
+                    size="sm"
+                    outline
+                    class="q-ml-sm"
                     @click="editorStore.demote(selectedElement.id)"
                   >
+                    <q-icon left name="mdi-arrow-expand-down" />
                     Rebaixar
-                  </v-btn>
-                  <v-btn
+                  </q-btn>
+                  <q-btn
                     v-if="!isGroupingEl"
-                    size="small"
-                    variant="outlined"
-                    prepend-icon="mdi-arrow-collapse-up"
-                    class="ms-2"
+                    size="sm"
+                    outline
+                    class="q-ml-sm"
                     @click="editorStore.promote(selectedElement.id)"
                   >
+                    <q-icon left name="mdi-arrow-collapse-up" />
                     Promover
-                  </v-btn>
-                  <v-btn
-                    size="small"
-                    variant="outlined"
-                    color="error"
-                    prepend-icon="mdi-delete-outline"
-                    class="ms-2"
+                  </q-btn>
+                  <q-btn
+                    size="sm"
+                    outline
+                    color="negative"
+                    class="q-ml-sm"
                     @click="editorStore.removeElement(selectedElement.id)"
                   >
+                    <q-icon left name="mdi-delete-outline" />
                     Remover
-                  </v-btn>
+                  </q-btn>
                 </div>
               </div>
             </div>
 
             <!-- Título editor para capítulo / seção / subseção -->
             <template v-if="isGroupingEl">
-              <v-text-field
+              <q-input
                 :model-value="selectedElement.titulo"
                 :label="groupingLabel"
-                variant="outlined"
-                density="comfortable"
+                outlined
+                dense
                 :readonly="isReadonly"
                 @update:model-value="onTituloUpdate"
               />
-              <p class="text-caption text-medium-emphasis mt-1">
+              <p class="text-caption text-grey-7 q-mt-xs">
                 O título aparecerá em maiúsculas no documento (NSCA 5-3).
               </p>
             </template>
@@ -202,30 +210,30 @@
             />
 
             <!-- Add child element shortcuts -->
-            <div v-if="childOptions.length && !isReadonly" class="mt-4 d-flex flex-wrap align-center">
-              <span class="text-caption text-medium-emphasis">Adicionar:</span>
-              <v-btn
+            <div v-if="childOptions.length && !isReadonly" class="q-mt-md row items-center" style="flex-wrap:wrap">
+              <span class="text-caption text-grey-7">Adicionar:</span>
+              <q-btn
                 v-for="opt in childOptions"
                 :key="opt.tipo"
-                size="small"
-                variant="outlined"
+                size="sm"
+                outline
                 color="primary"
-                :prepend-icon="elementIcon(opt.tipo)"
-                class="ms-2"
+                class="q-ml-sm"
                 @click="editorStore.addFilho(selectedElement.id, opt.tipo)"
               >
+                <q-icon left :name="elementIcon(opt.tipo)" />
                 {{ opt.label }}
-              </v-btn>
-              <v-btn
+              </q-btn>
+              <q-btn
                 v-if="!isGroupingEl"
-                size="small"
-                variant="outlined"
-                prepend-icon="mdi-plus"
-                class="ms-2"
+                size="sm"
+                outline
+                class="q-ml-sm"
                 @click="editorStore.addSibling(selectedElement.id, selectedElement.tipo)"
               >
+                <q-icon left name="mdi-plus" />
                 Mesmo nível
-              </v-btn>
+              </q-btn>
             </div>
 
           </div>
@@ -234,7 +242,7 @@
       </div>
 
       <!-- PDF Preview panel -->
-      <div class="preview-panel overflow-y-auto">
+      <div class="preview-panel" style="overflow-y:auto">
         <template v-if="previewMounted && documento">
           <DocumentPreview
             :documento="documento"
@@ -242,23 +250,12 @@
           />
         </template>
         <div v-else class="preview-loading">
-          <v-progress-circular indeterminate color="white" size="40" />
-          <p class="mt-3 text-caption" style="color:#ccc">Carregando prévia…</p>
+          <q-circular-progress indeterminate color="white" size="40px" :thickness="0.3" />
+          <p class="q-mt-sm text-caption" style="color:#ccc">Carregando prévia…</p>
         </div>
       </div>
 
     </div>
-
-    <!-- PDF error snackbar -->
-    <v-snackbar
-      v-model="showPdfError"
-      location="bottom right"
-      color="error"
-      timeout="6000"
-    >
-      <v-icon start>mdi-alert-circle-outline</v-icon>
-      {{ pdfErrorMsg }}
-    </v-snackbar>
 
   </div>
 </template>
@@ -266,6 +263,7 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useQuasar } from 'quasar'
 import { useEditorStore } from '@/stores/editor.js'
 import { useDocumentsStore } from '@/stores/documents.js'
 import { formatLabel, elementIcon, renumberElements } from '@/utils/numbering.js'
@@ -278,6 +276,7 @@ import StatusBadge from '@/components/common/StatusBadge.vue'
 
 const route = useRoute()
 const router = useRouter()
+const $q = useQuasar()
 const editorStore = useEditorStore()
 const docStore = useDocumentsStore()
 
@@ -285,8 +284,6 @@ const showMeta      = ref(false)
 const sidebarOpen   = ref(true)
 const previewMounted = ref(false)
 const pdfLoading    = ref(false)
-const showPdfError  = ref(false)
-const pdfErrorMsg   = ref('')
 
 // ── Auto-save ────────────────────────────────────────────────────────────────
 const saveStatus = ref('idle')   // 'idle' | 'dirty' | 'saving'
@@ -389,8 +386,16 @@ function hasChildren(el) {
 
 onMounted(async () => {
   if (documentoId.value) {
-    // Sempre busca do backend para garantir seções reais (não sobrescreve com template em memória)
-    const doc = await docStore.fetchDocumento(documentoId.value)
+    // Tenta buscar do backend; se falhar, cai para versão em memória (recém-criada)
+    let doc = null
+    try {
+      doc = await docStore.fetchDocumento(documentoId.value)
+    } catch (e) {
+      console.error('[Editor] Erro ao buscar documento do backend:', e)
+    }
+    if (!doc) {
+      doc = docStore.getById(documentoId.value)
+    }
     if (!doc) {
       router.replace({ name: 'home' })
       return
@@ -428,8 +433,12 @@ async function baixarPdf() {
     await gerarPdf(documento.value)
   } catch (e) {
     console.error('[PDF]', e)
-    pdfErrorMsg.value = `Erro ao gerar PDF: ${e?.message ?? 'erro desconhecido'}`
-    showPdfError.value = true
+    $q.notify({
+      type: 'negative',
+      message: `Erro ao gerar PDF: ${e?.message ?? 'erro desconhecido'}`,
+      position: 'bottom-right',
+      timeout: 6000,
+    })
   } finally {
     pdfLoading.value = false
   }
@@ -492,22 +501,23 @@ function addCapitulo(titulo) {
 
 <style scoped>
 .editor-page {
-  background: rgb(var(--v-theme-background));
+  background: var(--color-background);
 }
 .editor-topbar {
-  background: rgb(var(--v-theme-surface));
+  background: var(--color-surface);
   min-height: 52px;
 }
 .meta-toggle {
-  background: rgb(var(--v-theme-surface));
+  background: var(--color-surface);
   min-height: 28px;
-  border-bottom: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+  border-bottom: 1px solid rgba(0, 0, 0, 0.12);
 }
 .meta-toggle:hover {
-  background: rgba(var(--v-theme-secondary), 0.05);
+  background: rgba(74, 111, 165, 0.05);
 }
 .editor-body {
   position: relative;
+  flex-wrap: nowrap;
 }
 .sidebar-toggle-btn {
   position: absolute;
@@ -518,12 +528,12 @@ function addCapitulo(titulo) {
 .editor-content {
   flex: 1 1 0;
   min-width: 0;
-  background: rgb(var(--v-theme-background));
+  background: var(--color-background);
 }
 .preview-panel {
   flex: 1 1 0;
   min-width: 320px;
-  border-left: 2px solid rgba(var(--v-border-color), var(--v-border-opacity));
+  border-left: 2px solid rgba(0, 0, 0, 0.12);
   background: #525659;
 }
 .preview-loading {
@@ -539,10 +549,23 @@ function addCapitulo(titulo) {
 }
 .element-header {
   padding-bottom: 16px;
-  border-bottom: 2px solid rgba(var(--v-theme-primary), 0.12);
+  border-bottom: 2px solid rgba(26, 46, 90, 0.12);
 }
 .save-indicator {
   min-width: 96px;
   justify-content: center;
+}
+
+/* Transição do painel de metadados (substitui v-expand-transition) */
+.slide-down-enter-active,
+.slide-down-leave-active {
+  transition: all 0.25s ease;
+  overflow: hidden;
+  max-height: 400px;
+}
+.slide-down-enter-from,
+.slide-down-leave-to {
+  max-height: 0;
+  opacity: 0;
 }
 </style>
