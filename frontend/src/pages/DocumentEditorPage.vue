@@ -389,8 +389,16 @@ function hasChildren(el) {
 
 onMounted(async () => {
   if (documentoId.value) {
-    // Sempre busca do backend para garantir seções reais (não sobrescreve com template em memória)
-    const doc = await docStore.fetchDocumento(documentoId.value)
+    // Tenta buscar do backend; se falhar, cai para versão em memória (recém-criada)
+    let doc = null
+    try {
+      doc = await docStore.fetchDocumento(documentoId.value)
+    } catch (e) {
+      console.error('[Editor] Erro ao buscar documento do backend:', e)
+    }
+    if (!doc) {
+      doc = docStore.getById(documentoId.value)
+    }
     if (!doc) {
       router.replace({ name: 'home' })
       return

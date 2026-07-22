@@ -164,8 +164,12 @@ async function confirmar() {
       idAssuntoBasico:    form.assuntoBasico.id,
       tituloDocumento:    form.titulo,
     })
-    fechar()
-    if (doc?.id) router.push({ name: 'documento-editar', params: { id: doc.id } })
+    if (doc?.id) {
+      fechar()
+      router.push({ name: 'documento-editar', params: { id: doc.id } })
+    }
+  } catch (e) {
+    console.error('[NewDocumentDialog] Erro ao criar documento:', e)
   } finally {
     salvando.value = false
   }
