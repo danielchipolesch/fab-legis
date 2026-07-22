@@ -1,12 +1,14 @@
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
-import vuetify from 'vite-plugin-vuetify'
+import { quasar, transformAssetUrls } from '@quasar/vite-plugin'
 import { fileURLToPath, URL } from 'node:url'
 
 export default defineConfig({
   plugins: [
-    vue(),
-    vuetify({ autoImport: true }),
+    vue({ template: { transformAssetUrls } }),
+    quasar({
+      sassVariables: fileURLToPath(new URL('./src/css/quasar-variables.sass', import.meta.url)),
+    }),
   ],
 
   resolve: {
@@ -35,10 +37,10 @@ export default defineConfig({
               id.includes('node_modules/pinia')) {
             return 'vendor-vue'
           }
-          // Vuetify — grande, muda com cada versão
-          if (id.includes('node_modules/vuetify') ||
-              id.includes('node_modules/@mdi')) {
-            return 'vendor-vuetify'
+          // Quasar — framework de UI
+          if (id.includes('node_modules/quasar') ||
+              id.includes('node_modules/@quasar')) {
+            return 'vendor-quasar'
           }
           // TipTap — editor WYSIWYG
           if (id.includes('node_modules/@tiptap') ||

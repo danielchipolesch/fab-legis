@@ -1,63 +1,60 @@
 <template>
-  <v-navigation-drawer
-    :model-value="modelValue"
-    @update:model-value="$emit('update:modelValue', $event)"
-    width="290"
-    color="surface"
-    border="e"
-    permanent
+  <aside
+    v-show="modelValue"
+    class="editor-sidebar"
+    style="width:290px"
   >
     <!-- Barra de progresso ao adicionar elemento -->
-    <v-progress-linear
-      :active="editorStore.adicionando"
+    <q-linear-progress
+      v-if="editorStore.adicionando"
       indeterminate
       color="primary"
-      height="2"
+      style="height:2px"
     />
 
     <!-- Header -->
-    <div class="sidebar-header pa-3 d-flex align-center">
-      <v-icon icon="mdi-file-tree-outline" color="primary" class="mr-2" />
-      <span class="text-subtitle-2 font-weight-bold text-primary">Estrutura do Documento</span>
-      <v-spacer />
-      <v-btn icon="mdi-close" size="x-small" variant="text" @click="$emit('update:modelValue', false)" />
+    <div class="sidebar-header q-pa-sm row items-center">
+      <q-icon name="mdi-file-tree-outline" color="primary" class="q-mr-sm" />
+      <span class="text-subtitle2 text-weight-bold text-primary">Estrutura do Documento</span>
+      <q-space />
+      <q-btn icon="mdi-close" size="xs" flat round dense @click="$emit('update:modelValue', false)" />
     </div>
 
-    <v-divider />
+    <q-separator />
 
     <div class="sidebar-body">
       <template v-for="secao in secoes" :key="secao.id">
 
         <!-- Section header -->
         <div
-          class="secao-header pa-2 d-flex align-center"
+          class="secao-header q-pa-sm row items-center"
           :class="{ 'secao-header--active': isExpandida(secao.tipo) }"
           @click="toggleSecao(secao.tipo)"
         >
-          <v-icon
-            :icon="isExpandida(secao.tipo) ? 'mdi-chevron-down' : 'mdi-chevron-right'"
-            size="16"
-            class="mr-1"
+          <q-icon
+            :name="isExpandida(secao.tipo) ? 'mdi-chevron-down' : 'mdi-chevron-right'"
+            size="16px"
+            class="q-mr-xs"
           />
-          <v-icon :icon="secaoIcon(secao.tipo)" size="14" color="primary" class="mr-2" />
-          <span class="text-caption font-weight-bold text-uppercase text-primary">
+          <q-icon :name="secaoIcon(secao.tipo)" size="14px" color="primary" class="q-mr-sm" />
+          <span class="text-caption text-weight-bold text-uppercase text-primary">
             {{ secao.titulo }}
           </span>
         </div>
 
         <!-- Section elements -->
-        <div v-show="isExpandida(secao.tipo)" class="secao-elementos pl-1 pr-1 pb-2">
+        <div v-show="isExpandida(secao.tipo)" class="secao-elementos q-px-xs q-pb-sm">
 
           <!-- Fixed elements (parte preliminar / parte final) -->
           <template v-if="secao.tipo !== 'parte_normativa'">
             <div
               v-for="el in secao.elementos"
               :key="el.id"
-              class="fixed-item d-flex align-center px-3 py-1"
+              class="fixed-item row items-center q-px-md q-py-xs"
               :class="{ 'fixed-item--active': selectedId === el.id }"
               @click="$emit('select', el.id)"
             >
-              <v-icon :icon="elementIcon(el.tipo)" size="13" color="secondary" class="mr-2" />
+              <q-icon :name="elementIcon(el.tipo)" size="13px" color="secondary" class="q-mr-sm" />
               <span class="text-caption">{{ formatLabel(el) }}</span>
             </div>
           </template>
@@ -88,81 +85,73 @@
             </draggable>
 
             <!-- Add buttons for normativa -->
-            <div class="mt-2 d-flex flex-column gap-1">
+            <div class="q-mt-sm column" style="gap:4px">
 
               <!-- Novo Capítulo — desabilitado se já há artigos top-level -->
-              <v-tooltip
-                :text="hasTopLevelArtigos ? 'Remova os artigos soltos antes de adicionar capítulos' : ''"
-                location="top"
-              >
-                <template #activator="{ props: tp }">
-                  <div v-bind="tp">
-                    <v-menu :disabled="hasTopLevelArtigos">
-                      <template #activator="{ props: mp }">
-                        <v-btn
-                          v-bind="mp"
-                          variant="outlined"
-                          color="primary"
-                          size="small"
-                          prepend-icon="mdi-folder-plus-outline"
-                          :disabled="hasTopLevelArtigos || editorStore.adicionando"
-                          :loading="editorStore.adicionando"
-                          block
-                        >
-                          Novo Capítulo
-                        </v-btn>
-                      </template>
-                      <v-list density="compact" min-width="240">
-                        <v-list-subheader>Título do capítulo</v-list-subheader>
-                        <v-list-item
-                          v-for="preset in CAPITULO_PRESETS"
-                          :key="preset"
-                          :title="preset"
-                          :disabled="existingCapituloTitulos.has(preset)"
-                          @click="$emit('add-capitulo', preset)"
-                        />
-                        <v-divider />
-                        <v-list-item
-                          prepend-icon="mdi-pencil-outline"
-                          title="Personalizado (sem título)"
-                          @click="$emit('add-capitulo', '')"
-                        />
-                      </v-list>
-                    </v-menu>
-                  </div>
-                </template>
-              </v-tooltip>
+              <div>
+                <q-btn
+                  outline
+                  color="primary"
+                  size="sm"
+                  class="full-width"
+                  :disable="hasTopLevelArtigos || editorStore.adicionando"
+                  :loading="editorStore.adicionando"
+                >
+                  <q-icon left name="mdi-folder-plus-outline" />
+                  Novo Capítulo
+                  <q-tooltip v-if="hasTopLevelArtigos" anchor="top middle" self="bottom middle">
+                    Remova os artigos soltos antes de adicionar capítulos
+                  </q-tooltip>
+                  <q-menu v-if="!hasTopLevelArtigos">
+                    <q-list dense style="min-width:240px">
+                      <q-item-label header>Título do capítulo</q-item-label>
+                      <q-item
+                        v-for="preset in CAPITULO_PRESETS"
+                        :key="preset"
+                        clickable
+                        v-close-popup
+                        :disable="existingCapituloTitulos.has(preset)"
+                        @click="$emit('add-capitulo', preset)"
+                      >
+                        <q-item-section>{{ preset }}</q-item-section>
+                      </q-item>
+                      <q-separator />
+                      <q-item clickable v-close-popup @click="$emit('add-capitulo', '')">
+                        <q-item-section avatar>
+                          <q-icon name="mdi-pencil-outline" />
+                        </q-item-section>
+                        <q-item-section>Personalizado (sem título)</q-item-section>
+                      </q-item>
+                    </q-list>
+                  </q-menu>
+                </q-btn>
+              </div>
 
               <!-- Novo Artigo — desabilitado se já há capítulos -->
-              <v-tooltip
-                :text="hasCapitulos ? 'Adicione artigos dentro dos capítulos existentes' : ''"
-                location="top"
+              <q-btn
+                outline
+                size="sm"
+                class="full-width"
+                :disable="hasCapitulos || editorStore.adicionando"
+                :loading="editorStore.adicionando"
+                @click="$emit('add-artigo')"
               >
-                <template #activator="{ props: tp }">
-                  <v-btn
-                    v-bind="tp"
-                    variant="outlined"
-                    size="small"
-                    prepend-icon="mdi-plus"
-                    :disabled="hasCapitulos || editorStore.adicionando"
-                    :loading="editorStore.adicionando"
-                    block
-                    @click="$emit('add-artigo')"
-                  >
-                    Novo Artigo
-                  </v-btn>
-                </template>
-              </v-tooltip>
+                <q-icon left name="mdi-plus" />
+                Novo Artigo
+                <q-tooltip v-if="hasCapitulos" anchor="top middle" self="bottom middle">
+                  Adicione artigos dentro dos capítulos existentes
+                </q-tooltip>
+              </q-btn>
 
             </div>
           </template>
 
         </div>
 
-        <v-divider />
+        <q-separator />
       </template>
     </div>
-  </v-navigation-drawer>
+  </aside>
 </template>
 
 <script setup>
@@ -245,25 +234,33 @@ function secaoIcon(tipo) {
 </script>
 
 <style scoped>
+.editor-sidebar {
+  flex-shrink: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-surface);
+  border-right: 1px solid rgba(0, 0, 0, 0.12);
+}
 .sidebar-header {
-  background: rgb(var(--v-theme-surface));
+  background: var(--color-surface);
   position: sticky;
   top: 0;
   z-index: 2;
 }
 .sidebar-body {
   overflow-y: auto;
-  height: calc(100vh - 120px);
+  flex: 1 1 auto;
 }
 .secao-header {
   cursor: pointer;
-  background: rgb(var(--v-theme-surface));
+  background: var(--color-surface);
 }
 .secao-header:hover {
-  background: rgba(var(--v-theme-primary), 0.06);
+  background: rgba(26, 46, 90, 0.06);
 }
 .secao-header--active {
-  background: rgba(var(--v-theme-primary), 0.1);
+  background: rgba(26, 46, 90, 0.1);
 }
 .fixed-item {
   cursor: pointer;
@@ -272,14 +269,14 @@ function secaoIcon(tipo) {
   min-height: 26px;
 }
 .fixed-item:hover {
-  background: rgba(var(--v-theme-secondary), 0.1);
+  background: rgba(74, 111, 165, 0.1);
 }
 .fixed-item--active {
-  background: rgba(var(--v-theme-primary), 0.15);
+  background: rgba(26, 46, 90, 0.15);
 }
 .drag-ghost {
   opacity: 0.4;
-  background: rgba(var(--v-theme-primary), 0.1);
+  background: rgba(26, 46, 90, 0.1);
   border-radius: 6px;
 }
 </style>

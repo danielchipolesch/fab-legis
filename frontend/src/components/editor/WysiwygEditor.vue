@@ -1,94 +1,101 @@
 <template>
   <div class="wysiwyg-wrapper">
     <!-- Toolbar -->
-    <div v-if="editor" class="wysiwyg-toolbar d-flex flex-wrap align-center gap-1 px-3 py-2">
+    <div v-if="editor" class="wysiwyg-toolbar row items-center q-px-sm q-py-xs" style="flex-wrap:wrap;gap:4px">
 
       <!-- Heading levels -->
-      <v-btn-group density="compact" variant="outlined" rounded="md" color="primary" divided>
-        <v-btn
+      <q-btn-group outline>
+        <q-btn
           :class="{ active: !editor.isActive('heading') }"
-          size="small"
+          size="sm"
+          outline
+          color="primary"
           icon="mdi-format-paragraph"
           @click="editor.chain().focus().setParagraph().run()"
         >
-          <v-tooltip activator="parent" location="top">Parágrafo normal</v-tooltip>
-        </v-btn>
-        <v-btn
+          <q-tooltip anchor="top middle" self="bottom middle">Parágrafo normal</q-tooltip>
+        </q-btn>
+        <q-btn
           :class="{ active: editor.isActive('heading', { level: 1 }) }"
-          size="small"
+          size="sm"
+          outline
+          color="primary"
           class="heading-btn"
+          label="H1"
           @click="editor.chain().focus().toggleHeading({ level: 1 }).run()"
         >
-          H1
-          <v-tooltip activator="parent" location="top">Título 1</v-tooltip>
-        </v-btn>
-        <v-btn
+          <q-tooltip anchor="top middle" self="bottom middle">Título 1</q-tooltip>
+        </q-btn>
+        <q-btn
           :class="{ active: editor.isActive('heading', { level: 2 }) }"
-          size="small"
+          size="sm"
+          outline
+          color="primary"
           class="heading-btn"
+          label="H2"
           @click="editor.chain().focus().toggleHeading({ level: 2 }).run()"
         >
-          H2
-          <v-tooltip activator="parent" location="top">Título 2</v-tooltip>
-        </v-btn>
-        <v-btn
+          <q-tooltip anchor="top middle" self="bottom middle">Título 2</q-tooltip>
+        </q-btn>
+        <q-btn
           :class="{ active: editor.isActive('heading', { level: 3 }) }"
-          size="small"
+          size="sm"
+          outline
+          color="primary"
           class="heading-btn"
+          label="H3"
           @click="editor.chain().focus().toggleHeading({ level: 3 }).run()"
         >
-          H3
-          <v-tooltip activator="parent" location="top">Título 3</v-tooltip>
-        </v-btn>
-      </v-btn-group>
+          <q-tooltip anchor="top middle" self="bottom middle">Título 3</q-tooltip>
+        </q-btn>
+      </q-btn-group>
 
-      <v-divider vertical class="mx-1" style="height:24px" />
+      <q-separator vertical class="q-mx-xs" style="height:24px" />
 
-      <v-btn-group density="compact" variant="outlined" rounded="md" color="primary" divided>
-        <v-btn :class="{ active: editor.isActive('bold') }" @click="editor.chain().focus().toggleBold().run()" icon="mdi-format-bold" size="small">
-          <v-tooltip activator="parent" location="top">Negrito (Ctrl+B)</v-tooltip>
-        </v-btn>
-        <v-btn :class="{ active: editor.isActive('italic') }" @click="editor.chain().focus().toggleItalic().run()" icon="mdi-format-italic" size="small">
-          <v-tooltip activator="parent" location="top">Itálico (Ctrl+I)</v-tooltip>
-        </v-btn>
-        <v-btn :class="{ active: editor.isActive('underline') }" @click="editor.chain().focus().toggleUnderline().run()" icon="mdi-format-underline" size="small">
-          <v-tooltip activator="parent" location="top">Sublinhado (Ctrl+U)</v-tooltip>
-        </v-btn>
-      </v-btn-group>
+      <q-btn-group outline>
+        <q-btn :class="{ active: editor.isActive('bold') }" outline color="primary" @click="editor.chain().focus().toggleBold().run()" icon="mdi-format-bold" size="sm">
+          <q-tooltip anchor="top middle" self="bottom middle">Negrito (Ctrl+B)</q-tooltip>
+        </q-btn>
+        <q-btn :class="{ active: editor.isActive('italic') }" outline color="primary" @click="editor.chain().focus().toggleItalic().run()" icon="mdi-format-italic" size="sm">
+          <q-tooltip anchor="top middle" self="bottom middle">Itálico (Ctrl+I)</q-tooltip>
+        </q-btn>
+        <q-btn :class="{ active: editor.isActive('underline') }" outline color="primary" @click="editor.chain().focus().toggleUnderline().run()" icon="mdi-format-underline" size="sm">
+          <q-tooltip anchor="top middle" self="bottom middle">Sublinhado (Ctrl+U)</q-tooltip>
+        </q-btn>
+      </q-btn-group>
 
-      <v-divider vertical class="mx-1" style="height:24px" />
+      <q-separator vertical class="q-mx-xs" style="height:24px" />
 
-      <v-btn-group density="compact" variant="outlined" rounded="md" color="primary" divided>
-        <v-btn :class="{ active: editor.isActive({ textAlign: 'left' }) }" @click="editor.chain().focus().setTextAlign('left').run()" icon="mdi-format-align-left" size="small" />
-        <v-btn :class="{ active: editor.isActive({ textAlign: 'center' }) }" @click="editor.chain().focus().setTextAlign('center').run()" icon="mdi-format-align-center" size="small" />
-        <v-btn :class="{ active: editor.isActive({ textAlign: 'right' }) }" @click="editor.chain().focus().setTextAlign('right').run()" icon="mdi-format-align-right" size="small" />
-        <v-btn :class="{ active: editor.isActive({ textAlign: 'justify' }) }" @click="editor.chain().focus().setTextAlign('justify').run()" icon="mdi-format-align-justify" size="small" />
-      </v-btn-group>
+      <q-btn-group outline>
+        <q-btn :class="{ active: editor.isActive({ textAlign: 'left' }) }" outline color="primary" @click="editor.chain().focus().setTextAlign('left').run()" icon="mdi-format-align-left" size="sm" />
+        <q-btn :class="{ active: editor.isActive({ textAlign: 'center' }) }" outline color="primary" @click="editor.chain().focus().setTextAlign('center').run()" icon="mdi-format-align-center" size="sm" />
+        <q-btn :class="{ active: editor.isActive({ textAlign: 'right' }) }" outline color="primary" @click="editor.chain().focus().setTextAlign('right').run()" icon="mdi-format-align-right" size="sm" />
+        <q-btn :class="{ active: editor.isActive({ textAlign: 'justify' }) }" outline color="primary" @click="editor.chain().focus().setTextAlign('justify').run()" icon="mdi-format-align-justify" size="sm" />
+      </q-btn-group>
 
-      <v-divider vertical class="mx-1" style="height:24px" />
+      <q-separator vertical class="q-mx-xs" style="height:24px" />
 
-      <v-btn-group density="compact" variant="outlined" rounded="md" color="primary" divided>
-        <v-btn @click="editor.chain().focus().undo().run()" :disabled="!editor.can().undo()" icon="mdi-undo" size="small">
-          <v-tooltip activator="parent" location="top">Desfazer</v-tooltip>
-        </v-btn>
-        <v-btn @click="editor.chain().focus().redo().run()" :disabled="!editor.can().redo()" icon="mdi-redo" size="small">
-          <v-tooltip activator="parent" location="top">Refazer</v-tooltip>
-        </v-btn>
-      </v-btn-group>
+      <q-btn-group outline>
+        <q-btn outline color="primary" @click="editor.chain().focus().undo().run()" :disable="!editor.can().undo()" icon="mdi-undo" size="sm">
+          <q-tooltip anchor="top middle" self="bottom middle">Desfazer</q-tooltip>
+        </q-btn>
+        <q-btn outline color="primary" @click="editor.chain().focus().redo().run()" :disable="!editor.can().redo()" icon="mdi-redo" size="sm">
+          <q-tooltip anchor="top middle" self="bottom middle">Refazer</q-tooltip>
+        </q-btn>
+      </q-btn-group>
 
-      <v-divider vertical class="mx-1" style="height:24px" />
+      <q-separator vertical class="q-mx-xs" style="height:24px" />
 
       <!-- Table insertion -->
-      <v-btn
-        variant="outlined"
-        size="small"
-        prepend-icon="mdi-table-plus"
+      <q-btn
+        outline
+        size="sm"
         color="primary"
-        rounded="md"
         @click="editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()"
       >
+        <q-icon left name="mdi-table-plus" />
         Tabela
-      </v-btn>
+      </q-btn>
     </div>
 
     <!-- Editor content area -->
@@ -99,7 +106,7 @@
 </template>
 
 <script setup>
-import { watch, onMounted, onBeforeUnmount } from 'vue'
+import { watch, onBeforeUnmount } from 'vue'
 import { useEditor, EditorContent } from '@tiptap/vue-3'
 import StarterKit from '@tiptap/starter-kit'
 import Underline from '@tiptap/extension-underline'
@@ -154,18 +161,18 @@ onBeforeUnmount(() => editor.value?.destroy())
 
 <style>
 .wysiwyg-wrapper {
-  border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+  border: 1px solid rgba(0, 0, 0, 0.12);
   border-radius: 8px;
   overflow: hidden;
   background: #FAFBFC;
 }
 .wysiwyg-toolbar {
-  background: rgb(var(--v-theme-surface));
-  border-bottom: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+  background: var(--color-surface);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.12);
 }
-.wysiwyg-toolbar .v-btn.active {
-  background: rgba(var(--v-theme-primary), 0.15) !important;
-  color: rgb(var(--v-theme-primary)) !important;
+.wysiwyg-toolbar .q-btn.active {
+  background: rgba(26, 46, 90, 0.15) !important;
+  color: #1A2E5A !important;
 }
 .wysiwyg-toolbar .heading-btn {
   font-size: 11px;
