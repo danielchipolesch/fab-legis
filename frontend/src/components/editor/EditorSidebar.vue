@@ -36,8 +36,8 @@
             size="16px"
             class="q-mr-xs"
           />
-          <q-icon :name="secaoIcon(secao.tipo)" size="14px" color="primary" class="q-mr-sm" />
-          <span class="text-caption text-weight-bold text-uppercase text-primary">
+          <q-icon :name="secaoIcon(secao.tipo)" size="14px" :color="secaoIconColor(secao.tipo)" class="q-mr-sm" />
+          <span class="text-caption text-weight-bold text-uppercase text-grey-7">
             {{ secao.titulo }}
           </span>
         </div>
@@ -54,7 +54,7 @@
               :class="{ 'fixed-item--active': selectedId === el.id }"
               @click="$emit('select', el.id)"
             >
-              <q-icon :name="elementIcon(el.tipo)" size="13px" color="secondary" class="q-mr-sm" />
+              <q-icon :name="elementIcon(el.tipo)" size="13px" color="teal-6" class="q-mr-sm" />
               <span class="text-caption">{{ formatLabel(el) }}</span>
             </div>
           </template>
@@ -231,6 +231,15 @@ function secaoIcon(tipo) {
   }
   return m[tipo] ?? 'mdi-folder-outline'
 }
+
+function secaoIconColor(tipo) {
+  const m = {
+    parte_preliminar: 'teal-6',
+    parte_normativa:  'primary',
+    parte_final:      'teal-6',
+  }
+  return m[tipo] ?? 'grey-6'
+}
 </script>
 
 <style scoped>
@@ -240,7 +249,8 @@ function secaoIcon(tipo) {
   display: flex;
   flex-direction: column;
   background: var(--color-surface);
-  border-right: 1px solid rgba(0, 0, 0, 0.12);
+  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.12);
+  z-index: 1;
 }
 .sidebar-header {
   background: var(--color-surface);
@@ -257,10 +267,10 @@ function secaoIcon(tipo) {
   background: var(--color-surface);
 }
 .secao-header:hover {
-  background: rgba(26, 46, 90, 0.06);
+  background: rgba(74, 111, 165, 0.08);
 }
 .secao-header--active {
-  background: rgba(26, 46, 90, 0.1);
+  background: rgba(74, 111, 165, 0.14);
 }
 .fixed-item {
   cursor: pointer;
@@ -269,14 +279,14 @@ function secaoIcon(tipo) {
   min-height: 26px;
 }
 .fixed-item:hover {
-  background: rgba(74, 111, 165, 0.1);
+  background: rgba(74, 111, 165, 0.08);
 }
 .fixed-item--active {
-  background: rgba(26, 46, 90, 0.15);
+  background: rgba(74, 111, 165, 0.16);
 }
 .drag-ghost {
   opacity: 0.4;
-  background: rgba(26, 46, 90, 0.1);
+  background: rgba(11, 61, 145, 0.08);
   border-radius: 6px;
 }
 </style>

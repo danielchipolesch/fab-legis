@@ -9,42 +9,41 @@
         flat
         round
         dense
-        size="sm"
       />
 
-      <div class="col">
-        <div class="text-subtitle2 text-weight-bold text-primary">
+      <!-- Título do documento (esquerda) -->
+      <div class="col" style="min-width:0">
+        <div class="text-subtitle2 text-weight-bold text-primary text-no-wrap ellipsis">
           {{ docLabel }}
         </div>
-        <div class="text-caption text-grey-7">
+        <div class="text-caption text-grey-7 ellipsis">
           {{ documento?.assunto_basico }}
         </div>
       </div>
 
-      <!-- Auto-save status indicator — centralizado na barra -->
-      <div class="save-indicator row items-center" style="gap:4px">
+      <!-- Indicador de salvamento (centro absoluto) -->
+      <div class="save-indicator" :class="saveIndicatorClass">
         <template v-if="saveStatus === 'saving'">
-          <q-circular-progress indeterminate size="14px" color="primary" :thickness="0.3" />
-          <span class="text-caption text-grey-7">Salvando…</span>
+          <q-circular-progress indeterminate size="13px" :thickness="0.35" />
+          <span>Salvando…</span>
         </template>
         <template v-else-if="saveStatus === 'dirty' || !hasSaved">
-          <q-icon size="14px" color="warning" name="mdi-circle-medium" />
-          <span class="text-caption text-grey-7">Não salvo</span>
+          <q-icon size="15px" name="mdi-pencil-circle-outline" />
+          <span>Não salvo</span>
         </template>
         <template v-else>
-          <q-icon size="16px" color="positive" name="mdi-check-circle-outline" />
-          <span class="text-caption text-positive">Salvo</span>
+          <q-icon size="15px" name="mdi-check-circle-outline" />
+          <span>Salvo</span>
         </template>
       </div>
 
-      <div class="col" />
+      <q-space />
 
-      <StatusBadge v-if="documento" :status="documento.status" />
+      <StatusBadge v-if="documento" :status="documento.status" size="md" />
 
       <q-btn
         outline
         color="primary"
-        size="sm"
         class="q-ml-sm"
         :to="{ name: 'documento-comparar', params: { id: documentoId } }"
       >
@@ -54,7 +53,7 @@
 
       <q-btn
         outline
-        size="sm"
+        color="deep-orange-7"
         class="q-ml-sm"
         :loading="pdfLoading"
         @click="baixarPdf"
@@ -315,6 +314,12 @@ onUnmounted(() => {
 })
 // ─────────────────────────────────────────────────────────────────────────────
 
+const saveIndicatorClass = computed(() => {
+  if (saveStatus.value === 'saving') return 'save-indicator--saving'
+  if (saveStatus.value === 'dirty' || !hasSaved.value) return 'save-indicator--dirty'
+  return 'save-indicator--saved'
+})
+
 const documentoId    = computed(() => route.params.id)
 const documento      = computed(() => editorStore.documento)
 const selectedElement = computed(() => editorStore.selectedElement)
@@ -505,7 +510,7 @@ function addCapitulo(titulo) {
 }
 .editor-topbar {
   background: var(--color-surface);
-  min-height: 52px;
+  position: relative;
 }
 .meta-toggle {
   background: var(--color-surface);
@@ -513,7 +518,7 @@ function addCapitulo(titulo) {
   border-bottom: 1px solid rgba(0, 0, 0, 0.12);
 }
 .meta-toggle:hover {
-  background: rgba(74, 111, 165, 0.05);
+  background: rgba(0, 0, 0, 0.04);
 }
 .editor-body {
   position: relative;
@@ -549,11 +554,34 @@ function addCapitulo(titulo) {
 }
 .element-header {
   padding-bottom: 16px;
-  border-bottom: 2px solid rgba(26, 46, 90, 0.12);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.12);
 }
 .save-indicator {
-  min-width: 96px;
-  justify-content: center;
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.78rem;
+  font-weight: 500;
+  white-space: nowrap;
+  pointer-events: none;
+  transition: background 0.2s, color 0.2s;
+}
+.save-indicator--saving {
+  background: rgba(0, 0, 0, 0.07);
+  color: #555;
+}
+.save-indicator--dirty {
+  background: rgba(230, 81, 0, 0.12);
+  color: #b45000;
+}
+.save-indicator--saved {
+  background: rgba(46, 125, 50, 0.12);
+  color: #2e7d32;
 }
 
 /* Transição do painel de metadados (substitui v-expand-transition) */

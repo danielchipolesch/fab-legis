@@ -171,8 +171,8 @@ onBeforeUnmount(() => editor.value?.destroy())
   border-bottom: 1px solid rgba(0, 0, 0, 0.12);
 }
 .wysiwyg-toolbar .q-btn.active {
-  background: rgba(26, 46, 90, 0.15) !important;
-  color: #1A2E5A !important;
+  background: rgba(0, 0, 0, 0.12) !important;
+  color: #333 !important;
 }
 .wysiwyg-toolbar .heading-btn {
   font-size: 11px;
@@ -206,7 +206,7 @@ onBeforeUnmount(() => editor.value?.destroy())
   min-width: 80px;
 }
 .tiptap-editor .ProseMirror table th {
-  background: rgba(26,46,90,0.08);
+  background: rgba(11, 61, 145, 0.08);
   font-weight: bold;
 }
 .tiptap-editor .ProseMirror-focused {
@@ -215,19 +215,19 @@ onBeforeUnmount(() => editor.value?.destroy())
 .tiptap-editor .ProseMirror h1 {
   font-size: 18pt;
   font-weight: bold;
-  color: #1A2E5A;
+  color: #0B3D91;
   margin: 12px 0 6px;
 }
 .tiptap-editor .ProseMirror h2 {
   font-size: 14pt;
   font-weight: bold;
-  color: #1A2E5A;
+  color: #0B3D91;
   margin: 10px 0 4px;
 }
 .tiptap-editor .ProseMirror h3 {
   font-size: 12pt;
   font-weight: bold;
-  color: #2C4A8A;
+  color: #1565C0;
   margin: 8px 0 4px;
 }
 </style>

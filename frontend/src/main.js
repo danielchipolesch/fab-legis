@@ -1,5 +1,6 @@
 import { createApp } from 'vue'
 import { Quasar, Notify, Dialog } from 'quasar'
+import iconSet from 'quasar/icon-set/mdi-v7'
 import '@quasar/extras/mdi-v7/mdi-v7.css'
 import 'quasar/src/css/index.sass'
 import './css/app.css'
@@ -13,12 +14,13 @@ const app = createApp(App)
 app.use(pinia)
 app.use(router)
 app.use(Quasar, {
+  iconSet,
   plugins: { Notify, Dialog },
   config: {
     brand: {
-      primary: '#1A2E5A',
-      secondary: '#4A6FA5',
-      accent: '#6D8CC4',
+      primary: '#0B3D91',
+      secondary: '#1565C0',
+      accent: '#42A5F5',
       dark: '#1D1D1D',
       positive: '#21BA45',
       negative: '#C10015',
