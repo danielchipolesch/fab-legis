@@ -1,9 +1,9 @@
 :root {
-  --color-primary: #1A2E5A;
-  --color-secondary: #4A6FA5;
-  --color-accent: #6D8CC4;
+  --color-primary: #0B3D91;
+  --color-secondary: #1565C0;
+  --color-accent: #42A5F5;
   --color-surface: #FFFFFF;
-  --color-background: #F5F7FA;
+  --color-background: #EEEEEE;
   --color-border: 0, 0, 0;
   --color-border-opacity: 0.12;
   --color-error: #C10015;
@@ -17,9 +17,15 @@
   --color-border: 255, 255, 255;
 }
 
-/* Fundo geral da aplicação (equivalente ao tema Vuetify #F0F0F0) */
 html,
 body,
-#app {
+#app,
+.q-layout,
+.q-page-container {
   background-color: var(--color-background);
+}
+
+/* Cards com cantos arredondados — equivalente ao rounded="lg" do Vuetify */
+.q-card {
+  border-radius: 12px !important;
 }
