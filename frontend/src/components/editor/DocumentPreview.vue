@@ -193,7 +193,7 @@
             <div class="norm-content-block" v-html="item.el.conteudo"></div>
           </div>
           <p v-else :id="'prev-' + item.el.id" class="body-el norm-el">
-            <span class="norm-lbl" :class="{ 'norm-lbl-bold': item.el.tipo === 'artigo' }">{{ item.label }}&nbsp;&nbsp;</span><span class="norm-content" v-html="stripHtml(item.el.conteudo)"></span>
+            <span class="norm-lbl" :class="{ 'norm-lbl-bold': item.el.tipo === 'artigo' }">{{ item.label }}</span><span class="norm-content" v-html="stripHtml(item.el.conteudo)"></span>
           </p>
 
         </template>
@@ -369,7 +369,7 @@ const tocItems = computed(() => {
       } else if (el.tipo === 'artigo') {
         const txt = stripHtml(el.conteudo)
         const trunc = txt.length > 50 ? txt.slice(0, 50) + '…' : txt
-        items.push({ id: el.id, label: `${bodyLabel(el)} ${trunc}`, kind: 'toc-artigo', pg: `${pg}°` })
+        items.push({ id: el.id, label: `${bodyLabel(el).trim()} ${trunc}`, kind: 'toc-artigo', pg: `${pg}°` })
         pg++
       }
     }
