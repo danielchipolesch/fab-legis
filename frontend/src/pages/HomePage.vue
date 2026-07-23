@@ -484,6 +484,9 @@ function limparFiltros() {
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+.legis-table :deep(thead th) {
+  text-align: center !important;
+}
 .legis-table :deep(tbody tr:hover td) {
   background: rgba(74, 111, 165, 0.06) !important;
 }
