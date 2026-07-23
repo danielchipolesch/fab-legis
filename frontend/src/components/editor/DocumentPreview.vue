@@ -299,7 +299,9 @@ function flattenNorm(elementos, out = []) {
 // ─── Computeds ────────────────────────────────────────────
 const docId = computed(() => {
   const d = props.documento
-  return d ? [d.especie, d.numero_basico, d.numero_secundario].filter(Boolean).join(' ') : ''
+  if (!d) return ''
+  const numStr = [d.numero_basico, d.numero_secundario].filter(Boolean).join('-')
+  return [d.especie, numStr].filter(Boolean).join(' ')
 })
 
 const especieCompleta = computed(() =>

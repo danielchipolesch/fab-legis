@@ -331,7 +331,8 @@ const isReadonly = computed(() =>
 const docLabel = computed(() => {
   const d = documento.value
   if (!d) return 'Novo Documento'
-  const num = [d.especie, d.numero_basico, d.numero_secundario].filter(Boolean).join(' ')
+  const numStr = [d.numero_basico, d.numero_secundario].filter(Boolean).join('-')
+  const num = [d.especie, numStr].filter(Boolean).join(' ')
   return num || 'Documento sem título'
 })
 
