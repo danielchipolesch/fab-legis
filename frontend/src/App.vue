@@ -4,6 +4,11 @@
     <q-page-container>
       <router-view />
     </q-page-container>
+    <q-footer class="app-footer">
+      <span class="text-caption">
+        &copy; {{ new Date().getFullYear() }} FAB Legis — Gestão de Legislação do COMAER
+      </span>
+    </q-footer>
   </q-layout>
 </template>
 
@@ -12,11 +17,12 @@ import AppTopBar from '@/components/common/AppTopBar.vue'
 </script>
 
 <style>
-html,
-body,
-#app,
-.q-layout,
-.q-page-container {
-  background-color: #F0F0F0;
+.app-footer {
+  background: #E0E0E0;
+  color: #616161;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 </style>
