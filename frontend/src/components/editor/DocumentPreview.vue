@@ -671,11 +671,6 @@ const tocItems = computed(() => {
   margin: 4px 0;
   font-size: 14px;
   line-height: 1.3;
-  text-align: initial;
-}
-.norm-content-block :deep(td p),
-.norm-content-block :deep(th p) {
-  text-align: inherit;
 }
 .norm-content-block :deep(td),
 .norm-content-block :deep(th) {
@@ -686,6 +681,7 @@ const tocItems = computed(() => {
 .norm-content-block :deep(th) {
   background: rgba(11, 61, 145, 0.06);
   font-weight: bold;
+  text-align: center;
 }
 .norm-content-block :deep(p) {
   margin: 0;
