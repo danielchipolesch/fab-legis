@@ -1,5 +1,5 @@
 # ── Estágio base: instala dependências ────────────────────────────────────────
-FROM node:20-alpine AS base
+FROM node:22-alpine AS base
 WORKDIR /app
 COPY frontend/package*.json ./
 RUN npm install
@@ -20,7 +20,7 @@ COPY frontend/ .
 RUN npm run build
 
 # ── Estágio de produção (Nginx) ────────────────────────────────────────────────
-FROM nginx:1.27-alpine AS production
+FROM nginx:1.28-alpine AS production
 COPY --from=build /app/dist /usr/share/nginx/html
 COPY frontend/nginx.conf /etc/nginx/conf.d/default.conf
 EXPOSE 8080
