@@ -188,6 +188,10 @@
             <p v-if="item.el.titulo" class="subsec-titulo"><strong>{{ item.el.titulo }}</strong></p>
           </div>
 
+          <div v-else-if="hasBlockContent(item.el.conteudo)" :id="'prev-' + item.el.id" class="body-el norm-el">
+            <span class="norm-lbl" :class="{ 'norm-lbl-bold': item.el.tipo === 'artigo' }">{{ item.label }}</span>
+            <div class="norm-content-block" v-html="item.el.conteudo"></div>
+          </div>
           <p v-else :id="'prev-' + item.el.id" class="body-el norm-el">
             <span class="norm-lbl" :class="{ 'norm-lbl-bold': item.el.tipo === 'artigo' }">{{ item.label }}&nbsp;&nbsp;</span><span class="norm-content" v-html="stripHtml(item.el.conteudo)"></span>
           </p>
@@ -266,6 +270,10 @@ function stripHtml(html) {
   const d = document.createElement('div')
   d.innerHTML = html ?? ''
   return (d.textContent || '').trim()
+}
+
+function hasBlockContent(html) {
+  return /<(table|ul|ol|blockquote|h[1-6])/i.test(html ?? '')
 }
 
 function formatarDataBR(iso) {
@@ -650,6 +658,34 @@ const tocItems = computed(() => {
 /* ─── Elementos normativos (artigo, parágrafo, inciso, alínea, sub-alínea) ─── */
 .norm-el {
   /* herda .body-el — mesmo recuo 2,5 cm */
+}
+
+/* Conteúdo com bloco (tabela, lista): reseta recuo e renderiza HTML completo */
+.norm-content-block {
+  text-indent: 0;
+  margin-top: 6px;
+}
+.norm-content-block :deep(table) {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 4px 0;
+  font-size: 14px;
+  line-height: 1.3;
+  text-align: left;
+}
+.norm-content-block :deep(td),
+.norm-content-block :deep(th) {
+  border: 1px solid #999;
+  padding: 4px 8px;
+  vertical-align: top;
+}
+.norm-content-block :deep(th) {
+  background: rgba(11, 61, 145, 0.06);
+  font-weight: bold;
+}
+.norm-content-block :deep(p) {
+  margin: 0;
+  text-indent: 0;
 }
 
 /* Rótulo do artigo em negrito; demais (§, incisos, alíneas) em peso normal */
