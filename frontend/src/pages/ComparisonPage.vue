@@ -104,7 +104,7 @@
       <template v-for="secao in secoesComDiff" :key="secao.id">
         <q-card flat bordered class="q-mb-md">
           <q-card-section class="text-subtitle1 text-weight-bold q-px-md q-py-sm row items-center">
-            <q-icon name="mdi-folder-outline" color="primary" class="q-mr-sm" size="18px" />
+            <q-icon name="mdi-folder-outline" color="amber-8" class="q-mr-sm" size="18px" />
             {{ secao.titulo }}
           </q-card-section>
           <q-separator />
@@ -325,8 +325,8 @@ function exportarQuadro() {
   overflow: hidden;
 }
 .justificativas-table th {
-  background: rgba(26, 46, 90, 0.08) !important;
-  color: #1A2E5A !important;
+  background: rgba(11, 61, 145, 0.08) !important;
+  color: #0B3D91 !important;
   font-weight: 700 !important;
   font-size: 0.78rem !important;
   text-align: left;

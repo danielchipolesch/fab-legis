@@ -154,7 +154,7 @@ const labelClass = computed(() => ({
   'text-uppercase':     props.element.tipo === 'capitulo',
 }))
 
-const iconColor = computed(() => isGrouping.value ? 'primary' : 'secondary')
+const iconColor = computed(() => isGrouping.value ? 'primary' : 'blue-grey-6')
 
 const preview = computed(() => {
   if (isGrouping.value) return ''
@@ -203,13 +203,13 @@ const childOptions = computed(() => CHILD_MAP[props.element.tipo] ?? [])
   min-height: 28px;
 }
 .tree-item:hover {
-  background: rgba(74, 111, 165, 0.1);
+  background: rgba(74, 111, 165, 0.08);
 }
 .tree-item--active {
-  background: rgba(26, 46, 90, 0.15) !important;
+  background: rgba(74, 111, 165, 0.16) !important;
 }
 .tree-item--grouping {
-  border-left: 2px solid rgba(26, 46, 90, 0.3);
+  border-left: 2px solid rgba(11, 61, 145, 0.35);
   margin-left: 2px;
 }
 .tree-label {
