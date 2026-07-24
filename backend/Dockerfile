@@ -1,5 +1,6 @@
 # ── Estágio de build: compila o JAR com Maven ─────────────────────────────────
-FROM maven:3.9.6-eclipse-temurin-25-alpine AS build
+FROM eclipse-temurin:25-jdk-alpine AS build
+RUN apk add --no-cache maven
 WORKDIR /app
 COPY pom.xml .
 RUN mvn dependency:go-offline -B -q
