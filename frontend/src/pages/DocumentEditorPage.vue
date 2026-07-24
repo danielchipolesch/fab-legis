@@ -104,7 +104,7 @@
         @add-artigo="addArtigo"
         @add-capitulo="addCapitulo"
         @promote="editorStore.promote($event)"
-        @demote="editorStore.demote($event)"
+        @demote="handleDemote($event)"
         @remove="editorStore.removeElement($event)"
         @reorder-normativa="onReorderNormativa"
       />
@@ -156,7 +156,7 @@
                     size="sm"
                     outline
                     class="q-ml-sm"
-                    @click="editorStore.demote(selectedElement.id)"
+                    @click="handleDemote(selectedElement.id)"
                   >
                     <q-icon left name="mdi-arrow-expand-down" />
                     Rebaixar
@@ -373,6 +373,7 @@ const CHILD_OPTIONS = {
   subsecao_normativa: [{ tipo: 'artigo', label: 'Artigo' }],
   artigo:             [
     { tipo: 'paragrafo_unico', label: 'Parágrafo único' },
+    { tipo: 'paragrafo',       label: 'Parágrafo (§)' },
     { tipo: 'inciso',          label: 'Inciso' },
   ],
   paragrafo_unico: [{ tipo: 'inciso', label: 'Inciso' }],
@@ -479,6 +480,19 @@ function onReorderNormativa(newElements) {
     renumberElements(secao.elementos)
     editorStore.isDirty = true
     scheduleAutoSave()
+  }
+}
+
+function handleDemote(id) {
+  const result = editorStore.demote(id)
+  if (result && !result.ok && result.reason === 'at-bottom') {
+    $q.notify({
+      type: 'warning',
+      icon: 'mdi-alert-circle-outline',
+      message: 'Rebaixamento bloqueado: um subelemento já está no nível mais baixo (sub-alínea).',
+      position: 'top',
+      timeout: 4000,
+    })
   }
 }
 

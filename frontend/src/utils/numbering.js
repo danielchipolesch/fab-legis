@@ -133,28 +133,43 @@ export function renumberElements(elements, _ctx = null) {
     }
   }
 
-  // Paragrafo unico <-> paragrafo numerado conversion
-  if (paragrafos.length > 1) {
+  // Paragrafo unico permanece unico somente quando for o unico paragrafo do artigo
+  // e ja tiver sido criado como tal. Caso contrario, todos viram paragrafos numerados.
+  const unicoOnly = paragrafos.length === 1 && paragrafos[0].tipo === 'paragrafo_unico'
+  if (unicoOnly) {
+    paragrafos[0].numero = null
+  } else if (paragrafos.length > 0) {
     let pNum = 0
     for (const p of paragrafos) { pNum++; p.tipo = 'paragrafo'; p.numero = pNum }
-  } else if (paragrafos.length === 1) {
-    paragrafos[0].tipo = 'paragrafo_unico'
-    paragrafos[0].numero = null
   }
 }
 
 const HIERARCHY = ['artigo', 'paragrafo', 'inciso', 'alinea', 'sub_alinea']
 
+// paragrafo_unico ocupa o mesmo nível que paragrafo na hierarquia
+function hierarchyBase(tipo) {
+  return tipo === 'paragrafo_unico' ? 'paragrafo' : tipo
+}
+
 export function promoteType(tipo) {
-  const idx = HIERARCHY.indexOf(tipo)
+  const idx = HIERARCHY.indexOf(hierarchyBase(tipo))
   if (idx <= 0) return tipo
   return HIERARCHY[idx - 1]
 }
 
 export function demoteType(tipo) {
-  const idx = HIERARCHY.indexOf(tipo)
+  const idx = HIERARCHY.indexOf(hierarchyBase(tipo))
   if (idx < 0 || idx >= HIERARCHY.length - 1) return tipo
   return HIERARCHY[idx + 1]
+}
+
+/**
+ * Retorna false se o elemento ou qualquer descendente já está no nível mais baixo
+ * (sub_alinea), tornando impossível rebaixar toda a subárvore.
+ */
+export function canDemoteSubtree(element) {
+  if (demoteType(element.tipo) === element.tipo) return false
+  return (element.filhos ?? []).every(child => canDemoteSubtree(child))
 }
 
 export function findById(elements, id) {
