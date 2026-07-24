@@ -12,6 +12,17 @@ function makeElement(tipo, numero, conteudo = '', filhos = []) {
   return { id: uuidv4(), tipo, numero, conteudo, filhos }
 }
 
+function makeCapitulo(numero, titulo) {
+  return { ...makeElement('capitulo', numero, '', []), titulo }
+}
+
+const CAPITULOS_DEFAULT = [
+  'DISPOSIÇÕES PRELIMINARES',
+  'DISPOSIÇÕES GERAIS',
+  'DISPOSIÇÕES FINAIS',
+  'DISPOSIÇÕES TRANSITÓRIAS',
+]
+
 function red(texto) {
   return `<span style="color: red; font-weight: bold">${texto}</span>`
 }
@@ -60,7 +71,7 @@ function gerarSecoesTemplate(doc) {
       tipo: 'parte_normativa',
       titulo: 'Parte Normativa',
       ordem: 2,
-      elementos: [],
+      elementos: CAPITULOS_DEFAULT.map((titulo, i) => makeCapitulo(i + 1, titulo)),
     },
     {
       id: uuidv4(),
