@@ -286,7 +286,7 @@ function stripHtml(html) {
 }
 
 function hasBlockContent(html) {
-  return /<(table|ul|ol|blockquote|h[1-6])/i.test(html ?? '')
+  return /<(table|ul|ol|blockquote|h[1-6]|figure)/i.test(html ?? '')
 }
 
 function formatarDataBR(iso) {
@@ -374,6 +374,26 @@ const normativaFlat = computed(() =>
   flattenNorm(secaoNormativa.value?.elementos ?? [])
 )
 
+// Extrai figuras de todos os elementos do documento para a LISTA DE FIGURAS
+const figurasNoDocumento = computed(() => {
+  const figuras = []
+  function extrairDe(elementos) {
+    for (const el of elementos ?? []) {
+      if (el.conteudo) {
+        const div = document.createElement('div')
+        div.innerHTML = el.conteudo
+        div.querySelectorAll('figure[data-type="figura"]').forEach((fig) => {
+          const titulo = fig.querySelector('.figura-titulo')?.textContent?.trim() ?? ''
+          figuras.push(titulo)
+        })
+      }
+      extrairDe(el.filhos)
+    }
+  }
+  for (const s of props.documento?.secoes ?? []) extrairDe(s.elementos)
+  return figuras
+})
+
 // TOC no formato NSCA: capítulos/seções com intervalo de artigos (ex: "1°/6°", "7°/11")
 const tocItems = computed(() => {
   const items = []
@@ -437,6 +457,14 @@ const tocItems = computed(() => {
         items.push({ id: el.id, label: `${bodyLabel(el).trim()} ${trunc}`, kind: 'toc-artigo', pg: el.numero != null ? fmtNum(el.numero) : '' })
       }
     }
+  }
+
+  // LISTA DE FIGURAS — ao final do sumário, se houver figuras no documento
+  if (figurasNoDocumento.value.length) {
+    items.push({ id: '__figuras-hdr', label: 'LISTA DE FIGURAS', kind: 'toc-figuras-hdr', pg: '' })
+    figurasNoDocumento.value.forEach((titulo, i) => {
+      items.push({ id: `__fig-${i}`, label: titulo || `Figura ${i + 1}`, kind: 'toc-figura', pg: '' })
+    })
   }
 
   return items
@@ -840,11 +868,45 @@ const tocItems = computed(() => {
   margin-bottom: 3px;
   font-size: 14px;
 }
-.toc-row.toc-capitulo  { font-weight: bold; text-transform: uppercase; margin-top: 6px; }
-.toc-row.toc-secao     { padding-left: 16px; margin-top: 2px; }
-.toc-row.toc-subsecao  { padding-left: 28px; }
-.toc-row.toc-artigo    { padding-left: 28px; }
+.toc-row.toc-capitulo    { font-weight: bold; text-transform: uppercase; margin-top: 6px; }
+.toc-row.toc-secao       { padding-left: 16px; margin-top: 2px; }
+.toc-row.toc-subsecao    { padding-left: 28px; }
+.toc-row.toc-artigo      { padding-left: 28px; }
+.toc-row.toc-figuras-hdr { font-weight: bold; text-transform: uppercase; margin-top: 10px; }
+.toc-row.toc-figura      { padding-left: 16px; font-style: italic; }
 .toc-lbl  { flex-shrink: 0; max-width: 80%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .toc-dots { flex-grow: 1; border-bottom: 1px dotted #999; margin: 0 6px 3px; min-width: 16px; }
 .toc-pg   { flex-shrink: 0; min-width: 72px; text-align: right; color: #333; }
+
+/* ═══════════════════════════════════════════════════════════
+   FIGURAS — renderização no corpo do documento
+   (injetadas via v-html dentro de .norm-content-block)
+════════════════════════════════════════════════════════════ */
+.norm-content-block :deep(figure.doc-figure) {
+  display: block;
+  text-align: center;
+  margin: 16px auto;
+  max-width: 100%;
+}
+.norm-content-block :deep(.figura-titulo) {
+  font-size: 13px;
+  font-style: italic;
+  margin: 0 0 6px;
+  text-indent: 0;
+  text-align: center;
+}
+.norm-content-block :deep(.figura-img) {
+  max-width: 100%;
+  height: auto;
+  border: 1px solid #ddd;
+  display: block;
+  margin: 0 auto;
+}
+.norm-content-block :deep(.figura-fonte) {
+  font-size: 12px;
+  color: #555;
+  margin: 4px 0 0;
+  text-indent: 0;
+  text-align: center;
+}
 </style>
