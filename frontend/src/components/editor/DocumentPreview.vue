@@ -459,11 +459,11 @@ const tocItems = computed(() => {
     }
   }
 
-  // LISTA DE FIGURAS — ao final do sumário, se houver figuras no documento
+  // LISTA DE FIGURAS — ao final do sumário, numeração sequencial automática
   if (figurasNoDocumento.value.length) {
     items.push({ id: '__figuras-hdr', label: 'LISTA DE FIGURAS', kind: 'toc-figuras-hdr', pg: '' })
     figurasNoDocumento.value.forEach((titulo, i) => {
-      items.push({ id: `__fig-${i}`, label: titulo || `Figura ${i + 1}`, kind: 'toc-figura', pg: '' })
+      items.push({ id: `__fig-${i}`, label: `Figura ${i + 1} — ${titulo || 'Sem título'}`, kind: 'toc-figura', pg: '' })
     })
   }
 
@@ -881,14 +881,29 @@ const tocItems = computed(() => {
 
 /* ═══════════════════════════════════════════════════════════
    FIGURAS — renderização no corpo do documento
-   (injetadas via v-html dentro de .norm-content-block)
+   Numeração automática via CSS counter (sequencial por página)
 ════════════════════════════════════════════════════════════ */
+
+/* Reseta o contador a cada página (todas as figuras de um documento
+   estão na mesma .pdf-page da parte normativa) */
+.pages-wrap {
+  counter-reset: figura;
+}
+
 .norm-content-block :deep(figure.doc-figure) {
   display: block;
   text-align: center;
   margin: 16px auto;
   max-width: 100%;
+  counter-increment: figura;
 }
+
+/* Prefixo "Figura N — " gerado automaticamente antes da descrição */
+.norm-content-block :deep(.figura-titulo::before) {
+  content: "Figura " counter(figura) " — ";
+  font-style: italic;
+}
+
 .norm-content-block :deep(.figura-titulo) {
   font-size: 13px;
   font-style: italic;
