@@ -3,55 +3,6 @@
     <!-- Toolbar -->
     <div v-if="editor" class="wysiwyg-toolbar row items-center q-px-sm q-py-xs" style="flex-wrap:wrap;gap:4px">
 
-      <!-- Heading levels -->
-      <q-btn-group outline>
-        <q-btn
-          :class="{ active: !editor.isActive('heading') }"
-          size="sm"
-          outline
-          color="primary"
-          icon="mdi-format-paragraph"
-          @click="editor.chain().focus().setParagraph().run()"
-        >
-          <q-tooltip anchor="top middle" self="bottom middle">Parágrafo normal</q-tooltip>
-        </q-btn>
-        <q-btn
-          :class="{ active: editor.isActive('heading', { level: 1 }) }"
-          size="sm"
-          outline
-          color="primary"
-          class="heading-btn"
-          label="H1"
-          @click="editor.chain().focus().toggleHeading({ level: 1 }).run()"
-        >
-          <q-tooltip anchor="top middle" self="bottom middle">Título 1</q-tooltip>
-        </q-btn>
-        <q-btn
-          :class="{ active: editor.isActive('heading', { level: 2 }) }"
-          size="sm"
-          outline
-          color="primary"
-          class="heading-btn"
-          label="H2"
-          @click="editor.chain().focus().toggleHeading({ level: 2 }).run()"
-        >
-          <q-tooltip anchor="top middle" self="bottom middle">Título 2</q-tooltip>
-        </q-btn>
-        <q-btn
-          :class="{ active: editor.isActive('heading', { level: 3 }) }"
-          size="sm"
-          outline
-          color="primary"
-          class="heading-btn"
-          label="H3"
-          @click="editor.chain().focus().toggleHeading({ level: 3 }).run()"
-        >
-          <q-tooltip anchor="top middle" self="bottom middle">Título 3</q-tooltip>
-        </q-btn>
-      </q-btn-group>
-
-      <q-separator vertical class="q-mx-xs" style="height:24px" />
-
       <q-btn-group outline>
         <q-btn :class="{ active: editor.isActive('bold') }" outline color="primary" @click="editor.chain().focus().toggleBold().run()" icon="mdi-format-bold" size="sm">
           <q-tooltip anchor="top middle" self="bottom middle">Negrito (Ctrl+B)</q-tooltip>
@@ -71,6 +22,36 @@
         <q-btn :class="{ active: editor.isActive({ textAlign: 'center' }) }" outline color="primary" @click="editor.chain().focus().setTextAlign('center').run()" icon="mdi-format-align-center" size="sm" />
         <q-btn :class="{ active: editor.isActive({ textAlign: 'right' }) }" outline color="primary" @click="editor.chain().focus().setTextAlign('right').run()" icon="mdi-format-align-right" size="sm" />
         <q-btn :class="{ active: editor.isActive({ textAlign: 'justify' }) }" outline color="primary" @click="editor.chain().focus().setTextAlign('justify').run()" icon="mdi-format-align-justify" size="sm" />
+      </q-btn-group>
+
+      <q-separator vertical class="q-mx-xs" style="height:24px" />
+
+      <!-- Cor do texto -->
+      <q-btn-group outline>
+        <q-btn
+          outline color="primary" size="sm"
+          :class="{ active: editor.isActive('textStyle', { color: '#000000' }) }"
+          @click="editor.chain().focus().setColor('#000000').run()"
+        >
+          <q-icon name="mdi-format-color-text" size="16px" style="color:#000" />
+          <q-tooltip anchor="top middle" self="bottom middle">Texto preto</q-tooltip>
+        </q-btn>
+        <q-btn
+          outline color="primary" size="sm"
+          :class="{ active: editor.isActive('textStyle', { color: '#CC0000' }) }"
+          @click="editor.chain().focus().setColor('#CC0000').run()"
+        >
+          <q-icon name="mdi-format-color-text" size="16px" style="color:#CC0000" />
+          <q-tooltip anchor="top middle" self="bottom middle">Texto vermelho</q-tooltip>
+        </q-btn>
+        <q-btn
+          outline color="primary" size="sm"
+          :class="{ active: editor.isActive('highlight', { color: '#FFD600' }) }"
+          @click="editor.chain().focus().toggleHighlight({ color: '#FFD600' }).run()"
+        >
+          <q-icon name="mdi-marker" size="16px" style="color:#FFD600; -webkit-text-stroke: 0.5px #999" />
+          <q-tooltip anchor="top middle" self="bottom middle">Marca-texto amarelo</q-tooltip>
+        </q-btn>
       </q-btn-group>
 
       <q-separator vertical class="q-mx-xs" style="height:24px" />
@@ -174,18 +155,14 @@ onBeforeUnmount(() => editor.value?.destroy())
   background: rgba(0, 0, 0, 0.12) !important;
   color: #333 !important;
 }
-.wysiwyg-toolbar .heading-btn {
-  font-size: 11px;
-  font-weight: 700;
-  min-width: 32px;
-}
+
 .wysiwyg-content {
   padding: 16px 20px;
   min-height: 200px;
 }
 .tiptap-editor .ProseMirror {
   outline: none;
-  font-family: 'Times New Roman', serif;
+  font-family: 'Calibri', 'Carlito', 'Segoe UI', Arial, sans-serif;
   font-size: 12pt;
   line-height: 1.8;
   color: #1A1A1A;
@@ -212,22 +189,5 @@ onBeforeUnmount(() => editor.value?.destroy())
 .tiptap-editor .ProseMirror-focused {
   outline: none;
 }
-.tiptap-editor .ProseMirror h1 {
-  font-size: 18pt;
-  font-weight: bold;
-  color: #0B3D91;
-  margin: 12px 0 6px;
-}
-.tiptap-editor .ProseMirror h2 {
-  font-size: 14pt;
-  font-weight: bold;
-  color: #0B3D91;
-  margin: 10px 0 4px;
-}
-.tiptap-editor .ProseMirror h3 {
-  font-size: 12pt;
-  font-weight: bold;
-  color: #1565C0;
-  margin: 8px 0 4px;
-}
+
 </style>
