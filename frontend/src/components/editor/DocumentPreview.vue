@@ -383,9 +383,7 @@ const figurasNoDocumento = computed(() => {
         const div = document.createElement('div')
         div.innerHTML = el.conteudo
         div.querySelectorAll('figure[data-type="figura"]').forEach((fig) => {
-          const raw = fig.querySelector('.figura-titulo')?.textContent?.trim() ?? ''
-          // Remove o prefixo "Figura N — " ou "Figura 99 — " que vem do renderHTML
-          figuras.push(raw.replace(/^Figura\s+\S+\s*[—\-]\s*/i, ''))
+          figuras.push(fig.querySelector('.figura-titulo')?.textContent?.trim() ?? '')
         })
       }
       extrairDe(el.filhos)
@@ -882,16 +880,30 @@ const tocItems = computed(() => {
 
 /* ═══════════════════════════════════════════════════════════
    FIGURAS — renderização no corpo do documento
-   O HTML já contém "Figura N — descrição" e "Fonte: texto"
-   embutidos no renderHTML, portáveis para PDF nativo / DOCX.
-   O backend substitui "Figura N" pelo número real na exportação.
+   CSS counter numera automaticamente no preview web.
+   Para exportações (PDF nativo, DOCX, HTML), o backend percorre
+   o documento e embute o número real antes de gerar o arquivo.
 ════════════════════════════════════════════════════════════ */
+
+/* Contador reseta uma vez por documento (todas as figuras
+   normativas ficam na mesma região do pages-wrap) */
+.pages-wrap {
+  counter-reset: figura;
+}
+
 .norm-content-block :deep(figure.doc-figure) {
   display: block;
   text-align: center;
   margin: 16px auto;
   max-width: 100%;
+  counter-increment: figura;
 }
+
+/* Prefixo "Figura N — " gerado automaticamente antes da descrição */
+.norm-content-block :deep(.figura-titulo::before) {
+  content: "Figura " counter(figura) " — ";
+}
+
 .norm-content-block :deep(.figura-titulo) {
   font-size: 13px;
   font-style: italic;
