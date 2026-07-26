@@ -232,7 +232,22 @@ watch(() => props.selectedElementId, async (id) => {
   if (!id) return
   await nextTick()
   const el = document.getElementById('prev-' + id)
-  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  if (!el) return
+
+  // Find the nearest scrollable ancestor without scrolling the window
+  let container = el.parentElement
+  while (container && container !== document.body) {
+    const overflow = window.getComputedStyle(container).overflowY
+    if (overflow === 'auto' || overflow === 'scroll') break
+    container = container.parentElement
+  }
+  if (!container || container === document.body) return
+
+  const containerRect = container.getBoundingClientRect()
+  const elRect = el.getBoundingClientRect()
+  const targetTop = container.scrollTop + elRect.top - containerRect.top
+                    - containerRect.height / 2 + elRect.height / 2
+  container.scrollTo({ top: targetTop, behavior: 'smooth' })
 })
 
 // ─── Scaling: ResizeObserver + CSS zoom ──────────────────
