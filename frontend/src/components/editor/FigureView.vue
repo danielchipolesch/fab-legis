@@ -1,8 +1,9 @@
 <template>
   <node-view-wrapper as="figure" class="doc-figure-edit" :class="{ 'doc-figure-edit--selected': selected }">
-    <!-- Linha do título: número automático (readonly) + descrição (editável) -->
+
+    <!-- Título: "Figura N — " fixo + campo de descrição -->
     <div class="figura-titulo-row">
-      <span class="figura-num-prefix">Figura {{ figureNumber }} —&nbsp;</span>
+      <span class="figura-prefix">Figura N —&nbsp;</span>
       <input
         class="figura-titulo-input"
         :value="node.attrs.titulo"
@@ -19,37 +20,29 @@
       @error="onImgError"
     />
 
-    <input
-      class="figura-fonte-input"
-      :value="node.attrs.fonte"
-      placeholder="Fonte: (ex: elaborado pelo autor, 2024)"
-      @input="updateAttributes({ fonte: $event.target.value })"
-      @keydown.enter.prevent
-    />
+    <!-- Fonte: "Fonte: " fixo + campo do texto da fonte -->
+    <div class="figura-fonte-row">
+      <span class="figura-prefix">Fonte:&nbsp;</span>
+      <input
+        class="figura-fonte-input"
+        :value="node.attrs.fonte"
+        placeholder="nome/órgão/ano"
+        @input="updateAttributes({ fonte: $event.target.value })"
+        @keydown.enter.prevent
+      />
+    </div>
+
   </node-view-wrapper>
 </template>
 
 <script setup>
-import { computed } from 'vue'
 import { NodeViewWrapper } from '@tiptap/vue-3'
 
-const props = defineProps({
+defineProps({
   node:             { type: Object, required: true },
   updateAttributes: { type: Function, required: true },
   selected:         { type: Boolean, default: false },
   editor:           { type: Object, default: null },
-  getPos:           { type: Function, default: null },
-})
-
-// Conta quantas figuras existem antes desta no documento → número sequencial
-const figureNumber = computed(() => {
-  if (!props.getPos || !props.editor?.state?.doc) return '?'
-  const pos = props.getPos()
-  let count = 0
-  props.editor.state.doc.nodesBetween(0, pos, (node) => {
-    if (node.type.name === 'figure') count++
-  })
-  return count + 1
 })
 
 function onImgError(e) {
@@ -68,6 +61,7 @@ function onImgError(e) {
   background: #f9fafb;
   cursor: default;
   max-width: 100%;
+  box-sizing: border-box;
 }
 
 .doc-figure-edit--selected {
@@ -75,24 +69,36 @@ function onImgError(e) {
   background: #e3f2fd;
 }
 
-/* Linha título: prefixo fixo + input da descrição lado a lado */
-.figura-titulo-row {
+/* Linha de título e linha de fonte: centralizadas, prefixo fixo + campo editável */
+.figura-titulo-row,
+.figura-fonte-row {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0;
-  margin-bottom: 8px;
+  font-family: inherit;
+}
+
+.figura-titulo-row {
   font-size: 12px;
   font-style: italic;
   color: #333;
+  margin-bottom: 8px;
 }
 
-.figura-num-prefix {
+.figura-fonte-row {
+  font-size: 11px;
+  color: #555;
+  margin-top: 6px;
+}
+
+.figura-prefix {
   white-space: nowrap;
   flex-shrink: 0;
+  user-select: none;
 }
 
-.figura-titulo-input {
+.figura-titulo-input,
+.figura-fonte-input {
   border: none;
   background: transparent;
   outline: none;
@@ -102,11 +108,15 @@ function onImgError(e) {
   color: inherit;
   padding: 2px 4px;
   border-radius: 3px;
-  min-width: 120px;
+  min-width: 100px;
+  width: auto;
   flex: 1;
+  max-width: 320px;
   text-align: left;
 }
-.figura-titulo-input:focus {
+
+.figura-titulo-input:focus,
+.figura-fonte-input:focus {
   background: rgba(25, 118, 210, 0.07);
 }
 
@@ -118,24 +128,5 @@ function onImgError(e) {
   border-radius: 2px;
   display: block;
   margin: 0 auto;
-}
-
-.figura-fonte-input {
-  display: block;
-  width: 100%;
-  border: none;
-  background: transparent;
-  text-align: center;
-  outline: none;
-  font-family: inherit;
-  font-size: 11px;
-  color: #666;
-  margin-top: 6px;
-  box-sizing: border-box;
-  padding: 2px 4px;
-  border-radius: 3px;
-}
-.figura-fonte-input:focus {
-  background: rgba(25, 118, 210, 0.07);
 }
 </style>
