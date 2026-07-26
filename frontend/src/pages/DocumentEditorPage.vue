@@ -359,9 +359,6 @@ onMounted(async () => {
       // Backend não tinha seções — salva o template imediatamente
       editorStore.isDirty = true
       await autoSave()
-    } else {
-      // Seções vieram do banco — já estão salvas
-      hasSaved.value = true
     }
 
     const loadedDoc = editorStore.documento
