@@ -762,10 +762,11 @@ const tocItems = computed(() => {
   /* herda .body-el — mesmo recuo 2,5 cm */
 }
 
-/* Conteúdo com bloco (tabela, lista): reseta recuo e renderiza HTML completo */
+/* Conteúdo com bloco (tabela, figura): inline para que o rótulo (Art./§) fique na mesma linha
+   do primeiro parágrafo; blocos internos (figure, table) forçam quebra naturalmente */
 .norm-content-block {
+  display: inline;
   text-indent: 0;
-  margin-top: 6px;
 }
 .norm-content-block :deep(table) {
   border-collapse: collapse;
