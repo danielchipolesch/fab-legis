@@ -191,17 +191,16 @@
       </div>
 
         <!-- PDF Preview panel -->
-        <div class="preview-panel" style="overflow-y:auto">
-          <template v-if="previewMounted && documento">
-            <DocumentPreview
-              :documento="documento"
-              :selected-element-id="editorStore.selectedElementId"
-            />
-          </template>
-          <div v-else class="preview-loading">
-            <q-circular-progress indeterminate color="white" size="40px" :thickness="0.3" />
-            <p class="q-mt-sm text-caption" style="color:#ccc">Carregando prévia…</p>
-          </div>
+        <div class="preview-panel" style="overflow-y:auto; position:relative">
+          <DocumentPreview
+            v-if="previewMounted && documento"
+            :documento="documento"
+            :selected-element-id="editorStore.selectedElementId"
+          />
+          <q-inner-loading :showing="!previewMounted || !documento" class="preview-inner-loading">
+            <q-spinner-gears size="48px" color="grey-5" />
+            <div class="text-caption text-grey-5 q-mt-sm">Carregando prévia…</div>
+          </q-inner-loading>
         </div>
 
       </div><!-- /editor-body -->
@@ -493,13 +492,9 @@ function addCapitulo(titulo) {
   border-left: 2px solid rgba(0, 0, 0, 0.12);
   background: #525659;
 }
-
-.preview-loading {
-  display: flex;
+.preview-panel :deep(.preview-inner-loading) {
+  background: rgba(60, 63, 65, 0.92);
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  height: 100%;
 }
 
 .element-editor {
