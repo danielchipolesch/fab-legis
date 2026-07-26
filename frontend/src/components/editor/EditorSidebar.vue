@@ -1,31 +1,60 @@
 <template>
-  <aside
-    v-show="modelValue"
-    class="editor-sidebar"
-    style="width:290px"
-  >
-    <!-- Barra de progresso ao adicionar elemento -->
+  <aside class="editor-sidebar">
+
     <q-linear-progress
       v-if="editorStore.adicionando"
       indeterminate
       color="primary"
-      style="height:2px"
+      style="height:2px;flex-shrink:0"
     />
 
-    <!-- Header -->
-    <div class="sidebar-header q-pa-sm row items-center">
-      <q-icon name="mdi-file-tree-outline" color="primary" class="q-mr-sm" />
-      <span class="text-subtitle2 text-weight-bold text-primary">Estrutura do Documento</span>
-      <q-space />
-      <q-btn icon="mdi-close" size="xs" flat round dense @click="$emit('update:modelValue', false)" />
+    <!-- Informações do documento -->
+    <div class="sidebar-doc-header q-px-sm q-pt-md q-pb-sm">
+      <div class="text-h6 text-weight-bold text-primary ellipsis" style="line-height:1.3">
+        {{ docLabel }}
+      </div>
+      <div v-if="documento?.titulo" class="text-body2 text-grey-8 q-mt-xxs ellipsis-2-lines">
+        {{ documento.titulo }}
+      </div>
+      <div v-if="documento?.assunto_basico" class="text-caption text-grey-6 q-mt-xxs ellipsis">
+        {{ documento.assunto_basico }}
+      </div>
     </div>
 
+    <!-- Status -->
+    <div class="q-px-sm q-pb-sm">
+      <StatusBadge v-if="documento?.status" :status="documento.status" size="sm" />
+    </div>
+
+    <!-- Separador topo da seção de ações -->
     <q-separator />
 
+    <!-- 5 ícones de ação (funções a definir) -->
+    <div class="sidebar-actions row justify-around items-center q-py-xs">
+      <q-btn flat round dense size="sm" color="grey-7" icon="mdi-file-document-edit-outline">
+        <q-tooltip anchor="top middle" self="bottom middle">Metadados</q-tooltip>
+      </q-btn>
+      <q-btn flat round dense size="sm" color="grey-7" icon="mdi-source-branch">
+        <q-tooltip anchor="top middle" self="bottom middle">Comparar versões</q-tooltip>
+      </q-btn>
+      <q-btn flat round dense size="sm" color="grey-7" icon="mdi-download-outline">
+        <q-tooltip anchor="top middle" self="bottom middle">Exportar</q-tooltip>
+      </q-btn>
+      <q-btn flat round dense size="sm" color="grey-7" icon="mdi-history">
+        <q-tooltip anchor="top middle" self="bottom middle">Histórico</q-tooltip>
+      </q-btn>
+      <q-btn flat round dense size="sm" color="grey-7" icon="mdi-dots-horizontal">
+        <q-tooltip anchor="top middle" self="bottom middle">Mais opções</q-tooltip>
+      </q-btn>
+    </div>
+
+    <!-- Separador base da seção de ações -->
+    <q-separator />
+
+    <!-- Árvore de seções do documento -->
     <div class="sidebar-body">
       <template v-for="secao in secoes" :key="secao.id">
 
-        <!-- Section header -->
         <div
           class="secao-header q-pa-sm row items-center"
           :class="{ 'secao-header--active': isExpandida(secao.tipo) }"
@@ -42,10 +71,8 @@
           </span>
         </div>
 
-        <!-- Section elements -->
         <div v-show="isExpandida(secao.tipo)" class="secao-elementos q-px-xs q-pb-sm">
 
-          <!-- Fixed elements (parte preliminar / parte final) -->
           <template v-if="secao.tipo !== 'parte_normativa'">
             <div
               v-for="el in secao.elementos"
@@ -84,10 +111,7 @@
               </template>
             </draggable>
 
-            <!-- Add buttons for normativa -->
             <div class="q-mt-sm column" style="gap:4px">
-
-              <!-- Novo Capítulo — desabilitado se já há artigos top-level -->
               <div>
                 <q-btn
                   outline
@@ -127,7 +151,6 @@
                 </q-btn>
               </div>
 
-              <!-- Novo Artigo — desabilitado se já há capítulos -->
               <q-btn
                 outline
                 size="sm"
@@ -142,7 +165,6 @@
                   Adicione artigos dentro dos capítulos existentes
                 </q-tooltip>
               </q-btn>
-
             </div>
           </template>
 
@@ -158,19 +180,20 @@
 import { reactive, computed } from 'vue'
 import draggable from 'vuedraggable'
 import SectionTreeItem from './SectionTreeItem.vue'
+import StatusBadge from '@/components/common/StatusBadge.vue'
 import { formatLabel, elementIcon } from '@/utils/numbering.js'
 import { useEditorStore } from '@/stores/editor.js'
 
 const editorStore = useEditorStore()
 
 const props = defineProps({
-  modelValue: { type: Boolean, default: true },
+  documento:  { type: Object, default: null },
+  docLabel:   { type: String, default: '' },
   secoes:     { type: Array, default: () => [] },
   selectedId: { type: String, default: null },
 })
 
 const emit = defineEmits([
-  'update:modelValue',
   'select',
   'move-up', 'move-down',
   'add-child', 'add-artigo', 'add-capitulo',
@@ -209,7 +232,6 @@ const normativaElementos = computed({
   },
 })
 
-// Enforce: artigos top-level e capítulos não podem coexistir
 const hasCapitulos       = computed(() => normativaElementos.value.some(e => e.tipo === 'capitulo'))
 const hasTopLevelArtigos = computed(() => normativaElementos.value.some(e => e.tipo === 'artigo'))
 
@@ -245,23 +267,36 @@ function secaoIconColor(tipo) {
 <style scoped>
 .editor-sidebar {
   flex-shrink: 0;
+  width: 290px;
   height: 100%;
   display: flex;
   flex-direction: column;
   background: var(--color-surface);
   box-shadow: 2px 0 8px rgba(0, 0, 0, 0.12);
   z-index: 1;
+  overflow: hidden;
 }
-.sidebar-header {
-  background: var(--color-surface);
-  position: sticky;
-  top: 0;
-  z-index: 2;
+
+/* Cabeçalho do documento */
+.sidebar-doc-header {
+  flex-shrink: 0;
 }
+
+/* Ícones de ação */
+.sidebar-actions {
+  flex-shrink: 0;
+}
+.sidebar-actions .q-btn:hover {
+  color: var(--q-primary) !important;
+  background: rgba(74, 111, 165, 0.08);
+}
+
+/* Árvore de seções */
 .sidebar-body {
   overflow-y: auto;
   flex: 1 1 auto;
 }
+
 .secao-header {
   cursor: pointer;
   background: var(--color-surface);
