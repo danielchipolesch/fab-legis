@@ -82,11 +82,21 @@
               @click="$emit('select', el.id)"
             >
               <q-icon :name="elementIcon(el.tipo)" size="13px" color="teal-6" class="q-mr-sm" />
-              <span class="text-caption">{{ formatLabel(el) }}</span>
+              <span class="text-caption col ellipsis">{{ formatLabel(el) }}</span>
+              <q-icon
+                v-if="!isElFilled(el)"
+                name="mdi-alert-circle"
+                color="amber-7"
+                size="13px"
+                class="q-ml-xs"
+              >
+                <q-tooltip anchor="top middle" self="bottom middle">
+                  Seção vazia — necessária para aprovação
+                </q-tooltip>
+              </q-icon>
             </div>
           </template>
 
-          <!-- Normative elements (drag-and-drop tree) -->
           <template v-else>
             <draggable
               v-model="normativaElementos"
@@ -244,6 +254,11 @@ const existingCapituloTitulos = computed(() =>
 )
 
 function onDragEnd() {}
+
+const isElFilled = (el) => {
+  if (!el?.conteudo) return false
+  return el.conteudo.replace(/<[^>]*>/g, '').trim().length > 0
+}
 
 function secaoIcon(tipo) {
   const m = {

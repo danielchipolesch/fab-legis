@@ -42,6 +42,19 @@
         <span v-if="preview" class="text-caption text-grey-7 q-ml-xs">{{ preview }}</span>
       </span>
 
+      <!-- status icon (conteúdo elements only) -->
+      <q-icon
+        v-if="!isGrouping && !isFilled"
+        name="mdi-alert-circle"
+        color="amber-7"
+        size="12px"
+        class="status-icon q-mr-xs"
+      >
+        <q-tooltip anchor="top middle" self="bottom middle">
+          Vazio — necessário para aprovação
+        </q-tooltip>
+      </q-icon>
+
       <!-- action buttons (shown on hover) -->
       <div class="tree-actions row" style="gap:4px">
         <q-btn round size="xs" flat dense color="grey" @click.stop="$emit('move-up', element.id)">
@@ -162,6 +175,12 @@ const preview = computed(() => {
   return text.length > 35 ? text.slice(0, 35) + '…' : text
 })
 
+const isFilled = computed(() => {
+  if (isGrouping.value) return false
+  const text = props.element.conteudo?.replace(/<[^>]+>/g, '').trim() ?? ''
+  return text.length > 0
+})
+
 const fullLabel = computed(() => `${label.value} ${preview.value}`)
 
 const CHILD_MAP = {
@@ -227,6 +246,10 @@ const childOptions = computed(() => CHILD_MAP[props.element.tipo] ?? [])
 }
 .tree-item:hover .tree-actions {
   opacity: 1;
+}
+.status-icon {
+  flex-shrink: 0;
+  opacity: 0.85;
 }
 .drag-handle {
   cursor: grab;
