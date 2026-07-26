@@ -1,5 +1,14 @@
 <template>
   <div class="wysiwyg-wrapper">
+    <!-- Upload de imagem (input oculto) -->
+    <input
+      ref="fileInputRef"
+      type="file"
+      accept="image/png,image/jpeg,image/gif,image/webp"
+      style="display:none"
+      @change="onFileSelected"
+    />
+
     <!-- Toolbar -->
     <div v-if="editor" class="wysiwyg-toolbar row items-center q-px-sm q-py-xs" style="flex-wrap:wrap;gap:4px">
 
@@ -77,6 +86,21 @@
         <q-icon left name="mdi-table-plus" />
         Tabela
       </q-btn>
+
+      <q-separator vertical class="q-mx-xs" style="height:24px" />
+
+      <!-- Image insertion -->
+      <q-btn
+        outline
+        size="sm"
+        color="primary"
+        :loading="uploadando"
+        @click="fileInputRef?.click()"
+      >
+        <q-icon left name="mdi-image-plus" />
+        Imagem
+        <q-tooltip anchor="top middle" self="bottom middle">Inserir imagem (PNG, JPEG, GIF, WebP)</q-tooltip>
+      </q-btn>
     </div>
 
     <!-- Editor content area -->
@@ -87,7 +111,7 @@
 </template>
 
 <script setup>
-import { watch, onBeforeUnmount } from 'vue'
+import { ref, watch, onBeforeUnmount } from 'vue'
 import { useEditor, EditorContent } from '@tiptap/vue-3'
 import StarterKit from '@tiptap/starter-kit'
 import Underline from '@tiptap/extension-underline'
@@ -99,6 +123,8 @@ import Table from '@tiptap/extension-table'
 import TableRow from '@tiptap/extension-table-row'
 import TableCell from '@tiptap/extension-table-cell'
 import TableHeader from '@tiptap/extension-table-header'
+import { Figure } from '@/extensions/figure.js'
+import { useQuasar } from 'quasar'
 
 const props = defineProps({
   modelValue: { type: String, default: '' },
@@ -106,6 +132,10 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['update:modelValue'])
+
+const $q = useQuasar()
+const fileInputRef = ref(null)
+const uploadando = ref(false)
 
 const editor = useEditor({
   content: props.modelValue,
@@ -121,6 +151,7 @@ const editor = useEditor({
     TableRow,
     TableHeader,
     TableCell,
+    Figure,
   ],
   onUpdate({ editor }) {
     emit('update:modelValue', editor.getHTML())
@@ -138,6 +169,34 @@ watch(() => props.readonly, (val) => {
 })
 
 onBeforeUnmount(() => editor.value?.destroy())
+
+async function onFileSelected(event) {
+  const arquivo = event.target.files?.[0]
+  event.target.value = ''
+
+  if (!arquivo) return
+
+  uploadando.value = true
+  try {
+    const form = new FormData()
+    form.append('arquivo', arquivo)
+
+    const baseUrl = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8081/v1'
+    const resp = await fetch(`${baseUrl}/imagens/upload`, { method: 'POST', body: form })
+
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`)
+
+    const { url } = await resp.json()
+    editor.value?.chain().focus().insertContent({
+      type: 'figure',
+      attrs: { src: url, alt: '', titulo: '', fonte: '' },
+    }).run()
+  } catch (err) {
+    $q.notify({ type: 'negative', message: `Erro ao enviar imagem: ${err.message}` })
+  } finally {
+    uploadando.value = false
+  }
+}
 </script>
 
 <style>
@@ -189,5 +248,4 @@ onBeforeUnmount(() => editor.value?.destroy())
 .tiptap-editor .ProseMirror-focused {
   outline: none;
 }
-
 </style>
