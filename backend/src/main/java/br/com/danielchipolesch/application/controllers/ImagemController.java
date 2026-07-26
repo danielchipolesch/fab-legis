@@ -15,7 +15,7 @@ public class ImagemController {
     @Autowired
     private ImagemService imagemService;
 
-    @PostMapping("/upload")
+    @PostMapping(value = "/upload", produces = "application/json")
     public ResponseEntity<Map<String, String>> upload(
             @RequestParam("arquivo") MultipartFile arquivo) {
         try {

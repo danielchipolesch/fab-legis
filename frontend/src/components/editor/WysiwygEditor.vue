@@ -182,7 +182,11 @@ async function onFileSelected(event) {
     form.append('arquivo', arquivo)
 
     const baseUrl = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8081/v1'
-    const resp = await fetch(`${baseUrl}/imagens/upload`, { method: 'POST', body: form })
+    const resp = await fetch(`${baseUrl}/imagens/upload`, {
+      method: 'POST',
+      headers: { Accept: 'application/json' },
+      body: form,
+    })
 
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`)
 
