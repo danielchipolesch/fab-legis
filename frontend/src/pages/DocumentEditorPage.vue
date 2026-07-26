@@ -1,127 +1,84 @@
 <template>
-  <div class="editor-page column" style="height:calc(100vh - 60px)">
+  <div class="editor-page" style="height:calc(100vh - 60px)">
 
-    <!-- Top action bar -->
-    <div class="editor-topbar q-px-md q-py-sm row items-center" style="gap:12px">
-      <q-btn
-        :to="{ name: 'home' }"
-        icon="mdi-arrow-left"
-        flat
-        round
-        dense
-      />
+    <!-- Sidebar fixa, altura total, sem comportamento colapsável -->
+    <EditorSidebar
+      :documento="documento"
+      :doc-label="docLabel"
+      :secoes="documento?.secoes ?? []"
+      :selected-id="editorStore.selectedElementId"
+      @select="editorStore.selectElement($event)"
+      @move-up="editorStore.moveUp($event)"
+      @move-down="editorStore.moveDown($event)"
+      @add-child="(parentId, tipo) => editorStore.addFilho(parentId, tipo)"
+      @add-artigo="addArtigo"
+      @add-capitulo="addCapitulo"
+      @promote="editorStore.promote($event)"
+      @demote="handleDemote($event)"
+      @remove="editorStore.removeElement($event)"
+      @reorder-normativa="onReorderNormativa"
+    />
 
-      <!-- Título do documento (esquerda) -->
-      <div class="col" style="min-width:0">
-        <div class="text-subtitle2 text-weight-bold text-primary text-no-wrap ellipsis">
-          {{ docLabel }}
+    <!-- Coluna principal: topbar + área de edição -->
+    <div class="editor-main column">
+
+      <!-- Top action bar (não cobre a sidebar) -->
+      <div class="editor-topbar q-px-md q-py-sm row items-center" style="gap:12px">
+        <q-breadcrumbs active-color="primary" style="font-size:13px">
+          <template v-slot:separator>
+            <q-icon name="mdi-chevron-right" size="16px" color="primary" />
+          </template>
+          <q-breadcrumbs-el :to="{ name: 'home' }" icon="mdi-home" />
+          <q-breadcrumbs-el label="Documentos" />
+          <q-breadcrumbs-el :label="docLabel" />
+          <q-breadcrumbs-el v-if="selectedElement" :label="selectedElementLabel" />
+        </q-breadcrumbs>
+
+        <!-- Indicador de salvamento -->
+        <div class="save-indicator" :class="saveIndicatorClass">
+          <template v-if="saveStatus === 'saving'">
+            <q-circular-progress indeterminate size="13px" :thickness="0.35" />
+            <span>Salvando…</span>
+          </template>
+          <template v-else-if="saveStatus === 'error'">
+            <q-icon size="15px" name="mdi-alert-circle-outline" />
+            <span>Não salvo</span>
+          </template>
+          <template v-else>
+            <q-icon size="15px" name="mdi-check-circle-outline" />
+            <span>Salvo</span>
+          </template>
         </div>
-        <div class="text-caption text-grey-7 ellipsis">
-          {{ documento?.assunto_basico }}
-        </div>
+
+        <q-space />
+
+        <q-btn
+          outline
+          color="primary"
+          :to="{ name: 'documento-comparar', params: { id: documentoId } }"
+        >
+          <q-icon left name="mdi-source-branch" />
+          Comparar versões
+        </q-btn>
+
+        <q-btn
+          outline
+          color="deep-orange-7"
+          :loading="pdfLoading"
+          @click="baixarPdf"
+        >
+          <q-icon left name="mdi-file-pdf-box" />
+          PDF
+        </q-btn>
       </div>
 
-      <!-- Indicador de salvamento (centro absoluto) -->
-      <div class="save-indicator" :class="saveIndicatorClass">
-        <template v-if="saveStatus === 'saving'">
-          <q-circular-progress indeterminate size="13px" :thickness="0.35" />
-          <span>Salvando…</span>
-        </template>
-        <template v-else-if="saveStatus === 'dirty' || !hasSaved">
-          <q-icon size="15px" name="mdi-pencil-circle-outline" />
-          <span>Não salvo</span>
-        </template>
-        <template v-else>
-          <q-icon size="15px" name="mdi-check-circle-outline" />
-          <span>Salvo</span>
-        </template>
-      </div>
+      <q-separator />
 
-      <q-space />
+      <!-- Área principal: editor + preview -->
+      <div class="editor-body row col" style="overflow:hidden">
 
-      <StatusBadge v-if="documento" :status="documento.status" size="md" />
-
-      <q-btn
-        outline
-        color="primary"
-        class="q-ml-sm"
-        :to="{ name: 'documento-comparar', params: { id: documentoId } }"
-      >
-        <q-icon left name="mdi-source-branch" />
-        Comparar versões
-      </q-btn>
-
-      <q-btn
-        outline
-        color="deep-orange-7"
-        class="q-ml-sm"
-        :loading="pdfLoading"
-        @click="baixarPdf"
-      >
-        <q-icon left name="mdi-file-pdf-box" />
-        PDF
-      </q-btn>
-    </div>
-
-    <q-separator />
-
-    <!-- Metadata panel (collapsible) -->
-    <transition name="slide-down">
-      <div v-show="showMeta" class="q-px-md q-py-sm">
-        <DocumentMetaPanel
-          v-if="documento"
-          :documento="documento"
-          @update="onMetaUpdate"
-        />
-      </div>
-    </transition>
-
-    <div
-      class="meta-toggle row items-center justify-center q-px-md"
-      style="cursor:pointer;user-select:none"
-      @click="showMeta = !showMeta"
-    >
-      <q-icon size="16px" :name="showMeta ? 'mdi-chevron-up' : 'mdi-chevron-down'" class="q-mr-xs" />
-      <span class="text-caption text-grey-7">
-        {{ showMeta ? 'Ocultar metadados' : 'Mostrar metadados' }}
-      </span>
-    </div>
-
-    <q-separator />
-
-    <!-- Main editor area -->
-    <div class="editor-body row col" style="overflow:hidden">
-
-      <!-- Left sidebar -->
-      <EditorSidebar
-        v-model="sidebarOpen"
-        :secoes="documento?.secoes ?? []"
-        :selected-id="editorStore.selectedElementId"
-        @select="editorStore.selectElement($event)"
-        @move-up="editorStore.moveUp($event)"
-        @move-down="editorStore.moveDown($event)"
-        @add-child="(parentId, tipo) => editorStore.addFilho(parentId, tipo)"
-        @add-artigo="addArtigo"
-        @add-capitulo="addCapitulo"
-        @promote="editorStore.promote($event)"
-        @demote="handleDemote($event)"
-        @remove="editorStore.removeElement($event)"
-        @reorder-normativa="onReorderNormativa"
-      />
-
-      <!-- Toggle sidebar button -->
-      <q-btn
-        v-if="!sidebarOpen"
-        icon="mdi-menu"
-        size="sm"
-        unelevated
-        color="primary"
-        class="sidebar-toggle-btn"
-        @click="sidebarOpen = true"
-      />
-
-      <!-- Content area -->
-      <div class="editor-content q-pa-lg" style="overflow-y:auto">
+        <!-- Content area -->
+        <div class="editor-content q-pa-lg" style="overflow-y:auto">
 
         <!-- No element selected -->
         <div v-if="!editorStore.selectedElementId" class="column items-center justify-center text-grey-7" style="height:100%">
@@ -136,13 +93,6 @@
 
             <!-- Element breadcrumb/label -->
             <div class="element-header q-mb-md">
-              <q-breadcrumbs class="q-pa-none" active-color="grey-7">
-                <q-breadcrumbs-el
-                  v-for="item in breadcrumb"
-                  :key="item.title"
-                  :label="item.title"
-                />
-              </q-breadcrumbs>
               <div class="row items-center justify-between q-mt-sm">
                 <div class="row items-center" style="gap:8px">
                   <q-icon :name="elementIcon(selectedElement.tipo)" color="primary" size="20px" />
@@ -240,23 +190,25 @@
 
       </div>
 
-      <!-- PDF Preview panel -->
-      <div class="preview-panel" style="overflow-y:auto">
-        <template v-if="previewMounted && documento">
-          <DocumentPreview
-            :documento="documento"
-            :selected-element-id="editorStore.selectedElementId"
-          />
-        </template>
-        <div v-else class="preview-loading">
-          <q-circular-progress indeterminate color="white" size="40px" :thickness="0.3" />
-          <p class="q-mt-sm text-caption" style="color:#ccc">Carregando prévia…</p>
+        <!-- PDF Preview panel -->
+        <div class="preview-panel" style="overflow-y:auto">
+          <template v-if="previewMounted && documento">
+            <DocumentPreview
+              :documento="documento"
+              :selected-element-id="editorStore.selectedElementId"
+            />
+          </template>
+          <div v-else class="preview-loading">
+            <q-circular-progress indeterminate color="white" size="40px" :thickness="0.3" />
+            <p class="q-mt-sm text-caption" style="color:#ccc">Carregando prévia…</p>
+          </div>
         </div>
-      </div>
 
-    </div>
+      </div><!-- /editor-body -->
 
-  </div>
+    </div><!-- /editor-main -->
+
+  </div><!-- /editor-page -->
 </template>
 
 <script setup>
@@ -269,9 +221,7 @@ import { formatLabel, elementIcon, renumberElements } from '@/utils/numbering.js
 import { gerarPdf } from '@/services/pdfService.js'
 import EditorSidebar from '@/components/editor/EditorSidebar.vue'
 import WysiwygEditor from '@/components/editor/WysiwygEditor.vue'
-import DocumentMetaPanel from '@/components/editor/DocumentMetaPanel.vue'
 import DocumentPreview from '@/components/editor/DocumentPreview.vue'
-import StatusBadge from '@/components/common/StatusBadge.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -279,18 +229,15 @@ const $q = useQuasar()
 const editorStore = useEditorStore()
 const docStore = useDocumentsStore()
 
-const showMeta      = ref(false)
-const sidebarOpen   = ref(true)
 const previewMounted = ref(false)
 const pdfLoading    = ref(false)
 
 // ── Auto-save ────────────────────────────────────────────────────────────────
-const saveStatus = ref('idle')   // 'idle' | 'dirty' | 'saving'
-const hasSaved   = ref(false)    // true somente após pelo menos um save bem-sucedido
+const saveStatus = ref('idle')   // 'idle' | 'saving' | 'error'
 let autoSaveTimer = null
 
 function scheduleAutoSave() {
-  saveStatus.value = 'dirty'
+  saveStatus.value = 'saving'
   clearTimeout(autoSaveTimer)
   autoSaveTimer = setTimeout(autoSave, 2000)
 }
@@ -300,11 +247,10 @@ async function autoSave() {
   saveStatus.value = 'saving'
   try {
     await editorStore.save()
-    hasSaved.value = true
     saveStatus.value = 'idle'
   } catch (e) {
     console.error('[AutoSave]', e)
-    saveStatus.value = 'dirty'
+    saveStatus.value = 'error'
   }
 }
 
@@ -316,7 +262,7 @@ onUnmounted(() => {
 
 const saveIndicatorClass = computed(() => {
   if (saveStatus.value === 'saving') return 'save-indicator--saving'
-  if (saveStatus.value === 'dirty' || !hasSaved.value) return 'save-indicator--dirty'
+  if (saveStatus.value === 'error')  return 'save-indicator--dirty'
   return 'save-indicator--saved'
 })
 
@@ -336,14 +282,10 @@ const docLabel = computed(() => {
   return num || 'Documento sem título'
 })
 
-const breadcrumb = computed(() => {
+const selectedElementLabel = computed(() => {
   const el = selectedElement.value
-  if (!el) return []
-  const tipo = el.tipo.replace(/_/g, ' ')
-  return [
-    { title: 'Documento', disabled: false },
-    { title: tipo.charAt(0).toUpperCase() + tipo.slice(1), disabled: true },
-  ]
+  if (!el) return ''
+  return formatLabel(el)
 })
 
 const GROUPING_TIPOS = ['capitulo', 'secao_normativa', 'subsecao_normativa']
@@ -465,13 +407,6 @@ function onTituloUpdate(titulo) {
   }
 }
 
-function onMetaUpdate(meta) {
-  if (editorStore.documento) {
-    Object.assign(editorStore.documento, meta)
-    editorStore.isDirty = true
-    scheduleAutoSave()
-  }
-}
 
 function onReorderNormativa(newElements) {
   const secao = editorStore.normativaSecao
@@ -520,42 +455,48 @@ function addCapitulo(titulo) {
 </script>
 
 <style scoped>
+/* Layout raiz: sidebar + coluna principal lado a lado */
 .editor-page {
+  display: flex;
+  flex-direction: row;
   background: var(--color-background);
+  overflow: hidden;
 }
+
+/* Coluna principal (topbar + body) */
+.editor-main {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
 .editor-topbar {
   background: var(--color-surface);
+  flex-shrink: 0;
   position: relative;
 }
-.meta-toggle {
-  background: var(--color-surface);
-  min-height: 28px;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.12);
-}
-.meta-toggle:hover {
-  background: rgba(0, 0, 0, 0.04);
-}
+
 .editor-body {
-  position: relative;
+  flex: 1 1 0;
+  min-height: 0;
   flex-wrap: nowrap;
 }
-.sidebar-toggle-btn {
-  position: absolute;
-  left: 8px;
-  top: 8px;
-  z-index: 10;
-}
+
 .editor-content {
   flex: 1 1 0;
   min-width: 0;
   background: var(--color-background);
 }
+
 .preview-panel {
   flex: 1 1 0;
   min-width: 320px;
   border-left: 2px solid rgba(0, 0, 0, 0.12);
   background: #525659;
 }
+
 .preview-loading {
   display: flex;
   flex-direction: column;
@@ -563,14 +504,18 @@ function addCapitulo(titulo) {
   justify-content: center;
   height: 100%;
 }
+
 .element-editor {
   max-width: 800px;
   margin: 0 auto;
 }
+
 .element-header {
   padding-bottom: 16px;
   border-bottom: 1px solid rgba(0, 0, 0, 0.12);
 }
+
+/* Indicador de salvamento — centralizado no topbar */
 .save-indicator {
   position: absolute;
   left: 50%;
@@ -597,18 +542,5 @@ function addCapitulo(titulo) {
 .save-indicator--saved {
   background: rgba(46, 125, 50, 0.12);
   color: #2e7d32;
-}
-
-/* Transição do painel de metadados (substitui v-expand-transition) */
-.slide-down-enter-active,
-.slide-down-leave-active {
-  transition: all 0.25s ease;
-  overflow: hidden;
-  max-height: 400px;
-}
-.slide-down-enter-from,
-.slide-down-leave-to {
-  max-height: 0;
-  opacity: 0;
 }
 </style>
