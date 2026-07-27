@@ -1,94 +1,106 @@
 <template>
   <div class="wysiwyg-wrapper">
+    <!-- Upload de imagem (input oculto) -->
+    <input
+      ref="fileInputRef"
+      type="file"
+      accept="image/png,image/jpeg,image/gif,image/webp"
+      style="display:none"
+      @change="onFileSelected"
+    />
+
     <!-- Toolbar -->
-    <div v-if="editor" class="wysiwyg-toolbar d-flex flex-wrap align-center gap-1 px-3 py-2">
+    <div v-if="editor" class="wysiwyg-toolbar row items-center q-px-sm q-py-xs" style="flex-wrap:wrap;gap:4px">
 
-      <!-- Heading levels -->
-      <v-btn-group density="compact" variant="outlined" rounded="md" color="primary" divided>
-        <v-btn
-          :class="{ active: !editor.isActive('heading') }"
-          size="small"
-          icon="mdi-format-paragraph"
-          @click="editor.chain().focus().setParagraph().run()"
+      <q-btn-group outline>
+        <q-btn :class="{ active: editor.isActive('bold') }" outline color="primary" @click="editor.chain().focus().toggleBold().run()" icon="mdi-format-bold" size="sm">
+          <q-tooltip anchor="top middle" self="bottom middle">Negrito (Ctrl+B)</q-tooltip>
+        </q-btn>
+        <q-btn :class="{ active: editor.isActive('italic') }" outline color="primary" @click="editor.chain().focus().toggleItalic().run()" icon="mdi-format-italic" size="sm">
+          <q-tooltip anchor="top middle" self="bottom middle">Itálico (Ctrl+I)</q-tooltip>
+        </q-btn>
+        <q-btn :class="{ active: editor.isActive('underline') }" outline color="primary" @click="editor.chain().focus().toggleUnderline().run()" icon="mdi-format-underline" size="sm">
+          <q-tooltip anchor="top middle" self="bottom middle">Sublinhado (Ctrl+U)</q-tooltip>
+        </q-btn>
+      </q-btn-group>
+
+      <q-separator vertical class="q-mx-xs" style="height:24px" />
+
+      <q-btn-group outline>
+        <q-btn :class="{ active: editor.isActive({ textAlign: 'left' }) }" outline color="primary" @click="editor.chain().focus().setTextAlign('left').run()" icon="mdi-format-align-left" size="sm" />
+        <q-btn :class="{ active: editor.isActive({ textAlign: 'center' }) }" outline color="primary" @click="editor.chain().focus().setTextAlign('center').run()" icon="mdi-format-align-center" size="sm" />
+        <q-btn :class="{ active: editor.isActive({ textAlign: 'right' }) }" outline color="primary" @click="editor.chain().focus().setTextAlign('right').run()" icon="mdi-format-align-right" size="sm" />
+        <q-btn :class="{ active: editor.isActive({ textAlign: 'justify' }) }" outline color="primary" @click="editor.chain().focus().setTextAlign('justify').run()" icon="mdi-format-align-justify" size="sm" />
+      </q-btn-group>
+
+      <q-separator vertical class="q-mx-xs" style="height:24px" />
+
+      <!-- Cor do texto -->
+      <q-btn-group outline>
+        <q-btn
+          outline color="primary" size="sm"
+          :class="{ active: editor.isActive('textStyle', { color: '#000000' }) }"
+          @click="editor.chain().focus().setColor('#000000').run()"
         >
-          <v-tooltip activator="parent" location="top">Parágrafo normal</v-tooltip>
-        </v-btn>
-        <v-btn
-          :class="{ active: editor.isActive('heading', { level: 1 }) }"
-          size="small"
-          class="heading-btn"
-          @click="editor.chain().focus().toggleHeading({ level: 1 }).run()"
+          <q-icon name="mdi-format-color-text" size="16px" style="color:#000" />
+          <q-tooltip anchor="top middle" self="bottom middle">Texto preto</q-tooltip>
+        </q-btn>
+        <q-btn
+          outline color="primary" size="sm"
+          :class="{ active: editor.isActive('textStyle', { color: '#CC0000' }) }"
+          @click="editor.chain().focus().setColor('#CC0000').run()"
         >
-          H1
-          <v-tooltip activator="parent" location="top">Título 1</v-tooltip>
-        </v-btn>
-        <v-btn
-          :class="{ active: editor.isActive('heading', { level: 2 }) }"
-          size="small"
-          class="heading-btn"
-          @click="editor.chain().focus().toggleHeading({ level: 2 }).run()"
+          <q-icon name="mdi-format-color-text" size="16px" style="color:#CC0000" />
+          <q-tooltip anchor="top middle" self="bottom middle">Texto vermelho</q-tooltip>
+        </q-btn>
+        <q-btn
+          outline color="primary" size="sm"
+          :class="{ active: editor.isActive('highlight', { color: '#FFD600' }) }"
+          @click="editor.chain().focus().toggleHighlight({ color: '#FFD600' }).run()"
         >
-          H2
-          <v-tooltip activator="parent" location="top">Título 2</v-tooltip>
-        </v-btn>
-        <v-btn
-          :class="{ active: editor.isActive('heading', { level: 3 }) }"
-          size="small"
-          class="heading-btn"
-          @click="editor.chain().focus().toggleHeading({ level: 3 }).run()"
-        >
-          H3
-          <v-tooltip activator="parent" location="top">Título 3</v-tooltip>
-        </v-btn>
-      </v-btn-group>
+          <q-icon name="mdi-marker" size="16px" style="color:#FFD600; -webkit-text-stroke: 0.5px #999" />
+          <q-tooltip anchor="top middle" self="bottom middle">Marca-texto amarelo</q-tooltip>
+        </q-btn>
+      </q-btn-group>
 
-      <v-divider vertical class="mx-1" style="height:24px" />
+      <q-separator vertical class="q-mx-xs" style="height:24px" />
 
-      <v-btn-group density="compact" variant="outlined" rounded="md" color="primary" divided>
-        <v-btn :class="{ active: editor.isActive('bold') }" @click="editor.chain().focus().toggleBold().run()" icon="mdi-format-bold" size="small">
-          <v-tooltip activator="parent" location="top">Negrito (Ctrl+B)</v-tooltip>
-        </v-btn>
-        <v-btn :class="{ active: editor.isActive('italic') }" @click="editor.chain().focus().toggleItalic().run()" icon="mdi-format-italic" size="small">
-          <v-tooltip activator="parent" location="top">Itálico (Ctrl+I)</v-tooltip>
-        </v-btn>
-        <v-btn :class="{ active: editor.isActive('underline') }" @click="editor.chain().focus().toggleUnderline().run()" icon="mdi-format-underline" size="small">
-          <v-tooltip activator="parent" location="top">Sublinhado (Ctrl+U)</v-tooltip>
-        </v-btn>
-      </v-btn-group>
+      <q-btn-group outline>
+        <q-btn outline color="primary" @click="editor.chain().focus().undo().run()" :disable="!editor.can().undo()" icon="mdi-undo" size="sm">
+          <q-tooltip anchor="top middle" self="bottom middle">Desfazer</q-tooltip>
+        </q-btn>
+        <q-btn outline color="primary" @click="editor.chain().focus().redo().run()" :disable="!editor.can().redo()" icon="mdi-redo" size="sm">
+          <q-tooltip anchor="top middle" self="bottom middle">Refazer</q-tooltip>
+        </q-btn>
+      </q-btn-group>
 
-      <v-divider vertical class="mx-1" style="height:24px" />
-
-      <v-btn-group density="compact" variant="outlined" rounded="md" color="primary" divided>
-        <v-btn :class="{ active: editor.isActive({ textAlign: 'left' }) }" @click="editor.chain().focus().setTextAlign('left').run()" icon="mdi-format-align-left" size="small" />
-        <v-btn :class="{ active: editor.isActive({ textAlign: 'center' }) }" @click="editor.chain().focus().setTextAlign('center').run()" icon="mdi-format-align-center" size="small" />
-        <v-btn :class="{ active: editor.isActive({ textAlign: 'right' }) }" @click="editor.chain().focus().setTextAlign('right').run()" icon="mdi-format-align-right" size="small" />
-        <v-btn :class="{ active: editor.isActive({ textAlign: 'justify' }) }" @click="editor.chain().focus().setTextAlign('justify').run()" icon="mdi-format-align-justify" size="small" />
-      </v-btn-group>
-
-      <v-divider vertical class="mx-1" style="height:24px" />
-
-      <v-btn-group density="compact" variant="outlined" rounded="md" color="primary" divided>
-        <v-btn @click="editor.chain().focus().undo().run()" :disabled="!editor.can().undo()" icon="mdi-undo" size="small">
-          <v-tooltip activator="parent" location="top">Desfazer</v-tooltip>
-        </v-btn>
-        <v-btn @click="editor.chain().focus().redo().run()" :disabled="!editor.can().redo()" icon="mdi-redo" size="small">
-          <v-tooltip activator="parent" location="top">Refazer</v-tooltip>
-        </v-btn>
-      </v-btn-group>
-
-      <v-divider vertical class="mx-1" style="height:24px" />
+      <q-separator vertical class="q-mx-xs" style="height:24px" />
 
       <!-- Table insertion -->
-      <v-btn
-        variant="outlined"
-        size="small"
-        prepend-icon="mdi-table-plus"
+      <q-btn
+        outline
+        size="sm"
         color="primary"
-        rounded="md"
         @click="editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()"
       >
+        <q-icon left name="mdi-table-plus" />
         Tabela
-      </v-btn>
+      </q-btn>
+
+      <q-separator vertical class="q-mx-xs" style="height:24px" />
+
+      <!-- Image insertion -->
+      <q-btn
+        outline
+        size="sm"
+        color="primary"
+        :loading="uploadando"
+        @click="fileInputRef?.click()"
+      >
+        <q-icon left name="mdi-image-plus" />
+        Imagem
+        <q-tooltip anchor="top middle" self="bottom middle">Inserir imagem (PNG, JPEG, GIF, WebP)</q-tooltip>
+      </q-btn>
     </div>
 
     <!-- Editor content area -->
@@ -99,7 +111,7 @@
 </template>
 
 <script setup>
-import { watch, onMounted, onBeforeUnmount } from 'vue'
+import { ref, watch, onBeforeUnmount } from 'vue'
 import { useEditor, EditorContent } from '@tiptap/vue-3'
 import StarterKit from '@tiptap/starter-kit'
 import Underline from '@tiptap/extension-underline'
@@ -111,6 +123,8 @@ import Table from '@tiptap/extension-table'
 import TableRow from '@tiptap/extension-table-row'
 import TableCell from '@tiptap/extension-table-cell'
 import TableHeader from '@tiptap/extension-table-header'
+import { Figure } from '@/extensions/figure.js'
+import { useQuasar } from 'quasar'
 
 const props = defineProps({
   modelValue: { type: String, default: '' },
@@ -118,6 +132,10 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['update:modelValue'])
+
+const $q = useQuasar()
+const fileInputRef = ref(null)
+const uploadando = ref(false)
 
 const editor = useEditor({
   content: props.modelValue,
@@ -133,6 +151,7 @@ const editor = useEditor({
     TableRow,
     TableHeader,
     TableCell,
+    Figure,
   ],
   onUpdate({ editor }) {
     emit('update:modelValue', editor.getHTML())
@@ -150,35 +169,63 @@ watch(() => props.readonly, (val) => {
 })
 
 onBeforeUnmount(() => editor.value?.destroy())
+
+async function onFileSelected(event) {
+  const arquivo = event.target.files?.[0]
+  event.target.value = ''
+
+  if (!arquivo) return
+
+  uploadando.value = true
+  try {
+    const form = new FormData()
+    form.append('arquivo', arquivo)
+
+    const baseUrl = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8081/v1'
+    const resp = await fetch(`${baseUrl}/imagens/upload`, {
+      method: 'POST',
+      headers: { Accept: 'application/json' },
+      body: form,
+    })
+
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`)
+
+    const { url } = await resp.json()
+    editor.value?.chain().focus().insertContent({
+      type: 'figure',
+      attrs: { src: url, alt: '', titulo: '', fonte: '' },
+    }).run()
+  } catch (err) {
+    $q.notify({ type: 'negative', message: `Erro ao enviar imagem: ${err.message}` })
+  } finally {
+    uploadando.value = false
+  }
+}
 </script>
 
 <style>
 .wysiwyg-wrapper {
-  border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+  border: 1px solid rgba(0, 0, 0, 0.12);
   border-radius: 8px;
   overflow: hidden;
   background: #FAFBFC;
 }
 .wysiwyg-toolbar {
-  background: rgb(var(--v-theme-surface));
-  border-bottom: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+  background: var(--color-surface);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.12);
 }
-.wysiwyg-toolbar .v-btn.active {
-  background: rgba(var(--v-theme-primary), 0.15) !important;
-  color: rgb(var(--v-theme-primary)) !important;
+.wysiwyg-toolbar .q-btn.active {
+  background: rgba(0, 0, 0, 0.12) !important;
+  color: #333 !important;
 }
-.wysiwyg-toolbar .heading-btn {
-  font-size: 11px;
-  font-weight: 700;
-  min-width: 32px;
-}
+
 .wysiwyg-content {
   padding: 16px 20px;
   min-height: 200px;
 }
 .tiptap-editor .ProseMirror {
   outline: none;
-  font-family: 'Times New Roman', serif;
+  font-family: 'Calibri', 'Carlito', 'Segoe UI', Arial, sans-serif;
   font-size: 12pt;
   line-height: 1.8;
   color: #1A1A1A;
@@ -199,28 +246,10 @@ onBeforeUnmount(() => editor.value?.destroy())
   min-width: 80px;
 }
 .tiptap-editor .ProseMirror table th {
-  background: rgba(26,46,90,0.08);
+  background: rgba(11, 61, 145, 0.08);
   font-weight: bold;
 }
 .tiptap-editor .ProseMirror-focused {
   outline: none;
-}
-.tiptap-editor .ProseMirror h1 {
-  font-size: 18pt;
-  font-weight: bold;
-  color: #1A2E5A;
-  margin: 12px 0 6px;
-}
-.tiptap-editor .ProseMirror h2 {
-  font-size: 14pt;
-  font-weight: bold;
-  color: #1A2E5A;
-  margin: 10px 0 4px;
-}
-.tiptap-editor .ProseMirror h3 {
-  font-size: 12pt;
-  font-weight: bold;
-  color: #2C4A8A;
-  margin: 8px 0 4px;
 }
 </style>

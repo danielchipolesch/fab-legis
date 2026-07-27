@@ -30,23 +30,39 @@
           </div>
           <p class="cabecalho-linha bold">MINISTÉRIO DA DEFESA</p>
           <p class="cabecalho-linha bold">COMANDO DA AERONÁUTICA</p>
-          <p class="cabecalho-linha" v-if="orgLabel">{{ orgLabel }}</p>
+          <p class="cabecalho-linha cabecalho-om" v-if="orgLabel">{{ orgLabel }}</p>
         </div>
 
         <!-- Epígrafe portaria: maiúsculas, sem negrito, centralizada (Art. 5 §1) -->
-        <p class="epigrafe">PORTARIA Nº ___, DE {{ dataFormatada }}</p>
+        <div
+          :id="preliEpigrafe?.id ? 'prev-' + preliEpigrafe.id : undefined"
+          class="epigrafe prel-content"
+          v-html="epigrafeHtml ?? ('PORTARIA Nº ___, DE ' + dataFormatada)"
+        ></div>
 
         <!-- Ementa: alinhada à direita, bloco 9 cm, justificada (Art. 6 §1) -->
         <div class="ementa-bloco">
-          <p class="ementa-txt">Aprova a {{ especieCompleta }} que dispõe sobre {{ documento?.assunto_basico }}.</p>
+          <div
+            :id="preliEmenta?.id ? 'prev-' + preliEmenta.id : undefined"
+            class="ementa-txt prel-content"
+            v-html="ementaHtml ?? ('Aprova a ' + especieCompleta + ' que dispõe sobre ' + (documento?.assunto_basico ?? '___') + '.')"
+          ></div>
         </div>
 
         <!-- Preâmbulo: O signatário, autoria em maiúsculo e negrito (Art. 7) -->
-        <p class="body-el">
-          <strong>O COMANDANTE DA AERONÁUTICA</strong>, no uso das atribuições que lhe confere o art. 12 da
-          Lei Complementar nº&nbsp;97, de 9 de junho de 1999, tendo em vista o que consta do Processo
-          nº&nbsp;___/___-___/___,
-        </p>
+        <div
+          :id="preliPreambulo?.id ? 'prev-' + preliPreambulo.id : undefined"
+          class="body-el prel-content"
+          v-html="preambuloHtml ?? '<strong>O COMANDANTE DA AERONÁUTICA</strong>, no uso das atribuições que lhe confere o art. 12 da Lei Complementar nº\xA097, de 9 de junho de 1999, tendo em vista o que consta do Processo nº\xA0___/___-___/___,'"
+        ></div>
+
+        <!-- Fundamentação: conteúdo adicional do preâmbulo (ex: CONSIDERANDO que...) -->
+        <div
+          v-if="fundHtml"
+          :id="'prev-' + preliFundamentacao.id"
+          class="body-el prel-content"
+          v-html="fundHtml"
+        ></div>
 
         <p class="resolve-line">resolve:</p>
 
@@ -71,26 +87,30 @@
            PÁGINA 2 — CAPA  (NSCA 5-3 Anexo II, Art. 17)
            • MINISTÉRIO DA DEFESA / COMANDO DA AERONÁUTICA — corpo 17, negrito, centralizado
            • Nome da OM — corpo 15, maiúsculo, centralizado
-           • Símbolo FAB (Gládio Alado)
-           • ASSUNTO BÁSICO — corpo 19, negrito, maiúsculo, centralizado
-           • Legenda — corpo 14, negrito, maiúsculo
+           • Gládio Alado FAB (centrado, grande)
+           • ASSUNTO BÁSICO — negrito, maiúsculo, centralizado
+           • Legenda — corpo 14, negrito, maiúsculo, com borda
       ════════════════════════════════════════════════════════ -->
       <div class="pdf-page capa-page">
         <div v-if="wmText" class="wm-overlay" :style="{ color: wmColor }">{{ wmText }}</div>
 
         <!-- Cabeçalho institucional -->
-        <p class="capa-inst" style="font-size:22px">MINISTÉRIO DA DEFESA</p>
-        <p class="capa-inst" style="font-size:22px">COMANDO DA AERONÁUTICA</p>
-        <p class="capa-om" v-if="orgLabel">{{ orgLabel }}</p>
+        <div class="capa-header">
+          <p class="capa-inst">MINISTÉRIO DA DEFESA</p>
+          <p class="capa-inst">COMANDO DA AERONÁUTICA</p>
+          <p class="capa-om" v-if="orgLabel">{{ orgLabel }}</p>
+        </div>
 
-        <!-- Símbolo FAB -->
+        <div class="capa-spacer"></div>
+
+        <!-- Gládio Alado -->
         <div class="capa-simbolo">
           <img
-            v-if="!brasaoFailed"
+            v-if="!gladioFailed"
             src="/brasao-fab.png"
             class="capa-brasao-img"
-            alt="Símbolo FAB"
-            @error="brasaoFailed = true"
+            alt="Gládio Alado FAB"
+            @error="gladioFailed = true"
           />
           <div v-else class="capa-gladio">
             <div class="gladio-ring">
@@ -100,22 +120,32 @@
           </div>
         </div>
 
+        <div class="capa-spacer capa-spacer-sm"></div>
+
         <!-- Assunto básico -->
         <p class="capa-assunto">{{ documento?.assunto_basico?.toUpperCase() ?? '' }}</p>
 
-        <!-- Legenda -->
+        <div class="capa-spacer capa-spacer-sm"></div>
+
+        <!-- Legenda (Art. 17 V) -->
         <div class="capa-legenda">
           <p class="legenda-sigla">{{ docId }}</p>
-          <p class="legenda-titulo">{{ especieCompleta }}</p>
+          <p class="legenda-titulo">{{ (documento?.titulo ?? especieCompleta).toUpperCase() }}</p>
           <p class="legenda-ano">{{ anoAtual }}</p>
         </div>
+
+        <div class="capa-spacer capa-spacer-xs"></div>
       </div>
 
       <!-- ═══════════════════════════════════════════════════
-           PÁGINA 3 — SUMÁRIO (Art. 19 — opcional)
+           PÁGINA 3+ — SUMÁRIO + PARTE NORMATIVA (contínuos, sem quebra)
+           Formato NSCA: ANEXO I → título → SUMÁRIO → corpo normativo
       ════════════════════════════════════════════════════════ -->
       <div class="pdf-page">
         <div v-if="wmText" class="wm-overlay" :style="{ color: wmColor }">{{ wmText }}</div>
+
+        <p class="sumario-anexo">ANEXO I</p>
+        <p class="sumario-anexo-titulo">{{ (documento?.titulo ?? especieCompleta).toUpperCase() }} ({{ docId }})</p>
 
         <p class="sumario-titulo">SUMÁRIO</p>
 
@@ -133,42 +163,9 @@
           <span class="toc-dots"></span>
           <span class="toc-pg">{{ item.pg }}</span>
         </div>
-      </div>
 
-      <!-- ═══════════════════════════════════════════════════
-           PÁGINA 4+ — CORPO DO DOCUMENTO
-           Estrutura: cabeçalho → epígrafe → ementa → preâmbulo → normativa → parte final
-           Tipografia: Calibri 12, margens 2cm, recuo 2,5cm primeira linha (Art. 9 XX)
-      ════════════════════════════════════════════════════════ -->
-      <div class="pdf-page corpo-page">
-        <div v-if="wmText" class="wm-overlay" :style="{ color: wmColor }">{{ wmText }}</div>
-
-        <!-- Cabeçalho (Art. 18) -->
-        <div class="cabecalho">
-          <img
-            v-if="!brasaoFailed"
-            src="/brasao-do-brasil-republica-colorido.png"
-            class="cabecalho-brasao"
-            alt="Brasão"
-            @error="brasaoFailed = true"
-          />
-          <div v-else class="cabecalho-brasao-ph">
-            <div class="cb-ring"><span class="cb-star">✦</span></div>
-          </div>
-          <p class="cabecalho-linha bold">MINISTÉRIO DA DEFESA</p>
-          <p class="cabecalho-linha bold">COMANDO DA AERONÁUTICA</p>
-          <p class="cabecalho-linha" v-if="orgLabel">{{ orgLabel }}</p>
-        </div>
-
-        <!-- Parte Preliminar -->
-        <template v-for="el in secaoPreliminar?.elementos ?? []" :key="el.id">
-          <div v-if="el.tipo === 'epigrafe'" :id="'prev-' + el.id" class="epigrafe" v-html="stripHtml(el.conteudo).toUpperCase()"></div>
-          <div v-else-if="el.tipo === 'ementa'" :id="'prev-' + el.id" class="ementa-bloco">
-            <p class="ementa-txt" v-html="el.conteudo"></p>
-          </div>
-          <div v-else-if="el.tipo === 'preambulo'"    :id="'prev-' + el.id" class="body-el" v-html="el.conteudo"></div>
-          <div v-else-if="el.tipo === 'fundamentacao'" :id="'prev-' + el.id" class="body-el" v-html="el.conteudo"></div>
-        </template>
+        <!-- Separador: uma linha em branco entre sumário e corpo -->
+        <div class="sumario-corpo-sep"></div>
 
         <!-- Parte Normativa — capítulos, seções, artigos, parágrafos, incisos, alíneas -->
         <template v-for="item in normativaFlat" :key="item.el.id">
@@ -188,8 +185,12 @@
             <p v-if="item.el.titulo" class="subsec-titulo"><strong>{{ item.el.titulo }}</strong></p>
           </div>
 
+          <div v-else-if="hasBlockContent(item.el.conteudo)" :id="'prev-' + item.el.id" class="body-el norm-el">
+            <span class="norm-lbl" :class="{ 'norm-lbl-bold': item.el.tipo === 'artigo' }">{{ item.label }}</span>
+            <div class="norm-content-block" v-html="item.el.conteudo"></div>
+          </div>
           <p v-else :id="'prev-' + item.el.id" class="body-el norm-el">
-            <span class="norm-lbl" :class="{ 'norm-lbl-bold': item.el.tipo === 'artigo' }">{{ item.label }}&nbsp;&nbsp;</span><span class="norm-content" v-html="stripHtml(item.el.conteudo)"></span>
+            <span class="norm-lbl" :class="{ 'norm-lbl-bold': item.el.tipo === 'artigo' }">{{ item.label }}</span><span class="norm-content" v-html="stripHtml(item.el.conteudo)"></span>
           </p>
 
         </template>
@@ -228,7 +229,22 @@ watch(() => props.selectedElementId, async (id) => {
   if (!id) return
   await nextTick()
   const el = document.getElementById('prev-' + id)
-  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  if (!el) return
+
+  // Find the nearest scrollable ancestor without scrolling the window
+  let container = el.parentElement
+  while (container && container !== document.body) {
+    const overflow = window.getComputedStyle(container).overflowY
+    if (overflow === 'auto' || overflow === 'scroll') break
+    container = container.parentElement
+  }
+  if (!container || container === document.body) return
+
+  const containerRect = container.getBoundingClientRect()
+  const elRect = el.getBoundingClientRect()
+  const targetTop = container.scrollTop + elRect.top - containerRect.top
+                    - containerRect.height / 2 + elRect.height / 2
+  container.scrollTo({ top: targetTop, behavior: 'smooth' })
 })
 
 // ─── Scaling: ResizeObserver + CSS zoom ──────────────────
@@ -237,6 +253,7 @@ const outerRef  = ref(null)
 const pageScale = ref(0.75) // default seguro até ResizeObserver disparar
 
 const brasaoFailed = ref(false)
+const gladioFailed = ref(false)
 
 let _ro = null
 onMounted(() => {
@@ -266,6 +283,10 @@ function stripHtml(html) {
   const d = document.createElement('div')
   d.innerHTML = html ?? ''
   return (d.textContent || '').trim()
+}
+
+function hasBlockContent(html) {
+  return /<(table|ul|ol|blockquote|h[1-6]|figure)/i.test(html ?? '')
 }
 
 function formatarDataBR(iso) {
@@ -299,7 +320,9 @@ function flattenNorm(elementos, out = []) {
 // ─── Computeds ────────────────────────────────────────────
 const docId = computed(() => {
   const d = props.documento
-  return d ? [d.especie, d.numero_basico, d.numero_secundario].filter(Boolean).join(' ') : ''
+  if (!d) return ''
+  const numStr = [d.numero_basico, d.numero_secundario].filter(Boolean).join('-')
+  return [d.especie, numStr].filter(Boolean).join(' ')
 })
 
 const especieCompleta = computed(() =>
@@ -325,6 +348,20 @@ const wmColor = computed(() => WM_COLOR[props.documento?.status] ?? '#888')
 const secaoPreliminar = computed(() =>
   (props.documento?.secoes ?? []).find(s => s.tipo === 'parte_preliminar')
 )
+
+// Elementos da parte preliminar (para a portaria)
+function _preliText(el) {
+  return el?.conteudo?.replace(/<[^>]*>/g, '').trim() ?? ''
+}
+const preliEpigrafe      = computed(() => secaoPreliminar.value?.elementos?.find(e => e.tipo === 'epigrafe'))
+const preliEmenta        = computed(() => secaoPreliminar.value?.elementos?.find(e => e.tipo === 'ementa'))
+const preliPreambulo     = computed(() => secaoPreliminar.value?.elementos?.find(e => e.tipo === 'preambulo'))
+const preliFundamentacao = computed(() => secaoPreliminar.value?.elementos?.find(e => e.tipo === 'fundamentacao'))
+
+const epigrafeHtml    = computed(() => _preliText(preliEpigrafe.value)     ? preliEpigrafe.value.conteudo     : null)
+const ementaHtml      = computed(() => _preliText(preliEmenta.value)       ? preliEmenta.value.conteudo       : null)
+const preambuloHtml   = computed(() => _preliText(preliPreambulo.value)    ? preliPreambulo.value.conteudo    : null)
+const fundHtml        = computed(() => _preliText(preliFundamentacao.value) ? preliFundamentacao.value.conteudo : null)
 const secaoNormativa = computed(() =>
   (props.documento?.secoes ?? []).find(s => s.tipo === 'parte_normativa')
 )
@@ -337,35 +374,98 @@ const normativaFlat = computed(() =>
   flattenNorm(secaoNormativa.value?.elementos ?? [])
 )
 
-// TOC para o sumário — inclui capítulos, seções, subseções e artigos
+// Extrai figuras de todos os elementos do documento para a LISTA DE FIGURAS
+const figurasNoDocumento = computed(() => {
+  const figuras = []
+  function extrairDe(elementos) {
+    for (const el of elementos ?? []) {
+      if (el.conteudo) {
+        const div = document.createElement('div')
+        div.innerHTML = el.conteudo
+        div.querySelectorAll('figure[data-type="figura"]').forEach((fig) => {
+          figuras.push(fig.querySelector('.figura-titulo')?.textContent?.trim() ?? '')
+        })
+      }
+      extrairDe(el.filhos)
+    }
+  }
+  for (const s of props.documento?.secoes ?? []) extrairDe(s.elementos)
+  return figuras
+})
+
+// TOC no formato NSCA: capítulos/seções com intervalo de artigos (ex: "1°/6°", "7°/11")
 const tocItems = computed(() => {
   const items = []
-  let pg = 4
+  const elementos = secaoNormativa.value?.elementos ?? []
 
-  function walk(elementos) {
-    for (const el of elementos ?? []) {
-      if (el.tipo === 'capitulo') {
-        const titulo = el.titulo ? ` — ${el.titulo.toUpperCase()}` : ''
-        items.push({ id: el.id, label: `CAPÍTULO ${toRomanStr(el.numero)}${titulo}`, kind: 'toc-capitulo', pg: `${pg}°` })
-        walk(el.filhos)
-      } else if (el.tipo === 'secao_normativa') {
-        const titulo = el.titulo ? ` — ${el.titulo}` : ''
-        items.push({ id: el.id, label: `Seção ${toRomanStr(el.numero)}${titulo}`, kind: 'toc-secao', pg: `${pg}°` })
-        walk(el.filhos)
-      } else if (el.tipo === 'subsecao_normativa') {
-        const titulo = el.titulo ? ` — ${el.titulo}` : ''
-        items.push({ id: el.id, label: `Subseção ${toRomanStr(el.numero)}${titulo}`, kind: 'toc-subsecao', pg: `${pg}°` })
-        walk(el.filhos)
-      } else if (el.tipo === 'artigo') {
+  function firstArtigoNum(lista) {
+    for (const el of lista ?? []) {
+      if (el.tipo === 'artigo') return el.numero
+      if (el.filhos?.length) { const f = firstArtigoNum(el.filhos); if (f != null) return f }
+    }
+    return null
+  }
+
+  function lastArtigoNum(lista) {
+    let last = null
+    for (const el of lista ?? []) {
+      if (el.tipo === 'artigo') last = el.numero
+      if (el.filhos?.length) { const l = lastArtigoNum(el.filhos); if (l != null) last = l }
+    }
+    return last
+  }
+
+  // Formato: ordinal (°) até 9, cardinal (sem sufixo) a partir de 10 — Decreto 12.002 Art. 9
+  function fmtNum(n) { return n <= 9 ? `${n}°` : `${n}` }
+
+  function fmtRange(lista) {
+    const first = firstArtigoNum(lista)
+    if (first == null) return ''
+    const last = lastArtigoNum(lista)
+    return first === last ? fmtNum(first) : `${fmtNum(first)}/${fmtNum(last)}`
+  }
+
+  const temAgrupamento = elementos.some(el =>
+    el.tipo === 'capitulo' || el.tipo === 'secao_normativa' || el.tipo === 'subsecao_normativa'
+  )
+
+  if (temAgrupamento) {
+    function walk(lista) {
+      for (const el of lista ?? []) {
+        if (el.tipo === 'capitulo') {
+          const titulo = el.titulo ? ` - ${el.titulo.toUpperCase()}` : ''
+          items.push({ id: el.id, label: `CAPÍTULO ${toRomanStr(el.numero)}${titulo}`, kind: 'toc-capitulo', pg: fmtRange(el.filhos) })
+          walk(el.filhos)
+        } else if (el.tipo === 'secao_normativa') {
+          const titulo = el.titulo ? ` - ${el.titulo}` : ''
+          items.push({ id: el.id, label: `Seção ${toRomanStr(el.numero)}${titulo}`, kind: 'toc-secao', pg: fmtRange(el.filhos) })
+          walk(el.filhos)
+        } else if (el.tipo === 'subsecao_normativa') {
+          const titulo = el.titulo ? ` - ${el.titulo}` : ''
+          items.push({ id: el.id, label: `Subseção ${toRomanStr(el.numero)}${titulo}`, kind: 'toc-subsecao', pg: fmtRange(el.filhos) })
+          walk(el.filhos)
+        }
+      }
+    }
+    walk(elementos)
+  } else {
+    for (const el of elementos) {
+      if (el.tipo === 'artigo') {
         const txt = stripHtml(el.conteudo)
         const trunc = txt.length > 50 ? txt.slice(0, 50) + '…' : txt
-        items.push({ id: el.id, label: `${bodyLabel(el)} ${trunc}`, kind: 'toc-artigo', pg: `${pg}°` })
-        pg++
+        items.push({ id: el.id, label: `${bodyLabel(el).trim()} ${trunc}`, kind: 'toc-artigo', pg: el.numero != null ? fmtNum(el.numero) : '' })
       }
     }
   }
 
-  walk(secaoNormativa.value?.elementos ?? [])
+  // LISTA DE FIGURAS — ao final do sumário, numeração sequencial automática
+  if (figurasNoDocumento.value.length) {
+    items.push({ id: '__figuras-hdr', label: 'LISTA DE FIGURAS', kind: 'toc-figuras-hdr', pg: '' })
+    figurasNoDocumento.value.forEach((titulo, i) => {
+      items.push({ id: `__fig-${i}`, label: `Figura ${i + 1} — ${titulo || 'Sem título'}`, kind: 'toc-figura', pg: '' })
+    })
+  }
+
   return items
 })
 </script>
@@ -445,13 +545,22 @@ const tocItems = computed(() => {
 
 /* ═══════════════════════════════════════════════════════════
    CAPA  (NSCA 5-3 Art. 17)
+   Altura fixa para distribuição vertical com flex spacers
 ════════════════════════════════════════════════════════════ */
 .capa-page {
+  height: 1123px;
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
 }
+
+.capa-header { width: 100%; }
+
+/* Espaçadores flex que dividem o espaço vertical restante */
+.capa-spacer    { flex: 0.3; }
+.capa-spacer-sm { flex: 0.4; }
+.capa-spacer-xs { flex: 0.35; }
 
 /* MINISTÉRIO DA DEFESA / COMANDO DA AERONÁUTICA — corpo 17 ≈ 23px, negrito */
 .capa-inst {
@@ -461,55 +570,54 @@ const tocItems = computed(() => {
   text-transform: uppercase;
 }
 
-/* Nome da OM — corpo 15 ≈ 20px */
+/* Nome da OM — sem negrito, maiúsculo */
 .capa-om {
-  font-size: 20px;
-  margin: 4px 0 16px;
+  font-size: 18px;
+  margin: 4px 0 0;
   text-transform: uppercase;
 }
 
-/* Símbolo FAB (Gládio Alado) */
-.capa-simbolo { margin: 20px 0; }
-.capa-brasao-img { width: 130px; height: 130px; object-fit: contain; }
+/* Gládio Alado — grande, proporcional ao documento real */
+.capa-simbolo { }
+.capa-brasao-img { width: 320px; height: 320px; object-fit: contain; }
 .capa-gladio { display: flex; justify-content: center; }
 .gladio-ring {
-  width: 130px; height: 130px;
+  width: 220px; height: 220px;
   border-radius: 50%;
   background: #1A2E5A;
-  border: 8px solid #B8972E;
+  border: 10px solid #B8972E;
   display: flex; flex-direction: column;
   align-items: center; justify-content: center;
   color: #fff;
 }
-.gladio-star  { font-size: 42px; line-height: 1; }
-.gladio-label { font-size: 8px; text-align: center; line-height: 1.3; margin-top: 4px; font-family: Arial, sans-serif; }
+.gladio-star  { font-size: 70px; line-height: 1; }
+.gladio-label { font-size: 12px; text-align: center; line-height: 1.3; margin-top: 6px; font-family: Arial, sans-serif; }
 
-/* ASSUNTO BÁSICO — corpo 19 ≈ 25px, negrito, maiúsculo */
+/* ASSUNTO BÁSICO — negrito, maiúsculo, grande */
 .capa-assunto {
-  font-size:   25px;
+  font-size:   28px;
   font-weight: bold;
   text-transform: uppercase;
-  margin: 20px 0 16px;
+  margin: 0;
   max-width: 500px;
   text-align: center;
 }
 
-/* Legenda — corpo 14 ≈ 19px, negrito, maiúsculo */
+/* Legenda (Art. 17 V) — corpo 14 ≈ 19px, negrito, maiúsculo, com borda */
 .capa-legenda {
-  width: 9cm;
+  width: 420px;
   height: 5cm;
-  border: 2px solid #000;
-  padding: 12px 20px;
+  border: 1.5px solid #000;
+  padding: 20px 28px;
   text-align: center;
-  margin-top: auto;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  align-items: center;
+  box-sizing: border-box;
 }
-.legenda-sigla  { font-size: 19px; font-weight: bold; margin: 0; }
-.legenda-titulo { font-size: 19px; font-weight: bold; margin: 0; text-transform: uppercase; }
-.legenda-ano    { font-size: 19px; font-weight: bold; margin: 0; }
+.legenda-sigla  { font-size: 16px; font-weight: bold; margin: 0; }
+.legenda-titulo { font-size: 16px; font-weight: bold; margin: 0; text-transform: uppercase; }
+.legenda-ano    { font-size: 16px; font-weight: bold; margin: 0; }
 
 /* ═══════════════════════════════════════════════════════════
    CABEÇALHO  (NSCA 5-3 Art. 18)
@@ -518,7 +626,7 @@ const tocItems = computed(() => {
 .cabecalho {
   text-align: center;
   margin-bottom: 16px;
-  line-height: 1.2;
+  line-height: 1.0;
 }
 .cabecalho-brasao {
   width: 60px;
@@ -544,6 +652,7 @@ const tocItems = computed(() => {
   text-align: center;
 }
 .cabecalho-linha.bold { font-weight: bold; }
+.cabecalho-linha.cabecalho-om { text-decoration: underline; }
 
 /* ═══════════════════════════════════════════════════════════
    EPÍGRAFE  (NSCA 5-3 Art. 5 §1)
@@ -557,6 +666,8 @@ const tocItems = computed(() => {
   text-indent:    0;
   font-size:      16px;
 }
+/* Remove margem de <p> injetado via v-html nos elementos da portaria */
+.prel-content p { margin: 0; }
 
 /* ═══════════════════════════════════════════════════════════
    EMENTA  (NSCA 5-3 Art. 6 §1)
@@ -650,6 +761,35 @@ const tocItems = computed(() => {
   /* herda .body-el — mesmo recuo 2,5 cm */
 }
 
+/* Conteúdo com bloco (tabela, figura): inline para que o rótulo (Art./§) fique na mesma linha
+   do primeiro parágrafo; blocos internos (figure, table) forçam quebra naturalmente */
+.norm-content-block {
+  display: inline;
+  text-indent: 0;
+}
+.norm-content-block :deep(table) {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 4px 0;
+  font-size: 14px;
+  line-height: 1.3;
+}
+.norm-content-block :deep(td),
+.norm-content-block :deep(th) {
+  border: 1px solid #999;
+  padding: 4px 8px;
+  vertical-align: top;
+}
+.norm-content-block :deep(th) {
+  background: rgba(11, 61, 145, 0.06);
+  font-weight: bold;
+  text-align: center;
+}
+.norm-content-block :deep(p) {
+  margin: 0;
+  text-indent: 0;
+}
+
 /* Rótulo do artigo em negrito; demais (§, incisos, alíneas) em peso normal */
 .norm-lbl      { font-weight: normal; }
 .norm-lbl-bold { font-weight: bold; }
@@ -686,11 +826,27 @@ const tocItems = computed(() => {
 /* ═══════════════════════════════════════════════════════════
    SUMÁRIO  (NSCA 5-3 Art. 19)
 ════════════════════════════════════════════════════════════ */
+.sumario-anexo {
+  text-align:  center;
+  font-weight: bold;
+  font-size:   16px;
+  margin:      0;
+  text-indent: 0;
+}
+
+.sumario-anexo-titulo {
+  text-align:  center;
+  font-weight: bold;
+  font-size:   16px;
+  margin:      0 0 20px;
+  text-indent: 0;
+}
+
 .sumario-titulo {
   text-align:  center;
   font-weight: bold;
   font-size:   16px;
-  margin:      0 0 12px;
+  margin:      0 0 16px;
   text-indent: 0;
 }
 
@@ -701,19 +857,72 @@ const tocItems = computed(() => {
   font-weight: bold;
   font-size: 14px;
 }
-.sumario-art-hdr { min-width: 60px; text-align: right; }
+.sumario-art-hdr { min-width: 72px; text-align: right; }
+
+/* Espaço de uma linha entre o sumário e o início da parte normativa */
+.sumario-corpo-sep { height: 1.2em; }
 
 .toc-row {
   display: flex;
   align-items: baseline;
-  margin-bottom: 4px;
+  margin-bottom: 3px;
   font-size: 14px;
 }
-.toc-row.toc-capitulo  { font-weight: bold; text-transform: uppercase; margin-top: 8px; }
-.toc-row.toc-secao     { font-weight: bold; padding-left: 16px; margin-top: 4px; }
-.toc-row.toc-subsecao  { padding-left: 28px; }
-.toc-row.toc-artigo    { padding-left: 28px; }
-.toc-lbl  { flex-shrink: 0; max-width: 82%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.toc-row.toc-capitulo    { font-weight: bold; text-transform: uppercase; margin-top: 6px; }
+.toc-row.toc-secao       { padding-left: 16px; margin-top: 2px; }
+.toc-row.toc-subsecao    { padding-left: 28px; }
+.toc-row.toc-artigo      { padding-left: 28px; }
+.toc-row.toc-figuras-hdr { font-weight: bold; text-transform: uppercase; margin-top: 10px; }
+.toc-row.toc-figura      { padding-left: 16px; font-style: italic; }
+.toc-lbl  { flex-shrink: 0; max-width: 80%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .toc-dots { flex-grow: 1; border-bottom: 1px dotted #999; margin: 0 6px 3px; min-width: 16px; }
-.toc-pg   { flex-shrink: 0; min-width: 48px; text-align: right; color: #333; }
+.toc-pg   { flex-shrink: 0; min-width: 72px; text-align: right; color: #333; }
+
+/* ═══════════════════════════════════════════════════════════
+   FIGURAS — renderização no corpo do documento
+   CSS counter numera automaticamente no preview web.
+   Para exportações (PDF nativo, DOCX, HTML), o backend percorre
+   o documento e embute o número real antes de gerar o arquivo.
+════════════════════════════════════════════════════════════ */
+
+/* Contador reseta uma vez por documento (todas as figuras
+   normativas ficam na mesma região do pages-wrap) */
+.pages-wrap {
+  counter-reset: figura;
+}
+
+.norm-content-block :deep(figure.doc-figure) {
+  display: block;
+  text-align: center;
+  margin: 16px auto;
+  max-width: 100%;
+  counter-increment: figura;
+}
+
+/* Prefixo "Figura N — " gerado automaticamente antes da descrição */
+.norm-content-block :deep(.figura-titulo::before) {
+  content: "Figura " counter(figura) " — ";
+}
+
+.norm-content-block :deep(.figura-titulo) {
+  font-size: 13px;
+  font-style: italic;
+  margin: 0 0 6px;
+  text-indent: 0;
+  text-align: center;
+}
+.norm-content-block :deep(.figura-img) {
+  max-width: 100%;
+  height: auto;
+  border: 1px solid #ddd;
+  display: block;
+  margin: 0 auto;
+}
+.norm-content-block :deep(.figura-fonte) {
+  font-size: 12px;
+  color: #555;
+  margin: 4px 0 0;
+  text-indent: 0;
+  text-align: center;
+}
 </style>

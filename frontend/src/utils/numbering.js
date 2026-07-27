@@ -12,35 +12,40 @@ export function toLetter(n) {
   return String.fromCharCode(96 + n)
 }
 
+// Decreto 12.002/2024 Art. 9 deg I e VII: ordinal (grau) ate o 9, cardinal (.) a partir do 10.
+function ordinalOrCardinal(n) {
+  return n <= 9 ? `${n}` + '\xBA' : `${n}.`
+}
+
 export function formatLabel(element) {
   switch (element.tipo) {
     case 'capitulo': {
-      const t = element.titulo ? ` — ${element.titulo.toUpperCase()}` : ''
-      return `CAPÍTULO ${toRoman(element.numero ?? 0)}${t}`
+      const t = element.titulo ? ' — ' + element.titulo.toUpperCase() : ''
+      return 'CAP\xCDTULO ' + toRoman(element.numero ?? 0) + t
     }
     case 'secao_normativa': {
-      const t = element.titulo ? ` — ${element.titulo}` : ''
-      return `Seção ${toRoman(element.numero ?? 0)}${t}`
+      const t = element.titulo ? ' — ' + element.titulo : ''
+      return 'Se\xE7\xE3o ' + toRoman(element.numero ?? 0) + t
     }
     case 'subsecao_normativa': {
-      const t = element.titulo ? ` — ${element.titulo}` : ''
-      return `Subseção ${toRoman(element.numero ?? 0)}${t}`
+      const t = element.titulo ? ' — ' + element.titulo : ''
+      return 'Subse\xE7\xE3o ' + toRoman(element.numero ?? 0) + t
     }
-    case 'artigo':          return `Art. ${element.numero}°`
-    case 'paragrafo_unico': return 'Parágrafo único'
-    case 'paragrafo':       return `§ ${element.numero}°`
-    case 'inciso':          return toRoman(element.numero)
-    case 'alinea':          return `${toLetter(element.numero)})`
-    case 'sub_alinea':      return `${element.numero})`
-    case 'epigrafe':              return 'Epígrafe'
-    case 'ementa':                return 'Ementa'
-    case 'preambulo':             return 'Preâmbulo'
-    case 'fundamentacao':         return 'Fundamentação'
-    case 'clausula_revogatoria':  return 'Cláusula Revogatória'
-    case 'clausula_vigencia':     return 'Cláusula de Vigência'
-    case 'fecho':                 return 'Fecho'
-    case 'assinatura':            return 'Assinatura'
-    case 'referenda':             return 'Referenda'
+    case 'artigo':          return 'Art. ' + ordinalOrCardinal(element.numero ?? 0)
+    case 'paragrafo_unico': return 'Par\xE1grafo \xFAnico'
+    case 'paragrafo':       return '\xA7 ' + ordinalOrCardinal(element.numero ?? 0)
+    case 'inciso':          return toRoman(element.numero ?? 0)
+    case 'alinea':          return toLetter(element.numero ?? 1) + ')'
+    case 'sub_alinea':      return (element.numero ?? 1) + '.'
+    case 'epigrafe':             return 'Ep\xEDgrafe'
+    case 'ementa':               return 'Ementa'
+    case 'preambulo':            return 'Pre\xE2mbulo'
+    case 'fundamentacao':        return 'Fundamenta\xE7\xE3o'
+    case 'clausula_revogatoria': return 'Cl\xE1usula Revogat\xF3ria'
+    case 'clausula_vigencia':    return 'Cl\xE1usula de Vig\xEAncia'
+    case 'fecho':                return 'Fecho'
+    case 'assinatura':           return 'Assinatura'
+    case 'referenda':            return 'Referenda'
     default: return element.tipo
   }
 }
@@ -71,12 +76,8 @@ export function elementIcon(tipo) {
 
 /**
  * Renumbers all elements recursively.
- * - Capítulos, seções, subseções: numbered per level (I, II, III…)
- * - Artigos: numbered GLOBALLY across the entire parte_normativa
- * - Parágrafos, incisos, alíneas, sub-alíneas: numbered per parent
- *
- * _ctx carries the global article counter across recursive calls.
- * Pass null (or omit) for a fresh top-level call.
+ * Artigos: numbered GLOBALLY across the entire parte_normativa.
+ * All other counters reset per parent.
  */
 export function renumberElements(elements, _ctx = null) {
   if (!elements?.length) return
@@ -107,7 +108,7 @@ export function renumberElements(elements, _ctx = null) {
       case 'artigo':
         ctx.artCount++
         el.numero = ctx.artCount
-        renumberElements(el.filhos, null) // reset for artigo-level children
+        renumberElements(el.filhos, null)
         break
       case 'paragrafo':
       case 'paragrafo_unico':
@@ -132,28 +133,43 @@ export function renumberElements(elements, _ctx = null) {
     }
   }
 
-  // Parágrafo único ↔ parágrafo numerado conversion
-  if (paragrafos.length > 1) {
+  // Paragrafo unico permanece unico somente quando for o unico paragrafo do artigo
+  // e ja tiver sido criado como tal. Caso contrario, todos viram paragrafos numerados.
+  const unicoOnly = paragrafos.length === 1 && paragrafos[0].tipo === 'paragrafo_unico'
+  if (unicoOnly) {
+    paragrafos[0].numero = null
+  } else if (paragrafos.length > 0) {
     let pNum = 0
     for (const p of paragrafos) { pNum++; p.tipo = 'paragrafo'; p.numero = pNum }
-  } else if (paragrafos.length === 1) {
-    paragrafos[0].tipo = 'paragrafo_unico'
-    paragrafos[0].numero = null
   }
 }
 
 const HIERARCHY = ['artigo', 'paragrafo', 'inciso', 'alinea', 'sub_alinea']
 
+// paragrafo_unico ocupa o mesmo nível que paragrafo na hierarquia
+function hierarchyBase(tipo) {
+  return tipo === 'paragrafo_unico' ? 'paragrafo' : tipo
+}
+
 export function promoteType(tipo) {
-  const idx = HIERARCHY.indexOf(tipo)
+  const idx = HIERARCHY.indexOf(hierarchyBase(tipo))
   if (idx <= 0) return tipo
   return HIERARCHY[idx - 1]
 }
 
 export function demoteType(tipo) {
-  const idx = HIERARCHY.indexOf(tipo)
+  const idx = HIERARCHY.indexOf(hierarchyBase(tipo))
   if (idx < 0 || idx >= HIERARCHY.length - 1) return tipo
   return HIERARCHY[idx + 1]
+}
+
+/**
+ * Retorna false se o elemento ou qualquer descendente já está no nível mais baixo
+ * (sub_alinea), tornando impossível rebaixar toda a subárvore.
+ */
+export function canDemoteSubtree(element) {
+  if (demoteType(element.tipo) === element.tipo) return false
+  return (element.filhos ?? []).every(child => canDemoteSubtree(child))
 }
 
 export function findById(elements, id) {
@@ -178,15 +194,30 @@ export function removeById(elements, id) {
   return null
 }
 
-/** Returns the inline label used in the document body (preview). */
+// Separadores per Decreto 12.002/2024 Art. 9deg (NBSP = \xA0 para nao colapsar em HTML)
+const S2 = '\xA0\xA0' // dois espacos — Art./paragrafo (incisos II, VI, VIII)
+const S1 = '\xA0'     // um espaco — alinea/item (incisos XII, XIV)
+
+/**
+ * Rotulo inline para o corpo do documento, incluindo o separador correto.
+ * O template renderiza {{ item.label }} diretamente sem adicionar espacos.
+ *
+ * Formato por tipo (Decreto 12.002/2024 Art. 9deg):
+ *   Art.   -> "Art. 1deg  texto"  (inciso I + II)
+ *   Par.   -> "Paragrafo unico.  texto" (inciso VI) | "§ 1deg  texto" (inciso VII + VIII)
+ *   Inciso -> "I - texto"   (inciso X: espaco + hifen + espaco)
+ *   Alinea -> "a) texto"    (inciso XII: letra + parentese + espaco)
+ *   Item   -> "1. texto"    (inciso XIV: arabe + ponto + espaco)
+ */
 export function bodyLabel(element) {
+  const n = element.numero ?? 0
   switch (element.tipo) {
-    case 'artigo':          return `Art. ${element.numero}°.`
-    case 'paragrafo_unico': return 'Parágrafo único.'
-    case 'paragrafo':       return `§ ${element.numero}°`
-    case 'inciso':          return `${toRoman(element.numero)} –`
-    case 'alinea':          return `${toLetter(element.numero)})`
-    case 'sub_alinea':      return `${element.numero}.`
+    case 'artigo':          return 'Art. ' + ordinalOrCardinal(n) + S2
+    case 'paragrafo_unico': return 'Par\xE1grafo \xFAnico.' + S2
+    case 'paragrafo':       return '\xA7 ' + ordinalOrCardinal(n) + S2
+    case 'inciso':          return toRoman(n) + S1 + '-' + S1
+    case 'alinea':          return toLetter(n) + ')' + S1
+    case 'sub_alinea':      return n + '.' + S1
     default:                return ''
   }
 }

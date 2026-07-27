@@ -1,88 +1,115 @@
 <template>
-  <v-container fluid class="pa-6">
+  <q-page class="q-pa-xl">
 
     <!-- Header -->
-    <div class="d-flex align-center mb-6 gap-3">
-      <v-btn :to="{ name: 'home' }" icon="mdi-arrow-left" variant="text" />
+    <div class="row items-center q-mb-xl" style="gap:12px">
+      <q-btn :to="{ name: 'home' }" icon="mdi-arrow-left" flat round dense />
       <div>
-        <h1 class="text-h5 font-weight-bold text-primary mb-0">Comparação de Versões</h1>
-        <p class="text-body-2 text-medium-emphasis mb-0">{{ docLabel }}</p>
+        <h1 class="text-h5 text-weight-bold text-primary q-my-none">Comparação de Versões</h1>
+        <p class="text-body2 text-grey-7 q-mb-none">{{ docLabel }}</p>
       </div>
-      <v-spacer />
+      <q-space />
       <StatusBadge v-if="documento" :status="documento.status" />
     </div>
 
     <template v-if="!documento">
-      <v-alert type="error" title="Documento não encontrado" />
+      <q-banner class="bg-negative text-white" rounded>
+        <template #avatar>
+          <q-icon name="mdi-alert-circle-outline" color="white" />
+        </template>
+        Documento não encontrado
+      </q-banner>
     </template>
 
     <template v-else>
 
       <!-- Version selectors -->
-      <v-card class="mb-5" color="surface-card">
-        <v-card-text class="pa-4">
-          <v-row align="center">
-            <v-col cols="12" md="4">
-              <v-select
+      <q-card flat bordered class="q-mb-lg">
+        <q-card-section class="q-pa-md">
+          <div class="row items-center q-col-gutter-md">
+            <div class="col-12 col-md-4">
+              <q-select
                 v-model="selectedVersionA"
-                :items="versaoOptions"
-                item-title="label"
-                item-value="id"
+                :options="versaoOptions"
+                option-label="label"
+                option-value="id"
+                emit-value
+                map-options
                 label="Versão A (base)"
-                hide-details
-                prepend-inner-icon="mdi-tag-outline"
-              />
-            </v-col>
-            <v-col cols="12" md="1" class="d-flex justify-center">
-              <v-icon size="28" color="secondary">mdi-swap-horizontal</v-icon>
-            </v-col>
-            <v-col cols="12" md="4">
-              <v-select
+                outlined
+                dense
+                hide-bottom-space
+              >
+                <template #prepend>
+                  <q-icon name="mdi-tag-outline" />
+                </template>
+              </q-select>
+            </div>
+            <div class="col-12 col-md-1 row justify-center">
+              <q-icon size="28px" color="secondary" name="mdi-swap-horizontal" />
+            </div>
+            <div class="col-12 col-md-4">
+              <q-select
                 v-model="selectedVersionB"
-                :items="versaoOptions"
-                item-title="label"
-                item-value="id"
+                :options="versaoOptions"
+                option-label="label"
+                option-value="id"
+                emit-value
+                map-options
                 label="Versão B (comparar com)"
-                hide-details
-                prepend-inner-icon="mdi-tag-check-outline"
+                outlined
+                dense
+                hide-bottom-space
+              >
+                <template #prepend>
+                  <q-icon name="mdi-tag-check-outline" />
+                </template>
+              </q-select>
+            </div>
+            <div class="col-12 col-md-3 row justify-center">
+              <q-btn-toggle
+                v-model="diffMode"
+                no-caps
+                unelevated
+                toggle-color="primary"
+                color="grey-3"
+                text-color="grey-8"
+                :options="[
+                  { value: 'side',    label: 'Lado a lado', icon: 'mdi-view-column-outline' },
+                  { value: 'unified', label: 'Unificado',   icon: 'mdi-view-stream-outline' },
+                ]"
               />
-            </v-col>
-            <v-col cols="12" md="3" class="d-flex gap-2">
-              <v-btn-toggle v-model="diffMode" mandatory color="primary" density="compact" rounded="md">
-                <v-btn value="side"    prepend-icon="mdi-view-column-outline" text="Lado a lado" />
-                <v-btn value="unified" prepend-icon="mdi-view-stream-outline" text="Unificado" />
-              </v-btn-toggle>
-            </v-col>
-          </v-row>
-        </v-card-text>
-      </v-card>
+            </div>
+          </div>
+        </q-card-section>
+      </q-card>
 
       <!-- Summary badges -->
-      <div class="d-flex flex-wrap gap-3 mb-5">
-        <v-chip color="error"   variant="tonal" size="small" prepend-icon="mdi-minus-circle-outline">
+      <div class="row q-gutter-sm q-mb-lg">
+        <q-chip color="red-2" text-color="red-10" size="sm" square icon="mdi-minus-circle-outline">
           {{ stats.removed }} remoções
-        </v-chip>
-        <v-chip color="success" variant="tonal" size="small" prepend-icon="mdi-plus-circle-outline">
+        </q-chip>
+        <q-chip color="green-2" text-color="green-10" size="sm" square icon="mdi-plus-circle-outline">
           {{ stats.added }} adições
-        </v-chip>
-        <v-chip color="warning" variant="tonal" size="small" prepend-icon="mdi-pencil-circle-outline">
+        </q-chip>
+        <q-chip color="orange-2" text-color="orange-10" size="sm" square icon="mdi-pencil-circle-outline">
           {{ stats.modified }} modificações
-        </v-chip>
-        <v-chip color="grey"    variant="tonal" size="small" prepend-icon="mdi-equal-box">
+        </q-chip>
+        <q-chip color="grey-3" text-color="grey-9" size="sm" square icon="mdi-equal-box">
           {{ stats.unchanged }} sem alteração
-        </v-chip>
+        </q-chip>
       </div>
 
       <!-- Per-section diffs -->
       <template v-for="secao in secoesComDiff" :key="secao.id">
-        <v-card class="mb-4">
-          <v-card-title class="text-subtitle-1 font-weight-bold px-4 py-3 d-flex align-center">
-            <v-icon icon="mdi-folder-outline" color="primary" class="mr-2" size="18" />
+        <q-card flat bordered class="q-mb-md">
+          <q-card-section class="text-subtitle1 text-weight-bold q-px-md q-py-sm row items-center">
+            <q-icon name="mdi-folder-outline" color="amber-8" class="q-mr-sm" size="18px" />
             {{ secao.titulo }}
-          </v-card-title>
-          <v-divider />
-          <v-card-text class="pa-4">
-            <div v-if="!secao.pares.length" class="text-caption text-medium-emphasis">
+          </q-card-section>
+          <q-separator />
+          <q-card-section class="q-pa-md">
+            <div v-if="!secao.pares.length" class="text-caption text-grey-7">
               Seção sem elementos.
             </div>
             <DiffViewer
@@ -94,29 +121,29 @@
               :label-b="labelB"
               :mode="diffMode"
             />
-          </v-card-text>
-        </v-card>
+          </q-card-section>
+        </q-card>
       </template>
 
       <!-- QUADRO DE JUSTIFICATIVAS -->
-      <v-card class="mt-6">
-        <v-card-title class="text-subtitle-1 font-weight-bold px-4 py-3 d-flex align-center">
-          <v-icon icon="mdi-table-edit" color="primary" class="mr-2" size="18" />
+      <q-card flat bordered class="q-mt-xl">
+        <q-card-section class="text-subtitle1 text-weight-bold q-px-md q-py-sm row items-center">
+          <q-icon name="mdi-table-edit" color="primary" class="q-mr-sm" size="18px" />
           Quadro de Justificativas das Modificações Propostas
-          <v-spacer />
-          <v-btn
-            size="small"
-            variant="outlined"
+          <q-space />
+          <q-btn
+            size="sm"
+            outline
             color="primary"
-            prepend-icon="mdi-file-pdf-box"
             @click="exportarQuadro"
           >
+            <q-icon left name="mdi-file-pdf-box" />
             Exportar
-          </v-btn>
-        </v-card-title>
-        <v-divider />
-        <v-card-text class="pa-0">
-          <v-table density="compact" class="justificativas-table">
+          </q-btn>
+        </q-card-section>
+        <q-separator />
+        <q-card-section class="q-pa-none">
+          <q-markup-table flat dense class="justificativas-table">
             <thead>
               <tr>
                 <th style="width:120px">Referência</th>
@@ -131,7 +158,7 @@
                   v-for="par in secao.pares.filter(p => p.hasDiff)"
                   :key="par.id"
                 >
-                  <td class="text-caption font-weight-bold text-primary">
+                  <td class="text-caption text-weight-bold text-primary">
                     {{ formatLabel(par.elementoA) }}
                   </td>
                   <td class="text-caption" style="max-width:220px">
@@ -141,31 +168,31 @@
                     <div class="text-truncate-3" v-html="par.elementoB?.conteudo ?? '<em>Elemento removido</em>'" />
                   </td>
                   <td>
-                    <v-textarea
+                    <q-input
                       v-model="justificativas[par.id]"
-                      density="compact"
-                      variant="plain"
-                      rows="2"
-                      auto-grow
-                      hide-details
+                      type="textarea"
+                      borderless
+                      dense
+                      autogrow
+                      hide-bottom-space
                       placeholder="Informe a justificativa…"
                       class="text-caption"
                     />
                   </td>
                 </tr>
                 <tr v-if="!secao.pares.filter(p => p.hasDiff).length">
-                  <td colspan="4" class="text-caption text-medium-emphasis text-center py-2">
+                  <td colspan="4" class="text-caption text-grey-7 text-center q-py-sm">
                     Sem modificações em {{ secao.titulo }}
                   </td>
                 </tr>
               </template>
             </tbody>
-          </v-table>
-        </v-card-text>
-      </v-card>
+          </q-markup-table>
+        </q-card-section>
+      </q-card>
 
     </template>
-  </v-container>
+  </q-page>
 </template>
 
 <script setup>
@@ -298,15 +325,16 @@ function exportarQuadro() {
   overflow: hidden;
 }
 .justificativas-table th {
-  background: rgba(var(--v-theme-primary), 0.08) !important;
-  color: rgb(var(--v-theme-primary)) !important;
+  background: rgba(11, 61, 145, 0.08) !important;
+  color: #0B3D91 !important;
   font-weight: 700 !important;
   font-size: 0.78rem !important;
+  text-align: left;
 }
 .justificativas-table td {
   vertical-align: top;
   padding-top: 8px !important;
   padding-bottom: 8px !important;
-  border-bottom: 1px solid rgba(var(--v-border-color), 0.2) !important;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.2) !important;
 }
 </style>

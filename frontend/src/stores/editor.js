@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { renumberElements, removeById, findById, promoteType, demoteType } from '@/utils/numbering.js'
+import { renumberElements, removeById, findById, promoteType, demoteType, canDemoteSubtree } from '@/utils/numbering.js'
 import { useDocumentsStore } from './documents.js'
 
 export const useEditorStore = defineStore('editor', {
@@ -142,14 +142,17 @@ export const useEditorStore = defineStore('editor', {
     },
 
     demote(id) {
-      // Move element down one level (becomes child of its previous sibling)
+      const el = this.findElement(id)
+      if (!el) return { ok: false }
+      if (!canDemoteSubtree(el)) return { ok: false, reason: 'at-bottom' }
       for (const secao of this.documento.secoes) {
         if (demoteInTree(secao.elementos, id)) {
           this.renumberNormativa()
           this.isDirty = true
-          return
+          return { ok: true }
         }
       }
+      return { ok: false }
     },
 
     renumberNormativa() {
@@ -219,7 +222,7 @@ function promoteInTree(elements, id, parent = null, parentList = null, parentIdx
     if (elements[i].id === id) {
       if (!parent || !parentList) return false
       const el = elements.splice(i, 1)[0]
-      el.tipo = promoteType(el.tipo)
+      promoteSubtreeTypes(el)
       parentList.splice(parentIdx + 1, 0, el)
       return true
     }
@@ -230,13 +233,23 @@ function promoteInTree(elements, id, parent = null, parentList = null, parentIdx
   return false
 }
 
+function demoteSubtreeTypes(el) {
+  el.tipo = demoteType(el.tipo)
+  for (const child of (el.filhos ?? [])) demoteSubtreeTypes(child)
+}
+
+function promoteSubtreeTypes(el) {
+  el.tipo = promoteType(el.tipo)
+  for (const child of (el.filhos ?? [])) promoteSubtreeTypes(child)
+}
+
 function demoteInTree(elements, id) {
   for (let i = 0; i < elements.length; i++) {
     if (elements[i].id === id) {
       if (i === 0) return false
       const prevSibling = elements[i - 1]
       const el = elements.splice(i, 1)[0]
-      el.tipo = demoteType(el.tipo)
+      demoteSubtreeTypes(el)
       prevSibling.filhos = prevSibling.filhos ?? []
       prevSibling.filhos.push(el)
       return true
