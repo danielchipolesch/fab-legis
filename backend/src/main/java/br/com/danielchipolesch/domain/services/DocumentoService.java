@@ -6,6 +6,7 @@ import br.com.danielchipolesch.application.dtos.documentoDtos.DocumentoResponseS
 import br.com.danielchipolesch.domain.builders.DocumentoBuilder;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.Documento;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.DocumentoStatusEnum;
+import br.com.danielchipolesch.domain.entities.estruturaDocumento.TipoAlteracaoEnum;
 import br.com.danielchipolesch.domain.entities.numeracaoDocumento.AssuntoBasico;
 import br.com.danielchipolesch.domain.entities.numeracaoDocumento.EspecieNormativa;
 import br.com.danielchipolesch.domain.handlers.exceptions.ResourceNotFoundException;
@@ -50,6 +51,9 @@ public class DocumentoService {
     @Autowired
     ItemParteFinalRepository itemParteFinalRepository;
 
+    @Autowired
+    DocumentoHistoricoService documentoHistoricoService;
+
 
     @Transactional
     public DocumentoResponseSemAnexoTextualDto create(DocumentoRequestCreateDto request) throws RuntimeException {
@@ -67,7 +71,10 @@ public class DocumentoService {
                 .documentoStatus(DocumentoStatusEnum.RASCUNHO)
                 .build();
 
-        return DocumentoMapper.documentoToDocumentoSemAnexoTextualResponseDto(documentoRepository.save(documento));
+        Documento salvo = documentoRepository.save(documento);
+        documentoHistoricoService.registrar(salvo, TipoAlteracaoEnum.CRIACAO,
+                "Documento criado", null, DocumentoStatusEnum.RASCUNHO);
+        return DocumentoMapper.documentoToDocumentoSemAnexoTextualResponseDto(salvo);
     }
 
     public Documento getById(Long id) throws RuntimeException{
@@ -105,8 +112,14 @@ public class DocumentoService {
             throw new StatusCannotBeUpdatedException(DocumentException.CANNOT_BE_UPDATED.getMessage());
         }
 
+        boolean tituloAlterado = !document.getTituloDocumento().equals(request.getTituloDocumento());
         document.setTituloDocumento(request.getTituloDocumento());
-        return DocumentoMapper.documentoToDocumentoSemAnexoTextualResponseDto(documentoRepository.save(document));
+        Documento atualizado = documentoRepository.save(document);
+        if (tituloAlterado) {
+            documentoHistoricoService.registrar(atualizado, TipoAlteracaoEnum.ALTERACAO_METADADOS,
+                    "Título atualizado", null, null);
+        }
+        return DocumentoMapper.documentoToDocumentoSemAnexoTextualResponseDto(atualizado);
     }
 
     @Transactional
@@ -135,7 +148,10 @@ public class DocumentoService {
                 .documentoStatus(DocumentoStatusEnum.RASCUNHO)
                 .build();
 
-        return DocumentoMapper.documentoToDocumentoSemAnexoTextualResponseDto(documentoRepository.save(documentNew));
+        Documento clonado = documentoRepository.save(documentNew);
+        documentoHistoricoService.registrar(clonado, TipoAlteracaoEnum.CLONAGEM,
+                "Clonado do documento #" + id, null, DocumentoStatusEnum.RASCUNHO);
+        return DocumentoMapper.documentoToDocumentoSemAnexoTextualResponseDto(clonado);
     }
 
     private Integer calculateSecondaryNumber(EspecieNormativa especieNormativa, AssuntoBasico assuntoBasico){

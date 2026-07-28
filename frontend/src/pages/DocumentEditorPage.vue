@@ -354,6 +354,11 @@ onMounted(async () => {
       return
     }
 
+    if (!['RASCUNHO', 'MINUTA'].includes(doc.status)) {
+      router.replace({ name: 'documento-visualizar', params: { id: documentoId.value } })
+      return
+    }
+
     if (doc._fromTemplate) {
       // Backend não tinha seções — salva o template imediatamente
       editorStore.isDirty = true
@@ -409,7 +414,7 @@ function onReorderNormativa(newElements) {
   if (secao) {
     secao.elementos = newElements
     renumberElements(secao.elementos)
-    editorStore.isDirty = true
+    editorStore.markUserEdit()
     scheduleAutoSave()
   }
 }
@@ -440,7 +445,7 @@ function addArtigo() {
   secao.elementos.push(novo)
   renumberElements(secao.elementos)
   editorStore.selectedElementId = novo.id
-  editorStore.isDirty = true
+  editorStore.markUserEdit()
   scheduleAutoSave()
 }
 

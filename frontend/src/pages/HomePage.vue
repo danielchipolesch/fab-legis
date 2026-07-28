@@ -160,25 +160,27 @@
                   </q-tooltip>
                 </q-btn>
 
-                <!-- Visualizar — sempre habilitado -->
+                <!-- Visualizar — rota depende do status -->
                 <q-btn
                   icon="mdi-eye-outline"
                   size="sm"
                   flat
                   round
                   dense
-                  :to="{ name: 'documento-editar', params: { id: props.row.id } }"
+                  color="primary"
+                  :to="docRoute(props.row)"
                 >
                   <q-tooltip anchor="top middle" self="bottom middle">Visualizar</q-tooltip>
                 </q-btn>
 
-                <!-- Comparar versões — habilitado se houver ao menos 1 versão salva -->
+                <!-- Comparar versões -->
                 <q-btn
                   icon="mdi-source-branch"
                   size="sm"
                   flat
                   round
                   dense
+                  color="primary"
                   :disable="!props.row.versoes?.length"
                   :to="props.row.versoes?.length ? { name: 'documento-comparar', params: { id: props.row.id } } : undefined"
                 >
@@ -187,31 +189,33 @@
                   </q-tooltip>
                 </q-btn>
 
-                <!-- Clonar — sempre habilitado -->
+                <!-- Clonar -->
                 <q-btn
                   icon="mdi-content-copy"
                   size="sm"
                   flat
                   round
                   dense
+                  color="primary"
                   @click="clonar(props.row)"
                 >
                   <q-tooltip anchor="top middle" self="bottom middle">Clonar documento</q-tooltip>
                 </q-btn>
 
-                <!-- Baixar PDF — sempre habilitado -->
+                <!-- Baixar PDF -->
                 <q-btn
                   icon="mdi-file-pdf-box"
                   size="sm"
                   flat
                   round
                   dense
+                  color="primary"
                   @click="baixarPdf(props.row)"
                 >
                   <q-tooltip anchor="top middle" self="bottom middle">Baixar PDF</q-tooltip>
                 </q-btn>
 
-                <q-btn icon="mdi-dots-vertical" size="sm" flat round dense color="grey">
+                <q-btn icon="mdi-dots-vertical" size="sm" flat round dense color="primary">
                   <q-menu>
                     <q-list dense style="min-width:200px">
                       <q-item
@@ -286,17 +290,27 @@
 
             <q-card-actions class="q-pa-sm">
               <q-btn
+                v-if="canEdit(doc)"
                 size="sm"
                 flat
                 color="primary"
-                :disable="!canEdit(doc)"
-                :to="canEdit(doc) ? { name: 'documento-editar', params: { id: doc.id } } : undefined"
+                :to="{ name: 'documento-editar', params: { id: doc.id } }"
               >
                 <q-icon left name="mdi-pencil-outline" />
                 Editar
               </q-btn>
+              <q-btn
+                v-else
+                size="sm"
+                flat
+                color="primary"
+                :to="docRoute(doc)"
+              >
+                <q-icon left name="mdi-eye-outline" />
+                Visualizar
+              </q-btn>
               <q-space />
-              <q-btn size="sm" icon="mdi-content-copy" flat round dense @click="clonar(doc)">
+              <q-btn size="sm" icon="mdi-content-copy" flat round dense color="primary" @click="clonar(doc)">
                 <q-tooltip anchor="top middle" self="bottom middle">Clonar</q-tooltip>
               </q-btn>
               <q-btn
@@ -305,12 +319,13 @@
                 flat
                 round
                 dense
+                color="primary"
                 :disable="!doc.versoes?.length"
                 :to="doc.versoes?.length ? { name: 'documento-comparar', params: { id: doc.id } } : undefined"
               >
                 <q-tooltip anchor="top middle" self="bottom middle">Comparar versões</q-tooltip>
               </q-btn>
-              <q-btn size="sm" icon="mdi-file-pdf-box" flat round dense @click="baixarPdf(doc)">
+              <q-btn size="sm" icon="mdi-file-pdf-box" flat round dense color="primary" @click="baixarPdf(doc)">
                 <q-tooltip anchor="top middle" self="bottom middle">Baixar PDF</q-tooltip>
               </q-btn>
             </q-card-actions>
@@ -331,7 +346,7 @@
         <q-card-section class="text-h6">Excluir documento?</q-card-section>
         <q-card-section class="q-pt-none">
           Esta ação não pode ser desfeita. O documento
-          <strong>{{ dialog.target?.especie }} {{ dialog.target?.numero_basico }}</strong>
+          <strong>{{ dialog.target?.especie }} {{ dialog.target?.numero_basico }}<template v-if="dialog.target?.numero_secundario">-{{ dialog.target?.numero_secundario }}</template></strong>
           será removido permanentemente.
         </q-card-section>
         <q-card-actions align="right" class="q-pb-md q-px-md">
@@ -417,6 +432,12 @@ const statusSummary = computed(() =>
 
 function canEdit(doc) {
   return ['RASCUNHO', 'MINUTA'].includes(doc.status)
+}
+
+function docRoute(doc) {
+  return canEdit(doc)
+    ? { name: 'documento-editar',    params: { id: doc.id } }
+    : { name: 'documento-visualizar', params: { id: doc.id } }
 }
 
 function statusActions(doc) {

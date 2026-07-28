@@ -894,6 +894,8 @@ const tocItems = computed(() => {
 .norm-content-block :deep(figure.doc-figure) {
   display: block;
   text-align: center;
+  page-break-inside: avoid;
+  break-inside: avoid;
   margin: 16px auto;
   max-width: 100%;
   counter-increment: figura;
@@ -913,6 +915,7 @@ const tocItems = computed(() => {
 }
 .norm-content-block :deep(.figura-img) {
   max-width: 100%;
+  max-height: 900px;
   height: auto;
   border: 1px solid #ddd;
   display: block;

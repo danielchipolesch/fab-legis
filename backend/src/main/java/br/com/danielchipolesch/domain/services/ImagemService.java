@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.ByteArrayInputStream;
 import java.util.UUID;
 
 @Service
@@ -36,6 +37,20 @@ public class ImagemService {
         );
 
         return publicUrl + "/" + bucket + "/" + nomeArquivo;
+    }
+
+    public String uploadPdf(byte[] pdfBytes, String filename) throws Exception {
+        garantirBucket();
+        String key = "pdf/" + filename;
+        minioClient.putObject(
+            PutObjectArgs.builder()
+                .bucket(bucket)
+                .object(key)
+                .stream(new ByteArrayInputStream(pdfBytes), pdfBytes.length, -1)
+                .contentType("application/pdf")
+                .build()
+        );
+        return publicUrl + "/" + bucket + "/" + key;
     }
 
     private void garantirBucket() throws Exception {

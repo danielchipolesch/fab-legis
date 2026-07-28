@@ -1,7 +1,4 @@
-/**
- * Serviço de geração de PDF via backend.
- * O endpoint POST /api/documentos/:id/pdf deve retornar Content-Type: application/pdf.
- */
+const API_BASE = import.meta.env.VITE_API_BASE_URL ?? ''
 
 function buildFilename(documento) {
   return [documento.especie, documento.numero_basico, documento.numero_secundario]
@@ -9,11 +6,13 @@ function buildFilename(documento) {
     .join('-') + '.pdf'
 }
 
+export function pdfUrl(documentoId) {
+  return `${API_BASE}/documentos/${documentoId}/pdf`
+}
+
 export async function gerarPdf(documento) {
-  const response = await fetch(`/api/documentos/${documento.id}/pdf`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(documento),
+  const response = await fetch(pdfUrl(documento.id), {
+    method: 'GET',
   })
 
   if (!response.ok) {

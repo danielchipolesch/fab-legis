@@ -20,6 +20,12 @@ const routes = [
     meta: { title: 'Editar Documento' },
   },
   {
+    path: '/documento/:id/visualizar',
+    name: 'documento-visualizar',
+    component: () => import('@/pages/DocumentViewerPage.vue'),
+    meta: { title: 'Visualizar Documento' },
+  },
+  {
     path: '/documento/:id/comparar',
     name: 'documento-comparar',
     component: () => import('@/pages/ComparisonPage.vue'),
