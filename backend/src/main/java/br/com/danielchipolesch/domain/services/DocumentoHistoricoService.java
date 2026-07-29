@@ -8,7 +8,6 @@ import br.com.danielchipolesch.domain.entities.estruturaDocumento.TipoAlteracaoE
 import br.com.danielchipolesch.infrastructure.repositories.DocumentoHistoricoRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
@@ -19,7 +18,7 @@ public class DocumentoHistoricoService {
     @Autowired
     private DocumentoHistoricoRepository historicoRepository;
 
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    @Transactional
     public void registrar(Documento documento,
                           TipoAlteracaoEnum tipo,
                           String descricao,

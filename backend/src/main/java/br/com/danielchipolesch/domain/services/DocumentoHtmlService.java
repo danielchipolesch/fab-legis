@@ -5,7 +5,11 @@ import br.com.danielchipolesch.application.dtos.itemParteFinalDtos.ItemParteFina
 import br.com.danielchipolesch.application.dtos.itemPartePreliminarDtos.ItemPartePreliminarResponseDto;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.Documento;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.ItemAnexoParteNormativaTipoEnum;
+import br.com.danielchipolesch.domain.util.tiptap.TipTapHtmlSerializer;
+import br.com.danielchipolesch.domain.util.tiptap.TipTapNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.io.InputStream;
@@ -24,6 +28,9 @@ import java.util.regex.Pattern;
 
 @Service
 public class DocumentoHtmlService {
+
+    @Autowired
+    private ObjectMapper objectMapper;
 
     private String brasaoRepublica = "";
     private String brasaoFab       = "";
@@ -48,7 +55,7 @@ public class DocumentoHtmlService {
             List<ItemPartePreliminarResponseDto> preliminares,
             List<ItemAnexoParteNormativaResponseDto> normativos,
             List<ItemParteFinalResponseDto> finais) {
-        return new Generator(doc, preliminares, normativos, finais, brasaoRepublica, brasaoFab).gerar();
+        return new Generator(doc, preliminares, normativos, finais, brasaoRepublica, brasaoFab, objectMapper).gerar();
     }
 
     // ─── Stateful generator: one instance per call ───────────────────────────────
@@ -89,6 +96,7 @@ public class DocumentoHtmlService {
         private final List<ItemParteFinalResponseDto> finais;
         private final String brasaoRepublica;
         private final String brasaoFab;
+        private final ObjectMapper objectMapper;
 
         private int artCount = 0;
 
@@ -97,13 +105,15 @@ public class DocumentoHtmlService {
                   List<ItemAnexoParteNormativaResponseDto> normativos,
                   List<ItemParteFinalResponseDto> finais,
                   String brasaoRepublica,
-                  String brasaoFab) {
+                  String brasaoFab,
+                  ObjectMapper objectMapper) {
             this.doc = doc;
             this.preliminares    = preliminares != null ? preliminares : List.of();
             this.normativos      = normativos   != null ? normativos   : List.of();
             this.finais          = finais        != null ? finais       : List.of();
             this.brasaoRepublica = brasaoRepublica;
             this.brasaoFab       = brasaoFab;
+            this.objectMapper    = objectMapper;
         }
 
         // ─── Entry point ─────────────────────────────────────────────────────────
@@ -596,10 +606,14 @@ public class DocumentoHtmlService {
 
         // ─── Helpers ─────────────────────────────────────────────────────────────
 
-        // Pipeline: busca imagens HTTP como data URI → corrige void elements para XHTML
-        private static String processContent(String html) {
-            if (html == null || html.isBlank()) return html == null ? "" : html;
-            return xhtml(embedImgDataUris(html));
+        private String processContent(String conteudo) {
+            if (conteudo == null || conteudo.isBlank()) return "";
+            try {
+                TipTapNode doc = objectMapper.readValue(conteudo, TipTapNode.class);
+                return xhtml(embedImgDataUris(TipTapHtmlSerializer.toHtml(doc)));
+            } catch (Exception ignored) {
+                return "";
+            }
         }
 
         // Substitui src="http://..." por data URIs — garante imagens no PDF independente de rede/Docker
@@ -649,7 +663,11 @@ public class DocumentoHtmlService {
         private String conteudoOuNull(ItemPartePreliminarResponseDto item) {
             if (item == null) return null;
             String c = item.getElementContent();
-            return (c != null && !c.isBlank()) ? processContent(c) : null;
+            if (c == null || c.isBlank()) return null;
+            String html = processContent(c);
+            // Check if there's actual text after stripping HTML
+            String text = html.replaceAll("<[^>]*>", "").trim();
+            return text.isBlank() ? null : html;
         }
 
         private String docId() {

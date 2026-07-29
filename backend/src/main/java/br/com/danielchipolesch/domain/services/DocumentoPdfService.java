@@ -7,17 +7,35 @@ import br.com.danielchipolesch.domain.entities.estruturaDocumento.Documento;
 import br.com.danielchipolesch.domain.handlers.exceptions.ResourceNotFoundException;
 import br.com.danielchipolesch.domain.handlers.exceptions.enums.DocumentException;
 import br.com.danielchipolesch.infrastructure.repositories.DocumentoRepository;
-import com.openhtmltopdf.pdfboxout.PdfRendererBuilder;
+import org.apache.fop.apps.Fop;
+import org.apache.fop.apps.FopFactory;
+import org.apache.fop.apps.MimeConstants;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+import org.xml.sax.InputSource;
+import org.xml.sax.XMLReader;
+
+import javax.xml.parsers.SAXParserFactory;
 import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.StringReader;
 import java.util.List;
 
 @Service
 public class DocumentoPdfService {
+
+    private static final FopFactory FOP_FACTORY;
+
+    static {
+        try {
+            FOP_FACTORY = FopFactory.newInstance(new File(".").toURI());
+        } catch (Exception e) {
+            throw new ExceptionInInitializerError(e);
+        }
+    }
 
     @Autowired
     private DocumentoRepository documentoRepository;
@@ -26,7 +44,7 @@ public class DocumentoPdfService {
     private DocumentoParteNormativaService documentoParteNormativaService;
 
     @Autowired
-    private DocumentoHtmlService documentoHtmlService;
+    private DocumentoFoBuilder documentoFoBuilder;
 
     @Autowired
     private ImagemService imagemService;
@@ -34,13 +52,13 @@ public class DocumentoPdfService {
     public byte[] gerarPdfBytes(Long documentoId) {
         Documento doc = documentoRepository.findById(documentoId)
                 .orElseThrow(() -> new ResourceNotFoundException(DocumentException.NOT_FOUND.getMessage()));
-        return renderHtml(doc);
+        return renderPdf(doc);
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public String gerarEArmazenarPdf(Documento documento) {
         try {
-            byte[] pdfBytes = renderHtml(documento);
+            byte[] pdfBytes = renderPdf(documento);
             String filename = "documento-" + documento.getId() + ".pdf";
             return imagemService.uploadPdf(pdfBytes, filename);
         } catch (Exception e) {
@@ -48,7 +66,7 @@ public class DocumentoPdfService {
         }
     }
 
-    private byte[] renderHtml(Documento doc) {
+    private byte[] renderPdf(Documento doc) {
         Long id = doc.getId();
 
         List<ItemPartePreliminarResponseDto> preliminares =
@@ -63,14 +81,15 @@ public class DocumentoPdfService {
                 documentoParteNormativaService.getItensFinaisByDocumento(id)
                         .stream().map(ItemParteFinalResponseDto::from).toList();
 
-        String html = documentoHtmlService.gerarHtml(doc, preliminares, normativos, finais);
+        String fo = documentoFoBuilder.buildFo(doc, preliminares, normativos, finais);
 
         try (var os = new ByteArrayOutputStream()) {
-            PdfRendererBuilder builder = new PdfRendererBuilder();
-            builder.useFastMode();
-            builder.withHtmlContent(html, null);
-            builder.toStream(os);
-            builder.run();
+            Fop fop = FOP_FACTORY.newFop(MimeConstants.MIME_PDF, FOP_FACTORY.newFOUserAgent(), os);
+            SAXParserFactory spf = SAXParserFactory.newInstance();
+            spf.setNamespaceAware(true);
+            XMLReader reader = spf.newSAXParser().getXMLReader();
+            reader.setContentHandler(fop.getDefaultHandler());
+            reader.parse(new InputSource(new StringReader(fo)));
             return os.toByteArray();
         } catch (Exception e) {
             throw new RuntimeException("Erro ao renderizar PDF: " + e.getMessage(), e);
