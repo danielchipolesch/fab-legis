@@ -212,7 +212,7 @@
                   round
                   dense
                   color="primary"
-                  @click="clonar(props.row)"
+                  @click="confirmarClone(props.row)"
                 >
                   <q-tooltip anchor="top middle" self="bottom middle">Clonar documento</q-tooltip>
                 </q-btn>
@@ -238,7 +238,7 @@
                         :key="opt.status"
                         clickable
                         v-close-popup
-                        @click="mudarStatus(props.row, opt.status)"
+                        @click="confirmarMudancaStatus(props.row, opt)"
                       >
                         <q-item-section avatar>
                           <q-icon :name="opt.icon" />
@@ -325,7 +325,7 @@
                 Visualizar
               </q-btn>
               <q-space />
-              <q-btn size="sm" icon="mdi-content-copy" flat round dense color="primary" @click="clonar(doc)">
+              <q-btn size="sm" icon="mdi-content-copy" flat round dense color="primary" @click="confirmarClone(doc)">
                 <q-tooltip anchor="top middle" self="bottom middle">Clonar</q-tooltip>
                 <q-badge v-if="doc.qtd_replicas > 0" floating color="indigo" :label="doc.qtd_replicas" />
               </q-btn>
@@ -368,6 +368,38 @@
         <q-card-actions align="right" class="q-pb-md q-px-md">
           <q-btn flat v-close-popup>Cancelar</q-btn>
           <q-btn unelevated color="negative" @click="excluir">Excluir</q-btn>
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
+
+    <!-- Confirm status change dialog -->
+    <q-dialog v-model="dialog.status">
+      <q-card style="min-width:420px">
+        <q-card-section class="text-h6">{{ dialog.statusOpt?.label }}?</q-card-section>
+        <q-card-section class="q-pt-none">
+          O documento
+          <strong>{{ dialog.target?.especie }} {{ dialog.target?.numero_basico }}<template v-if="dialog.target?.numero_secundario">-{{ dialog.target?.numero_secundario }}</template></strong>
+          terá seu status alterado para <strong>{{ dialog.statusOpt?.status }}</strong>.
+        </q-card-section>
+        <q-card-actions align="right" class="q-pb-md q-px-md">
+          <q-btn flat v-close-popup>Cancelar</q-btn>
+          <q-btn unelevated color="primary" @click="executarMudancaStatus">Confirmar</q-btn>
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
+
+    <!-- Confirm clone dialog -->
+    <q-dialog v-model="dialog.clone">
+      <q-card style="min-width:420px">
+        <q-card-section class="text-h6">Clonar documento?</q-card-section>
+        <q-card-section class="q-pt-none">
+          Será criada uma cópia do documento
+          <strong>{{ dialog.target?.especie }} {{ dialog.target?.numero_basico }}<template v-if="dialog.target?.numero_secundario">-{{ dialog.target?.numero_secundario }}</template></strong>
+          com status <strong>RASCUNHO</strong>.
+        </q-card-section>
+        <q-card-actions align="right" class="q-pb-md q-px-md">
+          <q-btn flat v-close-popup>Cancelar</q-btn>
+          <q-btn unelevated color="primary" @click="executarClone">Clonar</q-btn>
         </q-card-actions>
       </q-card>
     </q-dialog>
@@ -473,8 +505,17 @@ function statusActions(doc) {
   return transitions[doc.status] ?? []
 }
 
-function mudarStatus(doc, novoStatus) {
-  store.changeStatus(doc.id, novoStatus)
+function confirmarMudancaStatus(doc, opt) {
+  dialog.target = doc
+  dialog.statusOpt = opt
+  dialog.status = true
+}
+
+function executarMudancaStatus() {
+  if (dialog.target && dialog.statusOpt) store.changeStatus(dialog.target.id, dialog.statusOpt.status)
+  dialog.status = false
+  dialog.target = null
+  dialog.statusOpt = null
 }
 
 async function baixarPdf(doc) {
@@ -491,11 +532,18 @@ async function baixarPdf(doc) {
   }
 }
 
-function clonar(doc) {
-  store.cloneDocumento(doc.id)
+function confirmarClone(doc) {
+  dialog.target = doc
+  dialog.clone = true
 }
 
-const dialog = reactive({ delete: false, target: null })
+function executarClone() {
+  if (dialog.target) store.cloneDocumento(dialog.target.id)
+  dialog.clone = false
+  dialog.target = null
+}
+
+const dialog = reactive({ delete: false, status: false, clone: false, target: null, statusOpt: null })
 
 function confirmarExclusao(doc) {
   dialog.target = doc
