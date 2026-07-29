@@ -193,7 +193,7 @@ const GROUPING_TYPES = new Set(['capitulo', 'secao_normativa', 'subsecao_normati
 function makeNormEl(tipo) {
   return GROUPING_TYPES.has(tipo)
     ? { id: crypto.randomUUID(), tipo, numero: 0, titulo: '', filhos: [] }
-    : { id: crypto.randomUUID(), tipo, numero: 0, conteudo: '<p></p>', filhos: [] }
+    : { id: crypto.randomUUID(), tipo, numero: 0, conteudo: '{"type":"doc","content":[{"type":"paragraph"}]}', filhos: [] }
 }
 
 function findInElements(elements, id) {

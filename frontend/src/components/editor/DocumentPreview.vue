@@ -185,12 +185,12 @@
             <p v-if="item.el.titulo" class="subsec-titulo"><strong>{{ item.el.titulo }}</strong></p>
           </div>
 
-          <div v-else-if="hasBlockContent(item.el.conteudo)" :id="'prev-' + item.el.id" class="body-el norm-el">
+          <div v-else-if="hasBlockContent(conteudoToHtml(item.el.conteudo))" :id="'prev-' + item.el.id" class="body-el norm-el">
             <span class="norm-lbl" :class="{ 'norm-lbl-bold': item.el.tipo === 'artigo' }">{{ item.label }}</span>
-            <div class="norm-content-block" v-html="item.el.conteudo"></div>
+            <div class="norm-content-block" v-html="conteudoToHtml(item.el.conteudo)"></div>
           </div>
           <p v-else :id="'prev-' + item.el.id" class="body-el norm-el">
-            <span class="norm-lbl" :class="{ 'norm-lbl-bold': item.el.tipo === 'artigo' }">{{ item.label }}</span><span class="norm-content" v-html="stripHtml(item.el.conteudo)"></span>
+            <span class="norm-lbl" :class="{ 'norm-lbl-bold': item.el.tipo === 'artigo' }">{{ item.label }}</span><span class="norm-content" v-html="stripHtml(conteudoToHtml(item.el.conteudo))"></span>
           </p>
 
         </template>
@@ -201,11 +201,11 @@
             v-if="el.tipo === 'clausula_revogatoria' || el.tipo === 'clausula_vigencia'"
             :id="'prev-' + el.id"
             class="body-el"
-            v-html="el.conteudo"
+            v-html="conteudoToHtml(el.conteudo)"
           ></div>
-          <div v-else-if="el.tipo === 'fecho'"      :id="'prev-' + el.id" class="body-el" v-html="el.conteudo"></div>
-          <div v-else-if="el.tipo === 'assinatura'" :id="'prev-' + el.id" class="assinatura-bloco corpo-assin" v-html="el.conteudo"></div>
-          <div v-else-if="el.tipo === 'referenda'"  :id="'prev-' + el.id" class="assinatura-bloco corpo-assin" v-html="el.conteudo"></div>
+          <div v-else-if="el.tipo === 'fecho'"      :id="'prev-' + el.id" class="body-el" v-html="conteudoToHtml(el.conteudo)"></div>
+          <div v-else-if="el.tipo === 'assinatura'" :id="'prev-' + el.id" class="assinatura-bloco corpo-assin" v-html="conteudoToHtml(el.conteudo)"></div>
+          <div v-else-if="el.tipo === 'referenda'"  :id="'prev-' + el.id" class="assinatura-bloco corpo-assin" v-html="conteudoToHtml(el.conteudo)"></div>
         </template>
 
       </div>
@@ -216,9 +216,16 @@
 
 <script setup>
 import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
+import { generateHTML } from '@tiptap/html'
+import { editorExtensions } from '@/editor/extensions.js'
 import { bodyLabel, formatLabel, toRoman } from '@/utils/numbering.js'
 
 function toRomanStr(n) { return toRoman(n ?? 0) }
+
+function conteudoToHtml(conteudo) {
+  if (!conteudo) return ''
+  try { return generateHTML(JSON.parse(conteudo), editorExtensions) } catch { return '' }
+}
 
 const props = defineProps({
   documento:         { type: Object, default: null },
@@ -351,17 +358,21 @@ const secaoPreliminar = computed(() =>
 
 // Elementos da parte preliminar (para a portaria)
 function _preliText(el) {
-  return el?.conteudo?.replace(/<[^>]*>/g, '').trim() ?? ''
+  if (!el?.conteudo) return ''
+  const html = conteudoToHtml(el.conteudo)
+  const d = document.createElement('div')
+  d.innerHTML = html
+  return (d.textContent || '').trim()
 }
 const preliEpigrafe      = computed(() => secaoPreliminar.value?.elementos?.find(e => e.tipo === 'epigrafe'))
 const preliEmenta        = computed(() => secaoPreliminar.value?.elementos?.find(e => e.tipo === 'ementa'))
 const preliPreambulo     = computed(() => secaoPreliminar.value?.elementos?.find(e => e.tipo === 'preambulo'))
 const preliFundamentacao = computed(() => secaoPreliminar.value?.elementos?.find(e => e.tipo === 'fundamentacao'))
 
-const epigrafeHtml    = computed(() => _preliText(preliEpigrafe.value)     ? preliEpigrafe.value.conteudo     : null)
-const ementaHtml      = computed(() => _preliText(preliEmenta.value)       ? preliEmenta.value.conteudo       : null)
-const preambuloHtml   = computed(() => _preliText(preliPreambulo.value)    ? preliPreambulo.value.conteudo    : null)
-const fundHtml        = computed(() => _preliText(preliFundamentacao.value) ? preliFundamentacao.value.conteudo : null)
+const epigrafeHtml    = computed(() => _preliText(preliEpigrafe.value)      ? conteudoToHtml(preliEpigrafe.value.conteudo)      : null)
+const ementaHtml      = computed(() => _preliText(preliEmenta.value)        ? conteudoToHtml(preliEmenta.value.conteudo)        : null)
+const preambuloHtml   = computed(() => _preliText(preliPreambulo.value)     ? conteudoToHtml(preliPreambulo.value.conteudo)     : null)
+const fundHtml        = computed(() => _preliText(preliFundamentacao.value)  ? conteudoToHtml(preliFundamentacao.value.conteudo)  : null)
 const secaoNormativa = computed(() =>
   (props.documento?.secoes ?? []).find(s => s.tipo === 'parte_normativa')
 )
@@ -381,7 +392,7 @@ const figurasNoDocumento = computed(() => {
     for (const el of elementos ?? []) {
       if (el.conteudo) {
         const div = document.createElement('div')
-        div.innerHTML = el.conteudo
+        div.innerHTML = conteudoToHtml(el.conteudo)
         div.querySelectorAll('figure[data-type="figura"]').forEach((fig) => {
           figuras.push(fig.querySelector('.figura-titulo')?.textContent?.trim() ?? '')
         })
@@ -451,7 +462,7 @@ const tocItems = computed(() => {
   } else {
     for (const el of elementos) {
       if (el.tipo === 'artigo') {
-        const txt = stripHtml(el.conteudo)
+        const txt = stripHtml(conteudoToHtml(el.conteudo))
         const trunc = txt.length > 50 ? txt.slice(0, 50) + '…' : txt
         items.push({ id: el.id, label: `${bodyLabel(el).trim()} ${trunc}`, kind: 'toc-artigo', pg: el.numero != null ? fmtNum(el.numero) : '' })
       }

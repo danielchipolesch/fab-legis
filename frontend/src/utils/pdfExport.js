@@ -30,10 +30,18 @@ const MARGINS = [85, 85, 71, 85]
 
 // ─── Utilitários ─────────────────────────────────────────────────────────────
 
-function stripHtml(html) {
-  const div = document.createElement('div')
-  div.innerHTML = html ?? ''
-  return (div.textContent || '').trim()
+function extractText(conteudo) {
+  if (!conteudo) return ''
+  try {
+    const visit = (node) => {
+      if (!node) return ''
+      if (node.type === 'hardBreak') return '\n'
+      if (node.text) return node.text
+      if (node.content) return node.content.map(visit).join('')
+      return ''
+    }
+    return visit(JSON.parse(conteudo)).trim()
+  } catch { return '' }
 }
 
 function buildDocId(doc) {
@@ -147,7 +155,7 @@ function buildCapa(doc, brasao) {
   const docId        = buildDocId(doc)
   const especieNome  = ESPECIE_COMPLETA[doc.especie] ?? doc.especie?.toUpperCase() ?? ''
   const ementaEl     = getElementoByTipo(doc, 'ementa')
-  const ementaTxt    = stripHtml(ementaEl?.conteudo ?? '')
+  const ementaTxt    = extractText(ementaEl?.conteudo ?? '')
   const data         = formatDateBR(doc.data_criacao)
   const org          = doc.organizacao ?? 'COMANDO DA AERONÁUTICA'
 
@@ -240,7 +248,7 @@ function buildPortaria(doc) {
 const INDENT_PT = { artigo: 0, paragrafo_unico: 28, paragrafo: 28, inciso: 56, alinea: 84, sub_alinea: 112 }
 
 function renderElemento(el) {
-  const texto  = stripHtml(el.conteudo)
+  const texto  = extractText(el.conteudo)
   const label  = bodyLabel(el)
   const indent = INDENT_PT[el.tipo] ?? 0
   const items  = []

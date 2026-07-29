@@ -162,10 +162,10 @@
                     {{ formatLabel(par.elementoA) }}
                   </td>
                   <td class="text-caption" style="max-width:220px">
-                    <div class="text-truncate-3" v-html="par.elementoA?.conteudo ?? ''" />
+                    <div class="text-truncate-3" v-html="conteudoToHtml(par.elementoA?.conteudo)" />
                   </td>
                   <td class="text-caption" style="max-width:220px">
-                    <div class="text-truncate-3" v-html="par.elementoB?.conteudo ?? '<em>Elemento removido</em>'" />
+                    <div class="text-truncate-3" v-html="par.elementoB ? conteudoToHtml(par.elementoB.conteudo) : '<em>Elemento removido</em>'" />
                   </td>
                   <td>
                     <q-input
@@ -203,6 +203,27 @@ import StatusBadge from '@/components/common/StatusBadge.vue'
 import DiffViewer from '@/components/comparison/DiffViewer.vue'
 import { formatLabel } from '@/utils/numbering.js'
 import { diffWords } from 'diff'
+import { generateHTML } from '@tiptap/html'
+import { editorExtensions } from '@/editor/extensions.js'
+
+function conteudoToHtml(conteudo) {
+  if (!conteudo) return ''
+  try { return generateHTML(JSON.parse(conteudo), editorExtensions) } catch { return '' }
+}
+
+function extractText(conteudo) {
+  if (!conteudo) return ''
+  try {
+    const visit = (node) => {
+      if (!node) return ''
+      if (node.type === 'hardBreak') return '\n'
+      if (node.text) return node.text
+      if (node.content) return node.content.map(visit).join('')
+      return ''
+    }
+    return visit(JSON.parse(conteudo)).trim()
+  } catch { return '' }
+}
 
 const route = useRoute()
 const store = useDocumentsStore()
@@ -251,14 +272,8 @@ function getSecoes(versionId) {
   return opt?.secoes ?? documento.value?.secoes ?? []
 }
 
-function stripHtml(html) {
-  const div = document.createElement('div')
-  div.innerHTML = html ?? ''
-  return div.textContent || ''
-}
-
 function hasDiff(a, b) {
-  return stripHtml(a?.conteudo) !== stripHtml(b?.conteudo)
+  return extractText(a?.conteudo) !== extractText(b?.conteudo)
 }
 
 function flatElements(elementos, acc = []) {

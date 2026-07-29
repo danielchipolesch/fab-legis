@@ -153,6 +153,7 @@
             <!-- WYSIWYG editor para elementos de conteúdo -->
             <WysiwygEditor
               v-else
+              :key="selectedElement.id"
               :model-value="selectedElement.conteudo"
               :readonly="isReadonly"
               @update:model-value="onContentUpdate"
@@ -409,10 +410,9 @@ function onTituloUpdate(titulo) {
 }
 
 
-function onReorderNormativa(newElements) {
+function onReorderNormativa() {
   const secao = editorStore.normativaSecao
   if (secao) {
-    secao.elementos = newElements
     renumberElements(secao.elementos)
     editorStore.markUserEdit()
     scheduleAutoSave()
@@ -439,7 +439,7 @@ function addArtigo() {
     id: crypto.randomUUID(),
     tipo: 'artigo',
     numero: 0,
-    conteudo: '<p></p>',
+    conteudo: '{"type":"doc","content":[{"type":"paragraph"}]}',
     filhos: [],
   }
   secao.elementos.push(novo)

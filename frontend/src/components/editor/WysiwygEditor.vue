@@ -113,17 +113,7 @@
 <script setup>
 import { ref, watch, onBeforeUnmount } from 'vue'
 import { useEditor, EditorContent } from '@tiptap/vue-3'
-import StarterKit from '@tiptap/starter-kit'
-import Underline from '@tiptap/extension-underline'
-import TextAlign from '@tiptap/extension-text-align'
-import TextStyle from '@tiptap/extension-text-style'
-import Color from '@tiptap/extension-color'
-import Highlight from '@tiptap/extension-highlight'
-import Table from '@tiptap/extension-table'
-import TableRow from '@tiptap/extension-table-row'
-import TableCell from '@tiptap/extension-table-cell'
-import TableHeader from '@tiptap/extension-table-header'
-import { Figure } from '@/extensions/figure.js'
+import { editorExtensions } from '@/editor/extensions.js'
 import { useQuasar } from 'quasar'
 
 const props = defineProps({
@@ -137,30 +127,27 @@ const $q = useQuasar()
 const fileInputRef = ref(null)
 const uploadando = ref(false)
 
+function parseContent(val) {
+  if (!val) return null
+  try { return JSON.parse(val) } catch { return null }
+}
+
 const editor = useEditor({
-  content: props.modelValue,
+  content: parseContent(props.modelValue),
   editable: !props.readonly,
-  extensions: [
-    StarterKit,
-    Underline,
-    TextAlign.configure({ types: ['heading', 'paragraph'] }),
-    TextStyle,
-    Color,
-    Highlight.configure({ multicolor: true }),
-    Table.configure({ resizable: true }),
-    TableRow,
-    TableHeader,
-    TableCell,
-    Figure,
-  ],
+  extensions: editorExtensions,
   onUpdate({ editor }) {
-    emit('update:modelValue', editor.getHTML())
+    emit('update:modelValue', JSON.stringify(editor.getJSON()))
   },
 })
 
 watch(() => props.modelValue, (val) => {
-  if (editor.value && editor.value.getHTML() !== val) {
-    editor.value.commands.setContent(val, false)
+  if (!editor.value) return
+  const parsed = parseContent(val)
+  if (!parsed) return
+  const currentJson = JSON.stringify(editor.value.getJSON())
+  if (currentJson !== JSON.stringify(parsed)) {
+    editor.value.commands.setContent(parsed, false)
   }
 })
 
