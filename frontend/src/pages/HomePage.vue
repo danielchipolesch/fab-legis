@@ -140,9 +140,24 @@
             </q-td>
           </template>
 
+          <template #body-cell-replicas="props">
+            <q-td :props="props" class="text-center">
+              <q-chip
+                v-if="props.row.qtd_replicas > 0"
+                :label="String(props.row.qtd_replicas)"
+                color="indigo-2"
+                text-color="indigo-10"
+                size="sm"
+                square
+                icon="mdi-content-copy"
+              />
+              <span v-else class="text-grey-5 text-caption">—</span>
+            </q-td>
+          </template>
+
           <template #body-cell-actions="props">
-            <q-td :props="props" class="text-right">
-              <div class="row justify-end no-wrap" style="gap:4px">
+            <q-td :props="props" class="text-center">
+              <div class="row justify-center no-wrap" style="gap:4px">
 
                 <!-- Editar — só RASCUNHO e MINUTA -->
                 <q-btn
@@ -312,6 +327,7 @@
               <q-space />
               <q-btn size="sm" icon="mdi-content-copy" flat round dense color="primary" @click="clonar(doc)">
                 <q-tooltip anchor="top middle" self="bottom middle">Clonar</q-tooltip>
+                <q-badge v-if="doc.qtd_replicas > 0" floating color="indigo" :label="doc.qtd_replicas" />
               </q-btn>
               <q-btn
                 size="sm"
@@ -380,13 +396,14 @@ const especies = ['ICA', 'NSCA', 'Portaria', 'Resolução', 'Decreto', 'Aviso']
 const statusOptions = ['RASCUNHO', 'MINUTA', 'APROVADO', 'PUBLICADO', 'ARQUIVADO', 'CANCELADO', 'REVOGADO']
 
 const columns = [
-  { name: 'especie',        label: 'Espécie',        field: 'especie',        align: 'left',  sortable: true,  style: 'width: 100px' },
-  { name: 'numero',         label: 'Número',         field: 'numero_basico',  align: 'left',  sortable: false },
-  { name: 'titulo',         label: 'Título',         field: 'titulo',         align: 'left',  sortable: true },
-  { name: 'assunto_basico', label: 'Assunto Básico', field: 'assunto_basico', align: 'left',  sortable: true },
-  { name: 'data_criacao',   label: 'Data',           field: 'data_criacao',   align: 'left',  sortable: true,  style: 'width: 120px' },
-  { name: 'status',         label: 'Status',         field: 'status',         align: 'left',  sortable: true,  style: 'width: 140px' },
-  { name: 'actions',        label: 'Ações',          field: 'actions',        align: 'right', sortable: false, style: 'width: 220px' },
+  { name: 'especie',        label: 'Espécie',        field: 'especie',        align: 'center', sortable: true,  style: 'width: 100px' },
+  { name: 'numero',         label: 'Número',         field: 'numero_basico',  align: 'center', sortable: false },
+  { name: 'titulo',         label: 'Título',         field: 'titulo',         align: 'center', sortable: true },
+  { name: 'assunto_basico', label: 'Assunto Básico', field: 'assunto_basico', align: 'center', sortable: true },
+  { name: 'data_criacao',   label: 'Data',           field: 'data_criacao',   align: 'center', sortable: true,  style: 'width: 120px' },
+  { name: 'status',         label: 'Status',         field: 'status',         align: 'center', sortable: true,  style: 'width: 140px' },
+  { name: 'replicas',       label: 'Réplicas',       field: 'qtd_replicas',   align: 'center', sortable: true,  style: 'width: 90px' },
+  { name: 'actions',        label: 'Ações',          field: 'actions',        align: 'center', sortable: false, style: 'width: 220px' },
 ]
 
 function formatarData(isoStr) {
@@ -507,6 +524,13 @@ function limparFiltros() {
 }
 .legis-table :deep(thead th) {
   text-align: center !important;
+  position: relative;
+}
+.legis-table :deep(thead th .q-table__sort-icon) {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
 }
 .legis-table :deep(tbody tr:hover td) {
   background: rgba(74, 111, 165, 0.06) !important;

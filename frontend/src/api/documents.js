@@ -86,6 +86,7 @@ export function backendParaFrontend(doc) {
     data_cancelamento: parseDtCriacao(doc.dtCancelamento),
     status: doc.statusDocumento,
     url_pdf: doc.urlPdf ?? null,
+    qtd_replicas: doc.qtdReplicas ?? 0,
     versoes: [],
     secoes,
   }
