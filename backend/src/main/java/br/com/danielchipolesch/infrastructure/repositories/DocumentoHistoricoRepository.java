@@ -10,4 +10,6 @@ import java.util.List;
 public interface DocumentoHistoricoRepository extends JpaRepository<DocumentoHistorico, Long> {
 
     List<DocumentoHistorico> findByDocumentoIdOrderByDtRegistroDesc(Long documentoId);
+
+    void deleteAllByDocumentoId(Long documentoId);
 }

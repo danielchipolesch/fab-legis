@@ -7,6 +7,9 @@ import br.com.danielchipolesch.domain.builders.DocumentoBuilder;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.Documento;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.DocumentoStatusEnum;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.TipoAlteracaoEnum;
+import br.com.danielchipolesch.domain.entities.estruturaDocumento.ItemAnexoParteNormativa;
+import br.com.danielchipolesch.domain.entities.estruturaDocumento.ItemPartePreliminar;
+import br.com.danielchipolesch.domain.entities.estruturaDocumento.ItemParteFinal;
 import br.com.danielchipolesch.domain.entities.numeracaoDocumento.AssuntoBasico;
 import br.com.danielchipolesch.domain.entities.numeracaoDocumento.EspecieNormativa;
 import br.com.danielchipolesch.domain.handlers.exceptions.ResourceNotFoundException;
@@ -19,6 +22,7 @@ import br.com.danielchipolesch.infrastructure.repositories.AssuntoBasicoReposito
 import br.com.danielchipolesch.infrastructure.repositories.DocumentoRepository;
 import br.com.danielchipolesch.infrastructure.repositories.EspecieNormativaRepository;
 import br.com.danielchipolesch.infrastructure.repositories.ItemAnexoParteNormativaRepository;
+import br.com.danielchipolesch.infrastructure.repositories.DocumentoHistoricoRepository;
 import br.com.danielchipolesch.infrastructure.repositories.ItemParteFinalRepository;
 import br.com.danielchipolesch.infrastructure.repositories.ItemPartePreliminarRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -50,6 +54,9 @@ public class DocumentoService {
 
     @Autowired
     ItemParteFinalRepository itemParteFinalRepository;
+
+    @Autowired
+    DocumentoHistoricoRepository documentoHistoricoRepository;
 
     @Autowired
     DocumentoHistoricoService documentoHistoricoService;
@@ -126,6 +133,7 @@ public class DocumentoService {
     public DocumentoResponseSemAnexoTextualDto delete(Long id) throws RuntimeException {
         Documento document = documentoRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException(DocumentException.NOT_FOUND.getMessage()));
+        documentoHistoricoRepository.deleteAllByDocumentoId(id);
         itemPartePreliminarRepository.deleteAllByDocumentoId(id);
         itemAnexoParteNormativaRepository.nullifyParentsForDocument(id);
         itemAnexoParteNormativaRepository.deleteAllByDocumentoId(id);
@@ -134,9 +142,11 @@ public class DocumentoService {
         return DocumentoMapper.documentoToDocumentoSemAnexoTextualResponseDto(document);
     }
 
+    @Transactional
     public DocumentoResponseSemAnexoTextualDto clone(Long id) throws RuntimeException {
 
-        Documento documentOld = documentoRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException(DocumentException.NOT_FOUND.getMessage()));
+        Documento documentOld = documentoRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException(DocumentException.NOT_FOUND.getMessage()));
 
         var secondaryNumber = this.calculateSecondaryNumber(documentOld.getEspecieNormativa(), documentOld.getAssuntoBasico());
 
@@ -148,10 +158,57 @@ public class DocumentoService {
                 .documentoStatus(DocumentoStatusEnum.RASCUNHO)
                 .build();
 
+        documentOld.setQtdReplicas(documentOld.getQtdReplicas() + 1);
+        documentoRepository.save(documentOld);
+
         Documento clonado = documentoRepository.save(documentNew);
+
+        for (ItemPartePreliminar orig : itemPartePreliminarRepository.findByDocumentoIdOrderByElementOrderAsc(id)) {
+            ItemPartePreliminar copia = new ItemPartePreliminar();
+            copia.setDocumento(clonado);
+            copia.setTipo(orig.getTipo());
+            copia.setElementOrder(orig.getElementOrder());
+            copia.setTitulo(orig.getTitulo());
+            copia.setConteudo(orig.getConteudo());
+            copia.setFullTextContent(orig.getFullTextContent());
+            itemPartePreliminarRepository.save(copia);
+        }
+
+        for (ItemAnexoParteNormativa root : itemAnexoParteNormativaRepository.findRootItemsByDocumentoId(id)) {
+            clonarNormItem(root, clonado, null);
+        }
+
+        for (ItemParteFinal orig : itemParteFinalRepository.findByDocumentoIdOrderByElementOrderAsc(id)) {
+            ItemParteFinal copia = new ItemParteFinal();
+            copia.setDocumento(clonado);
+            copia.setTipo(orig.getTipo());
+            copia.setElementOrder(orig.getElementOrder());
+            copia.setTitulo(orig.getTitulo());
+            copia.setConteudo(orig.getConteudo());
+            copia.setFullTextContent(orig.getFullTextContent());
+            itemParteFinalRepository.save(copia);
+        }
+
         documentoHistoricoService.registrar(clonado, TipoAlteracaoEnum.CLONAGEM,
                 "Clonado do documento #" + id, null, DocumentoStatusEnum.RASCUNHO);
         return DocumentoMapper.documentoToDocumentoSemAnexoTextualResponseDto(clonado);
+    }
+
+    private void clonarNormItem(ItemAnexoParteNormativa original, Documento novoDoc, ItemAnexoParteNormativa novoParent) {
+        ItemAnexoParteNormativa copia = new ItemAnexoParteNormativa();
+        copia.setDocumento(novoDoc);
+        copia.setParent(novoParent);
+        copia.setTipo(original.getTipo());
+        copia.setElementOrder(original.getElementOrder());
+        copia.setTitulo(original.getTitulo());
+        copia.setConteudo(original.getConteudo());
+        copia.setFullTextContent(original.getFullTextContent());
+        ItemAnexoParteNormativa salva = itemAnexoParteNormativaRepository.save(copia);
+        if (original.getChildren() != null) {
+            for (ItemAnexoParteNormativa filho : original.getChildren()) {
+                clonarNormItem(filho, novoDoc, salva);
+            }
+        }
     }
 
     private Integer calculateSecondaryNumber(EspecieNormativa especieNormativa, AssuntoBasico assuntoBasico){

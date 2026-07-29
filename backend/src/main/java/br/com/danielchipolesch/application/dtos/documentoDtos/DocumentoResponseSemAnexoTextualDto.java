@@ -45,4 +45,6 @@ public class DocumentoResponseSemAnexoTextualDto {
     private Timestamp dtCancelamento;
 
     private String urlPdf;
+
+    private int qtdReplicas;
 }

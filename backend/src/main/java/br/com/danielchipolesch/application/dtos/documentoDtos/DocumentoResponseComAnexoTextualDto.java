@@ -50,6 +50,8 @@ public class DocumentoResponseComAnexoTextualDto {
 
     private String urlPdf;
 
+    private int qtdReplicas;
+
     private List<ItemPartePreliminarResponseDto> itensPreliminares;
     private List<ItemAnexoParteNormativaResponseDto> itensNormativos;
     private List<ItemParteFinalResponseDto> itensFinais;

@@ -71,6 +71,9 @@ public class Documento extends RepresentationModel<Documento> {
     @Column(name = "url_pdf")
     private String urlPdf;
 
+    @Column(name = "nr_replicas", nullable = false, columnDefinition = "INTEGER NOT NULL DEFAULT 0")
+    private int qtdReplicas = 0;
+
     @Column(name = "nr_versao", nullable = false)
     @Version
     private Integer versao;

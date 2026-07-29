@@ -32,7 +32,8 @@ public class DocumentoMapper {
                 documento.getDtArquivamento(),
                 documento.getDtRevogacao(),
                 documento.getDtCancelamento(),
-                documento.getUrlPdf()
+                documento.getUrlPdf(),
+                documento.getQtdReplicas()
         );
     }
 
@@ -62,6 +63,7 @@ public class DocumentoMapper {
                 documento.getDtRevogacao(),
                 documento.getDtCancelamento(),
                 documento.getUrlPdf(),
+                documento.getQtdReplicas(),
                 preliminares,
                 normativos,
                 finais
