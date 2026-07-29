@@ -7,6 +7,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.ByteArrayInputStream;
+import java.util.Base64;
 import java.util.UUID;
 
 @Service
@@ -74,6 +75,40 @@ public class ImagemService {
                 SetBucketPolicyArgs.builder().bucket(bucket).config(politica).build()
             );
         }
+    }
+
+    /**
+     * Busca uma imagem armazenada no MinIO e retorna como data URI base64.
+     * Usado pelo gerador de PDF para embutir imagens sem depender de acesso HTTP público.
+     *
+     * @param url URL pública da imagem (ex: http://localhost:9000/bucket/uuid.png)
+     * @return data URI (data:image/png;base64,...) ou null se não for uma URL MinIO reconhecida
+     */
+    public String getImageAsDataUri(String url) {
+        if (url == null || url.isBlank()) return null;
+        try {
+            String prefix = publicUrl + "/" + bucket + "/";
+            if (!url.startsWith(prefix)) return null;
+            String objectKey = url.substring(prefix.length());
+
+            try (var response = minioClient.getObject(
+                    GetObjectArgs.builder().bucket(bucket).object(objectKey).build())) {
+                byte[] bytes = response.readAllBytes();
+                String mime = guessMimeFromKey(objectKey);
+                return "data:" + mime + ";base64," + Base64.getEncoder().encodeToString(bytes);
+            }
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private static String guessMimeFromKey(String key) {
+        String lc = key.toLowerCase();
+        if (lc.endsWith(".png"))                        return "image/png";
+        if (lc.endsWith(".jpg") || lc.endsWith(".jpeg")) return "image/jpeg";
+        if (lc.endsWith(".gif"))                        return "image/gif";
+        if (lc.endsWith(".webp"))                       return "image/webp";
+        return "image/jpeg";
     }
 
     private String obterExtensao(String nomeArquivo) {
