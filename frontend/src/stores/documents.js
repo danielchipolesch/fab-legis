@@ -23,8 +23,20 @@ const CAPITULOS_DEFAULT = [
   'DISPOSIÇÕES TRANSITÓRIAS',
 ]
 
-function red(texto) {
-  return `<span style="color: red; font-weight: bold">${texto}</span>`
+function jText(text, marks = []) {
+  return { type: 'text', text, ...(marks.length ? { marks } : {}) }
+}
+function jBold(text) {
+  return jText(text, [{ type: 'bold' }])
+}
+function jRed(text) {
+  return jText(text, [{ type: 'textStyle', attrs: { color: '#CC0000' } }, { type: 'bold' }])
+}
+function jPara(...nodes) {
+  return { type: 'paragraph', content: nodes }
+}
+function jDoc(...paragraphs) {
+  return JSON.stringify({ type: 'doc', content: paragraphs })
 }
 
 const ESPECIE_NOME = {
@@ -52,18 +64,33 @@ function gerarSecoesTemplate(doc) {
       titulo: 'Parte Preliminar',
       ordem: 1,
       elementos: [
-        makeElement('epigrafe', null,
-          `<p><strong>${sigla}</strong></p><p>${red('[DD DE MÊS DE AAAA]')}</p>`
-        ),
-        makeElement('ementa', null,
-          `<p>Dispõe sobre ${red('[descrição resumida do assunto]')} e dá outras providências.</p>`
-        ),
-        makeElement('preambulo', null,
-          `<p>O <strong>COMANDANTE DA AERONÁUTICA</strong>, no uso das atribuições que lhe confere o art. 12 da Lei Complementar nº 97, de 9 de junho de 1999, tendo em vista o que consta do Processo nº ${red('[NÚMERO DO PROCESSO]')}, resolve:</p>`
-        ),
-        makeElement('fundamentacao', null,
-          `<p>Considerando ${red('[justificativa ou motivação da norma]')};</p>`
-        ),
+        makeElement('epigrafe', null, jDoc(
+          jPara(jBold(sigla)),
+          jPara(jRed('[DD DE MÊS DE AAAA]'))
+        )),
+        makeElement('ementa', null, jDoc(
+          jPara(
+            jText('Dispõe sobre '),
+            jRed('[descrição resumida do assunto]'),
+            jText(' e dá outras providências.')
+          )
+        )),
+        makeElement('preambulo', null, jDoc(
+          jPara(
+            jText('O '),
+            jBold('COMANDANTE DA AERONÁUTICA'),
+            jText(', no uso das atribuições que lhe confere o art. 12 da Lei Complementar nº 97, de 9 de junho de 1999, tendo em vista o que consta do Processo nº '),
+            jRed('[NÚMERO DO PROCESSO]'),
+            jText(', resolve:')
+          )
+        )),
+        makeElement('fundamentacao', null, jDoc(
+          jPara(
+            jText('Considerando '),
+            jRed('[justificativa ou motivação da norma]'),
+            jText(';')
+          )
+        )),
       ],
     },
     {
@@ -79,21 +106,24 @@ function gerarSecoesTemplate(doc) {
       titulo: 'Parte Final',
       ordem: 3,
       elementos: [
-        makeElement('clausula_revogatoria', null,
-          `<p>Ficam revogadas as disposições em contrário.</p>`
-        ),
-        makeElement('clausula_vigencia', null,
-          `<p>Esta ${nomeEsp} entra em vigor na data de sua publicação no Boletim do Comando da Aeronáutica.</p>`
-        ),
-        makeElement('fecho', null,
-          `<p>Brasília, ${red('[DD de mês de AAAA]')}.</p>`
-        ),
-        makeElement('assinatura', null,
-          `<p>${red('[NOME DO COMANDANTE DA AERONÁUTICA]')}<br/>Tenente-Brigadeiro do Ar<br/>Comandante da Aeronáutica</p>`
-        ),
-        makeElement('referenda', null,
-          `<p>${red('[NOME DO MINISTRO DE ESTADO DA DEFESA]')}<br/>Ministro de Estado da Defesa</p>`
-        ),
+        makeElement('clausula_revogatoria', null, jDoc(
+          jPara(jText('Ficam revogadas as disposições em contrário.'))
+        )),
+        makeElement('clausula_vigencia', null, jDoc(
+          jPara(jText(`Esta ${nomeEsp} entra em vigor na data de sua publicação no Boletim do Comando da Aeronáutica.`))
+        )),
+        makeElement('fecho', null, jDoc(
+          jPara(jText('Brasília, '), jRed('[DD de mês de AAAA]'), jText('.'))
+        )),
+        makeElement('assinatura', null, jDoc(
+          jPara(jRed('[NOME DO COMANDANTE DA AERONÁUTICA]')),
+          jPara(jText('Tenente-Brigadeiro do Ar')),
+          jPara(jText('Comandante da Aeronáutica'))
+        )),
+        makeElement('referenda', null, jDoc(
+          jPara(jRed('[NOME DO MINISTRO DE ESTADO DA DEFESA]')),
+          jPara(jText('Ministro de Estado da Defesa'))
+        )),
       ],
     },
   ]
@@ -151,6 +181,8 @@ export const useDocumentsStore = defineStore('documents', {
         clone.secoes = gerarSecoesTemplate(clone)
         clone._fromTemplate = true
         this.documentos.unshift(clone)
+        const original = this.documentos.find(d => String(d.id) === String(id))
+        if (original) original.qtd_replicas = (original.qtd_replicas ?? 0) + 1
       }
       return clone
     },
@@ -190,7 +222,7 @@ export const useDocumentsStore = defineStore('documents', {
       const secaoNormativa = doc.secoes?.find(s => s.tipo === 'parte_normativa')
       if (!secaoNormativa) return
 
-      const novoEl = makeElement(tipo, 0, '<p></p>', [])
+      const novoEl = makeElement(tipo, 0, jDoc(jPara()), [])
 
       if (!parentId) {
         secaoNormativa.elementos.push(novoEl)
