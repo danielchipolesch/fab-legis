@@ -185,6 +185,29 @@
       </div>
     </div>
 
+    <!-- Modal: confirmação de clonagem -->
+    <q-dialog v-model="dialogClone.open" persistent>
+      <q-card style="min-width:360px">
+        <q-card-section class="row items-center q-pb-none">
+          <q-icon name="mdi-content-copy" color="primary" size="24px" class="q-mr-sm" />
+          <span class="text-h6">Clonar documento</span>
+        </q-card-section>
+        <q-card-section class="q-pt-md">
+          <div class="text-body2 text-grey-8 q-mb-xs">
+            Deseja clonar o documento abaixo?
+          </div>
+          <div class="text-weight-medium">{{ docLabel }}</div>
+          <div class="text-caption text-grey-6 q-mt-sm">
+            Uma cópia em <strong>RASCUNHO</strong> será criada e aberta para edição.
+          </div>
+        </q-card-section>
+        <q-card-actions align="right">
+          <q-btn flat label="Cancelar" color="grey-7" v-close-popup />
+          <q-btn unelevated label="Clonar" color="primary" @click="executarClone" />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
+
   </q-page>
 </template>
 
@@ -283,7 +306,15 @@ async function baixarPdf() {
   }
 }
 
+const dialogClone = reactive({ open: false })
+
 function clonar() {
+  if (!documento.value) return
+  dialogClone.open = true
+}
+
+function executarClone() {
+  dialogClone.open = false
   if (!documento.value) return
   docStore.cloneDocumento(documento.value.id).then(clone => {
     if (clone) router.push({ name: 'documento-editar', params: { id: clone.id } })

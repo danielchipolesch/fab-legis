@@ -14,7 +14,7 @@ function buildFilename(documento) {
     sanitize(documento.titulo),
     sanitize(ano),
   ].filter(Boolean)
-  return partes.join(' - ') + '.pdf'
+  return partes.join('_') + '.pdf'
 }
 
 export function pdfUrl(documentoId) {
