@@ -96,13 +96,9 @@ public class DocumentoParteNormativaService {
         List<SecaoItemRequestDto> normativos = request.getItens().stream()
                 .filter(i -> i.getSecao() == SecaoDocumentoEnum.PARTE_NORMATIVA)
                 .toList();
-        List<SecaoItemRequestDto> finais = request.getItens().stream()
-                .filter(i -> i.getSecao() == SecaoDocumentoEnum.PARTE_FINAL)
-                .toList();
 
         if (!preliminares.isEmpty()) salvarItensPreliminares(documento, preliminares);
         if (!normativos.isEmpty()) salvarItensNormativos(documento, normativos);
-        if (!finais.isEmpty()) salvarItensFinais(documento, finais);
     }
 
     private void salvarItensPreliminares(Documento documento, List<SecaoItemRequestDto> dtos) {

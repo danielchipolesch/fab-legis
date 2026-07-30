@@ -1,7 +1,6 @@
 package br.com.danielchipolesch.domain.services;
 
 import br.com.danielchipolesch.application.dtos.itemAnexoParteNormativaDtos.ItemAnexoParteNormativaResponseDto;
-import br.com.danielchipolesch.application.dtos.itemParteFinalDtos.ItemParteFinalResponseDto;
 import br.com.danielchipolesch.application.dtos.itemPartePreliminarDtos.ItemPartePreliminarResponseDto;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.Documento;
 import br.com.danielchipolesch.domain.handlers.exceptions.ResourceNotFoundException;
@@ -77,11 +76,7 @@ public class DocumentoPdfService {
                 documentoParteNormativaService.getItensNormativosByDocumento(id)
                         .stream().map(ItemAnexoParteNormativaResponseDto::from).toList();
 
-        List<ItemParteFinalResponseDto> finais =
-                documentoParteNormativaService.getItensFinaisByDocumento(id)
-                        .stream().map(ItemParteFinalResponseDto::from).toList();
-
-        String fo = documentoFoBuilder.buildFo(doc, preliminares, normativos, finais);
+        String fo = documentoFoBuilder.buildFo(doc, preliminares, normativos);
 
         try (var os = new ByteArrayOutputStream()) {
             Fop fop = FOP_FACTORY.newFop(MimeConstants.MIME_PDF, FOP_FACTORY.newFOUserAgent(), os);

@@ -64,6 +64,17 @@ public class XslFoContentRenderer {
     }
 
     /**
+     * Renders inline content of a single paragraph node (not a full doc).
+     * Use when iterating a doc's paragraphs manually to produce per-paragraph fo:blocks.
+     */
+    public String renderParagraphInlines(TipTapNode para) {
+        if (para == null) return "";
+        var sb = new StringBuilder();
+        renderInlines(para.getContent(), sb);
+        return sb.toString();
+    }
+
+    /**
      * Returns true if the doc contains any block-level element (table, figure, list, heading).
      */
     public boolean hasBlockContent(TipTapNode doc) {

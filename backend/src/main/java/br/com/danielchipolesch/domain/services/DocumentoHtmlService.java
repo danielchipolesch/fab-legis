@@ -1,7 +1,6 @@
 package br.com.danielchipolesch.domain.services;
 
 import br.com.danielchipolesch.application.dtos.itemAnexoParteNormativaDtos.ItemAnexoParteNormativaResponseDto;
-import br.com.danielchipolesch.application.dtos.itemParteFinalDtos.ItemParteFinalResponseDto;
 import br.com.danielchipolesch.application.dtos.itemPartePreliminarDtos.ItemPartePreliminarResponseDto;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.Documento;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.ItemAnexoParteNormativaTipoEnum;
@@ -53,9 +52,8 @@ public class DocumentoHtmlService {
     public String gerarHtml(
             Documento doc,
             List<ItemPartePreliminarResponseDto> preliminares,
-            List<ItemAnexoParteNormativaResponseDto> normativos,
-            List<ItemParteFinalResponseDto> finais) {
-        return new Generator(doc, preliminares, normativos, finais, brasaoRepublica, brasaoFab, objectMapper).gerar();
+            List<ItemAnexoParteNormativaResponseDto> normativos) {
+        return new Generator(doc, preliminares, normativos, brasaoRepublica, brasaoFab, objectMapper).gerar();
     }
 
     // ─── Stateful generator: one instance per call ───────────────────────────────
@@ -93,7 +91,6 @@ public class DocumentoHtmlService {
         private final Documento doc;
         private final List<ItemPartePreliminarResponseDto> preliminares;
         private final List<ItemAnexoParteNormativaResponseDto> normativos;
-        private final List<ItemParteFinalResponseDto> finais;
         private final String brasaoRepublica;
         private final String brasaoFab;
         private final ObjectMapper objectMapper;
@@ -103,14 +100,12 @@ public class DocumentoHtmlService {
         Generator(Documento doc,
                   List<ItemPartePreliminarResponseDto> preliminares,
                   List<ItemAnexoParteNormativaResponseDto> normativos,
-                  List<ItemParteFinalResponseDto> finais,
                   String brasaoRepublica,
                   String brasaoFab,
                   ObjectMapper objectMapper) {
             this.doc = doc;
             this.preliminares    = preliminares != null ? preliminares : List.of();
             this.normativos      = normativos   != null ? normativos   : List.of();
-            this.finais          = finais        != null ? finais       : List.of();
             this.brasaoRepublica = brasaoRepublica;
             this.brasaoFab       = brasaoFab;
             this.objectMapper    = objectMapper;
@@ -166,8 +161,10 @@ public class DocumentoHtmlService {
                 .norm-content-block td, .norm-content-block th { border: 1px solid #999; padding: 3pt 6pt; vertical-align: top; }
                 .norm-content-block th { background: rgba(11,61,145,0.06); font-weight: bold; text-align: center; }
                 .norm-content-block p { margin: 0; text-indent: 0; }
-                .resolve-line { text-align: center; margin: 8pt 0; }
+                .fecho-bloco { text-align: left; margin-top: 20pt; margin-bottom: 5pt; }
+                .fecho-bloco p { text-align: left; text-indent: 0; margin: 0; display: block; }
                 .assinatura-bloco { margin-top: 36pt; text-align: center; }
+                .assinatura-bloco p { margin: 0; text-align: center; text-indent: 0; display: block; }
                 .assin-data { margin: 0 0 24pt; }
                 .assin-nome { text-transform: uppercase; margin: 0; }
                 .assin-cargo { margin: 0; }
@@ -251,26 +248,26 @@ public class DocumentoHtmlService {
             }
             sb.append("</div>\n");
 
-            // Fundamentação (opcional)
-            var fund = findPreli(ItemAnexoParteNormativaTipoEnum.FUNDAMENTACAO);
-            String fundHtml = conteudoOuNull(fund);
-            if (fundHtml != null) {
-                sb.append("<div class=\"body-el\">").append(fundHtml).append("</div>\n");
+            // Fecho (alinhado à esquerda)
+            var fecho = findPreli(ItemAnexoParteNormativaTipoEnum.FECHO);
+            String fechoHtml = conteudoOuNull(fecho);
+            sb.append("<div class=\"fecho-bloco\">");
+            if (fechoHtml != null) {
+                sb.append(fechoHtml);
+            } else {
+                sb.append("Brasília, ").append(formatarDataBR(doc.getDtCriacao())).append(".");
             }
+            sb.append("</div>\n");
 
-            // Resolve
-            sb.append("<p class=\"resolve-line\">resolve:</p>\n");
-
-            // Artigos da portaria
-            sb.append("<p class=\"body-el\"><strong>Art. 1°</strong>  Fica aprovada a ")
-              .append(especieCompleta()).append(" – ").append(esc(docId()))
-              .append(", que dispõe sobre ").append(esc(doc.getAssuntoBasico().getNome())).append(".</p>\n");
-            sb.append("<p class=\"body-el\"><strong>Art. 2°</strong>  Esta Portaria entra em vigor na data de sua publicação.</p>\n");
-
-            // Assinatura
+            // Assinatura (centralizada)
+            var assinatura = findPreli(ItemAnexoParteNormativaTipoEnum.ASSINATURA);
+            String assinaturaHtml = conteudoOuNull(assinatura);
             sb.append("<div class=\"assinatura-bloco\">");
-            sb.append("<p class=\"assin-data\">Brasília, ").append(formatarDataBR(doc.getDtCriacao())).append("</p>");
-            sb.append("<p class=\"assin-cargo\">Comandante da Aeronáutica</p>");
+            if (assinaturaHtml != null) {
+                sb.append(assinaturaHtml);
+            } else {
+                sb.append("<p class=\"assin-cargo\">Comandante da Aeronáutica</p>");
+            }
             sb.append("</div>\n");
 
             sb.append("</div>\n");
@@ -331,7 +328,6 @@ public class DocumentoHtmlService {
             sb.append(buildToc());
             sb.append("<div class=\"sumario-sep\"></div>\n");
             sb.append(buildCorpoNormativo());
-            sb.append(buildCorpoFinal());
 
             sb.append("</div>\n");
             return sb.toString();
@@ -584,24 +580,6 @@ public class DocumentoHtmlService {
                   .append(safe)
                   .append("</p>\n");
             }
-        }
-
-        // ─── Parte final ─────────────────────────────────────────────────────────
-
-        private String buildCorpoFinal() {
-            if (finais.isEmpty()) return "";
-            var sb = new StringBuilder();
-            for (var item : finais) {
-                String c = processContent(item.getElementContent());
-                switch (item.getElementType()) {
-                    case CLAUSULA_REVOGATORIA, CLAUSULA_VIGENCIA, FECHO ->
-                        sb.append("<div class=\"body-el\">").append(c).append("</div>\n");
-                    case ASSINATURA, REFERENDA ->
-                        sb.append("<div class=\"corpo-assin\">").append(c).append("</div>\n");
-                    default -> {}
-                }
-            }
-            return sb.toString();
         }
 
         // ─── Helpers ─────────────────────────────────────────────────────────────

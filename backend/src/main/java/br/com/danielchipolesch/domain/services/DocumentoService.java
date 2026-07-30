@@ -121,6 +121,9 @@ public class DocumentoService {
 
         boolean tituloAlterado = !document.getTituloDocumento().equals(request.getTituloDocumento());
         document.setTituloDocumento(request.getTituloDocumento());
+        if (request.getNumeroSecundario() != null) {
+            document.setNumeroSecundario(request.getNumeroSecundario());
+        }
         Documento atualizado = documentoRepository.save(document);
         if (tituloAlterado) {
             documentoHistoricoService.registrar(atualizado, TipoAlteracaoEnum.ALTERACAO_METADADOS,

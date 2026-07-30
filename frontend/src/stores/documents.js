@@ -55,7 +55,6 @@ function gerarSecoesTemplate(doc) {
   const numBasico = doc.numero_basico ?? ''
   const numSec    = doc.numero_secundario != null ? doc.numero_secundario : '?'
   const sigla     = `${especie} ${numBasico}-${numSec}`.trim()
-  const nomeEsp   = ESPECIE_NOME[especie] ?? especie
 
   return [
     {
@@ -65,8 +64,7 @@ function gerarSecoesTemplate(doc) {
       ordem: 1,
       elementos: [
         makeElement('epigrafe', null, jDoc(
-          jPara(jBold(sigla)),
-          jPara(jRed('[DD DE MÊS DE AAAA]'))
+          jPara(jRed('Portaria ÓRGÃO/SETOR n° XYZ, de DD de MÊS de AAAA'))
         )),
         makeElement('ementa', null, jDoc(
           jPara(
@@ -82,14 +80,35 @@ function gerarSecoesTemplate(doc) {
             jText(', no uso das atribuições que lhe confere o art. 12 da Lei Complementar nº 97, de 9 de junho de 1999, tendo em vista o que consta do Processo nº '),
             jRed('[NÚMERO DO PROCESSO]'),
             jText(', resolve:')
+          ),
+          jPara(
+            jBold('Art. 1°'),
+            jText('  Aprovar a '),
+            jBold(sigla),
+            jText(' "'),
+            jRed('[TÍTULO DA NORMA]'),
+            jText('",')
+          ),
+          jPara(
+            jBold('Art. 2°'),
+            jText('  Revogar a Portaria '),
+            jRed('[XYZ]'),
+            jText(', de '),
+            jRed('[DD de mês de AAAA]'),
+            jText('.')
+          ),
+          jPara(
+            jBold('Art. 3°'),
+            jText('  Esta Portaria entra em vigor na data de sua publicação.')
           )
         )),
-        makeElement('fundamentacao', null, jDoc(
-          jPara(
-            jText('Considerando '),
-            jRed('[justificativa ou motivação da norma]'),
-            jText(';')
-          )
+        makeElement('fecho', null, jDoc(
+          jPara(jText('Brasília, '), jRed('[DD de mês de AAAA]'), jText('.'))
+        )),
+        makeElement('assinatura', null, jDoc(
+          jPara(jRed('[NOME DO COMANDANTE DA AERONÁUTICA]')),
+          jPara(jText('Tenente-Brigadeiro do Ar')),
+          jPara(jText('Comandante da Aeronáutica'))
         )),
       ],
     },
@@ -102,29 +121,10 @@ function gerarSecoesTemplate(doc) {
     },
     {
       id: uuidv4(),
-      tipo: 'parte_final',
-      titulo: 'Parte Final',
+      tipo: 'anexos',
+      titulo: 'Anexos',
       ordem: 3,
-      elementos: [
-        makeElement('clausula_revogatoria', null, jDoc(
-          jPara(jText('Ficam revogadas as disposições em contrário.'))
-        )),
-        makeElement('clausula_vigencia', null, jDoc(
-          jPara(jText(`Esta ${nomeEsp} entra em vigor na data de sua publicação no Boletim do Comando da Aeronáutica.`))
-        )),
-        makeElement('fecho', null, jDoc(
-          jPara(jText('Brasília, '), jRed('[DD de mês de AAAA]'), jText('.'))
-        )),
-        makeElement('assinatura', null, jDoc(
-          jPara(jRed('[NOME DO COMANDANTE DA AERONÁUTICA]')),
-          jPara(jText('Tenente-Brigadeiro do Ar')),
-          jPara(jText('Comandante da Aeronáutica'))
-        )),
-        makeElement('referenda', null, jDoc(
-          jPara(jRed('[NOME DO MINISTRO DE ESTADO DA DEFESA]')),
-          jPara(jText('Ministro de Estado da Defesa'))
-        )),
-      ],
+      elementos: [],
     },
   ]
 }
@@ -197,6 +197,16 @@ export const useDocumentsStore = defineStore('documents', {
       if (atualizado) {
         this.documentos[idx] = { ...this.documentos[idx], ...atualizado, secoes: documento.secoes }
       }
+    },
+
+    async updateMetadados(id, { titulo, numero_secundario }) {
+      const idx = this.documentos.findIndex(d => String(d.id) === String(id))
+      if (idx === -1) return
+      const atualizado = await api.updateDocumento(id, { titulo, numero_secundario })
+      if (atualizado) {
+        this.documentos[idx] = { ...this.documentos[idx], ...atualizado, secoes: this.documentos[idx].secoes }
+      }
+      return atualizado
     },
 
     async changeStatus(id, novoStatus) {

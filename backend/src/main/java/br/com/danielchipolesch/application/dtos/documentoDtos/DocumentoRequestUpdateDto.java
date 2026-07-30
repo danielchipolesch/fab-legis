@@ -12,4 +12,6 @@ public class DocumentoRequestUpdateDto {
 
     @NotBlank
     private String tituloDocumento;
+
+    private Integer numeroSecundario;
 }

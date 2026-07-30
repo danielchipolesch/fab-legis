@@ -1,7 +1,6 @@
 package br.com.danielchipolesch.domain.services;
 
 import br.com.danielchipolesch.application.dtos.itemAnexoParteNormativaDtos.ItemAnexoParteNormativaResponseDto;
-import br.com.danielchipolesch.application.dtos.itemParteFinalDtos.ItemParteFinalResponseDto;
 import br.com.danielchipolesch.application.dtos.itemPartePreliminarDtos.ItemPartePreliminarResponseDto;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.Documento;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.ItemAnexoParteNormativaTipoEnum;
@@ -56,12 +55,10 @@ public class DocumentoFoBuilder {
 
     public String buildFo(Documento doc,
                            List<ItemPartePreliminarResponseDto> preliminares,
-                           List<ItemAnexoParteNormativaResponseDto> normativos,
-                           List<ItemParteFinalResponseDto> finais) {
+                           List<ItemAnexoParteNormativaResponseDto> normativos) {
         return new Generator(doc,
                 preliminares != null ? preliminares : List.of(),
                 normativos   != null ? normativos   : List.of(),
-                finais       != null ? finais        : List.of(),
                 brasaoRepublica, brasaoFab, objectMapper, imagemService).build();
     }
 
@@ -84,7 +81,6 @@ public class DocumentoFoBuilder {
         private final Documento doc;
         private final List<ItemPartePreliminarResponseDto> preliminares;
         private final List<ItemAnexoParteNormativaResponseDto> normativos;
-        private final List<ItemParteFinalResponseDto> finais;
         private final String brasaoRepublica;
         private final String brasaoFab;
         private final ObjectMapper objectMapper;
@@ -93,7 +89,6 @@ public class DocumentoFoBuilder {
         Generator(Documento doc,
                   List<ItemPartePreliminarResponseDto> preliminares,
                   List<ItemAnexoParteNormativaResponseDto> normativos,
-                  List<ItemParteFinalResponseDto> finais,
                   String brasaoRepublica,
                   String brasaoFab,
                   ObjectMapper objectMapper,
@@ -101,7 +96,6 @@ public class DocumentoFoBuilder {
             this.doc            = doc;
             this.preliminares   = preliminares;
             this.normativos     = normativos;
-            this.finais         = finais;
             this.brasaoRepublica = brasaoRepublica;
             this.brasaoFab      = brasaoFab;
             this.objectMapper   = objectMapper;
@@ -179,45 +173,33 @@ public class DocumentoFoBuilder {
               .append(!ementaInline.isBlank() ? ementaInline : ementaDefault)
               .append("</fo:block>\n");
 
-            // Preâmbulo
+            // Preâmbulo (multi-parágrafo, cada um com recuo de 2,5 cm)
             var preambulo = findPreli(ItemAnexoParteNormativaTipoEnum.PREAMBULO);
-            String preambuloInline = inlineFromConteudo(preambulo != null ? preambulo.getElementContent() : null);
-            String preambuloDefault =
-                "<fo:inline font-weight=\"bold\">O COMANDANTE DA AERONÁUTICA</fo:inline>"
-                + ", no uso das atribuições que lhe confere o art. 12 da Lei Complementar n° 97, de 9 de junho de 1999, "
-                + "tendo em vista o que consta do Processo n° ___/___-___/___,";
-            sb.append("<fo:block text-indent=\"2.5cm\" text-align=\"justify\" space-after=\"5pt\">")
-              .append(!preambuloInline.isBlank() ? preambuloInline : preambuloDefault)
-              .append("</fo:block>\n");
-
-            // Fundamentação (opcional)
-            var fund = findPreli(ItemAnexoParteNormativaTipoEnum.FUNDAMENTACAO);
-            if (fund != null) {
-                String fundInline = inlineFromConteudo(fund.getElementContent());
-                if (!fundInline.isBlank()) {
-                    sb.append("<fo:block text-indent=\"2.5cm\" text-align=\"justify\" space-after=\"5pt\">")
-                      .append(fundInline).append("</fo:block>\n");
-                }
+            if (preambulo != null && preambulo.getElementContent() != null) {
+                sb.append(renderParasBlock(preambulo.getElementContent(), "2.5cm", "justify", null));
+            } else {
+                sb.append("<fo:block text-indent=\"2.5cm\" text-align=\"justify\" space-after=\"5pt\">")
+                  .append("<fo:inline font-weight=\"bold\">O COMANDANTE DA AERONÁUTICA</fo:inline>")
+                  .append(", no uso das atribuições que lhe confere o art. 12 da Lei Complementar n° 97, de 9 de junho de 1999,")
+                  .append("</fo:block>\n");
             }
 
-            // resolve:
-            sb.append(block("resolve:", "center", "12pt", "normal", "0", "8pt"));
+            // Fecho (alinhado à esquerda)
+            var fecho = findPreli(ItemAnexoParteNormativaTipoEnum.FECHO);
+            if (fecho != null && fecho.getElementContent() != null) {
+                sb.append(renderParasBlock(fecho.getElementContent(), null, "right", "20pt"));
+            } else {
+                sb.append("<fo:block text-align=\"right\" space-before=\"20pt\" space-after=\"5pt\">")
+                  .append("Brasília, ").append(formatarDataBR(doc.getDtCriacao())).append("</fo:block>\n");
+            }
 
-            // Artigos
-            sb.append("<fo:block text-indent=\"2.5cm\" text-align=\"justify\" space-after=\"5pt\">")
-              .append("<fo:inline font-weight=\"bold\">Art. 1°  </fo:inline>")
-              .append("Fica aprovada a ").append(especieCompleta()).append(" – ").append(foEsc(docId()))
-              .append(", que dispõe sobre ").append(foEsc(doc.getAssuntoBasico().getNome())).append(".")
-              .append("</fo:block>\n");
-            sb.append("<fo:block text-indent=\"2.5cm\" text-align=\"justify\" space-after=\"5pt\">")
-              .append("<fo:inline font-weight=\"bold\">Art. 2°  </fo:inline>")
-              .append("Esta Portaria entra em vigor na data de sua publicação.")
-              .append("</fo:block>\n");
-
-            // Assinatura
-            sb.append("<fo:block text-align=\"center\" space-before=\"36pt\" space-after=\"0\">")
-              .append("Brasília, ").append(formatarDataBR(doc.getDtCriacao())).append("</fo:block>\n");
-            sb.append(block("Comandante da Aeronáutica", "center", "12pt", "normal", "0", "0"));
+            // Assinatura (centralizada)
+            var assinatura = findPreli(ItemAnexoParteNormativaTipoEnum.ASSINATURA);
+            if (assinatura != null && assinatura.getElementContent() != null) {
+                sb.append(renderParasBlock(assinatura.getElementContent(), null, "center", "36pt"));
+            } else {
+                sb.append(block("Comandante da Aeronáutica", "center", "12pt", "normal", "36pt", "0"));
+            }
 
             sb.append("</fo:flow>\n</fo:page-sequence>\n");
             return sb.toString();
@@ -313,7 +295,6 @@ public class DocumentoFoBuilder {
             sb.append(buildToc());
             sb.append("<fo:block space-after=\"1.2em\"/>\n");
             sb.append(buildCorpoNormativo());
-            sb.append(buildCorpoFinal());
 
             sb.append("</fo:flow>\n</fo:page-sequence>\n");
             return sb.toString();
@@ -651,24 +632,35 @@ public class DocumentoFoBuilder {
             }
         }
 
-        // ─── Parte Final ──────────────────────────────────────────────────────
-
-        private String buildCorpoFinal() {
-            if (finais.isEmpty()) return "";
-            var sb = new StringBuilder();
-            for (var item : finais) {
-                String inline = foFromConteudo(item.getElementContent(), false);
-                switch (item.getElementType()) {
-                    case CLAUSULA_REVOGATORIA, CLAUSULA_VIGENCIA, FECHO ->
-                        sb.append("<fo:block text-indent=\"2.5cm\" text-align=\"justify\" space-after=\"5pt\">")
-                          .append(inline).append("</fo:block>\n");
-                    case ASSINATURA, REFERENDA ->
-                        sb.append("<fo:block text-align=\"center\" space-before=\"24pt\" space-after=\"5pt\">")
-                          .append(inline).append("</fo:block>\n");
-                    default -> {}
+        /**
+         * Renders each paragraph in a TipTap doc as an fo:block with the given indent/alignment.
+         * spaceBefore is applied only to the first block; pass null to omit.
+         */
+        private String renderParasBlock(String conteudo, String textIndent, String textAlign, String spaceBefore) {
+            if (conteudo == null || conteudo.isBlank()) return "";
+            try {
+                TipTapNode tipTapDoc = objectMapper.readValue(conteudo, TipTapNode.class);
+                if (tipTapDoc.getContent() == null) return "";
+                var sb = new StringBuilder();
+                boolean first = true;
+                for (var para : tipTapDoc.getContent()) {
+                    if (!"paragraph".equals(para.getType())) continue;
+                    String before = (first && spaceBefore != null)
+                            ? " space-before=\"" + spaceBefore + "\"" : "";
+                    String indent = textIndent != null
+                            ? " text-indent=\"" + textIndent + "\"" : "";
+                    sb.append("<fo:block").append(indent)
+                      .append(" text-align=\"").append(textAlign != null ? textAlign : "justify").append("\"")
+                      .append(before)
+                      .append(" space-after=\"5pt\">")
+                      .append(renderer.renderParagraphInlines(para))
+                      .append("</fo:block>\n");
+                    first = false;
                 }
+                return sb.toString();
+            } catch (Exception ignored) {
+                return "";
             }
-            return sb.toString();
         }
 
         private String foFromConteudo(String conteudo, boolean asBlocks) {
