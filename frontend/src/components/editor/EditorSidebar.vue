@@ -96,17 +96,123 @@
             </div>
           </template>
 
-          <!-- Parte normativa: árvore recursiva com drag-and-drop -->
+          <!-- Parte normativa: q-tree hierárquico nativo do Quasar -->
           <template v-else>
-            <NormTreeItem
-              v-if="normativaElementos.length"
-              :elements="normativaElementos"
-              :selected-id="selectedId"
-              @reorder="$emit('reorder-normativa')"
-            />
-            <div v-else class="text-caption text-grey-6 q-pa-sm text-italic">
-              Sem elementos normativos
-            </div>
+            <q-tree
+              :nodes="normativaElementos"
+              node-key="id"
+              children-key="filhos"
+              v-model:expanded="expandedNorm"
+              :selected="selectedId"
+              @update:selected="val => val && $emit('select', val)"
+              no-selection-unset
+              dense
+              class="norm-tree"
+              no-nodes-label="Sem elementos normativos"
+            >
+              <template v-slot:default-header="{ node }">
+                <div class="row items-center full-width norm-node">
+                  <!-- Ícone do tipo -->
+                  <q-icon
+                    :name="elementIcon(node.tipo)"
+                    size="13px"
+                    :color="isGroupingType(node.tipo) ? 'primary' : 'blue-grey-6'"
+                    class="q-mr-xs"
+                    style="flex-shrink:0"
+                  />
+                  <!-- Rótulo -->
+                  <span
+                    class="norm-label col ellipsis"
+                    :class="{
+                      'text-weight-bold text-uppercase': node.tipo === 'capitulo',
+                      'text-weight-bold': node.tipo === 'secao_normativa' || node.tipo === 'subsecao_normativa',
+                      'text-weight-medium': !isGroupingType(node.tipo),
+                    }"
+                  >{{ formatLabel(node) }}</span>
+                  <!-- Preview de conteúdo -->
+                  <span
+                    v-if="!isGroupingType(node.tipo) && nodePreview(node)"
+                    class="text-caption text-grey-6 q-ml-xs norm-preview"
+                  >{{ nodePreview(node) }}</span>
+                  <!-- Indicador de vazio -->
+                  <q-icon
+                    v-if="!isGroupingType(node.tipo) && !isNodeFilled(node)"
+                    name="mdi-alert-circle"
+                    color="amber-7"
+                    size="12px"
+                    class="q-ml-xs"
+                    style="flex-shrink:0"
+                  >
+                    <q-tooltip anchor="top middle" self="bottom middle">
+                      Vazio — necessário para aprovação
+                    </q-tooltip>
+                  </q-icon>
+                  <!-- Ações (visíveis ao passar o mouse) -->
+                  <div class="norm-actions row items-center q-ml-xs" style="gap:2px;flex-shrink:0">
+                    <q-btn round size="xs" flat dense color="grey" @click.stop="$emit('move-up', node.id)">
+                      <q-icon size="11px" name="mdi-arrow-up" />
+                      <q-tooltip anchor="center right" self="center left">Mover acima</q-tooltip>
+                    </q-btn>
+                    <q-btn round size="xs" flat dense color="grey" @click.stop="$emit('move-down', node.id)">
+                      <q-icon size="11px" name="mdi-arrow-down" />
+                      <q-tooltip anchor="center right" self="center left">Mover abaixo</q-tooltip>
+                    </q-btn>
+                    <q-btn
+                      v-if="childOptions(node).length || canPromoteNode(node)"
+                      round size="xs" flat dense color="grey"
+                      @click.stop
+                    >
+                      <q-icon size="11px" name="mdi-plus" />
+                      <q-menu>
+                        <q-list dense style="min-width:180px">
+                          <template v-if="childOptions(node).length">
+                            <q-item-label header>Adicionar como filho</q-item-label>
+                            <q-item
+                              v-for="opt in childOptions(node)"
+                              :key="opt.tipo"
+                              clickable v-close-popup
+                              @click="$emit('add-child', node.id, opt.tipo)"
+                            >
+                              <q-item-section avatar>
+                                <q-icon :name="elementIcon(opt.tipo)" />
+                              </q-item-section>
+                              <q-item-section>{{ opt.label }}</q-item-section>
+                            </q-item>
+                            <q-separator />
+                          </template>
+                          <template v-if="canPromoteNode(node)">
+                            <q-item-label header>Reorganizar</q-item-label>
+                            <q-item clickable v-close-popup @click="$emit('promote', node.id)">
+                              <q-item-section avatar>
+                                <q-icon name="mdi-arrow-collapse-up" />
+                              </q-item-section>
+                              <q-item-section>Promover nível</q-item-section>
+                            </q-item>
+                            <q-item clickable v-close-popup @click="$emit('demote', node.id)">
+                              <q-item-section avatar>
+                                <q-icon name="mdi-arrow-expand-down" />
+                              </q-item-section>
+                              <q-item-section>Rebaixar nível</q-item-section>
+                            </q-item>
+                            <q-separator />
+                          </template>
+                          <q-item clickable v-close-popup class="text-negative" @click="$emit('remove', node.id)">
+                            <q-item-section avatar>
+                              <q-icon name="mdi-delete-outline" color="negative" />
+                            </q-item-section>
+                            <q-item-section>Remover</q-item-section>
+                          </q-item>
+                        </q-list>
+                      </q-menu>
+                    </q-btn>
+                    <q-btn v-else round size="xs" flat dense color="negative" @click.stop="$emit('remove', node.id)">
+                      <q-icon size="11px" name="mdi-delete-outline" />
+                      <q-tooltip anchor="center right" self="center left">Remover</q-tooltip>
+                    </q-btn>
+                  </div>
+                </div>
+              </template>
+            </q-tree>
 
             <div class="q-mt-sm column q-px-xs" style="gap:4px">
               <div>
@@ -174,11 +280,10 @@
 </template>
 
 <script setup>
-import { reactive, ref, computed, watch, provide } from 'vue'
+import { reactive, ref, computed, watch } from 'vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import { formatLabel, elementIcon } from '@/utils/numbering.js'
 import { useEditorStore } from '@/stores/editor.js'
-import NormTreeItem from './NormTreeItem.vue'
 
 const editorStore = useEditorStore()
 
@@ -204,6 +309,56 @@ const CAPITULO_PRESETS = [
   'DISPOSIÇÕES TRANSITÓRIAS',
 ]
 
+// ── Tipos de agrupamento / conteúdo ──────────────────────────────────────────
+const GROUPING_TIPOS = new Set(['capitulo', 'secao_normativa', 'subsecao_normativa'])
+const ARTIGO_TIPOS   = new Set(['artigo', 'paragrafo', 'paragrafo_unico', 'inciso', 'alinea', 'sub_alinea'])
+
+const CHILD_MAP = {
+  capitulo:           [
+    { tipo: 'secao_normativa', label: 'Seção' },
+    { tipo: 'artigo',          label: 'Artigo' },
+  ],
+  secao_normativa:    [
+    { tipo: 'subsecao_normativa', label: 'Subseção' },
+    { tipo: 'artigo',             label: 'Artigo' },
+  ],
+  subsecao_normativa: [{ tipo: 'artigo', label: 'Artigo' }],
+  artigo:             [
+    { tipo: 'paragrafo_unico', label: 'Parágrafo único' },
+    { tipo: 'paragrafo',       label: 'Parágrafo (§)' },
+    { tipo: 'inciso',          label: 'Inciso' },
+  ],
+  paragrafo_unico: [{ tipo: 'inciso', label: 'Inciso' }],
+  paragrafo:       [{ tipo: 'inciso', label: 'Inciso' }],
+  inciso:          [{ tipo: 'alinea', label: 'Alínea' }],
+  alinea:          [{ tipo: 'sub_alinea', label: 'Sub-alínea' }],
+}
+
+// ── Helpers p/ q-tree ────────────────────────────────────────────────────────
+const isGroupingType = (tipo) => GROUPING_TIPOS.has(tipo)
+const canPromoteNode = (node) => ARTIGO_TIPOS.has(node.tipo)
+const childOptions   = (node) => CHILD_MAP[node.tipo] ?? []
+
+function extractText(conteudo) {
+  if (!conteudo) return ''
+  try {
+    const visit = (node) => {
+      if (!node) return ''
+      if (node.text) return node.text
+      if (node.content) return node.content.map(visit).join('')
+      return ''
+    }
+    return visit(JSON.parse(conteudo)).trim()
+  } catch { return '' }
+}
+
+const isNodeFilled = (node) => extractText(node?.conteudo).length > 0
+
+const nodePreview = (node) => {
+  const text = extractText(node?.conteudo)
+  return text.length > 28 ? text.slice(0, 28) + '…' : text
+}
+
 // ── Estado das seções colapsadas ─────────────────────────────────────────────
 const secaoExpandida = reactive({
   parte_preliminar: true,
@@ -225,31 +380,22 @@ const normativaElementos = computed(() => {
   return s?.elementos ?? []
 })
 
-// ── Estado de expansão: { [id]: boolean } — undefined = expandido por padrão ─
-const expanded = reactive({})
+// ── Nós expandidos no q-tree (começa com tudo aberto) ───────────────────────
+const expandedNorm = ref([])
 
-function markExpandable(elements) {
+function collectIds(elements) {
+  const ids = []
   for (const el of elements ?? []) {
-    if (el.filhos?.length) {
-      if (!(el.id in expanded)) expanded[el.id] = true
-      markExpandable(el.filhos)
-    }
+    ids.push(el.id)
+    if (el.filhos?.length) ids.push(...collectIds(el.filhos))
   }
+  return ids
 }
 
 watch(normativaElementos, (els) => {
-  markExpandable(els)
-}, { immediate: true, deep: true })
-
-// ── Provide para NormTreeItem (injeção sem prop-drilling) ─────────────────────
-provide('normExpanded', expanded)
-provide('normCallbacks', {
-  select:   (id)       => emit('select', id),
-  addChild: (pid, t)   => emit('add-child', pid, t),
-  promote:  (id)       => emit('promote', id),
-  demote:   (id)       => emit('demote', id),
-  remove:   (id)       => emit('remove', id),
-})
+  const all = new Set([...expandedNorm.value, ...collectIds(els)])
+  expandedNorm.value = [...all]
+}, { immediate: true })
 
 // ── Computeds para os botões de adicionar ────────────────────────────────────
 const hasCapitulos       = computed(() => normativaElementos.value.some(e => e.tipo === 'capitulo'))
@@ -264,19 +410,7 @@ const existingCapituloTitulos = computed(() =>
 )
 
 // ── Helpers p/ itens fixos ───────────────────────────────────────────────────
-function extractElText(conteudo) {
-  if (!conteudo) return ''
-  try {
-    const visit = (node) => {
-      if (!node) return ''
-      if (node.text) return node.text
-      if (node.content) return node.content.map(visit).join('')
-      return ''
-    }
-    return visit(JSON.parse(conteudo)).trim()
-  } catch { return '' }
-}
-const isElFilled = (el) => extractElText(el?.conteudo).length > 0
+const isElFilled = (el) => extractText(el?.conteudo).length > 0
 
 function secaoIcon(tipo) {
   const m = {
@@ -355,9 +489,56 @@ function secaoIconColor(tipo) {
   background: rgba(74, 111, 165, 0.16);
 }
 
-/* Área da parte normativa */
-.secao-elementos :deep(.sortable-chosen) {
-  outline: 2px dashed rgba(74, 111, 165, 0.4);
+/* ── Q-Tree parte normativa ──────────────────────────────────────────────── */
+.norm-tree {
+  padding: 0 !important;
+}
+
+/* Cabeçalho de cada nó */
+.norm-tree :deep(.q-tree__node-header) {
+  padding: 2px 4px 2px 2px;
   border-radius: 6px;
+  min-height: 28px;
+  align-items: center;
+}
+.norm-tree :deep(.q-tree__node-header:hover) {
+  background: rgba(74, 111, 165, 0.08);
+}
+
+/* Nó selecionado */
+.norm-tree :deep(.q-tree__node--selected > .q-tree__node-header) {
+  background: rgba(74, 111, 165, 0.16) !important;
+}
+
+/* Seta de expansão */
+.norm-tree :deep(.q-tree__arrow) {
+  color: var(--q-primary);
+  opacity: 0.65;
+  font-size: 14px;
+}
+
+/* Rótulo do nó */
+.norm-label {
+  font-size: 0.78rem;
+  line-height: 1.25;
+}
+
+/* Preview de conteúdo (max ~60px) */
+.norm-preview {
+  max-width: 56px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex-shrink: 0;
+  font-size: 0.7rem;
+}
+
+/* Ações aparecem ao passar o mouse */
+.norm-actions {
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.norm-tree :deep(.q-tree__node-header:hover .norm-actions) {
+  opacity: 1;
 }
 </style>
