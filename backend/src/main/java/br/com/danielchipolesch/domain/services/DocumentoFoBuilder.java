@@ -250,7 +250,7 @@ public class DocumentoFoBuilder {
             sb.append("  <fo:table-column column-width=\"3.5cm\"/>");
             sb.append("  <fo:table-column column-width=\"10cm\"/>");
             sb.append("  <fo:table-column column-width=\"3.5cm\"/>\n");
-            sb.append("  <fo:table-body><fo:table-row>\n");
+            sb.append("  <fo:table-body><fo:table-row height=\"5cm\">\n");
             sb.append("    <fo:table-cell><fo:block/></fo:table-cell>\n");
             sb.append("    <fo:table-cell border=\"1.5pt solid black\" padding=\"10pt 15pt\" display-align=\"center\">\n");
             sb.append("      ").append(block(foEsc(docId()),    "center", "12pt", "bold", "4pt", "4pt"));
