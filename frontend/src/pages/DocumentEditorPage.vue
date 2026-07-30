@@ -8,14 +8,14 @@
       :secoes="documento?.secoes ?? []"
       :selected-id="editorStore.selectedElementId"
       @select="editorStore.selectElement($event)"
-      @move-up="editorStore.moveUp($event)"
-      @move-down="editorStore.moveDown($event)"
-      @add-child="(parentId, tipo) => editorStore.addFilho(parentId, tipo)"
+      @move-up="onMoveUp"
+      @move-down="onMoveDown"
+      @add-child="onAddChild"
       @add-artigo="addArtigo"
       @add-capitulo="addCapitulo"
-      @promote="editorStore.promote($event)"
-      @demote="handleDemote($event)"
-      @remove="editorStore.removeElement($event)"
+      @promote="onPromote"
+      @demote="handleDemote"
+      @remove="onRemove"
       @reorder-normativa="onReorderNormativa"
     />
 
@@ -419,6 +419,12 @@ function onReorderNormativa() {
   }
 }
 
+function onMoveUp(id)            { editorStore.moveUp(id);        scheduleAutoSave() }
+function onMoveDown(id)          { editorStore.moveDown(id);      scheduleAutoSave() }
+function onAddChild(parentId, tipo) { editorStore.addFilho(parentId, tipo); scheduleAutoSave() }
+function onPromote(id)           { editorStore.promote(id);       scheduleAutoSave() }
+function onRemove(id)            { editorStore.removeElement(id); scheduleAutoSave() }
+
 function handleDemote(id) {
   const result = editorStore.demote(id)
   if (result && !result.ok && result.reason === 'at-bottom') {
@@ -429,6 +435,8 @@ function handleDemote(id) {
       position: 'top',
       timeout: 4000,
     })
+  } else {
+    scheduleAutoSave()
   }
 }
 
