@@ -333,7 +333,7 @@ public class DocumentoFoBuilder {
             Map<Long, Integer> artNums = buildArtNums(normativos);
 
             if (temAgrupamento) {
-                walkToc(normativos, entries, artNums, new int[]{0}, new int[]{0}, new int[]{0}, 0);
+                walkToc(normativos, entries, artNums, new int[]{0}, new int[]{0}, new int[]{0});
             } else {
                 collectArtToc(normativos, entries, artNums);
             }
@@ -433,40 +433,62 @@ public class DocumentoFoBuilder {
             return first == last ? fmtNum(first) : fmtNum(first) + "/" + fmtNum(last);
         }
 
+        private static final java.util.Set<ItemAnexoParteNormativaTipoEnum> GROUPING_TYPES = java.util.Set.of(
+                ItemAnexoParteNormativaTipoEnum.CAPITULO,
+                ItemAnexoParteNormativaTipoEnum.SECAO_NORMATIVA,
+                ItemAnexoParteNormativaTipoEnum.SUBSECAO_NORMATIVA);
+
+        /** Range of artigos belonging to this grouping element.
+         *  Checks children (tree structure) AND following siblings until the next
+         *  grouping element (flat structure where artigos are siblings of sections). */
+        private String artRangeFor(ItemAnexoParteNormativaResponseDto item,
+                                   List<ItemAnexoParteNormativaResponseDto> siblings,
+                                   int idx,
+                                   Map<Long, Integer> artNums) {
+            int first = firstArtigoNum(item.getChildren(), artNums);
+            int last  = lastArtigoNum (item.getChildren(), artNums);
+            for (int j = idx + 1; j < siblings.size(); j++) {
+                var sib = siblings.get(j);
+                if (GROUPING_TYPES.contains(sib.getElementType())) break;
+                if (sib.getElementType() == ItemAnexoParteNormativaTipoEnum.ARTIGO) {
+                    int n = artNums.getOrDefault(sib.getId(), -1);
+                    if (n > 0) {
+                        if (first < 0) first = n; else first = Math.min(first, n);
+                        if (last  < 0) last  = n; else last  = Math.max(last,  n);
+                    }
+                }
+            }
+            if (first < 0) return "";
+            if (last  < 0) last = first;
+            return first == last ? fmtNum(first) : fmtNum(first) + "/" + fmtNum(last);
+        }
+
         private void walkToc(List<ItemAnexoParteNormativaResponseDto> items, List<TocEntry> entries,
-                             Map<Long, Integer> artNums, int[] cap, int[] sec, int[] sub, int depth) {
-            for (var item : items) {
+                             Map<Long, Integer> artNums, int[] cap, int[] sec, int[] sub) {
+            if (items == null) return;
+            for (int i = 0; i < items.size(); i++) {
+                var item = items.get(i);
                 switch (item.getElementType()) {
                     case CAPITULO -> {
                         cap[0]++; sec[0] = 0; sub[0] = 0;
                         String t = item.getElementTitle() != null ? " - " + item.getElementTitle().toUpperCase() : "";
-                        String pg = fmtRange(item.getChildren(), artNums);
                         entries.add(new TocEntry("CAPÍTULO " + toRoman(cap[0]) + t, true, false, false,
-                                "norm-" + item.getId(), pg));
-                        if (item.getChildren() != null) walkToc(item.getChildren(), entries, artNums, cap, sec, sub, 1);
+                                "norm-" + item.getId(), artRangeFor(item, items, i, artNums)));
+                        walkToc(item.getChildren(), entries, artNums, cap, sec, sub);
                     }
                     case SECAO_NORMATIVA -> {
                         sec[0]++; sub[0] = 0;
                         String t = item.getElementTitle() != null ? " - " + item.getElementTitle() : "";
-                        String pg = fmtRange(item.getChildren(), artNums);
                         entries.add(new TocEntry("Seção " + toRoman(sec[0]) + t, false, true, false,
-                                "norm-" + item.getId(), pg));
-                        if (item.getChildren() != null) walkToc(item.getChildren(), entries, artNums, cap, sec, sub, 2);
+                                "norm-" + item.getId(), artRangeFor(item, items, i, artNums)));
+                        walkToc(item.getChildren(), entries, artNums, cap, sec, sub);
                     }
                     case SUBSECAO_NORMATIVA -> {
                         sub[0]++;
                         String t = item.getElementTitle() != null ? " - " + item.getElementTitle() : "";
-                        String pg = fmtRange(item.getChildren(), artNums);
                         entries.add(new TocEntry("Subseção " + toRoman(sub[0]) + t, false, true, true,
-                                "norm-" + item.getId(), pg));
-                        if (item.getChildren() != null) walkToc(item.getChildren(), entries, artNums, cap, sec, sub, 3);
-                    }
-                    case ARTIGO -> {
-                        int n = artNums.getOrDefault(item.getId(), 0);
-                        String pg = n > 0 ? fmtNum(n) : "";
-                        entries.add(new TocEntry("Art. " + (n > 0 ? ordinalOrCardinal(n) : "?"),
-                                false, depth >= 1, depth >= 2,
-                                "norm-" + item.getId(), pg));
+                                "norm-" + item.getId(), artRangeFor(item, items, i, artNums)));
+                        walkToc(item.getChildren(), entries, artNums, cap, sec, sub);
                     }
                     default -> {}
                 }
