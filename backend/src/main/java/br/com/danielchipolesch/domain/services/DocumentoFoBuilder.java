@@ -333,7 +333,7 @@ public class DocumentoFoBuilder {
             Map<Long, Integer> artNums = buildArtNums(normativos);
 
             if (temAgrupamento) {
-                walkToc(normativos, entries, artNums, new int[]{0}, new int[]{0}, new int[]{0});
+                walkToc(normativos, entries, artNums, new int[]{0}, new int[]{0}, new int[]{0}, 0);
             } else {
                 collectArtToc(normativos, entries, artNums);
             }
@@ -434,7 +434,7 @@ public class DocumentoFoBuilder {
         }
 
         private void walkToc(List<ItemAnexoParteNormativaResponseDto> items, List<TocEntry> entries,
-                             Map<Long, Integer> artNums, int[] cap, int[] sec, int[] sub) {
+                             Map<Long, Integer> artNums, int[] cap, int[] sec, int[] sub, int depth) {
             for (var item : items) {
                 switch (item.getElementType()) {
                     case CAPITULO -> {
@@ -443,7 +443,7 @@ public class DocumentoFoBuilder {
                         String pg = fmtRange(item.getChildren(), artNums);
                         entries.add(new TocEntry("CAPÍTULO " + toRoman(cap[0]) + t, true, false, false,
                                 "norm-" + item.getId(), pg));
-                        if (item.getChildren() != null) walkToc(item.getChildren(), entries, artNums, cap, sec, sub);
+                        if (item.getChildren() != null) walkToc(item.getChildren(), entries, artNums, cap, sec, sub, 1);
                     }
                     case SECAO_NORMATIVA -> {
                         sec[0]++; sub[0] = 0;
@@ -451,7 +451,7 @@ public class DocumentoFoBuilder {
                         String pg = fmtRange(item.getChildren(), artNums);
                         entries.add(new TocEntry("Seção " + toRoman(sec[0]) + t, false, true, false,
                                 "norm-" + item.getId(), pg));
-                        if (item.getChildren() != null) walkToc(item.getChildren(), entries, artNums, cap, sec, sub);
+                        if (item.getChildren() != null) walkToc(item.getChildren(), entries, artNums, cap, sec, sub, 2);
                     }
                     case SUBSECAO_NORMATIVA -> {
                         sub[0]++;
@@ -459,7 +459,14 @@ public class DocumentoFoBuilder {
                         String pg = fmtRange(item.getChildren(), artNums);
                         entries.add(new TocEntry("Subseção " + toRoman(sub[0]) + t, false, true, true,
                                 "norm-" + item.getId(), pg));
-                        if (item.getChildren() != null) walkToc(item.getChildren(), entries, artNums, cap, sec, sub);
+                        if (item.getChildren() != null) walkToc(item.getChildren(), entries, artNums, cap, sec, sub, 3);
+                    }
+                    case ARTIGO -> {
+                        int n = artNums.getOrDefault(item.getId(), 0);
+                        String pg = n > 0 ? fmtNum(n) : "";
+                        entries.add(new TocEntry("Art. " + (n > 0 ? ordinalOrCardinal(n) : "?"),
+                                false, depth >= 1, depth >= 2,
+                                "norm-" + item.getId(), pg));
                     }
                     default -> {}
                 }
