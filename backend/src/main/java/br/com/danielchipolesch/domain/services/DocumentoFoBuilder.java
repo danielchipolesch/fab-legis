@@ -243,19 +243,46 @@ public class DocumentoFoBuilder {
             String assunto = doc.getAssuntoBasico().getNome().toUpperCase();
             sb.append(block(assunto, "center", "21pt", "bold", "0", "15mm"));
 
-            // Legenda box (centered via table trick)
+            // Legenda box: espécie+número no topo, título no meio, ano na base
+            // Tabela externa centra horizontalmente a caixa (3.5 | 10 | 3.5 cm)
+            // Tabela interna divide a célula em 3 linhas de altura fixa (1.2+2.6+1.2=5cm)
             String titulo = doc.getTituloDocumento() != null
                     ? doc.getTituloDocumento().toUpperCase() : especieCompleta().toUpperCase();
+            String ano = String.valueOf(LocalDate.now().getYear());
             sb.append("<fo:table table-layout=\"fixed\" width=\"17cm\">\n");
             sb.append("  <fo:table-column column-width=\"3.5cm\"/>");
             sb.append("  <fo:table-column column-width=\"10cm\"/>");
             sb.append("  <fo:table-column column-width=\"3.5cm\"/>\n");
             sb.append("  <fo:table-body><fo:table-row height=\"5cm\">\n");
             sb.append("    <fo:table-cell><fo:block/></fo:table-cell>\n");
-            sb.append("    <fo:table-cell border=\"1.5pt solid black\" padding=\"10pt 15pt\" display-align=\"center\">\n");
-            sb.append("      ").append(block(foEsc(docId()),    "center", "12pt", "bold", "4pt", "4pt"));
-            sb.append("      ").append(block(foEsc(titulo),     "center", "12pt", "bold", "4pt", "4pt"));
-            sb.append("      ").append(block(String.valueOf(LocalDate.now().getYear()), "center", "12pt", "bold", "4pt", "0"));
+            sb.append("    <fo:table-cell border=\"1.5pt solid black\" padding=\"0\">\n");
+            // Tabela interna com 3 linhas
+            sb.append("      <fo:table table-layout=\"fixed\" width=\"100%\">\n");
+            sb.append("        <fo:table-column column-width=\"proportional-column-width(1)\"/>\n");
+            sb.append("        <fo:table-body>\n");
+            // Linha 1 — espécie e número (topo)
+            sb.append("          <fo:table-row height=\"1.2cm\">\n");
+            sb.append("            <fo:table-cell display-align=\"center\" padding=\"0.1cm 0.5cm\">\n");
+            sb.append("              <fo:block text-align=\"center\" font-size=\"12pt\" font-weight=\"bold\">")
+              .append(foEsc(docId())).append("</fo:block>\n");
+            sb.append("            </fo:table-cell>\n");
+            sb.append("          </fo:table-row>\n");
+            // Linha 2 — título (meio)
+            sb.append("          <fo:table-row height=\"2.6cm\">\n");
+            sb.append("            <fo:table-cell display-align=\"center\" padding=\"0 0.5cm\">\n");
+            sb.append("              <fo:block text-align=\"center\" font-size=\"12pt\" font-weight=\"bold\">")
+              .append(foEsc(titulo)).append("</fo:block>\n");
+            sb.append("            </fo:table-cell>\n");
+            sb.append("          </fo:table-row>\n");
+            // Linha 3 — ano (base)
+            sb.append("          <fo:table-row height=\"1.2cm\">\n");
+            sb.append("            <fo:table-cell display-align=\"center\" padding=\"0.1cm 0.5cm\">\n");
+            sb.append("              <fo:block text-align=\"center\" font-size=\"12pt\" font-weight=\"bold\">")
+              .append(ano).append("</fo:block>\n");
+            sb.append("            </fo:table-cell>\n");
+            sb.append("          </fo:table-row>\n");
+            sb.append("        </fo:table-body>\n");
+            sb.append("      </fo:table>\n");
             sb.append("    </fo:table-cell>\n");
             sb.append("    <fo:table-cell><fo:block/></fo:table-cell>\n");
             sb.append("  </fo:table-row></fo:table-body>\n</fo:table>\n");
