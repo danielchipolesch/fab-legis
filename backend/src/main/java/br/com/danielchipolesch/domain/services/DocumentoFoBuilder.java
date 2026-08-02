@@ -133,8 +133,9 @@ public class DocumentoFoBuilder {
 
         // ─── Watermark ────────────────────────────────────────────────────────
         // Rendered as fo:static-content so it repeats on EVERY page of the sequence.
-        // Three staggered instances (left → center → right) approximate a diagonal.
-        // A4: 595 × 842 pt. Font 52pt ≈ 65pt tall. Instances at ~130 / 390 / 650pt.
+        // 3-column × 5-row grid of small instances covers the whole page uniformly.
+        // A4: 595 × 842 pt. Lateral padding 40pt each side → 515pt usable.
+        // Top/bottom padding 60pt → 722pt usable. Each row ≈ 144pt, each col ≈ 172pt.
 
         private String buildStaticContentWatermark() {
             String open  = "<fo:static-content flow-name=\"wm\">\n";
@@ -144,21 +145,31 @@ public class DocumentoFoBuilder {
                 return open + "  <fo:block/>\n" + close;
             }
             String label = foEsc(status.name());
-            String font  = " font-size=\"52pt\" font-weight=\"bold\" color=\"#FFDDDD\"";
-            return open
-                 + "  <fo:block-container absolute-position=\"fixed\""
-                 + " top=\"0pt\" left=\"0pt\" width=\"595pt\" height=\"842pt\">\n"
-                 // upper-left
-                 + "    <fo:block" + font + " text-align=\"left\""
-                 + " start-indent=\"15pt\" space-before=\"100pt\">" + label + "</fo:block>\n"
-                 // centre
-                 + "    <fo:block" + font + " text-align=\"center\""
-                 + " space-before=\"190pt\">" + label + "</fo:block>\n"
-                 // lower-right
-                 + "    <fo:block" + font + " text-align=\"right\""
-                 + " end-indent=\"15pt\" space-before=\"190pt\">" + label + "</fo:block>\n"
-                 + "  </fo:block-container>\n"
-                 + close;
+            String font  = "font-size=\"14pt\" font-weight=\"bold\" color=\"#DDBBBB\"";
+            var sb = new StringBuilder();
+            sb.append(open);
+            sb.append("  <fo:block-container absolute-position=\"fixed\"");
+            sb.append(" top=\"60pt\" left=\"40pt\" width=\"515pt\" height=\"722pt\">\n");
+            sb.append("    <fo:table table-layout=\"fixed\" width=\"515pt\">\n");
+            sb.append("      <fo:table-column column-width=\"proportional-column-width(1)\"/>\n");
+            sb.append("      <fo:table-column column-width=\"proportional-column-width(1)\"/>\n");
+            sb.append("      <fo:table-column column-width=\"proportional-column-width(1)\"/>\n");
+            sb.append("      <fo:table-body>\n");
+            for (int row = 0; row < 5; row++) {
+                sb.append("        <fo:table-row height=\"144pt\">\n");
+                for (int col = 0; col < 3; col++) {
+                    sb.append("          <fo:table-cell display-align=\"center\">\n");
+                    sb.append("            <fo:block text-align=\"center\" ").append(font).append(">")
+                      .append(label).append("</fo:block>\n");
+                    sb.append("          </fo:table-cell>\n");
+                }
+                sb.append("        </fo:table-row>\n");
+            }
+            sb.append("      </fo:table-body>\n");
+            sb.append("    </fo:table>\n");
+            sb.append("  </fo:block-container>\n");
+            sb.append(close);
+            return sb.toString();
         }
 
         // ─── Page master ──────────────────────────────────────────────────────
