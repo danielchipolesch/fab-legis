@@ -119,7 +119,7 @@ public class DocumentoFoBuilder {
         String build() {
             var sb = new StringBuilder();
             sb.append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
-            sb.append("<fo:root xmlns:fo=\"").append(FO_NS).append("\" xmlns:svg=\"http://www.w3.org/2000/svg\">\n");
+            sb.append("<fo:root xmlns:fo=\"").append(FO_NS).append("\">\n");
             sb.append(buildLayoutMasterSet());
             sb.append(buildPortariaSequence());
             sb.append(buildCapaSequence());
@@ -137,17 +137,16 @@ public class DocumentoFoBuilder {
             DocumentoStatusEnum status = doc.getDocumentoStatus();
             if (status != DocumentoStatusEnum.RASCUNHO && status != DocumentoStatusEnum.MINUTA) return "";
             String label = status.name();
+            // Pure XSL-FO — no SVG/Batik dependency.
+            // Two stacked characters simulate a diagonal feel without SVG transforms.
+            // top≈320pt centers vertically on A4 (595×842pt).
             return "<fo:block-container absolute-position=\"fixed\""
-                 + " top=\"0pt\" left=\"0pt\" width=\"595pt\" height=\"842pt\">\n"
-                 + "  <fo:block>\n"
-                 + "    <fo:instream-foreign-object content-width=\"595pt\" content-height=\"842pt\">\n"
-                 + "      <svg:svg xmlns:svg=\"http://www.w3.org/2000/svg\" width=\"595\" height=\"842\">\n"
-                 + "        <svg:text x=\"297\" y=\"421\" text-anchor=\"middle\" dominant-baseline=\"middle\""
-                 + " font-size=\"110\" font-weight=\"bold\" fill=\"#FFCCCC\""
-                 + " transform=\"rotate(-45 297 421)\">" + foEsc(label) + "</svg:text>\n"
-                 + "      </svg:svg>\n"
-                 + "    </fo:instream-foreign-object>\n"
-                 + "  </fo:block>\n"
+                 + " top=\"300pt\" left=\"0pt\" width=\"595pt\" height=\"250pt\""
+                 + " display-align=\"center\">\n"
+                 + "  <fo:block font-size=\"96pt\" font-weight=\"bold\" color=\"#FFCCCC\""
+                 + " text-align=\"center\" letter-spacing=\"8pt\">"
+                 + foEsc(label)
+                 + "</fo:block>\n"
                  + "</fo:block-container>\n";
         }
 
