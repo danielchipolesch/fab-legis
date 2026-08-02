@@ -1,10 +1,12 @@
 package br.com.danielchipolesch.domain.services;
 
+import br.com.danielchipolesch.application.dtos.anexoDtos.AnexoResponseDto;
 import br.com.danielchipolesch.application.dtos.itemAnexoParteNormativaDtos.ItemAnexoParteNormativaResponseDto;
 import br.com.danielchipolesch.application.dtos.itemPartePreliminarDtos.ItemPartePreliminarResponseDto;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.Documento;
 import br.com.danielchipolesch.domain.handlers.exceptions.ResourceNotFoundException;
 import br.com.danielchipolesch.domain.handlers.exceptions.enums.DocumentException;
+import br.com.danielchipolesch.infrastructure.repositories.AnexoRepository;
 import br.com.danielchipolesch.infrastructure.repositories.DocumentoRepository;
 import org.apache.fop.apps.Fop;
 import org.apache.fop.apps.FopFactory;
@@ -48,6 +50,9 @@ public class DocumentoPdfService {
     @Autowired
     private ImagemService imagemService;
 
+    @Autowired
+    private AnexoRepository anexoRepository;
+
     public byte[] gerarPdfBytes(Long documentoId) {
         Documento doc = documentoRepository.findById(documentoId)
                 .orElseThrow(() -> new ResourceNotFoundException(DocumentException.NOT_FOUND.getMessage()));
@@ -76,7 +81,10 @@ public class DocumentoPdfService {
                 documentoParteNormativaService.getItensNormativosByDocumento(id)
                         .stream().map(ItemAnexoParteNormativaResponseDto::from).toList();
 
-        String fo = documentoFoBuilder.buildFo(doc, preliminares, normativos);
+        List<AnexoResponseDto> anexos = anexoRepository.findByDocumentoIdOrderByOrdemAsc(id)
+                .stream().map(AnexoResponseDto::from).toList();
+
+        String fo = documentoFoBuilder.buildFo(doc, preliminares, normativos, anexos);
 
         try (var os = new ByteArrayOutputStream()) {
             Fop fop = FOP_FACTORY.newFop(MimeConstants.MIME_PDF, FOP_FACTORY.newFOUserAgent(), os);

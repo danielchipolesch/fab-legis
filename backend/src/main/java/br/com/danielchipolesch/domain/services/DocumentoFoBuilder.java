@@ -1,5 +1,6 @@
 package br.com.danielchipolesch.domain.services;
 
+import br.com.danielchipolesch.application.dtos.anexoDtos.AnexoResponseDto;
 import br.com.danielchipolesch.application.dtos.itemAnexoParteNormativaDtos.ItemAnexoParteNormativaResponseDto;
 import br.com.danielchipolesch.application.dtos.itemPartePreliminarDtos.ItemPartePreliminarResponseDto;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.Documento;
@@ -55,10 +56,12 @@ public class DocumentoFoBuilder {
 
     public String buildFo(Documento doc,
                            List<ItemPartePreliminarResponseDto> preliminares,
-                           List<ItemAnexoParteNormativaResponseDto> normativos) {
+                           List<ItemAnexoParteNormativaResponseDto> normativos,
+                           List<AnexoResponseDto> anexos) {
         return new Generator(doc,
                 preliminares != null ? preliminares : List.of(),
                 normativos   != null ? normativos   : List.of(),
+                anexos       != null ? anexos       : List.of(),
                 brasaoRepublica, brasaoFab, objectMapper, imagemService).build();
     }
 
@@ -81,14 +84,17 @@ public class DocumentoFoBuilder {
         private final Documento doc;
         private final List<ItemPartePreliminarResponseDto> preliminares;
         private final List<ItemAnexoParteNormativaResponseDto> normativos;
+        private final List<AnexoResponseDto> anexos;
         private final String brasaoRepublica;
         private final String brasaoFab;
         private final ObjectMapper objectMapper;
         private final XslFoContentRenderer renderer;
+        private final ImagemService imagemService;
 
         Generator(Documento doc,
                   List<ItemPartePreliminarResponseDto> preliminares,
                   List<ItemAnexoParteNormativaResponseDto> normativos,
+                  List<AnexoResponseDto> anexos,
                   String brasaoRepublica,
                   String brasaoFab,
                   ObjectMapper objectMapper,
@@ -96,9 +102,11 @@ public class DocumentoFoBuilder {
             this.doc            = doc;
             this.preliminares   = preliminares;
             this.normativos     = normativos;
+            this.anexos         = anexos;
             this.brasaoRepublica = brasaoRepublica;
             this.brasaoFab      = brasaoFab;
             this.objectMapper   = objectMapper;
+            this.imagemService  = imagemService;
             this.renderer       = new XslFoContentRenderer();
             if (imagemService != null) {
                 this.renderer.setImageResolver(imagemService::getImageAsDataUri);
@@ -108,13 +116,18 @@ public class DocumentoFoBuilder {
         // ─── Entry point ──────────────────────────────────────────────────────
 
         String build() {
-            return "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
-                 + "<fo:root xmlns:fo=\"" + FO_NS + "\">\n"
-                 + buildLayoutMasterSet()
-                 + buildPortariaSequence()
-                 + buildCapaSequence()
-                 + buildBodySequence()
-                 + "</fo:root>";
+            var sb = new StringBuilder();
+            sb.append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
+            sb.append("<fo:root xmlns:fo=\"").append(FO_NS).append("\">\n");
+            sb.append(buildLayoutMasterSet());
+            sb.append(buildPortariaSequence());
+            sb.append(buildCapaSequence());
+            sb.append(buildBodySequence());
+            for (AnexoResponseDto anexo : anexos) {
+                sb.append(buildAnexoSequence(anexo));
+            }
+            sb.append("</fo:root>");
+            return sb.toString();
         }
 
         // ─── Page master ──────────────────────────────────────────────────────
@@ -295,6 +308,36 @@ public class DocumentoFoBuilder {
             sb.append(buildToc());
             sb.append("<fo:block space-after=\"1.2em\"/>\n");
             sb.append(buildCorpoNormativo());
+
+            sb.append("</fo:flow>\n</fo:page-sequence>\n");
+            return sb.toString();
+        }
+
+        // ─── Annexes ──────────────────────────────────────────────────────────
+
+        private String buildAnexoSequence(AnexoResponseDto anexo) {
+            var sb = new StringBuilder();
+            sb.append("<fo:page-sequence master-reference=\"a4\">\n");
+            sb.append("<fo:static-content flow-name=\"xsl-region-after\">\n");
+            sb.append("  <fo:block text-align=\"right\" font-size=\"10pt\"><fo:page-number/></fo:block>\n");
+            sb.append("</fo:static-content>\n");
+            sb.append("<fo:flow flow-name=\"xsl-region-body\">\n");
+
+            String numRomano = toRoman(anexo.getOrdem() + 1);
+            sb.append(block("ANEXO " + numRomano, "center", "12pt", "bold", "0", "4pt"));
+            sb.append(block(foEsc(anexo.getTitulo().toUpperCase()), "center", "12pt", "bold", "0", "12pt"));
+
+            if (imagemService != null && anexo.getUrlImagem() != null && !anexo.getUrlImagem().isBlank()) {
+                try {
+                    String dataUri = imagemService.getImageAsDataUri(anexo.getUrlImagem());
+                    if (dataUri != null && !dataUri.isBlank()) {
+                        sb.append("<fo:block text-align=\"center\">");
+                        sb.append("<fo:external-graphic src=\"url('").append(dataUri).append("')\"");
+                        sb.append(" content-width=\"scale-to-fit\" width=\"17cm\" scaling=\"uniform\"/>");
+                        sb.append("</fo:block>\n");
+                    }
+                } catch (Exception ignored) {}
+            }
 
             sb.append("</fo:flow>\n</fo:page-sequence>\n");
             return sb.toString();

@@ -141,28 +141,7 @@
           </q-expansion-item>
         </q-card>
 
-        <!-- 3. Anexos (fechada por padrão) -->
-        <q-card flat class="section-card">
-          <q-expansion-item
-            v-model="expanded.anexos"
-            icon="mdi-paperclip"
-            label="Anexos"
-            header-class="text-primary text-weight-medium"
-          >
-            <q-separator />
-            <q-card-section class="q-pa-lg">
-              <div class="column items-center q-py-xl text-grey-6">
-                <q-icon name="mdi-folder-open-outline" size="64px" class="q-mb-md" color="grey-4" />
-                <div class="text-body2 q-mb-xs">Nenhum anexo disponível.</div>
-                <div class="text-caption text-grey-5 text-center" style="max-width:360px">
-                  Os anexos serão exibidos aqui após a aprovação do documento.
-                </div>
-              </div>
-            </q-card-section>
-          </q-expansion-item>
-        </q-card>
-
-        <!-- 4. Histórico de versões (fechada por padrão) -->
+        <!-- 3. Histórico de versões (fechada por padrão) -->
         <q-card flat class="section-card">
           <q-expansion-item
             v-model="expanded.versoes"
@@ -233,7 +212,6 @@ const pdfLoading = ref(false)
 const expanded = reactive({
   info:    true,
   preview: false,
-  anexos:  false,
   versoes: false,
 })
 

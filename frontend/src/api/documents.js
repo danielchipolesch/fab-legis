@@ -150,3 +150,20 @@ export async function saveSecoes(id, secoes) {
 export async function deleteDocumento(id) {
   return http.del(`/documentos/${id}`)
 }
+
+// ── Anexos ────────────────────────────────────────────────────────────────────
+
+export async function listAnexos(documentoId) {
+  return http.get(`/documentos/${documentoId}/anexos`)
+}
+
+export async function uploadAnexo(documentoId, titulo, arquivo) {
+  const form = new FormData()
+  form.append('titulo', titulo)
+  form.append('arquivo', arquivo)
+  return http.postForm(`/documentos/${documentoId}/anexos`, form)
+}
+
+export async function deleteAnexo(documentoId, anexoId) {
+  return http.del(`/documentos/${documentoId}/anexos/${anexoId}`)
+}

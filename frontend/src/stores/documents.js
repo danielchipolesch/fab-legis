@@ -133,6 +133,7 @@ export const useDocumentsStore = defineStore('documents', {
   state: () => ({
     documentos: [],
     loading: false,
+    anexosPorDocumento: {},
   }),
 
   getters: {
@@ -224,6 +225,28 @@ export const useDocumentsStore = defineStore('documents', {
       }
       await api.deleteDocumento(id)
       this.documentos = this.documentos.filter(d => String(d.id) !== String(id))
+    },
+
+    async fetchAnexos(documentoId) {
+      const lista = await api.listAnexos(documentoId)
+      this.anexosPorDocumento[String(documentoId)] = lista ?? []
+      return lista
+    },
+
+    async addAnexo(documentoId, titulo, arquivo) {
+      const novo = await api.uploadAnexo(documentoId, titulo, arquivo)
+      const key = String(documentoId)
+      if (!this.anexosPorDocumento[key]) this.anexosPorDocumento[key] = []
+      this.anexosPorDocumento[key].push(novo)
+      return novo
+    },
+
+    async removeAnexo(documentoId, anexoId) {
+      await api.deleteAnexo(documentoId, anexoId)
+      const key = String(documentoId)
+      if (this.anexosPorDocumento[key]) {
+        this.anexosPorDocumento[key] = this.anexosPorDocumento[key].filter(a => String(a.id) !== String(anexoId))
+      }
     },
 
     addElemento(documentoId, parentId, tipo) {

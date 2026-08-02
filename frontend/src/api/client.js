@@ -43,6 +43,16 @@ export async function patch(path, body) {
   return res.status === 204 ? null : res.json()
 }
 
+export async function postForm(path, formData) {
+  const res = await fetch(`${BASE_URL}${path}`, {
+    method: 'POST',
+    headers: { 'Accept': 'application/json' },
+    body: formData,
+  })
+  if (!res.ok) throw new Error(`${res.status} ${res.statusText}`)
+  return res.status === 204 ? null : res.json()
+}
+
 export async function del(path) {
   const res = await fetch(`${BASE_URL}${path}`, {
     method: 'DELETE',

@@ -232,10 +232,36 @@
             </div>
           </template>
 
-          <!-- Seção Anexos: placeholder -->
+          <!-- Seção Anexos -->
           <template v-else-if="secao.tipo === 'anexos'">
-            <div class="q-px-md q-py-sm text-caption text-grey-6">
+            <div v-if="!anexos.length" class="q-px-md q-py-sm text-caption text-grey-6">
               Nenhum anexo vinculado a este documento.
+            </div>
+            <div v-else class="q-px-xs q-pb-xs">
+              <div
+                v-for="anexo in anexos"
+                :key="anexo.id"
+                class="fixed-item row items-center q-px-sm q-py-xs"
+              >
+                <q-icon name="mdi-image-outline" size="13px" color="teal-6" class="q-mr-sm" />
+                <span class="text-caption col ellipsis">
+                  ANEXO {{ toRoman(anexo.ordem + 1) }} — {{ anexo.titulo }}
+                </span>
+                <q-btn
+                  flat round dense size="xs" color="negative"
+                  icon="mdi-delete-outline"
+                  @click.stop="removerAnexo(anexo.id)"
+                >
+                  <q-tooltip anchor="center right" self="center left">Remover</q-tooltip>
+                </q-btn>
+              </div>
+            </div>
+            <div class="q-px-xs q-pb-sm q-mt-xs">
+              <q-btn
+                outline color="primary" size="sm" class="full-width"
+                icon="mdi-plus" label="Adicionar anexo"
+                @click="abrirDialogAnexo"
+              />
             </div>
           </template>
 
@@ -387,6 +413,52 @@
           label="Salvar"
           :loading="metaSalvando"
           @click="salvarMeta"
+        />
+      </q-card-actions>
+    </q-card>
+  </q-dialog>
+
+  <!-- Dialog de upload de anexo -->
+  <q-dialog v-model="anexoDialogOpen" persistent>
+    <q-card style="min-width:400px;max-width:480px;width:100%">
+      <q-card-section class="row items-center q-pb-none">
+        <q-icon name="mdi-paperclip" size="20px" color="primary" class="q-mr-sm" />
+        <div class="text-h6">Adicionar anexo</div>
+        <q-space />
+        <q-btn icon="mdi-close" flat round dense v-close-popup :disable="anexoUploadando" />
+      </q-card-section>
+
+      <q-separator class="q-mt-sm" />
+
+      <q-card-section class="q-pa-md column q-gutter-sm">
+        <q-input
+          v-model="anexoForm.titulo"
+          label="Título do anexo"
+          outlined dense autofocus
+          :disable="anexoUploadando"
+        />
+        <q-file
+          v-model="anexoForm.arquivo"
+          label="Imagem (PNG, JPEG)"
+          outlined dense
+          accept="image/png,image/jpeg,image/jpg"
+          :disable="anexoUploadando"
+        >
+          <template v-slot:prepend>
+            <q-icon name="mdi-image-outline" />
+          </template>
+        </q-file>
+      </q-card-section>
+
+      <q-separator />
+
+      <q-card-actions align="right" class="q-px-md q-py-sm">
+        <q-btn flat label="Cancelar" v-close-popup :disable="anexoUploadando" />
+        <q-btn
+          unelevated color="primary" label="Enviar"
+          :loading="anexoUploadando"
+          :disable="!anexoForm.titulo || !anexoForm.arquivo"
+          @click="enviarAnexo"
         />
       </q-card-actions>
     </q-card>
@@ -562,6 +634,65 @@ const existingCapituloTitulos = computed(() =>
       .map(e => e.titulo.toUpperCase())
   )
 )
+
+// ── Anexos ───────────────────────────────────────────────────────────────────
+const anexos = computed(() => documentsStore.anexosPorDocumento[String(props.documento?.id)] ?? [])
+
+const anexoDialogOpen = ref(false)
+const anexoUploadando = ref(false)
+const anexoForm = reactive({ titulo: '', arquivo: null })
+
+function toRoman(n) {
+  if (n <= 0) return ''
+  const vals = [1000,900,500,400,100,90,50,40,10,9,5,4,1]
+  const syms = ['M','CM','D','CD','C','XC','L','XL','X','IX','V','IV','I']
+  let result = ''
+  for (let i = 0; i < vals.length; i++)
+    while (n >= vals[i]) { result += syms[i]; n -= vals[i] }
+  return result
+}
+
+function abrirDialogAnexo() {
+  anexoForm.titulo  = ''
+  anexoForm.arquivo = null
+  anexoDialogOpen.value = true
+}
+
+async function enviarAnexo() {
+  if (!props.documento?.id || !anexoForm.titulo || !anexoForm.arquivo) return
+  anexoUploadando.value = true
+  try {
+    await documentsStore.addAnexo(props.documento.id, anexoForm.titulo, anexoForm.arquivo)
+    anexoDialogOpen.value = false
+    $q.notify({ type: 'positive', message: 'Anexo adicionado com sucesso.' })
+  } catch (e) {
+    $q.notify({ type: 'negative', message: 'Erro ao enviar anexo.' })
+  } finally {
+    anexoUploadando.value = false
+  }
+}
+
+function removerAnexo(anexoId) {
+  if (!props.documento?.id) return
+  $q.dialog({
+    title: 'Confirmar exclusão',
+    message: 'Deseja realmente excluir este anexo? Esta ação não pode ser desfeita.',
+    cancel: { flat: true, label: 'Cancelar' },
+    ok: { unelevated: true, color: 'negative', label: 'Excluir' },
+    persistent: true,
+  }).onOk(async () => {
+    try {
+      await documentsStore.removeAnexo(props.documento.id, anexoId)
+      $q.notify({ type: 'positive', message: 'Anexo removido.' })
+    } catch (e) {
+      $q.notify({ type: 'negative', message: 'Erro ao remover anexo.' })
+    }
+  })
+}
+
+watch(() => props.documento?.id, (id) => {
+  if (id) documentsStore.fetchAnexos(id)
+}, { immediate: true })
 
 // ── Helpers p/ itens fixos ───────────────────────────────────────────────────
 const isElFilled = (el) => extractText(el?.conteudo).length > 0

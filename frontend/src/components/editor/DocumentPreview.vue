@@ -194,6 +194,22 @@
 
       </div>
 
+      <!-- ═══════════════════════════════════════════════════
+           PÁGINAS DE ANEXOS (ANEXO II, III, ...)
+      ════════════════════════════════════════════════════════ -->
+      <div
+        v-for="anexo in anexosDocumento"
+        :key="anexo.id"
+        class="pdf-page"
+      >
+        <div v-if="wmText" class="wm-overlay" :style="{ color: wmColor }">{{ wmText }}</div>
+        <p class="sumario-anexo">ANEXO {{ toRomanStr(anexo.ordem + 1) }}</p>
+        <p class="sumario-anexo-titulo">{{ anexo.titulo.toUpperCase() }}</p>
+        <div class="anexo-img-wrap">
+          <img :src="anexo.urlImagem" :alt="anexo.titulo" class="anexo-img" />
+        </div>
+      </div>
+
     </div><!-- /pages-wrap -->
   </div><!-- /preview-outer -->
 </template>
@@ -203,8 +219,11 @@ import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import { generateHTML } from '@tiptap/html'
 import { editorExtensions } from '@/editor/extensions.js'
 import { bodyLabel, formatLabel, toRoman } from '@/utils/numbering.js'
+import { useDocumentsStore } from '@/stores/documents.js'
 
 function toRomanStr(n) { return toRoman(n ?? 0) }
+
+const documentsStore = useDocumentsStore()
 
 function conteudoToHtml(conteudo) {
   if (!conteudo) return ''
@@ -463,6 +482,10 @@ const tocItems = computed(() => {
 
   return items
 })
+
+const anexosDocumento = computed(() =>
+  documentsStore.anexosPorDocumento[String(props.documento?.id)] ?? []
+)
 </script>
 
 <style scoped>
@@ -921,5 +944,19 @@ const tocItems = computed(() => {
   margin: 4px 0 0;
   text-indent: 0;
   text-align: center;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   PÁGINAS DE ANEXOS (imagem)
+════════════════════════════════════════════════════════════ */
+.anexo-img-wrap {
+  text-align: center;
+  margin-top: 20px;
+}
+.anexo-img {
+  max-width: 100%;
+  max-height: 850px;
+  height: auto;
+  object-fit: contain;
 }
 </style>
