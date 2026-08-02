@@ -132,22 +132,33 @@ public class DocumentoFoBuilder {
         }
 
         // ─── Watermark ────────────────────────────────────────────────────────
+        // Rendered as fo:static-content so it repeats on EVERY page of the sequence.
+        // Three staggered instances (left → center → right) approximate a diagonal.
+        // A4: 595 × 842 pt. Font 52pt ≈ 65pt tall. Instances at ~130 / 390 / 650pt.
 
-        private String buildWatermark() {
+        private String buildStaticContentWatermark() {
+            String open  = "<fo:static-content flow-name=\"wm\">\n";
+            String close = "</fo:static-content>\n";
             DocumentoStatusEnum status = doc.getDocumentoStatus();
-            if (status != DocumentoStatusEnum.RASCUNHO && status != DocumentoStatusEnum.MINUTA) return "";
-            String label = status.name();
-            // Pure XSL-FO — no SVG/Batik dependency.
-            // Two stacked characters simulate a diagonal feel without SVG transforms.
-            // top≈320pt centers vertically on A4 (595×842pt).
-            return "<fo:block-container absolute-position=\"fixed\""
-                 + " top=\"300pt\" left=\"0pt\" width=\"595pt\" height=\"250pt\""
-                 + " display-align=\"center\">\n"
-                 + "  <fo:block font-size=\"96pt\" font-weight=\"bold\" color=\"#FFCCCC\""
-                 + " text-align=\"center\" letter-spacing=\"8pt\">"
-                 + foEsc(label)
-                 + "</fo:block>\n"
-                 + "</fo:block-container>\n";
+            if (status != DocumentoStatusEnum.RASCUNHO && status != DocumentoStatusEnum.MINUTA) {
+                return open + "  <fo:block/>\n" + close;
+            }
+            String label = foEsc(status.name());
+            String font  = " font-size=\"52pt\" font-weight=\"bold\" color=\"#FFDDDD\"";
+            return open
+                 + "  <fo:block-container absolute-position=\"fixed\""
+                 + " top=\"0pt\" left=\"0pt\" width=\"595pt\" height=\"842pt\">\n"
+                 // upper-left
+                 + "    <fo:block" + font + " text-align=\"left\""
+                 + " start-indent=\"15pt\" space-before=\"100pt\">" + label + "</fo:block>\n"
+                 // centre
+                 + "    <fo:block" + font + " text-align=\"center\""
+                 + " space-before=\"190pt\">" + label + "</fo:block>\n"
+                 // lower-right
+                 + "    <fo:block" + font + " text-align=\"right\""
+                 + " end-indent=\"15pt\" space-before=\"190pt\">" + label + "</fo:block>\n"
+                 + "  </fo:block-container>\n"
+                 + close;
         }
 
         // ─── Page master ──────────────────────────────────────────────────────
@@ -160,6 +171,7 @@ public class DocumentoFoBuilder {
                       margin-top="2cm" margin-bottom="2cm"
                       margin-left="2cm" margin-right="2cm">
                     <fo:region-body region-name="xsl-region-body"/>
+                    <fo:region-before region-name="wm" extent="0pt" overflow="visible"/>
                     <fo:region-after region-name="xsl-region-after" extent="1cm"/>
                   </fo:simple-page-master>
                   <fo:simple-page-master master-name="a4-nofooter"
@@ -167,6 +179,7 @@ public class DocumentoFoBuilder {
                       margin-top="2cm" margin-bottom="2cm"
                       margin-left="2cm" margin-right="2cm">
                     <fo:region-body region-name="xsl-region-body"/>
+                    <fo:region-before region-name="wm" extent="0pt" overflow="visible"/>
                   </fo:simple-page-master>
                 </fo:layout-master-set>
                 """;
@@ -177,8 +190,8 @@ public class DocumentoFoBuilder {
         private String buildPortariaSequence() {
             var sb = new StringBuilder();
             sb.append("<fo:page-sequence master-reference=\"a4-nofooter\">\n");
+            sb.append(buildStaticContentWatermark());
             sb.append("<fo:flow flow-name=\"xsl-region-body\">\n");
-            sb.append(buildWatermark());
 
             // Cabeçalho
             if (!brasaoRepublica.isBlank()) {
@@ -244,8 +257,8 @@ public class DocumentoFoBuilder {
         private String buildCapaSequence() {
             var sb = new StringBuilder();
             sb.append("<fo:page-sequence master-reference=\"a4-nofooter\">\n");
+            sb.append(buildStaticContentWatermark());
             sb.append("<fo:flow flow-name=\"xsl-region-body\">\n");
-            sb.append(buildWatermark());
 
             sb.append(block("MINISTÉRIO DA DEFESA", "center", "17pt", "bold", "0", "2pt"));
             sb.append(block("COMANDO DA AERONÁUTICA", "center", "17pt", "bold", "0", "50mm"));
@@ -319,8 +332,8 @@ public class DocumentoFoBuilder {
             sb.append("  <fo:block text-align=\"right\" font-size=\"10pt\"><fo:page-number/></fo:block>\n");
             sb.append("</fo:static-content>\n");
 
+            sb.append(buildStaticContentWatermark());
             sb.append("<fo:flow flow-name=\"xsl-region-body\">\n");
-            sb.append(buildWatermark());
 
             String titulo = doc.getTituloDocumento() != null
                     ? doc.getTituloDocumento().toUpperCase() : especieCompleta().toUpperCase();
@@ -344,8 +357,8 @@ public class DocumentoFoBuilder {
             sb.append("<fo:static-content flow-name=\"xsl-region-after\">\n");
             sb.append("  <fo:block text-align=\"right\" font-size=\"10pt\"><fo:page-number/></fo:block>\n");
             sb.append("</fo:static-content>\n");
+            sb.append(buildStaticContentWatermark());
             sb.append("<fo:flow flow-name=\"xsl-region-body\">\n");
-            sb.append(buildWatermark());
 
             String numRomano = toRoman(anexo.getOrdem() + 1);
             sb.append(block("ANEXO " + numRomano, "center", "12pt", "bold", "0", "4pt"));
