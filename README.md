@@ -73,13 +73,17 @@ painéis integrados:
 
 | Painel | O que faz |
 |---|---|
-| **Sidebar (árvore)** | Navegação pela estrutura do documento via `q-tree` do Quasar, com ícones por tipo de elemento e indicador visual (⚠️ amarelo) de seções ainda vazias |
+| **Sidebar (árvore)** | Navegação pela estrutura do documento via `q-tree` do Quasar, com ícones por tipo de elemento, indicador visual (⚠️ amarelo) de seções vazias e **dialog de metadados** (edição de título e número secundário diretamente na sidebar) |
 | **Editor central** | Edição rica do elemento selecionado — negrito, itálico, sublinhado, alinhamento, cor, realce, tabelas e figuras |
 | **Preview** | Renderização fiel do documento final, atualizada em tempo real, já com toda a numeração aplicada |
 
+O conteúdo de cada elemento é armazenado no banco como **JSON TipTap** (formato
+ProseMirror), garantindo fidelidade na serialização para XSL-FO (PDF) e HTML sem
+depender de parsing de HTML.
+
 Operações estruturais disponíveis: adicionar filho, adicionar irmão, **promover**
 e **rebaixar** elementos na hierarquia (com validação de subárvore), mover para
-cima/baixo, remover e reordenar por *drag and drop*.
+cima/baixo, remover e reordenar por *drag and drop* (persistido no backend).
 
 ### 🔢 Numeração automática conforme a técnica legislativa
 
@@ -110,21 +114,40 @@ que o mesmo HTML gera PDF e DOCX corretos. O sumário inclui automaticamente a
 
 ### 📄 Exportação de documentos
 
-Geração de PDF client-side via **pdfmake** (`utils/pdfExport.js`), seguindo o
+Geração de PDF **server-side** via **Apache FOP 2.10 / XSL-FO**, seguindo o
 padrão da **NSCA 5-3**:
 
-- margens A4 oficiais (3 cm esquerda/superior/inferior, 2,5 cm direita);
-- cabeçalho com brasão da FAB, "MINISTÉRIO DA DEFESA" e "COMANDO DA AERONÁUTICA";
+- margens A4 oficiais;
+- cabeçalho com brasão da República (Portaria de Aprovação) e brasão da FAB (Capa);
+- estrutura de três páginas: **Portaria de Aprovação → Capa → Sumário + Corpo normativo**;
+- **sumário automático** com intervalos de artigos por capítulo/seção/subseção e hiperlinks internos;
 - **marca d'água por status** — `RASCUNHO` e `MINUTA` em vermelho, `APROVADO` em verde;
-- data por extenso e identificação completa do ato (`ICA 5-3`).
+- renderização de imagens embutidas via MinIO, tabelas e figuras.
 
-Há também um caminho de geração server-side previsto via **JasperReports**.
+O pipeline de geração é: conteúdo JSON TipTap → `XslFoContentRenderer` (serializa
+inlines: negrito, itálico, cor, links, imagens) → `DocumentoFoBuilder` (monta o
+XSL-FO completo) → Apache FOP → bytes PDF. O PDF pode ser baixado diretamente
+(rascunho) ou armazenado no MinIO quando o documento é aprovado.
 
 ### 🔍 Comparação de versões
 
 Página dedicada (`ComparisonPage.vue`) com seletores de Versão A / Versão B e um
 `DiffViewer` baseado na biblioteca **diff**, destacando inclusões, remoções e
 alterações entre revisões do mesmo ato.
+
+### 🔎 Visualização do documento
+
+A `DocumentViewerPage` exibe o documento em modo leitura com quatro seções expansíveis:
+
+| Seção | Conteúdo |
+|---|---|
+| **Informações do Documento** | Metadados (espécie, número, título, assunto, código, status) e linha do tempo de datas por status |
+| **Visualização do Documento** | Iframe com o PDF armazenado (disponível a partir de `APROVADO`) ou mensagem de indisponibilidade; exibe `q-inner-loading` enquanto o PDF carrega |
+| **Anexos** | Reservado para futura vinculação de anexos ao documento |
+| **Histórico de Versões** | Acesso direto à página de comparação de versões |
+
+Ações disponíveis na topbar: baixar PDF (rascunho gerado sob demanda), clonar e
+navegar para a comparação de versões.
 
 ### 🚦 Gestão do acervo
 
@@ -146,8 +169,9 @@ busca textual, resumo quantitativo por status e ações contextuais — editar
 | **Spring Web (MVC)** | — | API REST |
 | **Spring HATEOAS** | — | Links de navegação nos recursos |
 | **PostgreSQL** | 16 | Banco de dados relacional |
-| **MinIO SDK** | 8.5.12 | Armazenamento de objetos (imagens) on-premise |
-| **JasperReports** | 7.0.1 | Geração de relatórios/documentos server-side |
+| **MinIO SDK** | 8.5.12 | Armazenamento de objetos (imagens e PDFs) on-premise |
+| **Apache FOP** | 2.10 | Geração de PDF server-side via XSL-FO |
+| **Flyway** | — | Migrações de banco versionadas e auditáveis |
 | **ModelMapper** | 3.2.0 | Conversão entidade ⇄ DTO |
 | **Lombok** | 1.18.38 | Redução de boilerplate |
 | **SpringDoc OpenAPI** | 2.6.0 | Documentação Swagger |
@@ -163,7 +187,6 @@ busca textual, resumo quantitativo por status e ações contextuais — editar
 | **Pinia** | 2.3 | Gerenciamento de estado |
 | **Vue Router** | 4.5 | Roteamento SPA |
 | **TipTap / ProseMirror** | 2.10 | Editor WYSIWYG estrutural |
-| **pdfmake** | 0.2 | Geração de PDF no cliente |
 | **diff** | 5.2 | Comparação textual entre versões |
 | **vuedraggable** | 4.1 | Reordenação por drag and drop |
 | **Sass** | — | Estilos e variáveis do Quasar |
@@ -251,17 +274,17 @@ completa — o catálogo já nasce pronto para uso.
 ```
 frontend/src
 │
-├── pages/          ← HomePage · DocumentEditorPage · ComparisonPage
+├── pages/          ← HomePage · DocumentEditorPage · DocumentViewerPage · ComparisonPage
 ├── components/
-│   ├── editor/     ← WysiwygEditor, EditorSidebar, DocumentPreview,
-│   │                 DocumentMetaPanel, SectionTreeItem, FigureView
+│   ├── editor/     ← WysiwygEditor, EditorSidebar (com dialog de metadados),
+│   │                 DocumentPreview, NormTreeItem, FigureView
 │   ├── comparison/ ← DiffViewer
 │   └── common/     ← AppTopBar, StatusBadge, NewDocumentDialog
 ├── stores/         ← Pinia: documents (acervo) · editor (documento em edição)
 ├── api/            ← client (fetch tipado) + módulos por recurso
 ├── extensions/     ← Figure (nó customizado do TipTap)
-├── utils/          ← numbering (regras legislativas) · pdfExport (NSCA 5-3)
-├── services/       ← pdfService (geração server-side)
+├── utils/          ← numbering (regras legislativas)
+├── services/       ← pdfService (geração e download de PDF server-side)
 └── router/         ← Rotas SPA
 ```
 
@@ -295,12 +318,13 @@ O ato normativo é decomposto em três partes, conforme a técnica legislativa:
 graph LR
     D[Documento] --> PP[Parte Preliminar]
     D --> PN[Parte Normativa]
-    D --> PF[Parte Final]
+    D --> AN[Anexos]
 
     PP --> E1[Epígrafe]
     PP --> E2[Ementa]
     PP --> E3[Preâmbulo]
-    PP --> E4[Fundamentação]
+    PP --> E4[Fecho]
+    PP --> E5[Assinatura]
 
     PN --> C[Capítulo]
     C --> S[Seção]
@@ -311,11 +335,7 @@ graph LR
     IN --> AL[Alínea]
     AL --> SA[Subalínea]
 
-    PF --> F1[Cláusula Revogatória]
-    PF --> F2[Cláusula de Vigência]
-    PF --> F3[Fecho]
-    PF --> F4[Assinatura]
-    PF --> F5[Referenda]
+    AN --> A1["(em desenvolvimento)"]
 ```
 
 ### Numeração oficial do documento
@@ -551,9 +571,9 @@ organizadas por horizonte e refletem o que a arquitetura atual já prepara.
   ao `DiffViewer` um histórico completo em vez de comparações pontuais.
 - **Trilha de auditoria** — registro de quem alterou o quê e quando, requisito
   essencial para documentos oficiais.
-- **Flyway ativo** — as migrações já estão versionadas em
-  `resources/db/migration`; habilitá-las substitui o `ddl-auto=update` por um
-  esquema evolutivo e auditável.
+- **Flyway ativo** — migrações versionadas em `resources/db/migration` já em
+  uso, com histórico rastreável de mudanças de esquema (ex: V2 que removeu
+  `FUNDAMENTACAO` e migrou `FECHO`/`ASSINATURA` para a parte preliminar).
 - **Cobertura de testes** — testes unitários dos serviços de domínio (com
   destaque para a numeração e as transições de status) e testes de integração
   dos controllers com Testcontainers.

@@ -119,14 +119,15 @@
             header-class="text-primary text-weight-medium"
           >
             <q-separator />
-            <q-card-section class="q-pa-none">
+            <q-card-section class="q-pa-none pdf-section">
               <iframe
                 v-if="iframePdfSrc"
                 :src="iframePdfSrc"
                 class="pdf-viewer"
                 title="Visualização do documento"
+                @load="pdfIframeLoading = false"
               />
-              <div v-else class="column items-center q-py-xl text-grey-6">
+              <div v-else-if="documento" class="column items-center q-py-xl text-grey-6">
                 <q-icon name="mdi-file-pdf-box" size="64px" class="q-mb-md" color="grey-4" />
                 <div class="text-body1 text-weight-medium q-mb-xs">PDF não disponível</div>
                 <div class="text-body2 text-center text-grey-5" style="max-width:480px">
@@ -134,6 +135,8 @@
                   Use o botão <strong>PDF</strong> na barra superior para baixar o rascunho.
                 </div>
               </div>
+
+              <q-inner-loading :showing="!documento || pdfIframeLoading" />
             </q-card-section>
           </q-expansion-item>
         </q-card>
@@ -212,7 +215,7 @@
 </template>
 
 <script setup>
-import { ref, computed, reactive, onMounted } from 'vue'
+import { ref, computed, reactive, watch, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { useDocumentsStore } from '@/stores/documents.js'
@@ -246,6 +249,9 @@ const iframePdfSrc = computed(() => {
   if (STATUS_COM_PDF.has(doc.status)) return pdfUrl(documentoId.value)
   return null
 })
+
+const pdfIframeLoading = ref(false)
+watch(iframePdfSrc, (src) => { pdfIframeLoading.value = !!src }, { immediate: true })
 
 const docLabel = computed(() => {
   const d = documento.value
@@ -350,6 +356,11 @@ function executarClone() {
   border: 1px solid rgba(0, 0, 0, 0.07);
   border-radius: 4px;
   overflow: hidden;
+}
+
+.pdf-section {
+  position: relative;
+  min-height: 200px;
 }
 
 .pdf-viewer {
