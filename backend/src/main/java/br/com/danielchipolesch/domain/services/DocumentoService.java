@@ -18,6 +18,8 @@ import br.com.danielchipolesch.domain.handlers.exceptions.enums.DocumentExceptio
 import br.com.danielchipolesch.domain.handlers.exceptions.StatusCannotBeUpdatedException;
 import br.com.danielchipolesch.domain.handlers.exceptions.enums.DocumentationTypeException;
 import br.com.danielchipolesch.domain.mappers.DocumentoMapper;
+import br.com.danielchipolesch.domain.entities.estruturaDocumento.Anexo;
+import br.com.danielchipolesch.infrastructure.repositories.AnexoRepository;
 import br.com.danielchipolesch.infrastructure.repositories.AssuntoBasicoRepository;
 import br.com.danielchipolesch.infrastructure.repositories.DocumentoRepository;
 import br.com.danielchipolesch.infrastructure.repositories.EspecieNormativaRepository;
@@ -60,6 +62,9 @@ public class DocumentoService {
 
     @Autowired
     DocumentoHistoricoService documentoHistoricoService;
+
+    @Autowired
+    AnexoRepository anexoRepository;
 
 
     @Transactional
@@ -136,11 +141,18 @@ public class DocumentoService {
     public DocumentoResponseSemAnexoTextualDto delete(Long id) throws RuntimeException {
         Documento document = documentoRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException(DocumentException.NOT_FOUND.getMessage()));
+
+        DocumentoStatusEnum status = document.getDocumentoStatus();
+        if (status != DocumentoStatusEnum.RASCUNHO && status != DocumentoStatusEnum.MINUTA) {
+            throw new StatusCannotBeUpdatedException(DocumentException.CANNOT_BE_DELETED.getMessage());
+        }
+
         documentoHistoricoRepository.deleteAllByDocumentoId(id);
         itemPartePreliminarRepository.deleteAllByDocumentoId(id);
         itemAnexoParteNormativaRepository.nullifyParentsForDocument(id);
         itemAnexoParteNormativaRepository.deleteAllByDocumentoId(id);
         itemParteFinalRepository.deleteAllByDocumentoId(id);
+        anexoRepository.deleteAllByDocumentoId(id);
         documentoRepository.delete(document);
         return DocumentoMapper.documentoToDocumentoSemAnexoTextualResponseDto(document);
     }
@@ -190,6 +202,15 @@ public class DocumentoService {
             copia.setConteudo(orig.getConteudo());
             copia.setFullTextContent(orig.getFullTextContent());
             itemParteFinalRepository.save(copia);
+        }
+
+        for (Anexo orig : anexoRepository.findByDocumentoIdOrderByOrdemAsc(id)) {
+            Anexo copia = new Anexo();
+            copia.setDocumento(clonado);
+            copia.setTitulo(orig.getTitulo());
+            copia.setUrlImagem(orig.getUrlImagem());
+            copia.setOrdem(orig.getOrdem());
+            anexoRepository.save(copia);
         }
 
         documentoHistoricoService.registrar(clonado, TipoAlteracaoEnum.CLONAGEM,

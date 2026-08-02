@@ -4,6 +4,7 @@ import br.com.danielchipolesch.application.dtos.anexoDtos.AnexoResponseDto;
 import br.com.danielchipolesch.application.dtos.itemAnexoParteNormativaDtos.ItemAnexoParteNormativaResponseDto;
 import br.com.danielchipolesch.application.dtos.itemPartePreliminarDtos.ItemPartePreliminarResponseDto;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.Documento;
+import br.com.danielchipolesch.domain.entities.estruturaDocumento.DocumentoStatusEnum;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.ItemAnexoParteNormativaTipoEnum;
 import br.com.danielchipolesch.domain.util.tiptap.TipTapNode;
 import br.com.danielchipolesch.domain.util.tiptap.XslFoContentRenderer;
@@ -118,7 +119,7 @@ public class DocumentoFoBuilder {
         String build() {
             var sb = new StringBuilder();
             sb.append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
-            sb.append("<fo:root xmlns:fo=\"").append(FO_NS).append("\">\n");
+            sb.append("<fo:root xmlns:fo=\"").append(FO_NS).append("\" xmlns:svg=\"http://www.w3.org/2000/svg\">\n");
             sb.append(buildLayoutMasterSet());
             sb.append(buildPortariaSequence());
             sb.append(buildCapaSequence());
@@ -128,6 +129,26 @@ public class DocumentoFoBuilder {
             }
             sb.append("</fo:root>");
             return sb.toString();
+        }
+
+        // ─── Watermark ────────────────────────────────────────────────────────
+
+        private String buildWatermark() {
+            DocumentoStatusEnum status = doc.getDocumentoStatus();
+            if (status != DocumentoStatusEnum.RASCUNHO && status != DocumentoStatusEnum.MINUTA) return "";
+            String label = status.name();
+            return "<fo:block-container absolute-position=\"fixed\""
+                 + " top=\"0pt\" left=\"0pt\" width=\"595pt\" height=\"842pt\">\n"
+                 + "  <fo:block>\n"
+                 + "    <fo:instream-foreign-object content-width=\"595pt\" content-height=\"842pt\">\n"
+                 + "      <svg:svg xmlns:svg=\"http://www.w3.org/2000/svg\" width=\"595\" height=\"842\">\n"
+                 + "        <svg:text x=\"297\" y=\"421\" text-anchor=\"middle\" dominant-baseline=\"middle\""
+                 + " font-size=\"110\" font-weight=\"bold\" fill=\"#FFCCCC\""
+                 + " transform=\"rotate(-45 297 421)\">" + foEsc(label) + "</svg:text>\n"
+                 + "      </svg:svg>\n"
+                 + "    </fo:instream-foreign-object>\n"
+                 + "  </fo:block>\n"
+                 + "</fo:block-container>\n";
         }
 
         // ─── Page master ──────────────────────────────────────────────────────
@@ -158,6 +179,7 @@ public class DocumentoFoBuilder {
             var sb = new StringBuilder();
             sb.append("<fo:page-sequence master-reference=\"a4-nofooter\">\n");
             sb.append("<fo:flow flow-name=\"xsl-region-body\">\n");
+            sb.append(buildWatermark());
 
             // Cabeçalho
             if (!brasaoRepublica.isBlank()) {
@@ -224,6 +246,7 @@ public class DocumentoFoBuilder {
             var sb = new StringBuilder();
             sb.append("<fo:page-sequence master-reference=\"a4-nofooter\">\n");
             sb.append("<fo:flow flow-name=\"xsl-region-body\">\n");
+            sb.append(buildWatermark());
 
             sb.append(block("MINISTÉRIO DA DEFESA", "center", "17pt", "bold", "0", "2pt"));
             sb.append(block("COMANDO DA AERONÁUTICA", "center", "17pt", "bold", "0", "50mm"));
@@ -298,6 +321,7 @@ public class DocumentoFoBuilder {
             sb.append("</fo:static-content>\n");
 
             sb.append("<fo:flow flow-name=\"xsl-region-body\">\n");
+            sb.append(buildWatermark());
 
             String titulo = doc.getTituloDocumento() != null
                     ? doc.getTituloDocumento().toUpperCase() : especieCompleta().toUpperCase();
@@ -322,6 +346,7 @@ public class DocumentoFoBuilder {
             sb.append("  <fo:block text-align=\"right\" font-size=\"10pt\"><fo:page-number/></fo:block>\n");
             sb.append("</fo:static-content>\n");
             sb.append("<fo:flow flow-name=\"xsl-region-body\">\n");
+            sb.append(buildWatermark());
 
             String numRomano = toRoman(anexo.getOrdem() + 1);
             sb.append(block("ANEXO " + numRomano, "center", "12pt", "bold", "0", "4pt"));
