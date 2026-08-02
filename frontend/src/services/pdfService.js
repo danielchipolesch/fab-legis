@@ -1,19 +1,29 @@
-/**
- * Serviço de geração de PDF via backend.
- * O endpoint POST /api/documentos/:id/pdf deve retornar Content-Type: application/pdf.
- */
+const API_BASE = import.meta.env.VITE_API_BASE_URL ?? ''
+
+function sanitize(str) {
+  // Remove apenas caracteres proibidos em nomes de arquivo (Windows + Linux)
+  return (str ?? '').replace(/[<>:"/\\|?*]/g, '').trim()
+}
 
 function buildFilename(documento) {
-  return [documento.especie, documento.numero_basico, documento.numero_secundario]
-    .filter(Boolean)
-    .join('-') + '.pdf'
+  const numero = [documento.numero_basico, documento.numero_secundario].filter(Boolean).join('-')
+  const ano = documento.data_criacao ? documento.data_criacao.slice(0, 4) : String(new Date().getFullYear())
+  const partes = [
+    sanitize(documento.especie),
+    sanitize(numero),
+    sanitize(documento.titulo),
+    sanitize(ano),
+  ].filter(Boolean)
+  return partes.join('_') + '.pdf'
+}
+
+export function pdfUrl(documentoId) {
+  return `${API_BASE}/documentos/${documentoId}/pdf`
 }
 
 export async function gerarPdf(documento) {
-  const response = await fetch(`/api/documentos/${documento.id}/pdf`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(documento),
+  const response = await fetch(pdfUrl(documento.id), {
+    method: 'GET',
   })
 
   if (!response.ok) {

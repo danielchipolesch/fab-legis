@@ -1,5 +1,6 @@
 package br.com.danielchipolesch.application.controllers;
 
+import br.com.danielchipolesch.application.dtos.documentoDtos.DocumentoHistoricoResponseDto;
 import br.com.danielchipolesch.application.dtos.documentoDtos.DocumentoRequestCreateDto;
 import br.com.danielchipolesch.application.dtos.documentoDtos.DocumentoRequestUpdateDto;
 import br.com.danielchipolesch.application.dtos.documentoDtos.DocumentoResponseComAnexoTextualDto;
@@ -8,7 +9,9 @@ import br.com.danielchipolesch.application.dtos.documentoDtos.DocumentoStatusReq
 import br.com.danielchipolesch.application.dtos.itemAnexoParteNormativaDtos.ItemAnexoParteNormativaRequestDto;
 import br.com.danielchipolesch.application.dtos.itemAnexoParteNormativaDtos.SecoesSaveRequestDto;
 import br.com.danielchipolesch.domain.mappers.DocumentoMapper;
+import br.com.danielchipolesch.domain.services.DocumentoHistoricoService;
 import br.com.danielchipolesch.domain.services.DocumentoParteNormativaService;
+import br.com.danielchipolesch.domain.services.DocumentoPdfService;
 import br.com.danielchipolesch.domain.services.DocumentoService;
 import br.com.danielchipolesch.domain.services.DocumentoStatusService;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -41,6 +44,12 @@ public class DocumentoController {
 
     @Autowired
     private DocumentoParteNormativaService documentoParteNormativaService;
+
+    @Autowired
+    private DocumentoHistoricoService documentoHistoricoService;
+
+    @Autowired
+    private DocumentoPdfService documentoPdfService;
 
     private EntityModel<DocumentoResponseSemAnexoTextualDto> toModel(DocumentoResponseSemAnexoTextualDto dto) {
         Long id = dto.getIdDocumento();
@@ -103,12 +112,6 @@ public class DocumentoController {
         return ResponseEntity.ok(models);
     }
 
-    @PutMapping("{id}/aprovar")
-    public ResponseEntity<EntityModel<DocumentoResponseSemAnexoTextualDto>> setDocumentAsApproved(
-            @PathVariable(value = "id") Long id) {
-        return ResponseEntity.ok(toModel(documentoStatusService.approveDocument(id)));
-    }
-
     @PatchMapping("{id}/status")
     public ResponseEntity<EntityModel<DocumentoResponseSemAnexoTextualDto>> changeStatus(
             @PathVariable(value = "id") Long id,
@@ -142,6 +145,21 @@ public class DocumentoController {
             @RequestBody SecoesSaveRequestDto request) throws RuntimeException {
         documentoParteNormativaService.salvarSecoes(id, request);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("{id}/historico")
+    public ResponseEntity<List<DocumentoHistoricoResponseDto>> getHistorico(
+            @PathVariable(value = "id") Long id) {
+        return ResponseEntity.ok(documentoHistoricoService.listarPorDocumento(id));
+    }
+
+    @GetMapping(value = "{id}/pdf", produces = "application/pdf")
+    public ResponseEntity<byte[]> getPdf(@PathVariable(value = "id") Long id) {
+        byte[] pdfBytes = documentoPdfService.gerarPdfBytes(id);
+        return ResponseEntity.ok()
+                .header("Content-Disposition", "inline; filename=\"documento-" + id + ".pdf\"")
+                .header("Cache-Control", "no-store")
+                .body(pdfBytes);
     }
 
     @DeleteMapping("{id}")

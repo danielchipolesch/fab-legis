@@ -3,13 +3,11 @@ import * as http from './client.js'
 const SECAO_CONFIG = {
   PARTE_PRELIMINAR: { tipo: 'parte_preliminar', titulo: 'Parte Preliminar', ordem: 1 },
   PARTE_NORMATIVA:  { tipo: 'parte_normativa',  titulo: 'Parte Normativa',  ordem: 2 },
-  PARTE_FINAL:      { tipo: 'parte_final',       titulo: 'Parte Final',      ordem: 3 },
 }
 
 const SECAO_ENUM_MAP = {
   parte_preliminar: 'PARTE_PRELIMINAR',
   parte_normativa:  'PARTE_NORMATIVA',
-  parte_final:      'PARTE_FINAL',
 }
 
 function parseDtCriacao(dt) {
@@ -56,16 +54,15 @@ export function backendParaFrontend(doc) {
 
   const preliminarItens = doc.itensPreliminares ?? []
   const normativaItens  = doc.itensNormativos   ?? []
-  const finalItens      = doc.itensFinais        ?? []
 
   // Retorna null quando todas as seções estão vazias (documento novo, sem dados salvos)
   // para que o store gere o template e salve no banco
-  const hasAnyData = preliminarItens.length > 0 || normativaItens.length > 0 || finalItens.length > 0
+  const hasAnyData = preliminarItens.length > 0 || normativaItens.length > 0
 
   const secoes = hasAnyData ? [
     buildSecao('PARTE_PRELIMINAR', preliminarItens),
     buildSecao('PARTE_NORMATIVA',  normativaItens),
-    buildSecao('PARTE_FINAL',      finalItens),
+    { tipo: 'anexos', titulo: 'Anexos', ordem: 3, id: crypto.randomUUID(), elementos: [] },
   ] : null
 
   return {
@@ -76,9 +73,17 @@ export function backendParaFrontend(doc) {
     assunto_basico: doc.nomeAssuntoBasico ?? doc.codigoAssuntoBasico,
     titulo: doc.tituloDocumento,
     codigo_documento: doc.codigoDocumento,
-    data_criacao: parseDtCriacao(doc.dtCriacao),
-    data_publicacao: null,
+    data_criacao:      parseDtCriacao(doc.dtCriacao),
+    data_alteracao:    parseDtCriacao(doc.dtAlteracao),
+    data_minuta:       parseDtCriacao(doc.dtMinuta),
+    data_aprovacao:    parseDtCriacao(doc.dtAprovacao),
+    data_publicacao:   parseDtCriacao(doc.dtPublicacao),
+    data_arquivamento: parseDtCriacao(doc.dtArquivamento),
+    data_revogacao:    parseDtCriacao(doc.dtRevogacao),
+    data_cancelamento: parseDtCriacao(doc.dtCancelamento),
     status: doc.statusDocumento,
+    url_pdf: doc.urlPdf ?? null,
+    qtd_replicas: doc.qtdReplicas ?? 0,
     versoes: [],
     secoes,
   }
@@ -115,7 +120,10 @@ export async function cloneDocumento(id) {
 }
 
 export async function updateDocumento(id, data) {
-  const body = { tituloDocumento: data.titulo ?? data.tituloDocumento }
+  const body = {
+    tituloDocumento: data.titulo ?? data.tituloDocumento,
+    ...(data.numero_secundario != null && { numeroSecundario: parseInt(data.numero_secundario, 10) || undefined }),
+  }
   const result = await http.put(`/documentos/${id}`, body)
   return backendParaFrontend(result)
 }
@@ -141,4 +149,21 @@ export async function saveSecoes(id, secoes) {
 
 export async function deleteDocumento(id) {
   return http.del(`/documentos/${id}`)
+}
+
+// ── Anexos ────────────────────────────────────────────────────────────────────
+
+export async function listAnexos(documentoId) {
+  return http.get(`/documentos/${documentoId}/anexos`)
+}
+
+export async function uploadAnexo(documentoId, titulo, arquivo) {
+  const form = new FormData()
+  form.append('titulo', titulo)
+  form.append('arquivo', arquivo)
+  return http.postForm(`/documentos/${documentoId}/anexos`, form)
+}
+
+export async function deleteAnexo(documentoId, anexoId) {
+  return http.del(`/documentos/${documentoId}/anexos/${anexoId}`)
 }

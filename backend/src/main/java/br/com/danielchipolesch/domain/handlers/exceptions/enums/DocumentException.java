@@ -6,16 +6,10 @@ import lombok.Getter;
 public enum DocumentException {
 
     NOT_FOUND("Documento não encontrado."),
-    ALREADY_EXISTS("Documento já existe."),
     CANNOT_BE_UPDATED("Documento não está em MINUTA ou RASCUNHO."),
-    RASCUNHO("Para serem aprovados os documentos devem estar como rascunho ou minuta."),
-    MINUTA("Para serem aprovados os documentos devem estar como rascunho ou minuta."),
+    CANNOT_BE_DELETED("Apenas documentos em RASCUNHO ou MINUTA podem ser excluídos."),
     APROVADO ("Documentos está aprovado e não pode ser alterado."),
-    DOCUMENT_ACT_APROVADO("Para inserir um ato normativo, o documento precisa estar aprovado."),
-    PUBLICADO("Documentos publicados não podem ser alterados."),
-    ARQUIVADO("Documentos arquivados não podem ser alterados."),
-    CANCELADO("Documentos cancelados não podem ser alterados."),
-    REVOGADO("Documento está revogado");
+    DOCUMENT_ACT_APROVADO("Para inserir um ato normativo, o documento precisa estar aprovado.");
 
 
     private final String message;

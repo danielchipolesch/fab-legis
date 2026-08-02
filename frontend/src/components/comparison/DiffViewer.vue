@@ -61,14 +61,22 @@ const props = defineProps({
   mode:      { type: String, default: 'side' }, // 'side' | 'unified'
 })
 
-function stripHtml(html) {
-  const div = document.createElement('div')
-  div.innerHTML = html ?? ''
-  return div.textContent || ''
+function extractText(conteudo) {
+  if (!conteudo) return ''
+  try {
+    const visit = (node) => {
+      if (!node) return ''
+      if (node.type === 'hardBreak') return '\n'
+      if (node.text) return node.text
+      if (node.content) return node.content.map(visit).join('')
+      return ''
+    }
+    return visit(JSON.parse(conteudo)).trim()
+  } catch { return '' }
 }
 
-const textA = computed(() => stripHtml(props.elemento?.conteudo ?? ''))
-const textB = computed(() => stripHtml(props.elementoB?.conteudo ?? props.elemento?.conteudo ?? ''))
+const textA = computed(() => extractText(props.elemento?.conteudo))
+const textB = computed(() => extractText(props.elementoB?.conteudo ?? props.elemento?.conteudo))
 
 const diff = computed(() => {
   if (textA.value === textB.value) return []

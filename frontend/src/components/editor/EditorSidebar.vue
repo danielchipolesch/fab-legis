@@ -30,7 +30,7 @@
 
     <!-- 5 ícones de ação (funções a definir) -->
     <div class="sidebar-actions row justify-around items-center q-py-xs">
-      <q-btn flat round dense size="sm" color="grey-7" icon="mdi-file-document-edit-outline">
+      <q-btn flat round dense size="sm" color="grey-7" icon="mdi-file-document-edit-outline" @click="abrirDialogMeta">
         <q-tooltip anchor="top middle" self="bottom middle">Metadados</q-tooltip>
       </q-btn>
       <q-btn flat round dense size="sm" color="grey-7" icon="mdi-source-branch">
@@ -71,33 +71,8 @@
 
         <div v-show="isExpandida(secao.tipo)" class="secao-elementos q-px-xs q-pb-sm">
 
-          <!-- Elementos fixos (parte preliminar / parte final) -->
-          <template v-if="secao.tipo !== 'parte_normativa'">
-            <div
-              v-for="el in secao.elementos"
-              :key="el.id"
-              class="fixed-item row items-center q-px-md q-py-xs"
-              :class="{ 'fixed-item--active': selectedId === el.id }"
-              @click="$emit('select', el.id)"
-            >
-              <q-icon :name="elementIcon(el.tipo)" size="13px" color="teal-6" class="q-mr-sm" />
-              <span class="text-caption col ellipsis">{{ formatLabel(el) }}</span>
-              <q-icon
-                v-if="!isElFilled(el)"
-                name="mdi-alert-circle"
-                color="amber-7"
-                size="13px"
-                class="q-ml-xs"
-              >
-                <q-tooltip anchor="top middle" self="bottom middle">
-                  Seção vazia — necessária para aprovação
-                </q-tooltip>
-              </q-icon>
-            </div>
-          </template>
-
-          <!-- Parte normativa: q-tree hierárquico nativo do Quasar -->
-          <template v-else>
+          <!-- Elementos fixos (parte preliminar) -->
+          <template v-if="secao.tipo === 'parte_normativa'">
             <q-tree
               :nodes="normativaElementos"
               node-key="id"
@@ -254,20 +229,64 @@
                 </q-btn>
               </div>
 
-              <q-btn
-                outline
-                size="sm"
-                class="full-width"
-                :disable="hasCapitulos || editorStore.adicionando"
-                :loading="editorStore.adicionando"
-                @click="$emit('add-artigo')"
+            </div>
+          </template>
+
+          <!-- Seção Anexos -->
+          <template v-else-if="secao.tipo === 'anexos'">
+            <div v-if="!anexos.length" class="q-px-md q-py-sm text-caption text-grey-6">
+              Nenhum anexo vinculado a este documento.
+            </div>
+            <div v-else class="q-px-xs q-pb-xs">
+              <div
+                v-for="anexo in anexos"
+                :key="anexo.id"
+                class="fixed-item row items-center q-px-sm q-py-xs"
               >
-                <q-icon left name="mdi-plus" />
-                Novo Artigo
-                <q-tooltip v-if="hasCapitulos" anchor="top middle" self="bottom middle">
-                  Adicione artigos dentro dos capítulos existentes
+                <q-icon name="mdi-image-outline" size="13px" color="teal-6" class="q-mr-sm" />
+                <span class="text-caption col ellipsis">
+                  ANEXO {{ toRoman(anexo.ordem + 1) }} — {{ anexo.titulo }}
+                </span>
+                <q-btn
+                  flat round dense size="xs" color="negative"
+                  icon="mdi-delete-outline"
+                  @click.stop="removerAnexo(anexo.id)"
+                >
+                  <q-tooltip anchor="center right" self="center left">Remover</q-tooltip>
+                </q-btn>
+              </div>
+            </div>
+            <div class="q-px-xs q-pb-sm q-mt-xs">
+              <q-btn
+                outline color="primary" size="sm" class="full-width"
+                icon="mdi-plus" label="Adicionar anexo"
+                @click="abrirDialogAnexo"
+              />
+            </div>
+          </template>
+
+          <!-- Elementos fixos (parte preliminar) -->
+          <template v-else>
+            <div
+              v-for="el in secao.elementos"
+              :key="el.id"
+              class="fixed-item row items-center q-px-md q-py-xs"
+              :class="{ 'fixed-item--active': selectedId === el.id }"
+              @click="$emit('select', el.id)"
+            >
+              <q-icon :name="elementIcon(el.tipo)" size="13px" color="teal-6" class="q-mr-sm" />
+              <span class="text-caption col ellipsis">{{ formatLabel(el) }}</span>
+              <q-icon
+                v-if="!isElFilled(el)"
+                name="mdi-alert-circle"
+                color="amber-7"
+                size="13px"
+                class="q-ml-xs"
+              >
+                <q-tooltip anchor="top middle" self="bottom middle">
+                  Seção vazia — necessária para aprovação
                 </q-tooltip>
-              </q-btn>
+              </q-icon>
             </div>
           </template>
 
@@ -277,15 +296,186 @@
       </template>
     </div>
   </aside>
+
+  <!-- Dialog de metadados -->
+  <q-dialog v-model="metaDialogOpen" persistent>
+    <q-card style="min-width:480px;max-width:560px;width:100%">
+      <q-card-section class="row items-center q-pb-none">
+        <q-icon name="mdi-file-document-edit-outline" size="20px" color="primary" class="q-mr-sm" />
+        <div class="text-h6">Metadados do documento</div>
+        <q-space />
+        <q-btn icon="mdi-close" flat round dense v-close-popup :disable="metaSalvando" />
+      </q-card-section>
+
+      <q-separator class="q-mt-sm" />
+
+      <q-card-section class="q-pa-md scroll" style="max-height:70vh">
+
+        <!-- Identificação -->
+        <div class="text-caption text-weight-bold text-grey-6 text-uppercase q-mb-sm">Identificação</div>
+        <div class="row q-col-gutter-sm q-mb-md">
+          <div class="col-4">
+            <q-input :model-value="props.documento?.especie" label="Espécie" outlined dense disable />
+          </div>
+          <div class="col-4">
+            <q-input :model-value="props.documento?.numero_basico" label="Número Básico" outlined dense disable />
+          </div>
+          <div class="col-4">
+            <q-input
+              v-model="metaForm.numero_secundario"
+              label="Número Secundário"
+              outlined dense
+              type="number"
+            />
+          </div>
+          <div class="col-12">
+            <q-input :model-value="props.documento?.codigo_documento" label="Código do documento" outlined dense disable />
+          </div>
+        </div>
+
+        <!-- Conteúdo -->
+        <div class="text-caption text-weight-bold text-grey-6 text-uppercase q-mb-sm">Conteúdo</div>
+        <div class="column q-col-gutter-sm q-mb-md">
+          <div>
+            <q-input :model-value="props.documento?.assunto_basico" label="Assunto Básico" outlined dense disable />
+          </div>
+          <div>
+            <q-input
+              v-model="metaForm.titulo"
+              label="Título"
+              outlined dense
+              autofocus
+            />
+          </div>
+        </div>
+
+        <!-- Status -->
+        <div class="text-caption text-weight-bold text-grey-6 text-uppercase q-mb-sm">Status</div>
+        <div class="row q-col-gutter-sm q-mb-md">
+          <div class="col-8">
+            <q-input :model-value="props.documento?.status" label="Status" outlined dense disable />
+          </div>
+          <div class="col-4">
+            <q-input :model-value="props.documento?.qtd_replicas" label="Réplicas" outlined dense disable />
+          </div>
+        </div>
+
+        <!-- Datas -->
+        <div class="text-caption text-weight-bold text-grey-6 text-uppercase q-mb-sm">Datas</div>
+        <div class="row q-col-gutter-sm">
+          <div class="col-6">
+            <q-input :model-value="formatarData(props.documento?.data_criacao)" label="Criação" outlined dense disable />
+          </div>
+          <div class="col-6">
+            <q-input :model-value="formatarData(props.documento?.data_alteracao)" label="Última alteração" outlined dense disable />
+          </div>
+          <template v-if="props.documento?.data_minuta">
+            <div class="col-6">
+              <q-input :model-value="formatarData(props.documento?.data_minuta)" label="Minuta" outlined dense disable />
+            </div>
+          </template>
+          <template v-if="props.documento?.data_aprovacao">
+            <div class="col-6">
+              <q-input :model-value="formatarData(props.documento?.data_aprovacao)" label="Aprovação" outlined dense disable />
+            </div>
+          </template>
+          <template v-if="props.documento?.data_publicacao">
+            <div class="col-6">
+              <q-input :model-value="formatarData(props.documento?.data_publicacao)" label="Publicação" outlined dense disable />
+            </div>
+          </template>
+          <template v-if="props.documento?.data_arquivamento">
+            <div class="col-6">
+              <q-input :model-value="formatarData(props.documento?.data_arquivamento)" label="Arquivamento" outlined dense disable />
+            </div>
+          </template>
+          <template v-if="props.documento?.data_revogacao">
+            <div class="col-6">
+              <q-input :model-value="formatarData(props.documento?.data_revogacao)" label="Revogação" outlined dense disable />
+            </div>
+          </template>
+          <template v-if="props.documento?.data_cancelamento">
+            <div class="col-6">
+              <q-input :model-value="formatarData(props.documento?.data_cancelamento)" label="Cancelamento" outlined dense disable />
+            </div>
+          </template>
+        </div>
+
+      </q-card-section>
+
+      <q-separator />
+
+      <q-card-actions align="right" class="q-px-md q-py-sm">
+        <q-btn flat label="Cancelar" v-close-popup :disable="metaSalvando" />
+        <q-btn
+          unelevated
+          color="primary"
+          label="Salvar"
+          :loading="metaSalvando"
+          @click="salvarMeta"
+        />
+      </q-card-actions>
+    </q-card>
+  </q-dialog>
+
+  <!-- Dialog de upload de anexo -->
+  <q-dialog v-model="anexoDialogOpen" persistent>
+    <q-card style="min-width:400px;max-width:480px;width:100%">
+      <q-card-section class="row items-center q-pb-none">
+        <q-icon name="mdi-paperclip" size="20px" color="primary" class="q-mr-sm" />
+        <div class="text-h6">Adicionar anexo</div>
+        <q-space />
+        <q-btn icon="mdi-close" flat round dense v-close-popup :disable="anexoUploadando" />
+      </q-card-section>
+
+      <q-separator class="q-mt-sm" />
+
+      <q-card-section class="q-pa-md column q-gutter-sm">
+        <q-input
+          v-model="anexoForm.titulo"
+          label="Título do anexo"
+          outlined dense autofocus
+          :disable="anexoUploadando"
+        />
+        <q-file
+          v-model="anexoForm.arquivo"
+          label="Imagem (PNG, JPEG)"
+          outlined dense
+          accept="image/png,image/jpeg,image/jpg"
+          :disable="anexoUploadando"
+        >
+          <template v-slot:prepend>
+            <q-icon name="mdi-image-outline" />
+          </template>
+        </q-file>
+      </q-card-section>
+
+      <q-separator />
+
+      <q-card-actions align="right" class="q-px-md q-py-sm">
+        <q-btn flat label="Cancelar" v-close-popup :disable="anexoUploadando" />
+        <q-btn
+          unelevated color="primary" label="Enviar"
+          :loading="anexoUploadando"
+          :disable="!anexoForm.titulo || !anexoForm.arquivo"
+          @click="enviarAnexo"
+        />
+      </q-card-actions>
+    </q-card>
+  </q-dialog>
 </template>
 
 <script setup>
 import { reactive, ref, computed, watch } from 'vue'
+import { useQuasar } from 'quasar'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import { formatLabel, elementIcon } from '@/utils/numbering.js'
 import { useEditorStore } from '@/stores/editor.js'
+import { useDocumentsStore } from '@/stores/documents.js'
 
+const $q = useQuasar()
 const editorStore = useEditorStore()
+const documentsStore = useDocumentsStore()
 
 const props = defineProps({
   documento:  { type: Object, default: null },
@@ -302,6 +492,42 @@ const emit = defineEmits([
   'reorder-normativa',
 ])
 
+// ── Dialog de metadados ──────────────────────────────────────────────────────
+function formatarData(iso) {
+  if (!iso) return '—'
+  const [y, m, d] = iso.split('-')
+  const meses = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez']
+  return `${+d} ${meses[+m - 1]} ${y}`
+}
+
+const metaDialogOpen = ref(false)
+const metaSalvando   = ref(false)
+const metaForm = reactive({ titulo: '', numero_secundario: '' })
+
+function abrirDialogMeta() {
+  metaForm.titulo           = props.documento?.titulo ?? ''
+  metaForm.numero_secundario = props.documento?.numero_secundario ?? ''
+  metaDialogOpen.value = true
+}
+
+async function salvarMeta() {
+  if (!props.documento?.id) return
+  metaSalvando.value = true
+  try {
+    await documentsStore.updateMetadados(props.documento.id, {
+      titulo:            metaForm.titulo,
+      numero_secundario: metaForm.numero_secundario !== '' ? metaForm.numero_secundario : null,
+    })
+    metaDialogOpen.value = false
+    $q.notify({ type: 'positive', message: 'Metadados salvos com sucesso.' })
+  } catch (e) {
+    $q.notify({ type: 'negative', message: 'Erro ao salvar metadados.' })
+  } finally {
+    metaSalvando.value = false
+  }
+}
+
+// ── Capítulos predefinidos ────────────────────────────────────────────────────
 const CAPITULO_PRESETS = [
   'DISPOSIÇÕES PRELIMINARES',
   'DISPOSIÇÕES GERAIS',
@@ -339,13 +565,23 @@ const isGroupingType = (tipo) => GROUPING_TIPOS.has(tipo)
 const canPromoteNode = (node) => ARTIGO_TIPOS.has(node.tipo)
 const childOptions   = (node) => CHILD_MAP[node.tipo] ?? []
 
-const isNodeFilled = (node) => {
-  if (!node?.conteudo) return false
-  return node.conteudo.replace(/<[^>]*>/g, '').trim().length > 0
+function extractText(conteudo) {
+  if (!conteudo) return ''
+  try {
+    const visit = (node) => {
+      if (!node) return ''
+      if (node.text) return node.text
+      if (node.content) return node.content.map(visit).join('')
+      return ''
+    }
+    return visit(JSON.parse(conteudo)).trim()
+  } catch { return '' }
 }
 
+const isNodeFilled = (node) => extractText(node?.conteudo).length > 0
+
 const nodePreview = (node) => {
-  const text = node.conteudo?.replace(/<[^>]+>/g, '').trim() ?? ''
+  const text = extractText(node?.conteudo)
   return text.length > 28 ? text.slice(0, 28) + '…' : text
 }
 
@@ -353,7 +589,7 @@ const nodePreview = (node) => {
 const secaoExpandida = reactive({
   parte_preliminar: true,
   parte_normativa:  true,
-  parte_final:      true,
+  anexos:           false,
 })
 
 function toggleSecao(tipo) {
@@ -399,17 +635,73 @@ const existingCapituloTitulos = computed(() =>
   )
 )
 
-// ── Helpers p/ itens fixos ───────────────────────────────────────────────────
-const isElFilled = (el) => {
-  if (!el?.conteudo) return false
-  return el.conteudo.replace(/<[^>]*>/g, '').trim().length > 0
+// ── Anexos ───────────────────────────────────────────────────────────────────
+const anexos = computed(() => documentsStore.anexosPorDocumento[String(props.documento?.id)] ?? [])
+
+const anexoDialogOpen = ref(false)
+const anexoUploadando = ref(false)
+const anexoForm = reactive({ titulo: '', arquivo: null })
+
+function toRoman(n) {
+  if (n <= 0) return ''
+  const vals = [1000,900,500,400,100,90,50,40,10,9,5,4,1]
+  const syms = ['M','CM','D','CD','C','XC','L','XL','X','IX','V','IV','I']
+  let result = ''
+  for (let i = 0; i < vals.length; i++)
+    while (n >= vals[i]) { result += syms[i]; n -= vals[i] }
+  return result
 }
+
+function abrirDialogAnexo() {
+  anexoForm.titulo  = ''
+  anexoForm.arquivo = null
+  anexoDialogOpen.value = true
+}
+
+async function enviarAnexo() {
+  if (!props.documento?.id || !anexoForm.titulo || !anexoForm.arquivo) return
+  anexoUploadando.value = true
+  try {
+    await documentsStore.addAnexo(props.documento.id, anexoForm.titulo, anexoForm.arquivo)
+    anexoDialogOpen.value = false
+    $q.notify({ type: 'positive', message: 'Anexo adicionado com sucesso.' })
+  } catch (e) {
+    $q.notify({ type: 'negative', message: 'Erro ao enviar anexo.' })
+  } finally {
+    anexoUploadando.value = false
+  }
+}
+
+function removerAnexo(anexoId) {
+  if (!props.documento?.id) return
+  $q.dialog({
+    title: 'Confirmar exclusão',
+    message: 'Deseja realmente excluir este anexo? Esta ação não pode ser desfeita.',
+    cancel: { flat: true, label: 'Cancelar' },
+    ok: { unelevated: true, color: 'negative', label: 'Excluir' },
+    persistent: true,
+  }).onOk(async () => {
+    try {
+      await documentsStore.removeAnexo(props.documento.id, anexoId)
+      $q.notify({ type: 'positive', message: 'Anexo removido.' })
+    } catch (e) {
+      $q.notify({ type: 'negative', message: 'Erro ao remover anexo.' })
+    }
+  })
+}
+
+watch(() => props.documento?.id, (id) => {
+  if (id) documentsStore.fetchAnexos(id)
+}, { immediate: true })
+
+// ── Helpers p/ itens fixos ───────────────────────────────────────────────────
+const isElFilled = (el) => extractText(el?.conteudo).length > 0
 
 function secaoIcon(tipo) {
   const m = {
     parte_preliminar: 'mdi-text-box-outline',
     parte_normativa:  'mdi-format-list-numbered',
-    parte_final:      'mdi-flag-outline',
+    anexos:           'mdi-paperclip',
   }
   return m[tipo] ?? 'mdi-folder-outline'
 }
@@ -418,7 +710,7 @@ function secaoIconColor(tipo) {
   const m = {
     parte_preliminar: 'teal-6',
     parte_normativa:  'primary',
-    parte_final:      'teal-6',
+    anexos:           'teal-6',
   }
   return m[tipo] ?? 'grey-6'
 }

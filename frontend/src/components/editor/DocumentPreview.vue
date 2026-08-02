@@ -56,29 +56,25 @@
           v-html="preambuloHtml ?? '<strong>O COMANDANTE DA AERONÁUTICA</strong>, no uso das atribuições que lhe confere o art. 12 da Lei Complementar nº\xA097, de 9 de junho de 1999, tendo em vista o que consta do Processo nº\xA0___/___-___/___,'"
         ></div>
 
-        <!-- Fundamentação: conteúdo adicional do preâmbulo (ex: CONSIDERANDO que...) -->
+        <!-- Fecho (left-aligned) -->
         <div
-          v-if="fundHtml"
-          :id="'prev-' + preliFundamentacao.id"
-          class="body-el prel-content"
-          v-html="fundHtml"
+          v-if="fechoHtml"
+          :id="preliFecho?.id ? 'prev-' + preliFecho.id : undefined"
+          class="fecho-bloco prel-content"
+          v-html="fechoHtml"
         ></div>
+        <div v-else class="fecho-bloco">
+          <p>Brasília, {{ dataFormatada }}.</p>
+        </div>
 
-        <p class="resolve-line">resolve:</p>
-
-        <!-- Artigos da portaria -->
-        <p class="body-el">
-          <strong>Art. 1°</strong>&nbsp; Fica aprovada a {{ especieCompleta }} – {{ docId }}, que dispõe sobre
-          {{ documento?.assunto_basico }}.
-        </p>
-        <p class="body-el">
-          <strong>Art. 2°</strong>&nbsp; Esta Portaria entra em vigor na data de sua publicação.
-        </p>
-
-        <!-- Assinatura: maiúsculo, sem negrito, centralizado (Art. 12 V) -->
-        <div class="assinatura-bloco">
-          <p class="assin-data">Brasília, {{ dataFormatada }}</p>
-          <p class="assin-nome">{{ orgLabel }}</p>
+        <!-- Assinatura (centered) -->
+        <div
+          v-if="assinaturaHtml"
+          :id="preliAssinatura?.id ? 'prev-' + preliAssinatura.id : undefined"
+          class="assinatura-bloco prel-content"
+          v-html="assinaturaHtml"
+        ></div>
+        <div v-else class="assinatura-bloco">
           <p class="assin-cargo">Comandante da Aeronáutica</p>
         </div>
       </div>
@@ -185,29 +181,33 @@
             <p v-if="item.el.titulo" class="subsec-titulo"><strong>{{ item.el.titulo }}</strong></p>
           </div>
 
-          <div v-else-if="hasBlockContent(item.el.conteudo)" :id="'prev-' + item.el.id" class="body-el norm-el">
+          <div v-else-if="hasBlockContent(conteudoToHtml(item.el.conteudo))" :id="'prev-' + item.el.id" class="body-el norm-el">
             <span class="norm-lbl" :class="{ 'norm-lbl-bold': item.el.tipo === 'artigo' }">{{ item.label }}</span>
-            <div class="norm-content-block" v-html="item.el.conteudo"></div>
+            <div class="norm-content-block" v-html="conteudoToHtml(item.el.conteudo)"></div>
           </div>
           <p v-else :id="'prev-' + item.el.id" class="body-el norm-el">
-            <span class="norm-lbl" :class="{ 'norm-lbl-bold': item.el.tipo === 'artigo' }">{{ item.label }}</span><span class="norm-content" v-html="stripHtml(item.el.conteudo)"></span>
+            <span class="norm-lbl" :class="{ 'norm-lbl-bold': item.el.tipo === 'artigo' }">{{ item.label }}</span><span class="norm-content" v-html="stripHtml(conteudoToHtml(item.el.conteudo))"></span>
           </p>
 
         </template>
 
-        <!-- Parte Final — cláusulas, fecho, assinatura, referenda -->
-        <template v-for="el in secaoFinal?.elementos ?? []" :key="el.id">
-          <div
-            v-if="el.tipo === 'clausula_revogatoria' || el.tipo === 'clausula_vigencia'"
-            :id="'prev-' + el.id"
-            class="body-el"
-            v-html="el.conteudo"
-          ></div>
-          <div v-else-if="el.tipo === 'fecho'"      :id="'prev-' + el.id" class="body-el" v-html="el.conteudo"></div>
-          <div v-else-if="el.tipo === 'assinatura'" :id="'prev-' + el.id" class="assinatura-bloco corpo-assin" v-html="el.conteudo"></div>
-          <div v-else-if="el.tipo === 'referenda'"  :id="'prev-' + el.id" class="assinatura-bloco corpo-assin" v-html="el.conteudo"></div>
-        </template>
 
+      </div>
+
+      <!-- ═══════════════════════════════════════════════════
+           PÁGINAS DE ANEXOS (ANEXO II, III, ...)
+      ════════════════════════════════════════════════════════ -->
+      <div
+        v-for="anexo in anexosDocumento"
+        :key="anexo.id"
+        class="pdf-page"
+      >
+        <div v-if="wmText" class="wm-overlay" :style="{ color: wmColor }">{{ wmText }}</div>
+        <p class="sumario-anexo">ANEXO {{ toRomanStr(anexo.ordem + 1) }}</p>
+        <p class="sumario-anexo-titulo">{{ anexo.titulo.toUpperCase() }}</p>
+        <div class="anexo-img-wrap">
+          <img :src="anexo.urlImagem" :alt="anexo.titulo" class="anexo-img" />
+        </div>
       </div>
 
     </div><!-- /pages-wrap -->
@@ -216,9 +216,19 @@
 
 <script setup>
 import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
+import { generateHTML } from '@tiptap/html'
+import { editorExtensions } from '@/editor/extensions.js'
 import { bodyLabel, formatLabel, toRoman } from '@/utils/numbering.js'
+import { useDocumentsStore } from '@/stores/documents.js'
 
 function toRomanStr(n) { return toRoman(n ?? 0) }
+
+const documentsStore = useDocumentsStore()
+
+function conteudoToHtml(conteudo) {
+  if (!conteudo) return ''
+  try { return generateHTML(JSON.parse(conteudo), editorExtensions) } catch { return '' }
+}
 
 const props = defineProps({
   documento:         { type: Object, default: null },
@@ -351,22 +361,26 @@ const secaoPreliminar = computed(() =>
 
 // Elementos da parte preliminar (para a portaria)
 function _preliText(el) {
-  return el?.conteudo?.replace(/<[^>]*>/g, '').trim() ?? ''
+  if (!el?.conteudo) return ''
+  const html = conteudoToHtml(el.conteudo)
+  const d = document.createElement('div')
+  d.innerHTML = html
+  return (d.textContent || '').trim()
 }
-const preliEpigrafe      = computed(() => secaoPreliminar.value?.elementos?.find(e => e.tipo === 'epigrafe'))
-const preliEmenta        = computed(() => secaoPreliminar.value?.elementos?.find(e => e.tipo === 'ementa'))
-const preliPreambulo     = computed(() => secaoPreliminar.value?.elementos?.find(e => e.tipo === 'preambulo'))
-const preliFundamentacao = computed(() => secaoPreliminar.value?.elementos?.find(e => e.tipo === 'fundamentacao'))
+const preliEpigrafe    = computed(() => secaoPreliminar.value?.elementos?.find(e => e.tipo === 'epigrafe'))
+const preliEmenta      = computed(() => secaoPreliminar.value?.elementos?.find(e => e.tipo === 'ementa'))
+const preliPreambulo   = computed(() => secaoPreliminar.value?.elementos?.find(e => e.tipo === 'preambulo'))
+const preliFecho       = computed(() => secaoPreliminar.value?.elementos?.find(e => e.tipo === 'fecho'))
+const preliAssinatura  = computed(() => secaoPreliminar.value?.elementos?.find(e => e.tipo === 'assinatura'))
 
-const epigrafeHtml    = computed(() => _preliText(preliEpigrafe.value)     ? preliEpigrafe.value.conteudo     : null)
-const ementaHtml      = computed(() => _preliText(preliEmenta.value)       ? preliEmenta.value.conteudo       : null)
-const preambuloHtml   = computed(() => _preliText(preliPreambulo.value)    ? preliPreambulo.value.conteudo    : null)
-const fundHtml        = computed(() => _preliText(preliFundamentacao.value) ? preliFundamentacao.value.conteudo : null)
+const epigrafeHtml    = computed(() => _preliText(preliEpigrafe.value)     ? conteudoToHtml(preliEpigrafe.value.conteudo)     : null)
+const ementaHtml      = computed(() => _preliText(preliEmenta.value)       ? conteudoToHtml(preliEmenta.value.conteudo)       : null)
+const preambuloHtml   = computed(() => _preliText(preliPreambulo.value)    ? conteudoToHtml(preliPreambulo.value.conteudo)    : null)
+const fechoHtml       = computed(() => _preliText(preliFecho.value)        ? conteudoToHtml(preliFecho.value.conteudo)        : null)
+const assinaturaHtml  = computed(() => _preliText(preliAssinatura.value)   ? conteudoToHtml(preliAssinatura.value.conteudo)   : null)
+
 const secaoNormativa = computed(() =>
   (props.documento?.secoes ?? []).find(s => s.tipo === 'parte_normativa')
-)
-const secaoFinal = computed(() =>
-  (props.documento?.secoes ?? []).find(s => s.tipo === 'parte_final')
 )
 
 // Flat list for corpo rendering
@@ -381,7 +395,7 @@ const figurasNoDocumento = computed(() => {
     for (const el of elementos ?? []) {
       if (el.conteudo) {
         const div = document.createElement('div')
-        div.innerHTML = el.conteudo
+        div.innerHTML = conteudoToHtml(el.conteudo)
         div.querySelectorAll('figure[data-type="figura"]').forEach((fig) => {
           figuras.push(fig.querySelector('.figura-titulo')?.textContent?.trim() ?? '')
         })
@@ -451,7 +465,7 @@ const tocItems = computed(() => {
   } else {
     for (const el of elementos) {
       if (el.tipo === 'artigo') {
-        const txt = stripHtml(el.conteudo)
+        const txt = stripHtml(conteudoToHtml(el.conteudo))
         const trunc = txt.length > 50 ? txt.slice(0, 50) + '…' : txt
         items.push({ id: el.id, label: `${bodyLabel(el).trim()} ${trunc}`, kind: 'toc-artigo', pg: el.numero != null ? fmtNum(el.numero) : '' })
       }
@@ -468,6 +482,10 @@ const tocItems = computed(() => {
 
   return items
 })
+
+const anexosDocumento = computed(() =>
+  documentsStore.anexosPorDocumento[String(props.documento?.id)] ?? []
+)
 </script>
 
 <style scoped>
@@ -797,14 +815,14 @@ const tocItems = computed(() => {
 /* Conteúdo inline com o rótulo */
 .norm-content { font-weight: normal; }
 
-/* ─── "resolve:" — início da parte dispositiva ──────────── */
-.resolve-line {
-  text-align:  center;
-  margin:      12px 0;
-  font-weight: normal;
-  font-size:   16px;
+/* ─── Fecho (right-aligned, above assinatura) ────────────── */
+.fecho-bloco {
+  margin-top:  20px;
+  text-align:  right;
   text-indent: 0;
+  font-size:   16px;
 }
+.fecho-bloco :deep(p) { margin: 0; text-indent: 0; text-align: right; }
 
 /* ═══════════════════════════════════════════════════════════
    ASSINATURA  (NSCA 5-3 Art. 12 V)
@@ -815,8 +833,7 @@ const tocItems = computed(() => {
   text-align: center;
   text-indent: 0;
 }
-.assin-data  { margin: 0 0 32px; font-size: 16px; }
-.assin-nome  { font-size: 16px; text-transform: uppercase; font-weight: normal; margin: 0; }
+.assinatura-bloco :deep(p) { margin: 0; text-indent: 0; text-align: center; }
 .assin-cargo { font-size: 16px; margin: 0; }
 
 /* Assinatura no corpo (parte final) */
@@ -894,6 +911,8 @@ const tocItems = computed(() => {
 .norm-content-block :deep(figure.doc-figure) {
   display: block;
   text-align: center;
+  page-break-inside: avoid;
+  break-inside: avoid;
   margin: 16px auto;
   max-width: 100%;
   counter-increment: figura;
@@ -913,6 +932,7 @@ const tocItems = computed(() => {
 }
 .norm-content-block :deep(.figura-img) {
   max-width: 100%;
+  max-height: 900px;
   height: auto;
   border: 1px solid #ddd;
   display: block;
@@ -924,5 +944,19 @@ const tocItems = computed(() => {
   margin: 4px 0 0;
   text-indent: 0;
   text-align: center;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   PÁGINAS DE ANEXOS (imagem)
+════════════════════════════════════════════════════════════ */
+.anexo-img-wrap {
+  text-align: center;
+  margin-top: 20px;
+}
+.anexo-img {
+  max-width: 100%;
+  max-height: 850px;
+  height: auto;
+  object-fit: contain;
 }
 </style>

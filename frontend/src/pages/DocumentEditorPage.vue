@@ -8,14 +8,14 @@
       :secoes="documento?.secoes ?? []"
       :selected-id="editorStore.selectedElementId"
       @select="editorStore.selectElement($event)"
-      @move-up="editorStore.moveUp($event)"
-      @move-down="editorStore.moveDown($event)"
-      @add-child="(parentId, tipo) => editorStore.addFilho(parentId, tipo)"
+      @move-up="onMoveUp"
+      @move-down="onMoveDown"
+      @add-child="onAddChild"
       @add-artigo="addArtigo"
       @add-capitulo="addCapitulo"
-      @promote="editorStore.promote($event)"
-      @demote="handleDemote($event)"
-      @remove="editorStore.removeElement($event)"
+      @promote="onPromote"
+      @demote="handleDemote"
+      @remove="onRemove"
       @reorder-normativa="onReorderNormativa"
     />
 
@@ -153,6 +153,7 @@
             <!-- WYSIWYG editor para elementos de conteúdo -->
             <WysiwygEditor
               v-else
+              :key="selectedElement.id"
               :model-value="selectedElement.conteudo"
               :readonly="isReadonly"
               @update:model-value="onContentUpdate"
@@ -354,6 +355,11 @@ onMounted(async () => {
       return
     }
 
+    if (!['RASCUNHO', 'MINUTA'].includes(doc.status)) {
+      router.replace({ name: 'documento-visualizar', params: { id: documentoId.value } })
+      return
+    }
+
     if (doc._fromTemplate) {
       // Backend não tinha seções — salva o template imediatamente
       editorStore.isDirty = true
@@ -404,15 +410,20 @@ function onTituloUpdate(titulo) {
 }
 
 
-function onReorderNormativa(newElements) {
+function onReorderNormativa() {
   const secao = editorStore.normativaSecao
   if (secao) {
-    secao.elementos = newElements
     renumberElements(secao.elementos)
-    editorStore.isDirty = true
+    editorStore.markUserEdit()
     scheduleAutoSave()
   }
 }
+
+function onMoveUp(id)            { editorStore.moveUp(id);        scheduleAutoSave() }
+function onMoveDown(id)          { editorStore.moveDown(id);      scheduleAutoSave() }
+function onAddChild(parentId, tipo) { editorStore.addFilho(parentId, tipo); scheduleAutoSave() }
+function onPromote(id)           { editorStore.promote(id);       scheduleAutoSave() }
+function onRemove(id)            { editorStore.removeElement(id); scheduleAutoSave() }
 
 function handleDemote(id) {
   const result = editorStore.demote(id)
@@ -424,6 +435,8 @@ function handleDemote(id) {
       position: 'top',
       timeout: 4000,
     })
+  } else {
+    scheduleAutoSave()
   }
 }
 
@@ -434,13 +447,13 @@ function addArtigo() {
     id: crypto.randomUUID(),
     tipo: 'artigo',
     numero: 0,
-    conteudo: '<p></p>',
+    conteudo: '{"type":"doc","content":[{"type":"paragraph"}]}',
     filhos: [],
   }
   secao.elementos.push(novo)
   renumberElements(secao.elementos)
   editorStore.selectedElementId = novo.id
-  editorStore.isDirty = true
+  editorStore.markUserEdit()
   scheduleAutoSave()
 }
 

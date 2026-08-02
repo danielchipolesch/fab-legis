@@ -8,6 +8,7 @@ export const useEditorStore = defineStore('editor', {
     documento: null,
     selectedElementId: null,
     isDirty: false,
+    hasUserEdit: false,
     sidebarOpen: true,
   }),
 
@@ -35,6 +36,7 @@ export const useEditorStore = defineStore('editor', {
       this.documentoId = id
       this.selectedElementId = null
       this.isDirty = false
+      this.hasUserEdit = false
       return true
     },
 
@@ -45,6 +47,12 @@ export const useEditorStore = defineStore('editor', {
       this.documentoId = doc.id
       this.selectedElementId = null
       this.isDirty = false
+      this.hasUserEdit = false
+    },
+
+    markUserEdit() {
+      this.isDirty = true
+      this.hasUserEdit = true
     },
 
     selectElement(id) {
@@ -53,12 +61,20 @@ export const useEditorStore = defineStore('editor', {
 
     updateContent(elementId, html) {
       const el = this.findElement(elementId)
-      if (el) { el.conteudo = html; this.isDirty = true }
+      if (el) { el.conteudo = html; this.markUserEdit() }
     },
 
     async save() {
       const store = useDocumentsStore()
       await store.saveDocumento(this.documento)
+      if (this.hasUserEdit && this.documento?.status === 'RASCUNHO') {
+        await store.changeStatus(this.documentoId, 'MINUTA')
+        this.hasUserEdit = false
+      }
+      const atualizado = store.getById(this.documentoId)
+      if (atualizado?.status && this.documento) {
+        this.documento.status = atualizado.status
+      }
       this.isDirty = false
     },
 
@@ -70,7 +86,7 @@ export const useEditorStore = defineStore('editor', {
       parent.filhos.push(novo)
       this.renumberNormativa()
       this.selectedElementId = novo.id
-      this.isDirty = true
+      this.markUserEdit()
     },
 
     addSibling(siblingId, tipo) {
@@ -79,7 +95,7 @@ export const useEditorStore = defineStore('editor', {
       const inserted = insertAfterInTree(secaoNorm.elementos, siblingId, makeNormEl(tipo))
       if (inserted) {
         this.renumberNormativa()
-        this.isDirty = true
+        this.markUserEdit()
       }
     },
 
@@ -90,12 +106,12 @@ export const useEditorStore = defineStore('editor', {
       secao.elementos.push(novo)
       this.renumberNormativa()
       this.selectedElementId = novo.id
-      this.isDirty = true
+      this.markUserEdit()
     },
 
     updateTitulo(elementId, titulo) {
       const el = this.findElement(elementId)
-      if (el) { el.titulo = titulo; this.isDirty = true }
+      if (el) { el.titulo = titulo; this.markUserEdit() }
     },
 
     removeElement(id) {
@@ -103,7 +119,7 @@ export const useEditorStore = defineStore('editor', {
         const removed = removeById(secao.elementos, id)
         if (removed) {
           this.renumberNormativa()
-          this.isDirty = true
+          this.markUserEdit()
           if (this.selectedElementId === id) this.selectedElementId = null
           return
         }
@@ -114,7 +130,7 @@ export const useEditorStore = defineStore('editor', {
       for (const secao of this.documento.secoes) {
         if (moveInTree(secao.elementos, id, -1)) {
           this.renumberNormativa()
-          this.isDirty = true
+          this.markUserEdit()
           return
         }
       }
@@ -124,18 +140,17 @@ export const useEditorStore = defineStore('editor', {
       for (const secao of this.documento.secoes) {
         if (moveInTree(secao.elementos, id, 1)) {
           this.renumberNormativa()
-          this.isDirty = true
+          this.markUserEdit()
           return
         }
       }
     },
 
     promote(id) {
-      // Move element up one level in the hierarchy (becomes sibling of its parent)
       for (const secao of this.documento.secoes) {
         if (promoteInTree(secao.elementos, id)) {
           this.renumberNormativa()
-          this.isDirty = true
+          this.markUserEdit()
           return
         }
       }
@@ -148,7 +163,7 @@ export const useEditorStore = defineStore('editor', {
       for (const secao of this.documento.secoes) {
         if (demoteInTree(secao.elementos, id)) {
           this.renumberNormativa()
-          this.isDirty = true
+          this.markUserEdit()
           return { ok: true }
         }
       }
@@ -178,7 +193,7 @@ const GROUPING_TYPES = new Set(['capitulo', 'secao_normativa', 'subsecao_normati
 function makeNormEl(tipo) {
   return GROUPING_TYPES.has(tipo)
     ? { id: crypto.randomUUID(), tipo, numero: 0, titulo: '', filhos: [] }
-    : { id: crypto.randomUUID(), tipo, numero: 0, conteudo: '<p></p>', filhos: [] }
+    : { id: crypto.randomUUID(), tipo, numero: 0, conteudo: '{"type":"doc","content":[{"type":"paragraph"}]}', filhos: [] }
 }
 
 function findInElements(elements, id) {

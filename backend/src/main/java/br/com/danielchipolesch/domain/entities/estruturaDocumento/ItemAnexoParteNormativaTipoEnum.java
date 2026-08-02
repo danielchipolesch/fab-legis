@@ -18,7 +18,6 @@ public enum ItemAnexoParteNormativaTipoEnum {
     EPIGRAFE,
     EMENTA,
     PREAMBULO,
-    FUNDAMENTACAO,
 
     // Parte Normativa (nomenclatura do frontend)
     SECAO_NORMATIVA,

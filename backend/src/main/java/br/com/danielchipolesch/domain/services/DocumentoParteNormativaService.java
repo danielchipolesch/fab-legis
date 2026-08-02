@@ -8,6 +8,7 @@ import br.com.danielchipolesch.application.dtos.itemAnexoParteNormativaDtos.Seco
 import br.com.danielchipolesch.application.dtos.itemParteFinalDtos.ItemParteFinalResponseDto;
 import br.com.danielchipolesch.application.dtos.itemPartePreliminarDtos.ItemPartePreliminarResponseDto;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.*;
+import br.com.danielchipolesch.domain.entities.estruturaDocumento.TipoAlteracaoEnum;
 import br.com.danielchipolesch.domain.mappers.DocumentoMapper;
 import br.com.danielchipolesch.infrastructure.repositories.DocumentoRepository;
 import br.com.danielchipolesch.infrastructure.repositories.ItemAnexoParteNormativaRepository;
@@ -18,7 +19,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.Optional;
 
 @Service
 public class DocumentoParteNormativaService {
@@ -34,6 +34,9 @@ public class DocumentoParteNormativaService {
 
     @Autowired
     ItemParteFinalRepository itemParteFinalRepository;
+
+    @Autowired
+    DocumentoHistoricoService documentoHistoricoService;
 
     // ─── Carregamento ────────────────────────────────────────────────────────────
 
@@ -84,19 +87,18 @@ public class DocumentoParteNormativaService {
 
         if (request.getItens() == null) return;
 
+        documentoHistoricoService.registrar(documento, TipoAlteracaoEnum.ALTERACAO_CONTEUDO,
+                "Conteúdo do documento salvo", null, null);
+
         List<SecaoItemRequestDto> preliminares = request.getItens().stream()
                 .filter(i -> i.getSecao() == SecaoDocumentoEnum.PARTE_PRELIMINAR)
                 .toList();
         List<SecaoItemRequestDto> normativos = request.getItens().stream()
                 .filter(i -> i.getSecao() == SecaoDocumentoEnum.PARTE_NORMATIVA)
                 .toList();
-        List<SecaoItemRequestDto> finais = request.getItens().stream()
-                .filter(i -> i.getSecao() == SecaoDocumentoEnum.PARTE_FINAL)
-                .toList();
 
         if (!preliminares.isEmpty()) salvarItensPreliminares(documento, preliminares);
         if (!normativos.isEmpty()) salvarItensNormativos(documento, normativos);
-        if (!finais.isEmpty()) salvarItensFinais(documento, finais);
     }
 
     private void salvarItensPreliminares(Documento documento, List<SecaoItemRequestDto> dtos) {
@@ -198,13 +200,4 @@ public class DocumentoParteNormativaService {
         return sb.isEmpty() ? null : sb.toString();
     }
 
-    private Optional<ItemAnexoParteNormativa> findItemById(List<ItemAnexoParteNormativa> items, Long id) {
-        if (items == null) return Optional.empty();
-        for (ItemAnexoParteNormativa item : items) {
-            if (item.getId().equals(id)) return Optional.of(item);
-            Optional<ItemAnexoParteNormativa> found = findItemById(item.getChildren(), id);
-            if (found.isPresent()) return found;
-        }
-        return Optional.empty();
-    }
 }

@@ -50,6 +50,30 @@ public class Documento extends RepresentationModel<Documento> {
     @UpdateTimestamp
     private Timestamp dtAlteracao;
 
+    @Column(name = "dt_minuta")
+    private Timestamp dtMinuta;
+
+    @Column(name = "dt_aprovacao")
+    private Timestamp dtAprovacao;
+
+    @Column(name = "dt_publicacao")
+    private Timestamp dtPublicacao;
+
+    @Column(name = "dt_arquivamento")
+    private Timestamp dtArquivamento;
+
+    @Column(name = "dt_revogacao")
+    private Timestamp dtRevogacao;
+
+    @Column(name = "dt_cancelamento")
+    private Timestamp dtCancelamento;
+
+    @Column(name = "url_pdf")
+    private String urlPdf;
+
+    @Column(name = "nr_replicas", nullable = false, columnDefinition = "INTEGER NOT NULL DEFAULT 0")
+    private int qtdReplicas = 0;
+
     @Column(name = "nr_versao", nullable = false)
     @Version
     private Integer versao;

@@ -24,7 +24,16 @@ public class DocumentoMapper {
                         documento.getNumeroSecundario()),
                 documento.getTituloDocumento(),
                 documento.getDocumentoStatus(),
-                documento.getDtCriacao()
+                documento.getDtCriacao(),
+                documento.getDtAlteracao(),
+                documento.getDtMinuta(),
+                documento.getDtAprovacao(),
+                documento.getDtPublicacao(),
+                documento.getDtArquivamento(),
+                documento.getDtRevogacao(),
+                documento.getDtCancelamento(),
+                documento.getUrlPdf(),
+                documento.getQtdReplicas()
         );
     }
 
@@ -46,6 +55,15 @@ public class DocumentoMapper {
                 documento.getTituloDocumento(),
                 documento.getDocumentoStatus(),
                 documento.getDtCriacao(),
+                documento.getDtAlteracao(),
+                documento.getDtMinuta(),
+                documento.getDtAprovacao(),
+                documento.getDtPublicacao(),
+                documento.getDtArquivamento(),
+                documento.getDtRevogacao(),
+                documento.getDtCancelamento(),
+                documento.getUrlPdf(),
+                documento.getQtdReplicas(),
                 preliminares,
                 normativos,
                 finais

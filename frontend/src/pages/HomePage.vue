@@ -140,9 +140,24 @@
             </q-td>
           </template>
 
+          <template #body-cell-replicas="props">
+            <q-td :props="props" class="text-center">
+              <q-chip
+                v-if="props.row.qtd_replicas > 0"
+                :label="String(props.row.qtd_replicas)"
+                color="indigo-2"
+                text-color="indigo-10"
+                size="sm"
+                square
+                icon="mdi-content-copy"
+              />
+              <span v-else class="text-grey-5 text-caption">—</span>
+            </q-td>
+          </template>
+
           <template #body-cell-actions="props">
-            <q-td :props="props" class="text-right">
-              <div class="row justify-end no-wrap" style="gap:4px">
+            <q-td :props="props" class="text-center">
+              <div class="row justify-center no-wrap" style="gap:4px">
 
                 <!-- Editar — só RASCUNHO e MINUTA -->
                 <q-btn
@@ -160,25 +175,27 @@
                   </q-tooltip>
                 </q-btn>
 
-                <!-- Visualizar — sempre habilitado -->
+                <!-- Visualizar — rota depende do status -->
                 <q-btn
                   icon="mdi-eye-outline"
                   size="sm"
                   flat
                   round
                   dense
-                  :to="{ name: 'documento-editar', params: { id: props.row.id } }"
+                  color="primary"
+                  :to="docRoute(props.row)"
                 >
                   <q-tooltip anchor="top middle" self="bottom middle">Visualizar</q-tooltip>
                 </q-btn>
 
-                <!-- Comparar versões — habilitado se houver ao menos 1 versão salva -->
+                <!-- Comparar versões -->
                 <q-btn
                   icon="mdi-source-branch"
                   size="sm"
                   flat
                   round
                   dense
+                  color="primary"
                   :disable="!props.row.versoes?.length"
                   :to="props.row.versoes?.length ? { name: 'documento-comparar', params: { id: props.row.id } } : undefined"
                 >
@@ -187,31 +204,33 @@
                   </q-tooltip>
                 </q-btn>
 
-                <!-- Clonar — sempre habilitado -->
+                <!-- Clonar -->
                 <q-btn
                   icon="mdi-content-copy"
                   size="sm"
                   flat
                   round
                   dense
-                  @click="clonar(props.row)"
+                  color="primary"
+                  @click="confirmarClone(props.row)"
                 >
                   <q-tooltip anchor="top middle" self="bottom middle">Clonar documento</q-tooltip>
                 </q-btn>
 
-                <!-- Baixar PDF — sempre habilitado -->
+                <!-- Baixar PDF -->
                 <q-btn
                   icon="mdi-file-pdf-box"
                   size="sm"
                   flat
                   round
                   dense
+                  color="primary"
                   @click="baixarPdf(props.row)"
                 >
                   <q-tooltip anchor="top middle" self="bottom middle">Baixar PDF</q-tooltip>
                 </q-btn>
 
-                <q-btn icon="mdi-dots-vertical" size="sm" flat round dense color="grey">
+                <q-btn icon="mdi-dots-vertical" size="sm" flat round dense color="primary">
                   <q-menu>
                     <q-list dense style="min-width:200px">
                       <q-item
@@ -219,7 +238,7 @@
                         :key="opt.status"
                         clickable
                         v-close-popup
-                        @click="mudarStatus(props.row, opt.status)"
+                        @click="confirmarMudancaStatus(props.row, opt)"
                       >
                         <q-item-section avatar>
                           <q-icon :name="opt.icon" />
@@ -286,18 +305,29 @@
 
             <q-card-actions class="q-pa-sm">
               <q-btn
+                v-if="canEdit(doc)"
                 size="sm"
                 flat
                 color="primary"
-                :disable="!canEdit(doc)"
-                :to="canEdit(doc) ? { name: 'documento-editar', params: { id: doc.id } } : undefined"
+                :to="{ name: 'documento-editar', params: { id: doc.id } }"
               >
                 <q-icon left name="mdi-pencil-outline" />
                 Editar
               </q-btn>
+              <q-btn
+                v-else
+                size="sm"
+                flat
+                color="primary"
+                :to="docRoute(doc)"
+              >
+                <q-icon left name="mdi-eye-outline" />
+                Visualizar
+              </q-btn>
               <q-space />
-              <q-btn size="sm" icon="mdi-content-copy" flat round dense @click="clonar(doc)">
+              <q-btn size="sm" icon="mdi-content-copy" flat round dense color="primary" @click="confirmarClone(doc)">
                 <q-tooltip anchor="top middle" self="bottom middle">Clonar</q-tooltip>
+                <q-badge v-if="doc.qtd_replicas > 0" floating color="indigo" :label="doc.qtd_replicas" />
               </q-btn>
               <q-btn
                 size="sm"
@@ -305,12 +335,13 @@
                 flat
                 round
                 dense
+                color="primary"
                 :disable="!doc.versoes?.length"
                 :to="doc.versoes?.length ? { name: 'documento-comparar', params: { id: doc.id } } : undefined"
               >
                 <q-tooltip anchor="top middle" self="bottom middle">Comparar versões</q-tooltip>
               </q-btn>
-              <q-btn size="sm" icon="mdi-file-pdf-box" flat round dense @click="baixarPdf(doc)">
+              <q-btn size="sm" icon="mdi-file-pdf-box" flat round dense color="primary" @click="baixarPdf(doc)">
                 <q-tooltip anchor="top middle" self="bottom middle">Baixar PDF</q-tooltip>
               </q-btn>
             </q-card-actions>
@@ -331,12 +362,44 @@
         <q-card-section class="text-h6">Excluir documento?</q-card-section>
         <q-card-section class="q-pt-none">
           Esta ação não pode ser desfeita. O documento
-          <strong>{{ dialog.target?.especie }} {{ dialog.target?.numero_basico }}</strong>
+          <strong>{{ dialog.target?.especie }} {{ dialog.target?.numero_basico }}<template v-if="dialog.target?.numero_secundario">-{{ dialog.target?.numero_secundario }}</template></strong>
           será removido permanentemente.
         </q-card-section>
         <q-card-actions align="right" class="q-pb-md q-px-md">
           <q-btn flat v-close-popup>Cancelar</q-btn>
           <q-btn unelevated color="negative" @click="excluir">Excluir</q-btn>
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
+
+    <!-- Confirm status change dialog -->
+    <q-dialog v-model="dialog.status">
+      <q-card style="min-width:420px">
+        <q-card-section class="text-h6">{{ dialog.statusOpt?.label }}?</q-card-section>
+        <q-card-section class="q-pt-none">
+          O documento
+          <strong>{{ dialog.target?.especie }} {{ dialog.target?.numero_basico }}<template v-if="dialog.target?.numero_secundario">-{{ dialog.target?.numero_secundario }}</template></strong>
+          terá seu status alterado para <strong>{{ dialog.statusOpt?.status }}</strong>.
+        </q-card-section>
+        <q-card-actions align="right" class="q-pb-md q-px-md">
+          <q-btn flat v-close-popup>Cancelar</q-btn>
+          <q-btn unelevated color="primary" @click="executarMudancaStatus">Confirmar</q-btn>
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
+
+    <!-- Confirm clone dialog -->
+    <q-dialog v-model="dialog.clone">
+      <q-card style="min-width:420px">
+        <q-card-section class="text-h6">Clonar documento?</q-card-section>
+        <q-card-section class="q-pt-none">
+          Será criada uma cópia do documento
+          <strong>{{ dialog.target?.especie }} {{ dialog.target?.numero_basico }}<template v-if="dialog.target?.numero_secundario">-{{ dialog.target?.numero_secundario }}</template></strong>
+          com status <strong>RASCUNHO</strong>.
+        </q-card-section>
+        <q-card-actions align="right" class="q-pb-md q-px-md">
+          <q-btn flat v-close-popup>Cancelar</q-btn>
+          <q-btn unelevated color="primary" @click="executarClone">Clonar</q-btn>
         </q-card-actions>
       </q-card>
     </q-dialog>
@@ -365,13 +428,14 @@ const especies = ['ICA', 'NSCA', 'Portaria', 'Resolução', 'Decreto', 'Aviso']
 const statusOptions = ['RASCUNHO', 'MINUTA', 'APROVADO', 'PUBLICADO', 'ARQUIVADO', 'CANCELADO', 'REVOGADO']
 
 const columns = [
-  { name: 'especie',        label: 'Espécie',        field: 'especie',        align: 'left',  sortable: true,  style: 'width: 100px' },
-  { name: 'numero',         label: 'Número',         field: 'numero_basico',  align: 'left',  sortable: false },
-  { name: 'titulo',         label: 'Título',         field: 'titulo',         align: 'left',  sortable: true },
-  { name: 'assunto_basico', label: 'Assunto Básico', field: 'assunto_basico', align: 'left',  sortable: true },
-  { name: 'data_criacao',   label: 'Data',           field: 'data_criacao',   align: 'left',  sortable: true,  style: 'width: 120px' },
-  { name: 'status',         label: 'Status',         field: 'status',         align: 'left',  sortable: true,  style: 'width: 140px' },
-  { name: 'actions',        label: 'Ações',          field: 'actions',        align: 'right', sortable: false, style: 'width: 220px' },
+  { name: 'especie',        label: 'Espécie',        field: 'especie',        align: 'center', sortable: true,  style: 'width: 100px' },
+  { name: 'numero',         label: 'Número',         field: 'numero_basico',  align: 'center', sortable: false },
+  { name: 'titulo',         label: 'Título',         field: 'titulo',         align: 'center', sortable: true },
+  { name: 'assunto_basico', label: 'Assunto Básico', field: 'assunto_basico', align: 'center', sortable: true },
+  { name: 'data_criacao',   label: 'Data',           field: 'data_criacao',   align: 'center', sortable: true,  style: 'width: 120px' },
+  { name: 'status',         label: 'Status',         field: 'status',         align: 'center', sortable: true,  style: 'width: 140px' },
+  { name: 'replicas',       label: 'Réplicas',       field: 'qtd_replicas',   align: 'center', sortable: true,  style: 'width: 90px' },
+  { name: 'actions',        label: 'Ações',          field: 'actions',        align: 'center', sortable: false, style: 'width: 220px' },
 ]
 
 function formatarData(isoStr) {
@@ -419,6 +483,12 @@ function canEdit(doc) {
   return ['RASCUNHO', 'MINUTA'].includes(doc.status)
 }
 
+function docRoute(doc) {
+  return canEdit(doc)
+    ? { name: 'documento-editar',    params: { id: doc.id } }
+    : { name: 'documento-visualizar', params: { id: doc.id } }
+}
+
 function statusActions(doc) {
   const transitions = {
     RASCUNHO:  [{ status: 'MINUTA',    label: 'Enviar para Minuta',  icon: 'mdi-file-edit-outline' }],
@@ -435,8 +505,17 @@ function statusActions(doc) {
   return transitions[doc.status] ?? []
 }
 
-function mudarStatus(doc, novoStatus) {
-  store.changeStatus(doc.id, novoStatus)
+function confirmarMudancaStatus(doc, opt) {
+  dialog.target = doc
+  dialog.statusOpt = opt
+  dialog.status = true
+}
+
+function executarMudancaStatus() {
+  if (dialog.target && dialog.statusOpt) store.changeStatus(dialog.target.id, dialog.statusOpt.status)
+  dialog.status = false
+  dialog.target = null
+  dialog.statusOpt = null
 }
 
 async function baixarPdf(doc) {
@@ -453,11 +532,18 @@ async function baixarPdf(doc) {
   }
 }
 
-function clonar(doc) {
-  store.cloneDocumento(doc.id)
+function confirmarClone(doc) {
+  dialog.target = doc
+  dialog.clone = true
 }
 
-const dialog = reactive({ delete: false, target: null })
+function executarClone() {
+  if (dialog.target) store.cloneDocumento(dialog.target.id)
+  dialog.clone = false
+  dialog.target = null
+}
+
+const dialog = reactive({ delete: false, status: false, clone: false, target: null, statusOpt: null })
 
 function confirmarExclusao(doc) {
   dialog.target = doc
@@ -486,6 +572,13 @@ function limparFiltros() {
 }
 .legis-table :deep(thead th) {
   text-align: center !important;
+  position: relative;
+}
+.legis-table :deep(thead th .q-table__sort-icon) {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
 }
 .legis-table :deep(tbody tr:hover td) {
   background: rgba(74, 111, 165, 0.06) !important;
