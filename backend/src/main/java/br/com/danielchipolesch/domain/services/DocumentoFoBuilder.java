@@ -119,7 +119,7 @@ public class DocumentoFoBuilder {
         String build() {
             var sb = new StringBuilder();
             sb.append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
-            sb.append("<fo:root xmlns:fo=\"").append(FO_NS).append("\">\n");
+            sb.append("<fo:root xmlns:fo=\"").append(FO_NS).append("\" xmlns:fox=\"http://xmlgraphics.apache.org/fop/extensions\">\n");
             sb.append(buildLayoutMasterSet());
             sb.append(buildPortariaSequence());
             sb.append(buildCapaSequence());
@@ -133,9 +133,17 @@ public class DocumentoFoBuilder {
 
         // ─── Watermark ────────────────────────────────────────────────────────
         // Rendered as fo:static-content so it repeats on EVERY page of the sequence.
-        // 3-column × 5-row grid of small instances covers the whole page uniformly.
-        // A4: 595 × 842 pt. Lateral padding 40pt each side → 515pt usable.
-        // Top/bottom padding 60pt → 722pt usable. Each row ≈ 144pt, each col ≈ 172pt.
+        // Uses fox:transform="rotate(-45)" — rotation around the container's local
+        // origin (0, 0). The container is pre-positioned so the text centre lands
+        // exactly at the A4 page centre (297, 421) after rotation.
+        //
+        // After rotate(-45) around local (0,0), local point (cw, cy) maps to:
+        //   screen_x = left + (cw + cy) * 0.707
+        //   screen_y = top  + (cy - cw) * 0.707
+        //
+        // Container: 500 × 150 pt.  Text centre: cw=250, cy=75 (space-before≈32pt).
+        //   left = 297 − (250+75)*0.707 = 297 − 229.8 ≈  67 pt
+        //   top  = 421 − (75−250)*0.707 = 421 + 123.7 ≈ 545 pt
 
         private String buildStaticContentWatermark() {
             String open  = "<fo:static-content flow-name=\"wm\">\n";
@@ -145,28 +153,14 @@ public class DocumentoFoBuilder {
                 return open + "  <fo:block/>\n" + close;
             }
             String label = foEsc(status.name());
-            String font  = "font-size=\"14pt\" font-weight=\"bold\" color=\"#DDBBBB\"";
             var sb = new StringBuilder();
             sb.append(open);
             sb.append("  <fo:block-container absolute-position=\"fixed\"");
-            sb.append(" top=\"60pt\" left=\"40pt\" width=\"515pt\" height=\"722pt\">\n");
-            sb.append("    <fo:table table-layout=\"fixed\" width=\"515pt\">\n");
-            sb.append("      <fo:table-column column-width=\"proportional-column-width(1)\"/>\n");
-            sb.append("      <fo:table-column column-width=\"proportional-column-width(1)\"/>\n");
-            sb.append("      <fo:table-column column-width=\"proportional-column-width(1)\"/>\n");
-            sb.append("      <fo:table-body>\n");
-            for (int row = 0; row < 5; row++) {
-                sb.append("        <fo:table-row height=\"144pt\">\n");
-                for (int col = 0; col < 3; col++) {
-                    sb.append("          <fo:table-cell display-align=\"center\">\n");
-                    sb.append("            <fo:block text-align=\"center\" ").append(font).append(">")
-                      .append(label).append("</fo:block>\n");
-                    sb.append("          </fo:table-cell>\n");
-                }
-                sb.append("        </fo:table-row>\n");
-            }
-            sb.append("      </fo:table-body>\n");
-            sb.append("    </fo:table>\n");
+            sb.append(" top=\"545pt\" left=\"87pt\" width=\"500pt\" height=\"150pt\"");
+            sb.append(" overflow=\"visible\"");
+            sb.append(" fox:transform=\"rotate(-45)\">\n");
+            sb.append("    <fo:block font-size=\"72pt\" font-weight=\"bold\" color=\"#DDBBBB\"");
+            sb.append(" text-align=\"center\" space-before=\"32pt\">").append(label).append("</fo:block>\n");
             sb.append("  </fo:block-container>\n");
             sb.append(close);
             return sb.toString();
@@ -413,42 +407,28 @@ public class DocumentoFoBuilder {
             if (entries.isEmpty()) return "";
 
             var sb = new StringBuilder();
-            sb.append("<fo:table table-layout=\"fixed\" width=\"100%\" font-size=\"10pt\" space-after=\"0\">\n");
-            sb.append("  <fo:table-column column-width=\"proportional-column-width(10)\"/>\n");
-            sb.append("  <fo:table-column column-width=\"proportional-column-width(1)\"/>\n");
-            sb.append("  <fo:table-column column-width=\"40pt\"/>\n");
-            sb.append("  <fo:table-header>\n");
-            sb.append("    <fo:table-row>\n");
-            sb.append("      <fo:table-cell><fo:block/></fo:table-cell>\n");
-            sb.append("      <fo:table-cell><fo:block/></fo:table-cell>\n");
-            sb.append("      <fo:table-cell><fo:block text-align=\"right\" font-weight=\"bold\">Art.</fo:block></fo:table-cell>\n");
-            sb.append("    </fo:table-row>\n");
-            sb.append("  </fo:table-header>\n");
-            sb.append("  <fo:table-body>\n");
+            // Header "Art." right-aligned above the entries
+            sb.append("<fo:block font-size=\"10pt\" font-weight=\"bold\" text-align=\"right\" space-after=\"2pt\">Art.</fo:block>\n");
             for (var e : entries) {
-                String indent = e.indent2() ? "20pt" : e.indent1() ? "12pt" : "0";
-                String fw = e.bold() ? "bold" : "normal";
-                String mt = e.bold() ? "4pt" : "0";
+                String indent = e.indent2() ? "20pt" : e.indent1() ? "12pt" : "0pt";
+                String fw  = e.bold() ? "bold" : "normal";
                 String anc = e.anchor();
                 String pg  = e.pg();
-                sb.append("<fo:table-row><fo:table-cell padding-top=\"").append(mt).append("\">\n");
-                sb.append("  <fo:block start-indent=\"").append(indent).append("\" font-weight=\"").append(fw)
-                  .append("\" keep-together.within-line=\"always\">")
-                  .append("<fo:basic-link internal-destination=\"").append(anc).append("\" color=\"#000000\">")
+                // text-align-last="justify" makes fo:leader stretch from label text to the page number
+                sb.append("<fo:block font-size=\"10pt\" font-weight=\"").append(fw).append("\"")
+                  .append(" start-indent=\"").append(indent).append("\"")
+                  .append(" text-align-last=\"justify\"")
+                  .append(" space-before=\"").append(e.bold() ? "4pt" : "0").append("\"")
+                  .append(" space-after=\"1pt\">\n")
+                  .append("  <fo:basic-link internal-destination=\"").append(anc).append("\" color=\"#000000\">")
                   .append(foEsc(e.label()))
                   .append("</fo:basic-link>")
-                  .append("</fo:block>\n");
-                sb.append("</fo:table-cell>\n");
-                sb.append("<fo:table-cell><fo:block border-bottom=\"1pt dotted #999999\" margin-bottom=\"2pt\"/></fo:table-cell>\n");
-                sb.append("<fo:table-cell><fo:block text-align=\"right\">")
+                  .append("<fo:leader leader-pattern=\"dots\" leader-alignment=\"reference-area\"/>")
                   .append(pg.isBlank() ? "" :
                       "<fo:basic-link internal-destination=\"" + anc + "\" color=\"#000000\">"
-                      + foEsc(pg)
-                      + "</fo:basic-link>")
-                  .append("</fo:block></fo:table-cell>\n");
-                sb.append("</fo:table-row>\n");
+                      + foEsc(pg) + "</fo:basic-link>")
+                  .append("\n</fo:block>\n");
             }
-            sb.append("  </fo:table-body>\n</fo:table>\n");
             return sb.toString();
         }
 
@@ -708,18 +688,44 @@ public class DocumentoFoBuilder {
                   .append(labelFo(label, labelBold)).append("</fo:block>\n");
                 return;
             }
-            boolean blockContent = isBlockContent(conteudo);
+            TipTapNode doc = parseConteudo(conteudo);
+            if (doc == null) {
+                sb.append("<fo:block").append(idAttr).append(" text-indent=\"2.5cm\" space-after=\"5pt\">")
+                  .append(labelFo(label, labelBold)).append("</fo:block>\n");
+                return;
+            }
+            boolean blockContent = renderer.hasBlockContent(doc);
             if (blockContent) {
-                if (!label.isBlank()) {
-                    sb.append("<fo:block").append(idAttr).append(" text-indent=\"2.5cm\" space-after=\"2pt\" text-align=\"justify\">")
-                      .append(labelFo(label, labelBold)).append("</fo:block>\n");
+                if (!label.isBlank() && renderer.startsWithParagraph(doc)) {
+                    // Label + first paragraph text on the same line; remaining blocks (figures, etc.) follow
+                    sb.append("<fo:block").append(idAttr)
+                      .append(" text-indent=\"2.5cm\" space-after=\"2pt\" text-align=\"justify\">")
+                      .append(labelFo(label, labelBold))
+                      .append(renderer.renderInlineContent(doc))
+                      .append("</fo:block>\n");
+                    sb.append(renderer.renderSkippingFirstParagraph(doc));
+                } else {
+                    if (!label.isBlank()) {
+                        sb.append("<fo:block").append(idAttr)
+                          .append(" text-indent=\"2.5cm\" space-after=\"2pt\" text-align=\"justify\">")
+                          .append(labelFo(label, labelBold)).append("</fo:block>\n");
+                    }
+                    sb.append(renderer.renderDocContent(doc));
                 }
-                sb.append(foFromConteudo(conteudo, true));
             } else {
                 sb.append("<fo:block").append(idAttr).append(" text-indent=\"2.5cm\" space-after=\"5pt\" text-align=\"justify\">")
                   .append(labelFo(label, labelBold))
-                  .append(foFromConteudo(conteudo, false))
+                  .append(renderer.renderInlineContent(doc))
                   .append("</fo:block>\n");
+            }
+        }
+
+        private TipTapNode parseConteudo(String conteudo) {
+            if (conteudo == null || conteudo.isBlank()) return null;
+            try {
+                return objectMapper.readValue(conteudo, TipTapNode.class);
+            } catch (Exception ignored) {
+                return null;
             }
         }
 
@@ -761,16 +767,6 @@ public class DocumentoFoBuilder {
                 return asBlocks ? renderer.renderDocContent(doc) : renderer.renderInlineContent(doc);
             } catch (Exception ignored) {
                 return "";
-            }
-        }
-
-        private boolean isBlockContent(String conteudo) {
-            if (conteudo == null || conteudo.isBlank()) return false;
-            try {
-                TipTapNode doc = objectMapper.readValue(conteudo, TipTapNode.class);
-                return renderer.hasBlockContent(doc);
-            } catch (Exception ignored) {
-                return false;
             }
         }
 
