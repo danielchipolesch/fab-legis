@@ -1,6 +1,7 @@
 package br.com.danielchipolesch.domain.services;
 
 import br.com.danielchipolesch.application.dtos.anexoDtos.AnexoResponseDto;
+import br.com.danielchipolesch.application.dtos.documentoDtos.DocumentoStatusRequestDto;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.Anexo;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.Documento;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.DocumentoStatusEnum;
@@ -55,7 +56,7 @@ public class AnexoService {
         AnexoResponseDto resultado = AnexoResponseDto.from(anexoRepository.save(anexo));
 
         if (documento.getDocumentoStatus() == DocumentoStatusEnum.RASCUNHO) {
-            documentoStatusService.changeStatus(documentoId, DocumentoStatusEnum.MINUTA);
+            documentoStatusService.changeStatus(documentoId, new DocumentoStatusRequestDto(DocumentoStatusEnum.MINUTA, null, null));
         }
 
         return resultado;
