@@ -210,12 +210,22 @@ export const useDocumentsStore = defineStore('documents', {
       return atualizado
     },
 
-    async changeStatus(id, novoStatus) {
-      const atualizado = await api.changeDocumentoStatus(id, novoStatus)
+    async changeStatus(id, novoStatus, portariaReferencia, bcaReferencia) {
+      const atualizado = await api.changeDocumentoStatus(id, novoStatus, portariaReferencia, bcaReferencia)
       if (atualizado) {
         const idx = this.documentos.findIndex(d => String(d.id) === String(id))
         if (idx !== -1) this.documentos[idx] = { ...this.documentos[idx], ...atualizado }
       }
+    },
+
+    async emendar(docId, secao, elementoId, acao, novoConteudo, novoTitulo, justificativa) {
+      await api.emendar(docId, secao, elementoId, acao, novoConteudo, novoTitulo, justificativa)
+      return this.fetchDocumento(docId)
+    },
+
+    async incluirElementoEmenda(docId, secao, tipo, titulo, conteudo, parentId, elementOrder, justificativa) {
+      await api.incluirElementoEmenda(docId, secao, tipo, titulo, conteudo, parentId, elementOrder, justificativa)
+      return this.fetchDocumento(docId)
     },
 
     async deleteDocumento(id) {

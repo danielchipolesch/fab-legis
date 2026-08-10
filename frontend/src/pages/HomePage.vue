@@ -374,16 +374,41 @@
 
     <!-- Confirm status change dialog -->
     <q-dialog v-model="dialog.status">
-      <q-card style="min-width:420px">
+      <q-card style="min-width:420px;max-width:500px;width:100%">
         <q-card-section class="text-h6">{{ dialog.statusOpt?.label }}?</q-card-section>
         <q-card-section class="q-pt-none">
           O documento
           <strong>{{ dialog.target?.especie }} {{ dialog.target?.numero_basico }}<template v-if="dialog.target?.numero_secundario">-{{ dialog.target?.numero_secundario }}</template></strong>
           terá seu status alterado para <strong>{{ dialog.statusOpt?.status }}</strong>.
         </q-card-section>
+        <!-- Campos obrigatórios para re-publicação após alteração -->
+        <template v-if="dialog.statusOpt?.requiresRefs">
+          <q-separator />
+          <q-card-section class="q-pt-sm column q-gutter-sm">
+            <div class="text-caption text-grey-7">
+              Informe os dados da Portaria e do BCA que registram esta alteração:
+            </div>
+            <q-input
+              v-model="dialog.portariaReferencia"
+              label="Portaria de referência *"
+              outlined dense
+              placeholder="Ex: Portaria DIRAD n° 123, de 1° de jan. de 2026"
+            />
+            <q-input
+              v-model="dialog.bcaReferencia"
+              label="BCA de referência *"
+              outlined dense
+              placeholder="Ex: BCA n° 10, de 15 de jan. de 2026"
+            />
+          </q-card-section>
+        </template>
         <q-card-actions align="right" class="q-pb-md q-px-md">
           <q-btn flat v-close-popup>Cancelar</q-btn>
-          <q-btn unelevated color="primary" @click="executarMudancaStatus">Confirmar</q-btn>
+          <q-btn
+            unelevated color="primary"
+            :disable="dialog.statusOpt?.requiresRefs && (!dialog.portariaReferencia?.trim() || !dialog.bcaReferencia?.trim())"
+            @click="executarMudancaStatus"
+          >Confirmar</q-btn>
         </q-card-actions>
       </q-card>
     </q-dialog>
@@ -425,7 +450,7 @@ const viewMode = ref('tabela')
 const filtros = reactive({ busca: '', especie: null, status: null })
 
 const especies = ['ICA', 'NSCA', 'Portaria', 'Resolução', 'Decreto', 'Aviso']
-const statusOptions = ['RASCUNHO', 'MINUTA', 'APROVADO', 'PUBLICADO', 'ARQUIVADO', 'CANCELADO', 'REVOGADO']
+const statusOptions = ['RASCUNHO', 'MINUTA', 'APROVADO', 'PUBLICADO', 'EM_ALTERACAO', 'ARQUIVADO', 'CANCELADO', 'REVOGADO']
 
 const columns = [
   { name: 'especie',        label: 'Espécie',        field: 'especie',        align: 'center', sortable: true,  style: 'width: 100px' },
@@ -460,13 +485,14 @@ const documentosFiltrados = computed(() => {
 })
 
 const STATUS_CFG = {
-  RASCUNHO:  { bg: 'grey-3',      fg: 'grey-9',       label: 'Rascunho'  },
-  MINUTA:    { bg: 'orange-2',    fg: 'orange-10',    label: 'Minuta'    },
-  APROVADO:  { bg: 'green-2',     fg: 'green-10',     label: 'Aprovado'  },
-  PUBLICADO: { bg: 'blue-2',      fg: 'primary',      label: 'Publicado' },
-  ARQUIVADO: { bg: 'blue-grey-2', fg: 'blue-grey-10', label: 'Arquivado' },
-  CANCELADO: { bg: 'red-2',       fg: 'red-10',       label: 'Cancelado' },
-  REVOGADO:  { bg: 'brown-2',     fg: 'brown-10',     label: 'Revogado'  },
+  RASCUNHO:     { bg: 'grey-3',        fg: 'grey-9',          label: 'Rascunho'     },
+  MINUTA:       { bg: 'orange-2',      fg: 'orange-10',       label: 'Minuta'       },
+  APROVADO:     { bg: 'green-2',       fg: 'green-10',        label: 'Aprovado'     },
+  PUBLICADO:    { bg: 'blue-2',        fg: 'primary',         label: 'Publicado'    },
+  EM_ALTERACAO: { bg: 'deep-orange-2', fg: 'deep-orange-10',  label: 'Em Alteração' },
+  ARQUIVADO:    { bg: 'blue-grey-2',   fg: 'blue-grey-10',    label: 'Arquivado'    },
+  CANCELADO:    { bg: 'red-2',         fg: 'red-10',          label: 'Cancelado'    },
+  REVOGADO:     { bg: 'brown-2',       fg: 'brown-10',        label: 'Revogado'     },
 }
 
 const statusSummary = computed(() =>
@@ -480,7 +506,7 @@ const statusSummary = computed(() =>
 )
 
 function canEdit(doc) {
-  return ['RASCUNHO', 'MINUTA'].includes(doc.status)
+  return ['RASCUNHO', 'MINUTA', 'EM_ALTERACAO'].includes(doc.status)
 }
 
 function docRoute(doc) {
@@ -491,13 +517,15 @@ function docRoute(doc) {
 
 function statusActions(doc) {
   const transitions = {
-    RASCUNHO:  [{ status: 'MINUTA',    label: 'Enviar para Minuta',  icon: 'mdi-file-edit-outline' }],
-    MINUTA:    [{ status: 'APROVADO',  label: 'Aprovar',             icon: 'mdi-check-circle-outline' },
-                { status: 'RASCUNHO',  label: 'Retornar p/ Rascunho', icon: 'mdi-undo' }],
-    APROVADO:  [{ status: 'PUBLICADO', label: 'Publicar',            icon: 'mdi-publish' },
-                { status: 'MINUTA',    label: 'Retornar p/ Minuta',  icon: 'mdi-undo' }],
-    PUBLICADO: [{ status: 'ARQUIVADO', label: 'Arquivar',            icon: 'mdi-archive-outline' },
-                { status: 'REVOGADO',  label: 'Revogar',             icon: 'mdi-file-remove-outline' }],
+    RASCUNHO:     [{ status: 'MINUTA',        label: 'Enviar para Minuta',   icon: 'mdi-file-edit-outline' }],
+    MINUTA:       [{ status: 'APROVADO',      label: 'Aprovar',              icon: 'mdi-check-circle-outline' },
+                   { status: 'RASCUNHO',      label: 'Retornar p/ Rascunho', icon: 'mdi-undo' }],
+    APROVADO:     [{ status: 'PUBLICADO',     label: 'Publicar',             icon: 'mdi-publish' },
+                   { status: 'MINUTA',        label: 'Retornar p/ Minuta',   icon: 'mdi-undo' }],
+    PUBLICADO:    [{ status: 'EM_ALTERACAO',  label: 'Iniciar Alteração',    icon: 'mdi-pencil-lock-outline' },
+                   { status: 'ARQUIVADO',     label: 'Arquivar',             icon: 'mdi-archive-outline' },
+                   { status: 'REVOGADO',      label: 'Revogar',             icon: 'mdi-file-remove-outline' }],
+    EM_ALTERACAO: [{ status: 'PUBLICADO', label: 'Re-publicar', icon: 'mdi-publish', requiresRefs: true }],
     ARQUIVADO: [],
     CANCELADO: [],
     REVOGADO:  [],
@@ -512,10 +540,19 @@ function confirmarMudancaStatus(doc, opt) {
 }
 
 function executarMudancaStatus() {
-  if (dialog.target && dialog.statusOpt) store.changeStatus(dialog.target.id, dialog.statusOpt.status)
+  if (dialog.target && dialog.statusOpt) {
+    store.changeStatus(
+      dialog.target.id,
+      dialog.statusOpt.status,
+      dialog.statusOpt.requiresRefs ? dialog.portariaReferencia : undefined,
+      dialog.statusOpt.requiresRefs ? dialog.bcaReferencia : undefined,
+    )
+  }
   dialog.status = false
   dialog.target = null
   dialog.statusOpt = null
+  dialog.portariaReferencia = ''
+  dialog.bcaReferencia = ''
 }
 
 async function baixarPdf(doc) {
@@ -543,7 +580,11 @@ function executarClone() {
   dialog.target = null
 }
 
-const dialog = reactive({ delete: false, status: false, clone: false, target: null, statusOpt: null })
+const dialog = reactive({
+  delete: false, status: false, clone: false,
+  target: null, statusOpt: null,
+  portariaReferencia: '', bcaReferencia: '',
+})
 
 function confirmarExclusao(doc) {
   dialog.target = doc

@@ -1,5 +1,6 @@
 package br.com.danielchipolesch.application.dtos.itemAnexoParteNormativaDtos;
 
+import br.com.danielchipolesch.domain.entities.estruturaDocumento.ElementoEmendaStatusEnum;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.ItemAnexoParteNormativa;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.ItemAnexoParteNormativaTipoEnum;
 import lombok.Data;
@@ -18,6 +19,10 @@ public class ItemAnexoParteNormativaResponseDto {
     private String elementTitle;
     private String elementContent;
     private String fullTextContent;
+    private ElementoEmendaStatusEnum emendaStatus;
+    private String conteudoOriginal;
+    private String tituloOriginal;
+    private String justificativaEmenda;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private List<ItemAnexoParteNormativaResponseDto> children;
@@ -31,6 +36,10 @@ public class ItemAnexoParteNormativaResponseDto {
         dto.setElementTitle(item.getTitulo());
         dto.setElementContent(item.getConteudo());
         dto.setFullTextContent(item.getFullTextContent());
+        dto.setEmendaStatus(item.getEmendaStatus());
+        dto.setConteudoOriginal(item.getConteudoOriginal());
+        dto.setTituloOriginal(item.getTituloOriginal());
+        dto.setJustificativaEmenda(item.getJustificativaEmenda());
         dto.setCreatedAt(item.getCreatedAt());
         dto.setUpdatedAt(item.getUpdatedAt());
         List<ItemAnexoParteNormativa> childrenEntities = item.getChildren();

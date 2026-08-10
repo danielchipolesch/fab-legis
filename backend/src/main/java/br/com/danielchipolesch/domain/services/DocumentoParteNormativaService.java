@@ -8,6 +8,7 @@ import br.com.danielchipolesch.application.dtos.itemAnexoParteNormativaDtos.Seco
 import br.com.danielchipolesch.application.dtos.itemParteFinalDtos.ItemParteFinalResponseDto;
 import br.com.danielchipolesch.application.dtos.itemPartePreliminarDtos.ItemPartePreliminarResponseDto;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.*;
+import br.com.danielchipolesch.domain.entities.estruturaDocumento.DocumentoStatusEnum;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.TipoAlteracaoEnum;
 import br.com.danielchipolesch.domain.mappers.DocumentoMapper;
 import br.com.danielchipolesch.infrastructure.repositories.DocumentoRepository;
@@ -84,6 +85,11 @@ public class DocumentoParteNormativaService {
     public void salvarSecoes(Long documentoId, SecoesSaveRequestDto request) {
         Documento documento = documentoRepository.findById(documentoId)
                 .orElseThrow(() -> new RuntimeException("Documento não encontrado"));
+
+        if (documento.getDocumentoStatus() == DocumentoStatusEnum.EM_ALTERACAO) {
+            throw new IllegalStateException(
+                    "Documento em alteração: utilize os endpoints de emenda para modificar elementos individualmente.");
+        }
 
         if (request.getItens() == null) return;
 

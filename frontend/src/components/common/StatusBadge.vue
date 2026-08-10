@@ -27,6 +27,7 @@ const STATUS_MAP = {
   MINUTA:    { label: 'Minuta',    bg: 'orange-2',      fg: 'orange-10', icon: 'mdi-file-edit-outline' },
   APROVADO:  { label: 'Aprovado',  bg: 'green-2',       fg: 'green-10',  icon: 'mdi-check-circle-outline' },
   PUBLICADO: { label: 'Publicado', bg: 'blue-2',        fg: 'primary',   icon: 'mdi-publish' },
+  EM_ALTERACAO: { label: 'Em Alteração', bg: 'deep-orange-2', fg: 'deep-orange-10', icon: 'mdi-pencil-lock-outline' },
   ARQUIVADO: { label: 'Arquivado', bg: 'blue-grey-2',   fg: 'blue-grey-10', icon: 'mdi-archive-outline' },
   CANCELADO: { label: 'Cancelado', bg: 'red-2',         fg: 'red-10',    icon: 'mdi-cancel' },
   REVOGADO:  { label: 'Revogado',  bg: 'brown-2',       fg: 'brown-10',  icon: 'mdi-file-remove-outline' },

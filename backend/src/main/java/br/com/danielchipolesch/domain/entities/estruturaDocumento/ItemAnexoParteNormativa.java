@@ -43,6 +43,19 @@ public class ItemAnexoParteNormativa {
     @Column(name = "tx_conteudo_completo", columnDefinition = "TEXT")
     private String fullTextContent;
 
+    @Column(name = "st_emenda", length = 20)
+    @Enumerated(EnumType.STRING)
+    private ElementoEmendaStatusEnum emendaStatus = ElementoEmendaStatusEnum.INALTERADO;
+
+    @Column(name = "tx_conteudo_original", columnDefinition = "TEXT")
+    private String conteudoOriginal;
+
+    @Column(name = "tx_titulo_original", columnDefinition = "TEXT")
+    private String tituloOriginal;
+
+    @Column(name = "tx_justificativa_emenda", columnDefinition = "TEXT")
+    private String justificativaEmenda;
+
     @ManyToOne
     @JoinColumn(name = "parent_id")
     @JsonIgnore

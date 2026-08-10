@@ -5,6 +5,7 @@ import br.com.danielchipolesch.application.dtos.itemAnexoParteNormativaDtos.Item
 import br.com.danielchipolesch.application.dtos.itemPartePreliminarDtos.ItemPartePreliminarResponseDto;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.Documento;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.DocumentoStatusEnum;
+import br.com.danielchipolesch.domain.entities.estruturaDocumento.ElementoEmendaStatusEnum;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.ItemAnexoParteNormativaTipoEnum;
 import br.com.danielchipolesch.domain.util.tiptap.TipTapNode;
 import br.com.danielchipolesch.domain.util.tiptap.XslFoContentRenderer;
@@ -149,18 +150,22 @@ public class DocumentoFoBuilder {
             String open  = "<fo:static-content flow-name=\"wm\">\n";
             String close = "</fo:static-content>\n";
             DocumentoStatusEnum status = doc.getDocumentoStatus();
-            if (status != DocumentoStatusEnum.RASCUNHO && status != DocumentoStatusEnum.MINUTA) {
-                return open + "  <fo:block/>\n" + close;
-            }
-            String label = foEsc(status.name());
+            boolean showWm = status == DocumentoStatusEnum.RASCUNHO
+                          || status == DocumentoStatusEnum.MINUTA
+                          || status == DocumentoStatusEnum.EM_ALTERACAO;
+            if (!showWm) return open + "  <fo:block/>\n" + close;
+
+            String label = status == DocumentoStatusEnum.EM_ALTERACAO ? "EM ALTERAÇÃO" : foEsc(status.name());
+            // EM_ALTERACAO uses orange-toned color; draft/minuta use the existing pink
+            String color = status == DocumentoStatusEnum.EM_ALTERACAO ? "#DDCCAA" : "#DDBBBB";
             var sb = new StringBuilder();
             sb.append(open);
             sb.append("  <fo:block-container absolute-position=\"fixed\"");
             sb.append(" top=\"545pt\" left=\"87pt\" width=\"500pt\" height=\"150pt\"");
             sb.append(" overflow=\"visible\"");
             sb.append(" fox:transform=\"rotate(-45)\">\n");
-            sb.append("    <fo:block font-size=\"72pt\" font-weight=\"bold\" color=\"#DDBBBB\"");
-            sb.append(" text-align=\"center\" space-before=\"32pt\">").append(label).append("</fo:block>\n");
+            sb.append("    <fo:block font-size=\"62pt\" font-weight=\"bold\" color=\"").append(color).append("\"");
+            sb.append(" text-align=\"center\" space-before=\"32pt\">").append(foEsc(label)).append("</fo:block>\n");
             sb.append("  </fo:block-container>\n");
             sb.append(close);
             return sb.toString();
@@ -613,10 +618,11 @@ public class DocumentoFoBuilder {
                 case ARTIGO -> {
                     art[0]++;
                     renderBodyEl(sb, anc, "Art. " + ordinalOrCardinal(art[0]) + "  ", true,
-                            item.getElementContent());
+                            item.getElementContent(), item.getEmendaStatus(), item.getConteudoOriginal());
                     renderArtigoFilhos(item.getChildren(), sb);
                 }
-                default -> renderBodyEl(sb, null, "", false, item.getElementContent());
+                default -> renderBodyEl(sb, null, "", false, item.getElementContent(),
+                        item.getEmendaStatus(), item.getConteudoOriginal());
             }
         }
 
@@ -633,15 +639,17 @@ public class DocumentoFoBuilder {
                         parNum++;
                         boolean unico = parCount == 1 && child.getElementType() == ItemAnexoParteNormativaTipoEnum.PARAGRAFO_UNICO;
                         renderBodyEl(sb, null, unico ? "Parágrafo único.  " : "§ " + ordinalOrCardinal(parNum) + "  ",
-                                false, child.getElementContent());
+                                false, child.getElementContent(), child.getEmendaStatus(), child.getConteudoOriginal());
                         renderIncisoFilhos(child.getChildren(), sb);
                     }
                     case INCISO -> {
                         incisoNum++;
-                        renderBodyEl(sb, null, toRoman(incisoNum) + " - ", false, child.getElementContent());
+                        renderBodyEl(sb, null, toRoman(incisoNum) + " - ", false, child.getElementContent(),
+                                child.getEmendaStatus(), child.getConteudoOriginal());
                         renderAlineaFilhos(child.getChildren(), sb);
                     }
-                    default -> renderBodyEl(sb, null, "", false, child.getElementContent());
+                    default -> renderBodyEl(sb, null, "", false, child.getElementContent(),
+                            child.getEmendaStatus(), child.getConteudoOriginal());
                 }
             }
         }
@@ -652,7 +660,8 @@ public class DocumentoFoBuilder {
             for (var child : filhos) {
                 if (child.getElementType() == ItemAnexoParteNormativaTipoEnum.INCISO) {
                     n++;
-                    renderBodyEl(sb, null, toRoman(n) + " - ", false, child.getElementContent());
+                    renderBodyEl(sb, null, toRoman(n) + " - ", false, child.getElementContent(),
+                            child.getEmendaStatus(), child.getConteudoOriginal());
                     renderAlineaFilhos(child.getChildren(), sb);
                 }
             }
@@ -664,7 +673,8 @@ public class DocumentoFoBuilder {
             for (var child : filhos) {
                 if (child.getElementType() == ItemAnexoParteNormativaTipoEnum.ALINEA) {
                     n++;
-                    renderBodyEl(sb, null, toLetter(n) + ") ", false, child.getElementContent());
+                    renderBodyEl(sb, null, toLetter(n) + ") ", false, child.getElementContent(),
+                            child.getEmendaStatus(), child.getConteudoOriginal());
                     renderSubAlineaFilhos(child.getChildren(), sb);
                 }
             }
@@ -676,7 +686,8 @@ public class DocumentoFoBuilder {
             for (var child : filhos) {
                 if (child.getElementType() == ItemAnexoParteNormativaTipoEnum.SUB_ALINEA) {
                     n++;
-                    renderBodyEl(sb, null, n + ". ", false, child.getElementContent());
+                    renderBodyEl(sb, null, n + ". ", false, child.getElementContent(),
+                            child.getEmendaStatus(), child.getConteudoOriginal());
                 }
             }
         }
@@ -718,6 +729,79 @@ public class DocumentoFoBuilder {
                   .append(renderer.renderInlineContent(doc))
                   .append("</fo:block>\n");
             }
+        }
+
+        // Overload aware of emenda status — falls through to the plain version for INALTERADO
+        private void renderBodyEl(StringBuilder sb, String id, String label, boolean labelBold,
+                                  String conteudo,
+                                  ElementoEmendaStatusEnum emendaStatus,
+                                  String conteudoOriginal) {
+            if (emendaStatus == null || emendaStatus == ElementoEmendaStatusEnum.INALTERADO) {
+                renderBodyEl(sb, id, label, labelBold, conteudo);
+                return;
+            }
+            String idAttr = (id != null && !id.isBlank()) ? " id=\"" + id + "\"" : "";
+            switch (emendaStatus) {
+                case REVOGADO -> {
+                    renderStrikethroughBlock(sb, idAttr, label, labelBold, conteudoOriginal);
+                    renderEmendaRefBlock(sb, emendaStatus);
+                }
+                case ALTERADO -> {
+                    renderStrikethroughBlock(sb, idAttr, label, labelBold, conteudoOriginal);
+                    renderEmendaRefBlock(sb, emendaStatus);
+                    renderBodyEl(sb, null, "", false, conteudo);
+                }
+                case INCLUIDO -> {
+                    renderIncludidoBlock(sb, idAttr, label, labelBold, conteudo);
+                    renderEmendaRefBlock(sb, emendaStatus);
+                }
+            }
+        }
+
+        private void renderStrikethroughBlock(StringBuilder sb, String idAttr,
+                                               String label, boolean labelBold, String conteudo) {
+            TipTapNode node = parseConteudo(conteudo);
+            String inline = node != null ? renderer.renderInlineContent(node) : foEsc(conteudo);
+            sb.append("<fo:block").append(idAttr)
+              .append(" text-indent=\"2.5cm\" space-after=\"2pt\" text-align=\"justify\"")
+              .append(" text-decoration=\"line-through\" color=\"#CC0000\">")
+              .append(labelFo(label, labelBold))
+              .append(inline)
+              .append("</fo:block>\n");
+        }
+
+        private void renderIncludidoBlock(StringBuilder sb, String idAttr,
+                                          String label, boolean labelBold, String conteudo) {
+            TipTapNode node = parseConteudo(conteudo);
+            String inline = node != null ? renderer.renderInlineContent(node) : foEsc(conteudo);
+            sb.append("<fo:block").append(idAttr)
+              .append(" text-indent=\"2.5cm\" space-after=\"2pt\" text-align=\"justify\"")
+              .append(" color=\"#004400\">")
+              .append(labelFo(label, labelBold))
+              .append(inline)
+              .append("</fo:block>\n");
+        }
+
+        private void renderEmendaRefBlock(StringBuilder sb, ElementoEmendaStatusEnum status) {
+            String acao = switch (status) {
+                case ALTERADO -> "alterado";
+                case REVOGADO -> "revogado";
+                case INCLUIDO -> "incluído";
+                default -> "modificado";
+            };
+            String portaria = doc.getPortariaReferencia();
+            String bca      = doc.getBcaReferencia();
+            String ref;
+            if (portaria != null && !portaria.isBlank() && bca != null && !bca.isBlank()) {
+                ref = "(" + acao + " pela " + portaria + ", publicada no " + bca + ")";
+            } else {
+                ref = "(" + acao + " pela Portaria DIRAD n° XYZ, de DD de MÊS de AAAA,"
+                    + " publicada no BCA n° ABC, de DD de mês de AAAA)";
+            }
+            sb.append("<fo:block font-size=\"10pt\" font-style=\"italic\" color=\"#555555\"")
+              .append(" start-indent=\"2.5cm\" space-after=\"3pt\">")
+              .append(foEsc(ref))
+              .append("</fo:block>\n");
         }
 
         private TipTapNode parseConteudo(String conteudo) {

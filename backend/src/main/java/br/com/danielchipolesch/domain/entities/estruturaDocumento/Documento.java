@@ -74,6 +74,15 @@ public class Documento extends RepresentationModel<Documento> {
     @Column(name = "nr_replicas", nullable = false, columnDefinition = "INTEGER NOT NULL DEFAULT 0")
     private int qtdReplicas = 0;
 
+    @Column(name = "dt_em_alteracao")
+    private Timestamp dtEmAlteracao;
+
+    @Column(name = "tx_portaria_referencia")
+    private String portariaReferencia;
+
+    @Column(name = "tx_bca_referencia")
+    private String bcaReferencia;
+
     @Column(name = "nr_versao", nullable = false)
     @Version
     private Integer versao;

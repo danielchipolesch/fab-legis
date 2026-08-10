@@ -25,6 +25,10 @@ function apiItemParaFrontend(item) {
     titulo: item.elementTitle ?? null,
     conteudo: item.elementContent ?? null,
     fullTextContent: item.fullTextContent ?? null,
+    emendaStatus: item.emendaStatus ?? 'INALTERADO',
+    conteudoOriginal: item.conteudoOriginal ?? null,
+    tituloOriginal: item.tituloOriginal ?? null,
+    justificativaEmenda: item.justificativaEmenda ?? null,
     filhos: (item.children ?? []).map(apiItemParaFrontend),
   }
 }
@@ -81,9 +85,12 @@ export function backendParaFrontend(doc) {
     data_arquivamento: parseDtCriacao(doc.dtArquivamento),
     data_revogacao:    parseDtCriacao(doc.dtRevogacao),
     data_cancelamento: parseDtCriacao(doc.dtCancelamento),
+    data_em_alteracao: parseDtCriacao(doc.dtEmAlteracao),
     status: doc.statusDocumento,
     url_pdf: doc.urlPdf ?? null,
     qtd_replicas: doc.qtdReplicas ?? 0,
+    portaria_referencia: doc.portariaReferencia ?? null,
+    bca_referencia: doc.bcaReferencia ?? null,
     versoes: [],
     secoes,
   }
@@ -128,9 +135,34 @@ export async function updateDocumento(id, data) {
   return backendParaFrontend(result)
 }
 
-export async function changeDocumentoStatus(id, novoStatus) {
-  const result = await http.patch(`/documentos/${id}/status`, { status: novoStatus })
+export async function changeDocumentoStatus(id, novoStatus, portariaReferencia, bcaReferencia) {
+  const body = { status: novoStatus }
+  if (portariaReferencia) body.portariaReferencia = portariaReferencia
+  if (bcaReferencia) body.bcaReferencia = bcaReferencia
+  const result = await http.patch(`/documentos/${id}/status`, body)
   return backendParaFrontend(result)
+}
+
+// ── Emenda de elementos ───────────────────────────────────────────────────────
+
+export async function emendar(docId, secao, elementoId, acao, novoConteudo, novoTitulo, justificativa) {
+  return http.patch(`/documentos/${docId}/emendar/${secao}/${elementoId}`, {
+    acao,
+    novoConteudo: novoConteudo ?? null,
+    novoTitulo: novoTitulo ?? null,
+    justificativa: justificativa ?? null,
+  })
+}
+
+export async function incluirElementoEmenda(docId, secao, tipo, titulo, conteudo, parentId, elementOrder, justificativa) {
+  return http.post(`/documentos/${docId}/emendar/${secao}`, {
+    tipo,
+    titulo: titulo ?? null,
+    conteudo: conteudo ?? null,
+    parentId: parentId ?? null,
+    elementOrder: elementOrder ?? null,
+    justificativa,
+  })
 }
 
 export async function saveSecoes(id, secoes) {

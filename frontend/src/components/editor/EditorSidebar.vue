@@ -122,8 +122,18 @@
                       Vazio — necessário para aprovação
                     </q-tooltip>
                   </q-icon>
-                  <!-- Ações (visíveis ao passar o mouse) -->
-                  <div class="norm-actions row items-center q-ml-xs" style="gap:2px;flex-shrink:0">
+                  <!-- Indicador de emenda (quando EM_ALTERACAO) -->
+                  <q-chip
+                    v-if="isEmAlteracao && node.emendaStatus && node.emendaStatus !== 'INALTERADO'"
+                    :color="emendaStatusColor(node.emendaStatus)"
+                    text-color="white"
+                    dense
+                    size="xs"
+                    class="q-ml-xs"
+                    style="flex-shrink:0;font-size:9px;height:14px;padding:0 4px"
+                  >{{ emendaStatusLabel(node.emendaStatus) }}</q-chip>
+                  <!-- Ações normais (visíveis ao passar o mouse, ocultas quando EM_ALTERACAO) -->
+                  <div v-if="!isEmAlteracao" class="norm-actions row items-center q-ml-xs" style="gap:2px;flex-shrink:0">
                     <q-btn round size="xs" flat dense color="grey" @click.stop="$emit('move-up', node.id)">
                       <q-icon size="11px" name="mdi-arrow-up" />
                       <q-tooltip anchor="center right" self="center left">Mover acima</q-tooltip>
@@ -185,6 +195,25 @@
                       <q-tooltip anchor="center right" self="center left">Remover</q-tooltip>
                     </q-btn>
                   </div>
+                  <!-- Ações de emenda (visíveis ao passar o mouse, quando EM_ALTERACAO) -->
+                  <div v-else class="norm-actions row items-center q-ml-xs" style="gap:2px;flex-shrink:0">
+                    <template v-if="node.emendaStatus === 'INALTERADO' || node.emendaStatus === 'INCLUIDO'">
+                      <q-btn round size="xs" flat dense color="primary" @click.stop="$emit('emenda-alterar', node.id, 'PARTE_NORMATIVA')">
+                        <q-icon size="11px" name="mdi-pencil-outline" />
+                        <q-tooltip anchor="center right" self="center left">Alterar texto</q-tooltip>
+                      </q-btn>
+                      <q-btn round size="xs" flat dense color="negative" @click.stop="$emit('emenda-revogar', node.id, 'PARTE_NORMATIVA')">
+                        <q-icon size="11px" name="mdi-delete-outline" />
+                        <q-tooltip anchor="center right" self="center left">Revogar</q-tooltip>
+                      </q-btn>
+                    </template>
+                    <template v-else>
+                      <q-btn round size="xs" flat dense color="warning" @click.stop="$emit('emenda-desfazer', node.id, 'PARTE_NORMATIVA')">
+                        <q-icon size="11px" name="mdi-undo-variant" />
+                        <q-tooltip anchor="center right" self="center left">Desfazer emenda</q-tooltip>
+                      </q-btn>
+                    </template>
+                  </div>
                 </div>
               </template>
             </q-tree>
@@ -196,7 +225,7 @@
                   color="primary"
                   size="sm"
                   class="full-width"
-                  :disable="hasTopLevelArtigos || editorStore.adicionando"
+                  :disable="isEmAlteracao || hasTopLevelArtigos || editorStore.adicionando"
                   :loading="editorStore.adicionando"
                 >
                   <q-icon left name="mdi-folder-plus-outline" />
@@ -478,10 +507,11 @@ const editorStore = useEditorStore()
 const documentsStore = useDocumentsStore()
 
 const props = defineProps({
-  documento:  { type: Object, default: null },
-  docLabel:   { type: String, default: '' },
-  secoes:     { type: Array, default: () => [] },
-  selectedId: { type: String, default: null },
+  documento:      { type: Object, default: null },
+  docLabel:       { type: String, default: '' },
+  secoes:         { type: Array, default: () => [] },
+  selectedId:     { type: String, default: null },
+  isEmAlteracao:  { type: Boolean, default: false },
 })
 
 const emit = defineEmits([
@@ -490,6 +520,7 @@ const emit = defineEmits([
   'add-child', 'add-artigo', 'add-capitulo',
   'promote', 'demote', 'remove',
   'reorder-normativa',
+  'emenda-alterar', 'emenda-revogar', 'emenda-desfazer',
 ])
 
 // ── Dialog de metadados ──────────────────────────────────────────────────────
@@ -696,6 +727,14 @@ watch(() => props.documento?.id, (id) => {
 
 // ── Helpers p/ itens fixos ───────────────────────────────────────────────────
 const isElFilled = (el) => extractText(el?.conteudo).length > 0
+
+// ── Helpers de emenda ────────────────────────────────────────────────────────
+function emendaStatusColor(status) {
+  return { ALTERADO: 'blue-7', REVOGADO: 'negative', INCLUIDO: 'green-8' }[status] ?? 'grey'
+}
+function emendaStatusLabel(status) {
+  return { ALTERADO: 'ALT', REVOGADO: 'REV', INCLUIDO: 'INC' }[status] ?? status
+}
 
 function secaoIcon(tipo) {
   const m = {

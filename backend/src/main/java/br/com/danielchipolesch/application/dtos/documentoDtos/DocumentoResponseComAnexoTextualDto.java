@@ -52,6 +52,13 @@ public class DocumentoResponseComAnexoTextualDto {
 
     private int qtdReplicas;
 
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd", timezone = "America/Sao_Paulo")
+    private Timestamp dtEmAlteracao;
+
+    private String portariaReferencia;
+
+    private String bcaReferencia;
+
     private List<ItemPartePreliminarResponseDto> itensPreliminares;
     private List<ItemAnexoParteNormativaResponseDto> itensNormativos;
     private List<ItemParteFinalResponseDto> itensFinais;

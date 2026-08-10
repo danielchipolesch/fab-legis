@@ -5,6 +5,7 @@ public enum DocumentoStatusEnum {
     MINUTA,
     APROVADO,
     PUBLICADO,
+    EM_ALTERACAO,
     ARQUIVADO,
     CANCELADO,
     REVOGADO

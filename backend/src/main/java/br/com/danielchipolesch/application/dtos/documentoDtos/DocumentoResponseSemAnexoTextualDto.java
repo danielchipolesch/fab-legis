@@ -47,4 +47,11 @@ public class DocumentoResponseSemAnexoTextualDto {
     private String urlPdf;
 
     private int qtdReplicas;
+
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd", timezone = "America/Sao_Paulo")
+    private Timestamp dtEmAlteracao;
+
+    private String portariaReferencia;
+
+    private String bcaReferencia;
 }

@@ -40,6 +40,17 @@ export const useEditorStore = defineStore('editor', {
       return true
     },
 
+    reload() {
+      if (!this.documentoId) return
+      const store = useDocumentsStore()
+      const doc = store.getById(this.documentoId)
+      if (!doc) return
+      const prevSelectedId = this.selectedElementId
+      this.documento = JSON.parse(JSON.stringify(doc))
+      this.selectedElementId = prevSelectedId
+      this.isDirty = false
+    },
+
     loadNew() {
       const store = useDocumentsStore()
       const doc = store.createDocumento({})

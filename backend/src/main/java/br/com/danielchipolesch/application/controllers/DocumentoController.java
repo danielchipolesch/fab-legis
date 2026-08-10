@@ -116,7 +116,7 @@ public class DocumentoController {
     public ResponseEntity<EntityModel<DocumentoResponseSemAnexoTextualDto>> changeStatus(
             @PathVariable(value = "id") Long id,
             @RequestBody @Valid DocumentoStatusRequestDto request) throws RuntimeException {
-        DocumentoResponseSemAnexoTextualDto dto = documentoStatusService.changeStatus(id, request.getStatus());
+        DocumentoResponseSemAnexoTextualDto dto = documentoStatusService.changeStatus(id, request);
         return ResponseEntity.ok(toModel(dto));
     }
 

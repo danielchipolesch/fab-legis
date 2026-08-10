@@ -1,6 +1,7 @@
 package br.com.danielchipolesch.domain.services;
 
 import br.com.danielchipolesch.application.dtos.documentoDtos.DocumentoResponseSemAnexoTextualDto;
+import br.com.danielchipolesch.application.dtos.documentoDtos.DocumentoStatusRequestDto;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.Documento;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.DocumentoStatusEnum;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.TipoAlteracaoEnum;
@@ -27,36 +28,51 @@ public class DocumentoStatusService {
     @Autowired
     DocumentoPdfService documentoPdfService;
 
-    public DocumentoResponseSemAnexoTextualDto changeStatus(Long id, DocumentoStatusEnum novoStatus) throws RuntimeException {
+    public DocumentoResponseSemAnexoTextualDto changeStatus(Long id, DocumentoStatusRequestDto request) throws RuntimeException {
 
         Documento document = documentoRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException(DocumentException.NOT_FOUND.getMessage()));
 
+        DocumentoStatusEnum novoStatus = request.getStatus();
         DocumentoStatusEnum current = document.getDocumentoStatus();
 
         boolean transicaoValida = switch (novoStatus) {
-            case MINUTA    -> current == DocumentoStatusEnum.RASCUNHO || current == DocumentoStatusEnum.APROVADO;
-            case APROVADO  -> current == DocumentoStatusEnum.RASCUNHO || current == DocumentoStatusEnum.MINUTA;
-            case PUBLICADO -> current == DocumentoStatusEnum.APROVADO;
-            case ARQUIVADO -> current == DocumentoStatusEnum.PUBLICADO;
-            case REVOGADO  -> current == DocumentoStatusEnum.PUBLICADO;
-            case CANCELADO -> current == DocumentoStatusEnum.RASCUNHO || current == DocumentoStatusEnum.MINUTA;
-            default        -> false;
+            case MINUTA       -> current == DocumentoStatusEnum.RASCUNHO || current == DocumentoStatusEnum.APROVADO;
+            case APROVADO     -> current == DocumentoStatusEnum.RASCUNHO || current == DocumentoStatusEnum.MINUTA;
+            case PUBLICADO    -> current == DocumentoStatusEnum.APROVADO || current == DocumentoStatusEnum.EM_ALTERACAO;
+            case EM_ALTERACAO -> current == DocumentoStatusEnum.PUBLICADO;
+            case ARQUIVADO    -> current == DocumentoStatusEnum.PUBLICADO;
+            case REVOGADO     -> current == DocumentoStatusEnum.PUBLICADO;
+            case CANCELADO    -> current == DocumentoStatusEnum.RASCUNHO || current == DocumentoStatusEnum.MINUTA;
+            default           -> false;
         };
 
         if (!transicaoValida) {
             throw new StatusCannotBeUpdatedException(DocumentException.CANNOT_BE_UPDATED.getMessage());
         }
 
+        // Ao republicar após emenda, portaria e BCA são obrigatórios
+        if (novoStatus == DocumentoStatusEnum.PUBLICADO && current == DocumentoStatusEnum.EM_ALTERACAO) {
+            String portaria = request.getPortariaReferencia();
+            String bca = request.getBcaReferencia();
+            if (portaria == null || portaria.isBlank() || bca == null || bca.isBlank()) {
+                throw new StatusCannotBeUpdatedException(
+                        "Para publicar um documento em alteração é obrigatório informar a portaria e o BCA de referência.");
+            }
+            document.setPortariaReferencia(portaria.strip());
+            document.setBcaReferencia(bca.strip());
+        }
+
         Timestamp agora = Timestamp.from(Instant.now());
         switch (novoStatus) {
-            case MINUTA    -> document.setDtMinuta(agora);
-            case APROVADO  -> document.setDtAprovacao(agora);
-            case PUBLICADO -> document.setDtPublicacao(agora);
-            case ARQUIVADO -> document.setDtArquivamento(agora);
-            case REVOGADO  -> document.setDtRevogacao(agora);
-            case CANCELADO -> document.setDtCancelamento(agora);
-            default        -> { }
+            case MINUTA       -> document.setDtMinuta(agora);
+            case APROVADO     -> document.setDtAprovacao(agora);
+            case PUBLICADO    -> document.setDtPublicacao(agora);
+            case EM_ALTERACAO -> document.setDtEmAlteracao(agora);
+            case ARQUIVADO    -> document.setDtArquivamento(agora);
+            case REVOGADO     -> document.setDtRevogacao(agora);
+            case CANCELADO    -> document.setDtCancelamento(agora);
+            default           -> { }
         }
 
         document.setDocumentoStatus(novoStatus);
@@ -68,7 +84,7 @@ public class DocumentoStatusService {
                 document.setUrlPdf(urlPdf);
                 documentoRepository.save(document);
             } catch (Exception e) {
-                // PDF generation failure is non-fatal — status change is already committed
+                // PDF generation failure is non-fatal
             }
         }
 

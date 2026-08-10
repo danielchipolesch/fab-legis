@@ -7,6 +7,7 @@
       :doc-label="docLabel"
       :secoes="documento?.secoes ?? []"
       :selected-id="editorStore.selectedElementId"
+      :is-em-alteracao="isEmAlteracao"
       @select="editorStore.selectElement($event)"
       @move-up="onMoveUp"
       @move-down="onMoveDown"
@@ -17,6 +18,19 @@
       @demote="handleDemote"
       @remove="onRemove"
       @reorder-normativa="onReorderNormativa"
+      @emenda-alterar="(id, secao) => abrirEmendaDialog(id, secao, 'ALTERAR')"
+      @emenda-revogar="(id, secao) => abrirEmendaDialog(id, secao, 'REVOGAR')"
+      @emenda-desfazer="(id, secao) => abrirEmendaDialog(id, secao, 'DESFAZER')"
+    />
+
+    <!-- Dialog de emenda -->
+    <EmendaDialog
+      v-if="isEmAlteracao"
+      v-model="emendaDialogOpen"
+      :acao="emendaAcao"
+      :elemento="emendaElemento"
+      :secao="emendaSecao"
+      :documento-id="documentoId"
     />
 
     <!-- Coluna principal: topbar + área de edição -->
@@ -73,6 +87,15 @@
       </div>
 
       <q-separator />
+
+      <!-- Banner de modo EM ALTERAÇÃO -->
+      <div v-if="isEmAlteracao" class="q-px-md q-py-xs row items-center" style="background:#FFF3E0;border-bottom:1px solid #FFCC80;gap:8px">
+        <q-icon name="mdi-pencil-lock-outline" color="deep-orange-8" size="16px" />
+        <span class="text-caption text-deep-orange-9 text-weight-bold">
+          MODO EM ALTERAÇÃO — Use os botões de emenda no painel lateral para alterar ou revogar elementos.
+          Salvar automático está desativado.
+        </span>
+      </div>
 
       <!-- Área principal: editor + preview -->
       <div class="editor-body row col" style="overflow:hidden">
@@ -222,6 +245,7 @@ import { gerarPdf } from '@/services/pdfService.js'
 import EditorSidebar from '@/components/editor/EditorSidebar.vue'
 import WysiwygEditor from '@/components/editor/WysiwygEditor.vue'
 import DocumentPreview from '@/components/editor/DocumentPreview.vue'
+import EmendaDialog from '@/components/editor/EmendaDialog.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -237,6 +261,7 @@ const saveStatus = ref('idle')   // 'idle' | 'saving' | 'error'
 let autoSaveTimer = null
 
 function scheduleAutoSave() {
+  if (isEmAlteracao.value) return
   saveStatus.value = 'saving'
   clearTimeout(autoSaveTimer)
   autoSaveTimer = setTimeout(autoSave, 2000)
@@ -270,9 +295,26 @@ const documentoId    = computed(() => route.params.id)
 const documento      = computed(() => editorStore.documento)
 const selectedElement = computed(() => editorStore.selectedElement)
 
+const isEmAlteracao = computed(() => documento.value?.status === 'EM_ALTERACAO')
+
 const isReadonly = computed(() =>
-  ['PUBLICADO', 'ARQUIVADO', 'CANCELADO', 'REVOGADO'].includes(documento.value?.status)
+  ['PUBLICADO', 'EM_ALTERACAO', 'ARQUIVADO', 'CANCELADO', 'REVOGADO'].includes(documento.value?.status)
 )
+
+// ── Emenda dialog state ───────────────────────────────────────────────────────
+const emendaDialogOpen  = ref(false)
+const emendaAcao        = ref('ALTERAR')
+const emendaElemento    = ref(null)
+const emendaSecao       = ref('PARTE_NORMATIVA')
+
+function abrirEmendaDialog(elementoId, secao, acao) {
+  const el = editorStore.findElement(elementoId)
+  if (!el) return
+  emendaElemento.value   = el
+  emendaSecao.value      = secao
+  emendaAcao.value       = acao
+  emendaDialogOpen.value = true
+}
 
 const docLabel = computed(() => {
   const d = documento.value
@@ -355,7 +397,7 @@ onMounted(async () => {
       return
     }
 
-    if (!['RASCUNHO', 'MINUTA'].includes(doc.status)) {
+    if (!['RASCUNHO', 'MINUTA', 'EM_ALTERACAO'].includes(doc.status)) {
       router.replace({ name: 'documento-visualizar', params: { id: documentoId.value } })
       return
     }
