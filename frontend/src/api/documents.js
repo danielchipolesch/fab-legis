@@ -26,8 +26,8 @@ function apiItemParaFrontend(item) {
     conteudo: item.elementContent ?? null,
     fullTextContent: item.fullTextContent ?? null,
     emendaStatus: item.emendaStatus ?? 'INALTERADO',
-    conteudoOriginal: item.conteudoOriginal ?? null,
-    tituloOriginal: item.tituloOriginal ?? null,
+    conteudoEmenda: item.conteudoEmenda ?? null,
+    tituloEmenda: item.tituloEmenda ?? null,
     justificativaEmenda: item.justificativaEmenda ?? null,
     filhos: (item.children ?? []).map(apiItemParaFrontend),
   }

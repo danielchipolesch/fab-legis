@@ -618,11 +618,11 @@ public class DocumentoFoBuilder {
                 case ARTIGO -> {
                     art[0]++;
                     renderBodyEl(sb, anc, "Art. " + ordinalOrCardinal(art[0]) + "  ", true,
-                            item.getElementContent(), item.getEmendaStatus(), item.getConteudoOriginal());
+                            item.getElementContent(), item.getEmendaStatus(), item.getConteudoEmenda());
                     renderArtigoFilhos(item.getChildren(), sb);
                 }
                 default -> renderBodyEl(sb, null, "", false, item.getElementContent(),
-                        item.getEmendaStatus(), item.getConteudoOriginal());
+                        item.getEmendaStatus(), item.getConteudoEmenda());
             }
         }
 
@@ -639,17 +639,17 @@ public class DocumentoFoBuilder {
                         parNum++;
                         boolean unico = parCount == 1 && child.getElementType() == ItemAnexoParteNormativaTipoEnum.PARAGRAFO_UNICO;
                         renderBodyEl(sb, null, unico ? "Parágrafo único.  " : "§ " + ordinalOrCardinal(parNum) + "  ",
-                                false, child.getElementContent(), child.getEmendaStatus(), child.getConteudoOriginal());
+                                false, child.getElementContent(), child.getEmendaStatus(), child.getConteudoEmenda());
                         renderIncisoFilhos(child.getChildren(), sb);
                     }
                     case INCISO -> {
                         incisoNum++;
                         renderBodyEl(sb, null, toRoman(incisoNum) + " - ", false, child.getElementContent(),
-                                child.getEmendaStatus(), child.getConteudoOriginal());
+                                child.getEmendaStatus(), child.getConteudoEmenda());
                         renderAlineaFilhos(child.getChildren(), sb);
                     }
                     default -> renderBodyEl(sb, null, "", false, child.getElementContent(),
-                            child.getEmendaStatus(), child.getConteudoOriginal());
+                            child.getEmendaStatus(), child.getConteudoEmenda());
                 }
             }
         }
@@ -661,7 +661,7 @@ public class DocumentoFoBuilder {
                 if (child.getElementType() == ItemAnexoParteNormativaTipoEnum.INCISO) {
                     n++;
                     renderBodyEl(sb, null, toRoman(n) + " - ", false, child.getElementContent(),
-                            child.getEmendaStatus(), child.getConteudoOriginal());
+                            child.getEmendaStatus(), child.getConteudoEmenda());
                     renderAlineaFilhos(child.getChildren(), sb);
                 }
             }
@@ -674,7 +674,7 @@ public class DocumentoFoBuilder {
                 if (child.getElementType() == ItemAnexoParteNormativaTipoEnum.ALINEA) {
                     n++;
                     renderBodyEl(sb, null, toLetter(n) + ") ", false, child.getElementContent(),
-                            child.getEmendaStatus(), child.getConteudoOriginal());
+                            child.getEmendaStatus(), child.getConteudoEmenda());
                     renderSubAlineaFilhos(child.getChildren(), sb);
                 }
             }
@@ -687,7 +687,7 @@ public class DocumentoFoBuilder {
                 if (child.getElementType() == ItemAnexoParteNormativaTipoEnum.SUB_ALINEA) {
                     n++;
                     renderBodyEl(sb, null, n + ". ", false, child.getElementContent(),
-                            child.getEmendaStatus(), child.getConteudoOriginal());
+                            child.getEmendaStatus(), child.getConteudoEmenda());
                 }
             }
         }
@@ -731,11 +731,13 @@ public class DocumentoFoBuilder {
             }
         }
 
-        // Overload aware of emenda status — falls through to the plain version for INALTERADO
+        // Overload aware of emenda status:
+        //   conteudo      = original published content (always preserved, shown struck through for ALTERADO/REVOGADO)
+        //   conteudoEmenda = new amendment content (shown as current text for ALTERADO)
         private void renderBodyEl(StringBuilder sb, String id, String label, boolean labelBold,
                                   String conteudo,
                                   ElementoEmendaStatusEnum emendaStatus,
-                                  String conteudoOriginal) {
+                                  String conteudoEmenda) {
             if (emendaStatus == null || emendaStatus == ElementoEmendaStatusEnum.INALTERADO) {
                 renderBodyEl(sb, id, label, labelBold, conteudo);
                 return;
@@ -743,12 +745,12 @@ public class DocumentoFoBuilder {
             String idAttr = (id != null && !id.isBlank()) ? " id=\"" + id + "\"" : "";
             switch (emendaStatus) {
                 case REVOGADO -> {
-                    renderStrikethroughBlock(sb, idAttr, label, labelBold, conteudoOriginal);
+                    renderStrikethroughBlock(sb, idAttr, label, labelBold, conteudo);
                     renderEmendaRefBlock(sb, emendaStatus);
                 }
                 case ALTERADO -> {
-                    renderStrikethroughBlock(sb, idAttr, label, labelBold, conteudoOriginal);
-                    renderBodyEl(sb, null, label, labelBold, conteudo);
+                    renderStrikethroughBlock(sb, idAttr, label, labelBold, conteudo);
+                    renderBodyEl(sb, null, label, labelBold, conteudoEmenda);
                     renderEmendaRefBlock(sb, emendaStatus);
                 }
                 case INCLUIDO -> {
@@ -763,7 +765,7 @@ public class DocumentoFoBuilder {
             if (conteudo == null || conteudo.isBlank()) {
                 sb.append("<fo:block").append(idAttr)
                   .append(" text-indent=\"2.5cm\" space-after=\"2pt\" text-align=\"justify\"")
-                  .append(" text-decoration=\"line-through\" color=\"#777777\">")
+                  .append(" text-decoration=\"line-through\">")
                   .append(labelFo(label, labelBold))
                   .append("</fo:block>\n");
                 return;
@@ -772,7 +774,7 @@ public class DocumentoFoBuilder {
             if (doc == null) {
                 sb.append("<fo:block").append(idAttr)
                   .append(" text-indent=\"2.5cm\" space-after=\"2pt\" text-align=\"justify\"")
-                  .append(" text-decoration=\"line-through\" color=\"#777777\">")
+                  .append(" text-decoration=\"line-through\">")
                   .append(labelFo(label, labelBold))
                   .append(foEsc(conteudo))
                   .append("</fo:block>\n");
@@ -786,7 +788,7 @@ public class DocumentoFoBuilder {
             if (paras.isEmpty()) {
                 sb.append("<fo:block").append(idAttr)
                   .append(" text-indent=\"2.5cm\" space-after=\"2pt\" text-align=\"justify\"")
-                  .append(" text-decoration=\"line-through\" color=\"#777777\">")
+                  .append(" text-decoration=\"line-through\">")
                   .append(labelFo(label, labelBold))
                   .append("</fo:block>\n");
                 return;
@@ -795,7 +797,7 @@ public class DocumentoFoBuilder {
             for (var para : paras) {
                 sb.append("<fo:block").append(first ? idAttr : "")
                   .append(" text-indent=\"2.5cm\" space-after=\"2pt\" text-align=\"justify\"")
-                  .append(" text-decoration=\"line-through\" color=\"#777777\">");
+                  .append(" text-decoration=\"line-through\">");
                 if (first) sb.append(labelFo(label, labelBold));
                 sb.append(renderer.renderParagraphInlines(para));
                 sb.append("</fo:block>\n");

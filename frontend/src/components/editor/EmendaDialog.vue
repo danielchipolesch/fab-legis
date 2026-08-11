@@ -56,18 +56,24 @@
           />
         </template>
 
-        <!-- DESFAZER: confirmação com conteúdo original -->
+        <!-- DESFAZER: confirmação -->
         <template v-else-if="acao === 'DESFAZER'">
           <p class="text-body2 q-mb-md">
-            Deseja desfazer a emenda neste elemento? O conteúdo original será restaurado e o status voltará a
-            <strong>INALTERADO</strong>.
+            Deseja desfazer a emenda neste elemento?
+            <template v-if="elemento?.emendaStatus === 'INCLUIDO'">
+              Por ser um elemento <strong>incluído por emenda</strong>, ele será <strong>removido</strong> permanentemente.
+            </template>
+            <template v-else>
+              O conteúdo da emenda será removido e o status voltará a <strong>INALTERADO</strong>.
+              O texto original publicado permanece intacto.
+            </template>
           </p>
-          <template v-if="elemento?.conteudoOriginal">
-            <div class="text-caption text-weight-bold q-mb-xs">Conteúdo original que será restaurado:</div>
-            <div class="q-pa-sm" style="background:rgba(0,0,0,0.04);border:1px solid rgba(0,0,0,0.12);border-radius:4px">
+          <template v-if="elemento?.conteudoEmenda && elemento?.emendaStatus === 'ALTERADO'">
+            <div class="text-caption text-weight-bold q-mb-xs">Emenda que será desfeita:</div>
+            <div class="q-pa-sm q-mb-sm" style="background:rgba(0,0,0,0.04);border:1px solid rgba(0,0,0,0.12);border-radius:4px">
               <WysiwygEditor
                 :key="elemento?.id + '-desfazer-ro'"
-                :model-value="elemento?.conteudoOriginal"
+                :model-value="elemento?.conteudoEmenda"
                 :readonly="true"
               />
             </div>
@@ -121,7 +127,9 @@ const novoConteudo  = ref('')
 watch(() => [props.modelValue, props.elemento, props.acao], ([open]) => {
   if (open) {
     justificativa.value = ''
-    novoConteudo.value  = props.elemento?.conteudo ?? ''
+    // Se o elemento já foi alterado, o editor começa a partir do conteúdo da emenda anterior.
+    // Caso contrário, começa a partir do conteúdo original publicado.
+    novoConteudo.value = props.elemento?.conteudoEmenda ?? props.elemento?.conteudo ?? ''
   }
 }, { immediate: false })
 

@@ -198,7 +198,7 @@ public class DocumentoHtmlService {
                 figure img { max-width: 100%; height: auto; max-height: 500pt; display: block; margin: 0 auto; }
                 .figura-titulo { font-size: 10pt; font-style: italic; margin: 0; text-align: center; }
                 .figura-fonte  { font-size: 9pt; color: #555; margin: 3pt 0 0; text-align: center; }
-                .emenda-strikethrough { text-decoration: line-through; color: #777777; }
+                .emenda-strikethrough { text-decoration: line-through; }
                 .emenda-incluido { color: #004400; }
                 .emenda-ref-block { font-size: 10pt; font-style: italic; color: #555555; display: block; padding-left: 2.5cm; margin-bottom: 3pt; }
                 """;
@@ -499,11 +499,11 @@ public class DocumentoHtmlService {
                 case ARTIGO -> {
                     artCount++;
                     renderBodyEl(sb, "Art. " + ordinalOrCardinal(artCount) + S2, true,
-                            item.getElementContent(), item.getEmendaStatus(), item.getConteudoOriginal());
+                            item.getElementContent(), item.getEmendaStatus(), item.getConteudoEmenda());
                     renderArtigoChildren(item.getChildren(), sb);
                 }
                 default -> renderBodyEl(sb, "", false, item.getElementContent(),
-                        item.getEmendaStatus(), item.getConteudoOriginal());
+                        item.getEmendaStatus(), item.getConteudoEmenda());
             }
         }
 
@@ -521,18 +521,18 @@ public class DocumentoHtmlService {
                         boolean unico = parCount == 1 && child.getElementType() == ItemAnexoParteNormativaTipoEnum.PARAGRAFO_UNICO;
                         String parLabel = unico ? "Parágrafo único." + S2 : "§ " + ordinalOrCardinal(parNum) + S2;
                         renderBodyEl(sb, parLabel, false, child.getElementContent(),
-                                child.getEmendaStatus(), child.getConteudoOriginal());
+                                child.getEmendaStatus(), child.getConteudoEmenda());
                         renderIncisoChildren(child.getChildren(), sb);
                     }
                     case INCISO -> {
                         incisoNum++;
                         String incLabel = toRoman(incisoNum) + S1 + "-" + S1;
                         renderBodyEl(sb, incLabel, false, child.getElementContent(),
-                                child.getEmendaStatus(), child.getConteudoOriginal());
+                                child.getEmendaStatus(), child.getConteudoEmenda());
                         renderAlineaChildren(child.getChildren(), sb);
                     }
                     default -> renderBodyEl(sb, "", false, child.getElementContent(),
-                            child.getEmendaStatus(), child.getConteudoOriginal());
+                            child.getEmendaStatus(), child.getConteudoEmenda());
                 }
             }
         }
@@ -544,7 +544,7 @@ public class DocumentoHtmlService {
                 if (child.getElementType() == ItemAnexoParteNormativaTipoEnum.INCISO) {
                     n++;
                     renderBodyEl(sb, toRoman(n) + S1 + "-" + S1, false, child.getElementContent(),
-                            child.getEmendaStatus(), child.getConteudoOriginal());
+                            child.getEmendaStatus(), child.getConteudoEmenda());
                     renderAlineaChildren(child.getChildren(), sb);
                 }
             }
@@ -557,7 +557,7 @@ public class DocumentoHtmlService {
                 if (child.getElementType() == ItemAnexoParteNormativaTipoEnum.ALINEA) {
                     n++;
                     renderBodyEl(sb, toLetter(n) + ")" + S1, false, child.getElementContent(),
-                            child.getEmendaStatus(), child.getConteudoOriginal());
+                            child.getEmendaStatus(), child.getConteudoEmenda());
                     renderSubAlineaChildren(child.getChildren(), sb);
                 }
             }
@@ -570,25 +570,27 @@ public class DocumentoHtmlService {
                 if (child.getElementType() == ItemAnexoParteNormativaTipoEnum.SUB_ALINEA) {
                     n++;
                     renderBodyEl(sb, n + "." + S1, false, child.getElementContent(),
-                            child.getEmendaStatus(), child.getConteudoOriginal());
+                            child.getEmendaStatus(), child.getConteudoEmenda());
                 }
             }
         }
 
+        // conteudo     = original published content (shown struck through for ALTERADO/REVOGADO)
+        // conteudoEmenda = new amendment content (shown as current text for ALTERADO)
         private void renderBodyEl(StringBuilder sb, String label, boolean labelBold, String conteudo,
-                                   ElementoEmendaStatusEnum emendaStatus, String conteudoOriginal) {
+                                   ElementoEmendaStatusEnum emendaStatus, String conteudoEmenda) {
             if (emendaStatus == null || emendaStatus == ElementoEmendaStatusEnum.INALTERADO) {
                 renderBodyEl(sb, label, labelBold, conteudo);
                 return;
             }
             switch (emendaStatus) {
                 case REVOGADO -> {
-                    renderBodyElStyled(sb, label, labelBold, conteudoOriginal, "emenda-strikethrough");
+                    renderBodyElStyled(sb, label, labelBold, conteudo, "emenda-strikethrough");
                     sb.append(buildEmendaRef(emendaStatus));
                 }
                 case ALTERADO -> {
-                    renderBodyElStyled(sb, label, labelBold, conteudoOriginal, "emenda-strikethrough");
-                    renderBodyEl(sb, label, labelBold, conteudo);
+                    renderBodyElStyled(sb, label, labelBold, conteudo, "emenda-strikethrough");
+                    renderBodyEl(sb, label, labelBold, conteudoEmenda);
                     sb.append(buildEmendaRef(emendaStatus));
                 }
                 case INCLUIDO -> {

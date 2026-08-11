@@ -47,11 +47,11 @@ public class ItemParteFinal {
     @Enumerated(EnumType.STRING)
     private ElementoEmendaStatusEnum emendaStatus = ElementoEmendaStatusEnum.INALTERADO;
 
-    @Column(name = "tx_conteudo_original", columnDefinition = "TEXT")
-    private String conteudoOriginal;
+    @Column(name = "tx_conteudo_emenda", columnDefinition = "TEXT")
+    private String conteudoEmenda;
 
-    @Column(name = "tx_titulo_original", columnDefinition = "TEXT")
-    private String tituloOriginal;
+    @Column(name = "tx_titulo_emenda", columnDefinition = "TEXT")
+    private String tituloEmenda;
 
     @Column(name = "tx_justificativa_emenda", columnDefinition = "TEXT")
     private String justificativaEmenda;

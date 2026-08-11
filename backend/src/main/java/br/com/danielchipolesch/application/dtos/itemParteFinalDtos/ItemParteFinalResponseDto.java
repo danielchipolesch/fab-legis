@@ -17,8 +17,8 @@ public class ItemParteFinalResponseDto {
     private String elementContent;
     private String fullTextContent;
     private ElementoEmendaStatusEnum emendaStatus;
-    private String conteudoOriginal;
-    private String tituloOriginal;
+    private String conteudoEmenda;
+    private String tituloEmenda;
     private String justificativaEmenda;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
@@ -32,8 +32,8 @@ public class ItemParteFinalResponseDto {
         dto.setElementContent(item.getConteudo());
         dto.setFullTextContent(item.getFullTextContent());
         dto.setEmendaStatus(item.getEmendaStatus());
-        dto.setConteudoOriginal(item.getConteudoOriginal());
-        dto.setTituloOriginal(item.getTituloOriginal());
+        dto.setConteudoEmenda(item.getConteudoEmenda());
+        dto.setTituloEmenda(item.getTituloEmenda());
         dto.setJustificativaEmenda(item.getJustificativaEmenda());
         dto.setCreatedAt(item.getCreatedAt());
         dto.setUpdatedAt(item.getUpdatedAt());
