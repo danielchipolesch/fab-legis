@@ -748,8 +748,8 @@ public class DocumentoFoBuilder {
                 }
                 case ALTERADO -> {
                     renderStrikethroughBlock(sb, idAttr, label, labelBold, conteudoOriginal);
+                    renderBodyEl(sb, null, label, labelBold, conteudo);
                     renderEmendaRefBlock(sb, emendaStatus);
-                    renderBodyEl(sb, null, "", false, conteudo);
                 }
                 case INCLUIDO -> {
                     renderIncludidoBlock(sb, idAttr, label, labelBold, conteudo);
@@ -760,14 +760,47 @@ public class DocumentoFoBuilder {
 
         private void renderStrikethroughBlock(StringBuilder sb, String idAttr,
                                                String label, boolean labelBold, String conteudo) {
-            TipTapNode node = parseConteudo(conteudo);
-            String inline = node != null ? renderer.renderInlineContent(node) : foEsc(conteudo);
-            sb.append("<fo:block").append(idAttr)
-              .append(" text-indent=\"2.5cm\" space-after=\"2pt\" text-align=\"justify\"")
-              .append(" text-decoration=\"line-through\" color=\"#CC0000\">")
-              .append(labelFo(label, labelBold))
-              .append(inline)
-              .append("</fo:block>\n");
+            if (conteudo == null || conteudo.isBlank()) {
+                sb.append("<fo:block").append(idAttr)
+                  .append(" text-indent=\"2.5cm\" space-after=\"2pt\" text-align=\"justify\"")
+                  .append(" text-decoration=\"line-through\" color=\"#777777\">")
+                  .append(labelFo(label, labelBold))
+                  .append("</fo:block>\n");
+                return;
+            }
+            TipTapNode doc = parseConteudo(conteudo);
+            if (doc == null) {
+                sb.append("<fo:block").append(idAttr)
+                  .append(" text-indent=\"2.5cm\" space-after=\"2pt\" text-align=\"justify\"")
+                  .append(" text-decoration=\"line-through\" color=\"#777777\">")
+                  .append(labelFo(label, labelBold))
+                  .append(foEsc(conteudo))
+                  .append("</fo:block>\n");
+                return;
+            }
+            java.util.List<TipTapNode> paras = doc.getContent() != null
+                    ? doc.getContent().stream()
+                         .filter(n -> "paragraph".equals(n.getType()))
+                         .collect(java.util.stream.Collectors.toList())
+                    : java.util.List.of();
+            if (paras.isEmpty()) {
+                sb.append("<fo:block").append(idAttr)
+                  .append(" text-indent=\"2.5cm\" space-after=\"2pt\" text-align=\"justify\"")
+                  .append(" text-decoration=\"line-through\" color=\"#777777\">")
+                  .append(labelFo(label, labelBold))
+                  .append("</fo:block>\n");
+                return;
+            }
+            boolean first = true;
+            for (var para : paras) {
+                sb.append("<fo:block").append(first ? idAttr : "")
+                  .append(" text-indent=\"2.5cm\" space-after=\"2pt\" text-align=\"justify\"")
+                  .append(" text-decoration=\"line-through\" color=\"#777777\">");
+                if (first) sb.append(labelFo(label, labelBold));
+                sb.append(renderer.renderParagraphInlines(para));
+                sb.append("</fo:block>\n");
+                first = false;
+            }
         }
 
         private void renderIncludidoBlock(StringBuilder sb, String idAttr,

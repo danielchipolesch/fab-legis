@@ -3,6 +3,7 @@ package br.com.danielchipolesch.domain.services;
 import br.com.danielchipolesch.application.dtos.itemAnexoParteNormativaDtos.ItemAnexoParteNormativaResponseDto;
 import br.com.danielchipolesch.application.dtos.itemPartePreliminarDtos.ItemPartePreliminarResponseDto;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.Documento;
+import br.com.danielchipolesch.domain.entities.estruturaDocumento.ElementoEmendaStatusEnum;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.ItemAnexoParteNormativaTipoEnum;
 import br.com.danielchipolesch.domain.util.tiptap.TipTapHtmlSerializer;
 import br.com.danielchipolesch.domain.util.tiptap.TipTapNode;
@@ -197,6 +198,9 @@ public class DocumentoHtmlService {
                 figure img { max-width: 100%; height: auto; max-height: 500pt; display: block; margin: 0 auto; }
                 .figura-titulo { font-size: 10pt; font-style: italic; margin: 0; text-align: center; }
                 .figura-fonte  { font-size: 9pt; color: #555; margin: 3pt 0 0; text-align: center; }
+                .emenda-strikethrough { text-decoration: line-through; color: #777777; }
+                .emenda-incluido { color: #004400; }
+                .emenda-ref-block { font-size: 10pt; font-style: italic; color: #555555; display: block; padding-left: 2.5cm; margin-bottom: 3pt; }
                 """;
         }
 
@@ -494,10 +498,12 @@ public class DocumentoHtmlService {
                 }
                 case ARTIGO -> {
                     artCount++;
-                    renderBodyEl(sb, "Art. " + ordinalOrCardinal(artCount) + S2, true, item.getElementContent());
+                    renderBodyEl(sb, "Art. " + ordinalOrCardinal(artCount) + S2, true,
+                            item.getElementContent(), item.getEmendaStatus(), item.getConteudoOriginal());
                     renderArtigoChildren(item.getChildren(), sb);
                 }
-                default -> renderBodyEl(sb, "", false, item.getElementContent());
+                default -> renderBodyEl(sb, "", false, item.getElementContent(),
+                        item.getEmendaStatus(), item.getConteudoOriginal());
             }
         }
 
@@ -513,16 +519,20 @@ public class DocumentoHtmlService {
                     case PARAGRAFO, PARAGRAFO_UNICO -> {
                         parNum++;
                         boolean unico = parCount == 1 && child.getElementType() == ItemAnexoParteNormativaTipoEnum.PARAGRAFO_UNICO;
-                        renderBodyEl(sb, unico ? "Parágrafo único." + S2 : "§ " + ordinalOrCardinal(parNum) + S2,
-                                false, child.getElementContent());
+                        String parLabel = unico ? "Parágrafo único." + S2 : "§ " + ordinalOrCardinal(parNum) + S2;
+                        renderBodyEl(sb, parLabel, false, child.getElementContent(),
+                                child.getEmendaStatus(), child.getConteudoOriginal());
                         renderIncisoChildren(child.getChildren(), sb);
                     }
                     case INCISO -> {
                         incisoNum++;
-                        renderBodyEl(sb, toRoman(incisoNum) + S1 + "-" + S1, false, child.getElementContent());
+                        String incLabel = toRoman(incisoNum) + S1 + "-" + S1;
+                        renderBodyEl(sb, incLabel, false, child.getElementContent(),
+                                child.getEmendaStatus(), child.getConteudoOriginal());
                         renderAlineaChildren(child.getChildren(), sb);
                     }
-                    default -> renderBodyEl(sb, "", false, child.getElementContent());
+                    default -> renderBodyEl(sb, "", false, child.getElementContent(),
+                            child.getEmendaStatus(), child.getConteudoOriginal());
                 }
             }
         }
@@ -533,7 +543,8 @@ public class DocumentoHtmlService {
             for (var child : children) {
                 if (child.getElementType() == ItemAnexoParteNormativaTipoEnum.INCISO) {
                     n++;
-                    renderBodyEl(sb, toRoman(n) + S1 + "-" + S1, false, child.getElementContent());
+                    renderBodyEl(sb, toRoman(n) + S1 + "-" + S1, false, child.getElementContent(),
+                            child.getEmendaStatus(), child.getConteudoOriginal());
                     renderAlineaChildren(child.getChildren(), sb);
                 }
             }
@@ -545,7 +556,8 @@ public class DocumentoHtmlService {
             for (var child : children) {
                 if (child.getElementType() == ItemAnexoParteNormativaTipoEnum.ALINEA) {
                     n++;
-                    renderBodyEl(sb, toLetter(n) + ")" + S1, false, child.getElementContent());
+                    renderBodyEl(sb, toLetter(n) + ")" + S1, false, child.getElementContent(),
+                            child.getEmendaStatus(), child.getConteudoOriginal());
                     renderSubAlineaChildren(child.getChildren(), sb);
                 }
             }
@@ -557,9 +569,70 @@ public class DocumentoHtmlService {
             for (var child : children) {
                 if (child.getElementType() == ItemAnexoParteNormativaTipoEnum.SUB_ALINEA) {
                     n++;
-                    renderBodyEl(sb, n + "." + S1, false, child.getElementContent());
+                    renderBodyEl(sb, n + "." + S1, false, child.getElementContent(),
+                            child.getEmendaStatus(), child.getConteudoOriginal());
                 }
             }
+        }
+
+        private void renderBodyEl(StringBuilder sb, String label, boolean labelBold, String conteudo,
+                                   ElementoEmendaStatusEnum emendaStatus, String conteudoOriginal) {
+            if (emendaStatus == null || emendaStatus == ElementoEmendaStatusEnum.INALTERADO) {
+                renderBodyEl(sb, label, labelBold, conteudo);
+                return;
+            }
+            switch (emendaStatus) {
+                case REVOGADO -> {
+                    renderBodyElStyled(sb, label, labelBold, conteudoOriginal, "emenda-strikethrough");
+                    sb.append(buildEmendaRef(emendaStatus));
+                }
+                case ALTERADO -> {
+                    renderBodyElStyled(sb, label, labelBold, conteudoOriginal, "emenda-strikethrough");
+                    renderBodyEl(sb, label, labelBold, conteudo);
+                    sb.append(buildEmendaRef(emendaStatus));
+                }
+                case INCLUIDO -> {
+                    renderBodyElStyled(sb, label, labelBold, conteudo, "emenda-incluido");
+                    sb.append(buildEmendaRef(emendaStatus));
+                }
+            }
+        }
+
+        private void renderBodyElStyled(StringBuilder sb, String label, boolean labelBold,
+                                         String conteudo, String extraClass) {
+            String safe = processContent(conteudo);
+            boolean hasBlock = hasBlockContent(safe);
+            String labelHtml = labelBold
+                    ? "<span class=\"norm-lbl norm-lbl-bold\">" + label + "</span>"
+                    : "<span class=\"norm-lbl\">" + label + "</span>";
+            if (hasBlock) {
+                sb.append("<div class=\"body-el norm-el ").append(extraClass).append("\">")
+                  .append(labelHtml)
+                  .append("<div class=\"norm-content-block\">").append(safe).append("</div>")
+                  .append("</div>\n");
+            } else {
+                sb.append("<p class=\"body-el norm-el ").append(extraClass).append("\">")
+                  .append(labelHtml).append(safe).append("</p>\n");
+            }
+        }
+
+        private String buildEmendaRef(ElementoEmendaStatusEnum status) {
+            String acao = switch (status) {
+                case ALTERADO -> "alterado";
+                case REVOGADO -> "revogado";
+                case INCLUIDO -> "incluído";
+                default       -> "modificado";
+            };
+            String portaria = doc.getPortariaReferencia();
+            String bca      = doc.getBcaReferencia();
+            String ref;
+            if (portaria != null && !portaria.isBlank() && bca != null && !bca.isBlank()) {
+                ref = "(" + acao + " pela " + portaria + ", publicada no " + bca + ")";
+            } else {
+                ref = "(" + acao + " pela Portaria DIRAD n° XYZ, de DD de MÊS de AAAA,"
+                        + " publicada no BCA n° ABC, de DD de mês de AAAA)";
+            }
+            return "<span class=\"emenda-ref-block\">" + esc(ref) + "</span>\n";
         }
 
         private void renderBodyEl(StringBuilder sb, String label, boolean labelBold, String conteudo) {
