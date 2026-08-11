@@ -1,13 +1,23 @@
--- ── Atualiza constraint de status em t_documento ────────────────────────────
-ALTER TABLE t_documento
-    DROP CONSTRAINT IF EXISTS t_documento_st_documento_check;
-
-ALTER TABLE t_documento
-    ADD CONSTRAINT t_documento_st_documento_check
-        CHECK (st_documento IN (
-            'RASCUNHO', 'MINUTA', 'APROVADO', 'PUBLICADO',
-            'EM_ALTERACAO', 'ARQUIVADO', 'CANCELADO', 'REVOGADO'
-        ));
+-- ── Remove qualquer check constraint no campo st_documento ──────────────────
+-- (Hibernate gera com nomes variados; dropamos todos e não recriamos,
+--  pois a entidade usa columnDefinition = "VARCHAR(30)" sem constraint.)
+DO $$
+DECLARE
+    r RECORD;
+BEGIN
+    FOR r IN
+        SELECT con.conname
+        FROM   pg_constraint con
+        JOIN   pg_class      rel ON rel.oid = con.conrelid
+        JOIN   pg_attribute  att ON att.attrelid = rel.oid
+                                AND att.attnum = ANY(con.conkey)
+        WHERE  rel.relname = 't_documento'
+          AND  con.contype = 'c'
+          AND  att.attname = 'st_documento'
+    LOOP
+        EXECUTE 'ALTER TABLE t_documento DROP CONSTRAINT IF EXISTS ' || quote_ident(r.conname);
+    END LOOP;
+END $$;
 
 -- ── Novos campos em t_documento ──────────────────────────────────────────────
 ALTER TABLE t_documento

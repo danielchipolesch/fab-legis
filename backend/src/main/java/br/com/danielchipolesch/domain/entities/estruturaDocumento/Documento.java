@@ -38,7 +38,7 @@ public class Documento extends RepresentationModel<Documento> {
     @Column(name = "nm_titulo_documento", nullable = false)
     private String tituloDocumento;
 
-    @Column(name = "st_documento", nullable = false)
+    @Column(name = "st_documento", nullable = false, columnDefinition = "VARCHAR(30)")
     @Enumerated(EnumType.STRING)
     private DocumentoStatusEnum documentoStatus;
 
