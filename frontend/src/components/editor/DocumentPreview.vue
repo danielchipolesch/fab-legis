@@ -181,6 +181,31 @@
             <p v-if="item.el.titulo" class="subsec-titulo"><strong>{{ item.el.titulo }}</strong></p>
           </div>
 
+          <!-- REVOGADO: conteúdo tachado + referência inline -->
+          <div v-else-if="item.el.emendaStatus === 'REVOGADO'" :id="'prev-' + item.el.id" class="body-el norm-el">
+            <span class="norm-lbl emenda-strikethrough" :class="{ 'norm-lbl-bold': item.el.tipo === 'artigo' }">{{ item.label }}</span>
+            <div class="norm-content-block emenda-strikethrough" v-html="conteudoToHtml(item.el.conteudo)"></div><span class="emenda-ref"> {{ emendaRef(item.el) }}</span>
+          </div>
+
+          <!-- ALTERADO: original tachado + nova redação + referência inline -->
+          <template v-else-if="item.el.emendaStatus === 'ALTERADO'">
+            <div :id="'prev-' + item.el.id" class="body-el norm-el">
+              <span class="norm-lbl emenda-strikethrough" :class="{ 'norm-lbl-bold': item.el.tipo === 'artigo' }">{{ item.label }}</span>
+              <div class="norm-content-block emenda-strikethrough" v-html="conteudoToHtml(item.el.conteudo)"></div>
+            </div>
+            <div class="body-el norm-el emenda-incluido">
+              <span class="norm-lbl" :class="{ 'norm-lbl-bold': item.el.tipo === 'artigo' }">{{ item.label }}</span>
+              <div class="norm-content-block" v-html="conteudoToHtml(item.el.conteudoEmenda)"></div><span class="emenda-ref"> {{ emendaRef(item.el) }}</span>
+            </div>
+          </template>
+
+          <!-- INCLUIDO: conteúdo em verde + referência inline -->
+          <div v-else-if="item.el.emendaStatus === 'INCLUIDO'" :id="'prev-' + item.el.id" class="body-el norm-el">
+            <span class="norm-lbl emenda-incluido" :class="{ 'norm-lbl-bold': item.el.tipo === 'artigo' }">{{ item.label }}</span>
+            <div class="norm-content-block emenda-incluido" v-html="conteudoToHtml(item.el.conteudo)"></div><span class="emenda-ref"> {{ emendaRef(item.el) }}</span>
+          </div>
+
+          <!-- INALTERADO: comportamento padrão -->
           <div v-else-if="hasBlockContent(conteudoToHtml(item.el.conteudo))" :id="'prev-' + item.el.id" class="body-el norm-el">
             <span class="norm-lbl" :class="{ 'norm-lbl-bold': item.el.tipo === 'artigo' }">{{ item.label }}</span>
             <div class="norm-content-block" v-html="conteudoToHtml(item.el.conteudo)"></div>
@@ -293,6 +318,16 @@ function stripHtml(html) {
   const d = document.createElement('div')
   d.innerHTML = html ?? ''
   return (d.textContent || '').trim()
+}
+
+function emendaRef(el) {
+  const acao = { ALTERADO: 'alterado', REVOGADO: 'revogado', INCLUIDO: 'incluído' }[el.emendaStatus] ?? 'modificado'
+  const portaria = props.documento?.portaria_referencia
+  const bca = props.documento?.bca_referencia
+  if (portaria && bca) {
+    return ` (${acao} pela ${portaria}, publicada no ${bca})`
+  }
+  return ` (${acao} pela Portaria DIRAD n° XYZ, de DD de MÊS de AAAA, publicada no BCA n° ABC, de DD de mês de AAAA)`
 }
 
 function hasBlockContent(html) {
@@ -597,7 +632,7 @@ const anexosDocumento = computed(() =>
 
 /* Gládio Alado — grande, proporcional ao documento real */
 .capa-simbolo { }
-.capa-brasao-img { width: 320px; height: 320px; object-fit: contain; }
+.capa-brasao-img { width: 380px; height: 380px; object-fit: contain; }
 .capa-gladio { display: flex; justify-content: center; }
 .gladio-ring {
   width: 220px; height: 220px;
@@ -945,6 +980,25 @@ const anexosDocumento = computed(() =>
   text-indent: 0;
   text-align: center;
 }
+
+/* ─── Emenda ──────────────────────────────────────────────── */
+/* Todo o conteúdo (inserido, excluído ou alterado) permanece em preto — só a
+   nota de referência da emenda (cláusula de revogação/inclusão/alteração) fica
+   azul. Cores de diff (verde/vermelho) ficam restritas à comparação de versões. */
+/* text-decoration: line-through não permite controlar espessura/posição de forma
+   confiável entre navegadores — usamos um "risco" via gradiente de fundo, que
+   funciona corretamente mesmo com o texto quebrando em várias linhas. */
+.emenda-strikethrough {
+  text-decoration: none;
+  background-image: linear-gradient(currentColor, currentColor);
+  background-repeat: repeat-x;
+  background-size: 100% 2px;
+  background-position: 0 54%;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+.emenda-incluido { }
+.emenda-ref { font-size: 14px; font-style: italic; color: #0000FF; }
 
 /* ═══════════════════════════════════════════════════════════
    PÁGINAS DE ANEXOS (imagem)
