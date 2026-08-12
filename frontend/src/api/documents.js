@@ -179,6 +179,10 @@ export async function emendar(docId, secao, elementoId, acao, novoConteudo, novo
   })
 }
 
+export async function reordenarElementoEmenda(docId, secao, elementoId, direcao) {
+  return http.patch(`/documentos/${docId}/emendar/${secao}/${elementoId}/reordenar?direcao=${direcao}`, {})
+}
+
 export async function incluirElementoEmenda(docId, secao, tipo, titulo, conteudo, parentId, elementOrder, justificativa) {
   return http.post(`/documentos/${docId}/emendar/${secao}`, {
     tipo,

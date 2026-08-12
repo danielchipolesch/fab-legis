@@ -313,6 +313,24 @@ export const useEditorStore = defineStore('editor', {
       if (idx === -1 || idx >= siblings.length - 1) return false
       return canSwapSiblings(siblings, idx, idx + 1)
     },
+
+    // Reordenação de artigos INCLUIDO por emenda (ainda não aprovados) entre si —
+    // única exceção à vedação de renumeração de artigos. Só é permitido quando o
+    // vizinho na direção pedida também for um artigo INCLUIDO (nunca contra um
+    // artigo original, cuja posição é fixa). Puramente de leitura: a troca real é
+    // persistida via API (emenda de reordenação), não mutação local.
+    canReorderIncluido(id, direction) {
+      const siblings = this.findSiblings(id)
+      if (!siblings) return false
+      const idx = siblings.findIndex(el => el.id === id)
+      if (idx === -1) return false
+      const el = siblings[idx]
+      if (el.tipo !== 'artigo' || el.emendaStatus !== 'INCLUIDO') return false
+      const targetIdx = idx + direction
+      if (targetIdx < 0 || targetIdx >= siblings.length) return false
+      const target = siblings[targetIdx]
+      return target.tipo === 'artigo' && target.emendaStatus === 'INCLUIDO'
+    },
   },
 })
 

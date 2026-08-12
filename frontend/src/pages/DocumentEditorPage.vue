@@ -23,6 +23,7 @@
       @emenda-revogar="(id, secao) => abrirEmendaDialog(id, secao, 'REVOGAR')"
       @emenda-desfazer="(id, secao) => abrirEmendaDialog(id, secao, 'DESFAZER')"
       @emenda-incluir="(secao, elementos) => abrirIncluirDialog(secao, elementos)"
+      @reordenar-incluido="onReordenarIncluido"
     />
 
     <!-- Dialog de emenda (alterar / revogar / desfazer) -->
@@ -330,6 +331,20 @@ function abrirIncluirDialog(secao, elementos = []) {
   incluirSecao.value      = secao
   incluirElementos.value  = elementos
   incluirDialogOpen.value = true
+}
+
+async function onReordenarIncluido(elementoId, direcao) {
+  try {
+    await docStore.reordenarElementoEmenda(documentoId.value, 'PARTE_NORMATIVA', parseInt(elementoId, 10), direcao)
+    editorStore.reload()
+  } catch (e) {
+    $q.notify({
+      type: 'negative',
+      message: `Erro ao reordenar: ${e?.message ?? 'erro desconhecido'}`,
+      position: 'bottom-right',
+      timeout: 4000,
+    })
+  }
 }
 
 const docLabel = computed(() => {

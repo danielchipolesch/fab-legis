@@ -233,6 +233,11 @@ export const useDocumentsStore = defineStore('documents', {
       return this.fetchDocumento(docId)
     },
 
+    async reordenarElementoEmenda(docId, secao, elementoId, direcao) {
+      await api.reordenarElementoEmenda(docId, secao, elementoId, direcao)
+      return this.fetchDocumento(docId)
+    },
+
     async deleteDocumento(id) {
       const doc = this.documentos.find(d => String(d.id) === String(id))
       if (doc && !['RASCUNHO', 'MINUTA'].includes(doc.status)) {

@@ -236,8 +236,23 @@
                         <q-tooltip anchor="center right" self="center left">Desfazer emenda</q-tooltip>
                       </q-btn>
                     </template>
-                    <!-- Elemento inserido por emenda (INCLUIDO): edição livre ou exclusão direta -->
+                    <!-- Elemento inserido por emenda (INCLUIDO): edição livre, reordenação entre
+                         incluídos (única exceção à vedação de renumeração) ou exclusão direta -->
                     <template v-else-if="node.emendaStatus === 'INCLUIDO'">
+                      <q-btn
+                        v-if="editorStore.canReorderIncluido(node.id, -1)"
+                        round size="xs" flat dense color="grey" @click.stop="$emit('reordenar-incluido', node.id, 'CIMA')"
+                      >
+                        <q-icon size="11px" name="mdi-arrow-up" />
+                        <q-tooltip anchor="center right" self="center left">Mover acima (entre incluídos)</q-tooltip>
+                      </q-btn>
+                      <q-btn
+                        v-if="editorStore.canReorderIncluido(node.id, 1)"
+                        round size="xs" flat dense color="grey" @click.stop="$emit('reordenar-incluido', node.id, 'BAIXO')"
+                      >
+                        <q-icon size="11px" name="mdi-arrow-down" />
+                        <q-tooltip anchor="center right" self="center left">Mover abaixo (entre incluídos)</q-tooltip>
+                      </q-btn>
                       <q-btn round size="xs" flat dense color="primary" @click.stop="$emit('emenda-alterar', node.id, 'PARTE_NORMATIVA')">
                         <q-icon size="11px" name="mdi-pencil-outline" />
                         <q-tooltip anchor="center right" self="center left">Editar conteúdo</q-tooltip>
@@ -569,6 +584,7 @@ const emit = defineEmits([
   'move-to-parent',
   'reorder-normativa',
   'emenda-alterar', 'emenda-revogar', 'emenda-desfazer', 'emenda-incluir',
+  'reordenar-incluido',
 ])
 
 // ── Dialog de metadados ──────────────────────────────────────────────────────
