@@ -271,12 +271,12 @@ public class DocumentoFoBuilder {
             sb.append("<fo:flow flow-name=\"xsl-region-body\">\n");
 
             sb.append(block("MINISTÉRIO DA DEFESA", "center", "17pt", "bold", "0", "2pt"));
-            sb.append(block("COMANDO DA AERONÁUTICA", "center", "17pt", "bold", "0", "50mm"));
+            sb.append(block("COMANDO DA AERONÁUTICA", "center", "17pt", "bold", "0", "35mm"));
 
             if (!brasaoFab.isBlank()) {
-                sb.append("<fo:block text-align=\"center\" space-after=\"20mm\">")
+                sb.append("<fo:block text-align=\"center\" space-after=\"35mm\">")
                   .append("<fo:external-graphic src=\"url('").append(brasaoFab).append("')\"")
-                  .append(" content-width=\"180pt\" content-height=\"180pt\" scaling=\"uniform\"/>")
+                  .append(" content-width=\"260pt\" content-height=\"260pt\" scaling=\"uniform\"/>")
                   .append("</fo:block>\n");
             }
 
@@ -351,9 +351,10 @@ public class DocumentoFoBuilder {
             sb.append(block(foEsc(titulo) + " (" + foEsc(docId()) + ")", "center", "12pt", "bold", "0", "10pt"));
             sb.append(block("SUMÁRIO", "center", "12pt", "bold", "0", "8pt"));
 
-            sb.append(buildToc());
+            Numbering numbering = computeNumbering(normativos);
+            sb.append(buildToc(numbering));
             sb.append("<fo:block space-after=\"1.2em\"/>\n");
-            sb.append(buildCorpoNormativo());
+            sb.append(buildCorpoNormativo(numbering));
 
             sb.append("</fo:flow>\n</fo:page-sequence>\n");
             return sb.toString();
@@ -390,23 +391,168 @@ public class DocumentoFoBuilder {
             return sb.toString();
         }
 
+        // ─── Numeração (capítulo/seção/subseção/artigo, com sufixo de letra p/ EM_ALTERACAO) ──
+        //
+        // Espelha exatamente `renumberElementsEmAlteracao` de frontend/src/utils/numbering.js:
+        // - Capítulo, seção e subseção: numeração local ao pai. Elemento INCLUIDO entre dois
+        //   elementos ativos (não-INCLUIDO/não-REVOGADO) do mesmo tipo recebe sufixo de letra
+        //   (ex.: "II-A") sem consumir a contagem; se estiver ao final da sequência, recebe
+        //   numeração normal.
+        // - Artigo: numeração GLOBAL (contínua por todo o documento), mesma regra de sufixo.
+        // Calculada uma única vez e compartilhada entre o sumário e o corpo do documento,
+        // garantindo que os dois nunca divirjam.
+
+        private static final class Numbering {
+            final Map<Long, Integer> numero = new HashMap<>();
+            final Map<Long, String> letra = new HashMap<>();
+            final List<ItemAnexoParteNormativaResponseDto> flatArtigos = new ArrayList<>();
+        }
+
+        private Numbering computeNumbering(List<ItemAnexoParteNormativaResponseDto> items) {
+            Numbering num = new Numbering();
+            collectArtigosFlat(items, num.flatArtigos);
+            assignNumbering(items, num, new int[]{0});
+            return num;
+        }
+
+        private void collectArtigosFlat(List<ItemAnexoParteNormativaResponseDto> items,
+                                        List<ItemAnexoParteNormativaResponseDto> out) {
+            if (items == null) return;
+            for (var item : items) {
+                if (item.getElementType() == ItemAnexoParteNormativaTipoEnum.ARTIGO) out.add(item);
+                collectArtigosFlat(item.getChildren(), out);
+            }
+        }
+
+        private boolean hasActiveArtigoAfterGlobal(ItemAnexoParteNormativaResponseDto item,
+                                                    List<ItemAnexoParteNormativaResponseDto> flatArtigos) {
+            int idx = flatArtigos.indexOf(item);
+            for (int i = idx + 1; i < flatArtigos.size(); i++) {
+                var s = flatArtigos.get(i);
+                if (s.getEmendaStatus() != ElementoEmendaStatusEnum.INCLUIDO
+                        && s.getEmendaStatus() != ElementoEmendaStatusEnum.REVOGADO) return true;
+            }
+            return false;
+        }
+
+        private boolean hasNonIncludedSameTypeAfter(List<ItemAnexoParteNormativaResponseDto> siblings, int idx,
+                                                     ItemAnexoParteNormativaTipoEnum tipo) {
+            for (int i = idx + 1; i < siblings.size(); i++) {
+                var s = siblings.get(i);
+                if (s.getElementType() == tipo
+                        && s.getEmendaStatus() != ElementoEmendaStatusEnum.INCLUIDO
+                        && s.getEmendaStatus() != ElementoEmendaStatusEnum.REVOGADO) return true;
+            }
+            return false;
+        }
+
+        private void assignNumbering(List<ItemAnexoParteNormativaResponseDto> items, Numbering num, int[] artCounter) {
+            if (items == null) return;
+            int cap = 0, sec = 0, sub = 0;
+            int capLetterIdx = 0, secLetterIdx = 0, subLetterIdx = 0, artLetterIdx = 0;
+            for (int i = 0; i < items.size(); i++) {
+                var item = items.get(i);
+                boolean isIncluido = item.getEmendaStatus() == ElementoEmendaStatusEnum.INCLUIDO;
+                switch (item.getElementType()) {
+                    case CAPITULO -> {
+                        boolean atEnd = isIncluido && !hasNonIncludedSameTypeAfter(items, i, ItemAnexoParteNormativaTipoEnum.CAPITULO);
+                        if (!isIncluido || atEnd) {
+                            cap++;
+                            num.numero.put(item.getId(), cap);
+                            capLetterIdx = 0;
+                        } else {
+                            num.numero.put(item.getId(), cap);
+                            num.letra.put(item.getId(), letterFor(capLetterIdx++));
+                        }
+                        assignNumbering(item.getChildren(), num, artCounter);
+                    }
+                    case SECAO_NORMATIVA -> {
+                        boolean atEnd = isIncluido && !hasNonIncludedSameTypeAfter(items, i, ItemAnexoParteNormativaTipoEnum.SECAO_NORMATIVA);
+                        if (!isIncluido || atEnd) {
+                            sec++;
+                            num.numero.put(item.getId(), sec);
+                            secLetterIdx = 0;
+                        } else {
+                            num.numero.put(item.getId(), sec);
+                            num.letra.put(item.getId(), letterFor(secLetterIdx++));
+                        }
+                        assignNumbering(item.getChildren(), num, artCounter);
+                    }
+                    case SUBSECAO_NORMATIVA -> {
+                        boolean atEnd = isIncluido && !hasNonIncludedSameTypeAfter(items, i, ItemAnexoParteNormativaTipoEnum.SUBSECAO_NORMATIVA);
+                        if (!isIncluido || atEnd) {
+                            sub++;
+                            num.numero.put(item.getId(), sub);
+                            subLetterIdx = 0;
+                        } else {
+                            num.numero.put(item.getId(), sub);
+                            num.letra.put(item.getId(), letterFor(subLetterIdx++));
+                        }
+                        assignNumbering(item.getChildren(), num, artCounter);
+                    }
+                    case ARTIGO -> {
+                        if (!isIncluido) {
+                            artCounter[0]++;
+                            num.numero.put(item.getId(), artCounter[0]);
+                            artLetterIdx = 0;
+                        } else {
+                            boolean atEnd = !hasActiveArtigoAfterGlobal(item, num.flatArtigos);
+                            if (atEnd) {
+                                artCounter[0]++;
+                                num.numero.put(item.getId(), artCounter[0]);
+                                artLetterIdx = 0;
+                            } else {
+                                num.numero.put(item.getId(), artCounter[0]);
+                                num.letra.put(item.getId(), letterFor(artLetterIdx++));
+                            }
+                        }
+                        assignNumbering(item.getChildren(), num, artCounter);
+                    }
+                    default -> { }
+                }
+            }
+        }
+
+        private static String letterFor(int idx) {
+            return String.valueOf((char) ('A' + idx));
+        }
+
+        private String capLabel(ItemAnexoParteNormativaResponseDto item, Numbering num) {
+            String letra = num.letra.get(item.getId());
+            return toRoman(num.numero.getOrDefault(item.getId(), 0)) + (letra != null ? "-" + letra : "");
+        }
+
+        private String secLabel(ItemAnexoParteNormativaResponseDto item, Numbering num) {
+            String letra = num.letra.get(item.getId());
+            return toRoman(num.numero.getOrDefault(item.getId(), 0)) + (letra != null ? "-" + letra : "");
+        }
+
+        private String subLabel(ItemAnexoParteNormativaResponseDto item, Numbering num) {
+            String letra = num.letra.get(item.getId());
+            return toRoman(num.numero.getOrDefault(item.getId(), 0)) + (letra != null ? "-" + letra : "");
+        }
+
+        private String artLabel(ItemAnexoParteNormativaResponseDto item, Numbering num) {
+            String letra = num.letra.get(item.getId());
+            String base = ordinalOrCardinal(num.numero.getOrDefault(item.getId(), 0));
+            return letra != null ? base + "-" + letra : base;
+        }
+
         // ─── TOC ──────────────────────────────────────────────────────────────
 
         private record TocEntry(String label, boolean bold, boolean indent1, boolean indent2, String anchor, String pg) {}
 
-        private String buildToc() {
+        private String buildToc(Numbering num) {
             List<TocEntry> entries = new ArrayList<>();
             boolean temAgrupamento = normativos.stream().anyMatch(el ->
                     el.getElementType() == ItemAnexoParteNormativaTipoEnum.CAPITULO
                     || el.getElementType() == ItemAnexoParteNormativaTipoEnum.SECAO_NORMATIVA
                     || el.getElementType() == ItemAnexoParteNormativaTipoEnum.SUBSECAO_NORMATIVA);
 
-            Map<Long, Integer> artNums = buildArtNums(normativos);
-
             if (temAgrupamento) {
-                walkToc(normativos, entries, artNums, new int[]{0}, new int[]{0}, new int[]{0});
+                walkToc(normativos, entries, num);
             } else {
-                collectArtToc(normativos, entries, artNums);
+                collectArtToc(normativos, entries, num);
             }
 
             if (entries.isEmpty()) return "";
@@ -435,24 +581,6 @@ public class DocumentoFoBuilder {
                   .append("\n</fo:block>\n");
             }
             return sb.toString();
-        }
-
-        private Map<Long, Integer> buildArtNums(List<ItemAnexoParteNormativaResponseDto> items) {
-            Map<Long, Integer> map = new HashMap<>();
-            assignArtNumsRec(items, new int[]{0}, map);
-            return map;
-        }
-
-        private void assignArtNumsRec(List<ItemAnexoParteNormativaResponseDto> items,
-                                      int[] counter, Map<Long, Integer> map) {
-            if (items == null) return;
-            for (var item : items) {
-                if (item.getElementType() == ItemAnexoParteNormativaTipoEnum.ARTIGO) {
-                    counter[0]++;
-                    map.put(item.getId(), counter[0]);
-                }
-                assignArtNumsRec(item.getChildren(), counter, map);
-            }
         }
 
         private int firstArtigoNum(List<ItemAnexoParteNormativaResponseDto> items, Map<Long, Integer> artNums) {
@@ -520,32 +648,28 @@ public class DocumentoFoBuilder {
             return first == last ? fmtNum(first) : fmtNum(first) + "/" + fmtNum(last);
         }
 
-        private void walkToc(List<ItemAnexoParteNormativaResponseDto> items, List<TocEntry> entries,
-                             Map<Long, Integer> artNums, int[] cap, int[] sec, int[] sub) {
+        private void walkToc(List<ItemAnexoParteNormativaResponseDto> items, List<TocEntry> entries, Numbering num) {
             if (items == null) return;
             for (int i = 0; i < items.size(); i++) {
                 var item = items.get(i);
                 switch (item.getElementType()) {
                     case CAPITULO -> {
-                        cap[0]++; sec[0] = 0; sub[0] = 0;
                         String t = item.getElementTitle() != null ? " - " + item.getElementTitle().toUpperCase() : "";
-                        entries.add(new TocEntry("CAPÍTULO " + toRoman(cap[0]) + t, true, false, false,
-                                "norm-" + item.getId(), artRangeFor(item, items, i, artNums)));
-                        walkToc(item.getChildren(), entries, artNums, cap, sec, sub);
+                        entries.add(new TocEntry("CAPÍTULO " + capLabel(item, num) + t, true, false, false,
+                                "norm-" + item.getId(), artRangeFor(item, items, i, num.numero)));
+                        walkToc(item.getChildren(), entries, num);
                     }
                     case SECAO_NORMATIVA -> {
-                        sec[0]++; sub[0] = 0;
                         String t = item.getElementTitle() != null ? " - " + item.getElementTitle() : "";
-                        entries.add(new TocEntry("Seção " + toRoman(sec[0]) + t, false, true, false,
-                                "norm-" + item.getId(), artRangeFor(item, items, i, artNums)));
-                        walkToc(item.getChildren(), entries, artNums, cap, sec, sub);
+                        entries.add(new TocEntry("Seção " + secLabel(item, num) + t, false, true, false,
+                                "norm-" + item.getId(), artRangeFor(item, items, i, num.numero)));
+                        walkToc(item.getChildren(), entries, num);
                     }
                     case SUBSECAO_NORMATIVA -> {
-                        sub[0]++;
                         String t = item.getElementTitle() != null ? " - " + item.getElementTitle() : "";
-                        entries.add(new TocEntry("Subseção " + toRoman(sub[0]) + t, false, true, true,
-                                "norm-" + item.getId(), artRangeFor(item, items, i, artNums)));
-                        walkToc(item.getChildren(), entries, artNums, cap, sec, sub);
+                        entries.add(new TocEntry("Subseção " + subLabel(item, num) + t, false, true, true,
+                                "norm-" + item.getId(), artRangeFor(item, items, i, num.numero)));
+                        walkToc(item.getChildren(), entries, num);
                     }
                     default -> {}
                 }
@@ -553,12 +677,12 @@ public class DocumentoFoBuilder {
         }
 
         private void collectArtToc(List<ItemAnexoParteNormativaResponseDto> items,
-                                   List<TocEntry> entries, Map<Long, Integer> artNums) {
+                                   List<TocEntry> entries, Numbering num) {
             for (var item : items) {
                 if (item.getElementType() == ItemAnexoParteNormativaTipoEnum.ARTIGO) {
-                    int n = artNums.getOrDefault(item.getId(), 0);
+                    int n = num.numero.getOrDefault(item.getId(), 0);
                     String pg = n > 0 ? fmtNum(n) : "";
-                    entries.add(new TocEntry("Art. " + (n > 0 ? ordinalOrCardinal(n) : "?"), false, true, false,
+                    entries.add(new TocEntry("Art. " + (n > 0 ? artLabel(item, num) : "?"), false, true, false,
                             "norm-" + item.getId(), pg));
                 }
             }
@@ -566,58 +690,52 @@ public class DocumentoFoBuilder {
 
         // ─── Corpo Normativo ──────────────────────────────────────────────────
 
-        private String buildCorpoNormativo() {
+        private String buildCorpoNormativo(Numbering num) {
             var sb = new StringBuilder();
-            renderNormItems(normativos, sb, new int[]{0}, new int[]{0}, new int[]{0}, new int[]{0});
+            renderNormItems(normativos, sb, num);
             return sb.toString();
         }
 
-        private void renderNormItems(List<ItemAnexoParteNormativaResponseDto> items,
-                                     StringBuilder sb, int[] cap, int[] sec, int[] sub, int[] art) {
+        private void renderNormItems(List<ItemAnexoParteNormativaResponseDto> items, StringBuilder sb, Numbering num) {
             if (items == null) return;
-            for (var item : items) renderNormItem(item, sb, cap, sec, sub, art);
+            for (var item : items) renderNormItem(item, sb, num);
         }
 
-        private void renderNormItem(ItemAnexoParteNormativaResponseDto item,
-                                    StringBuilder sb, int[] cap, int[] sec, int[] sub, int[] art) {
+        private void renderNormItem(ItemAnexoParteNormativaResponseDto item, StringBuilder sb, Numbering num) {
             String anc = "norm-" + item.getId();
             switch (item.getElementType()) {
                 case CAPITULO -> {
-                    cap[0]++; sec[0] = 0; sub[0] = 0;
                     sb.append("<fo:block id=\"").append(anc).append("\"")
                       .append(" text-align=\"center\" font-weight=\"bold\" space-before=\"15pt\" space-after=\"3pt\">")
-                      .append("CAPÍTULO ").append(toRoman(cap[0])).append("</fo:block>\n");
+                      .append("CAPÍTULO ").append(capLabel(item, num)).append("</fo:block>\n");
                     if (item.getElementTitle() != null && !item.getElementTitle().isBlank()) {
                         sb.append("<fo:block text-align=\"center\" font-weight=\"bold\" space-after=\"6pt\">")
                           .append(foEsc(item.getElementTitle().toUpperCase())).append("</fo:block>\n");
                     }
-                    renderNormItems(item.getChildren(), sb, cap, sec, sub, art);
+                    renderNormItems(item.getChildren(), sb, num);
                 }
                 case SECAO_NORMATIVA -> {
-                    sec[0]++; sub[0] = 0;
                     sb.append("<fo:block id=\"").append(anc).append("\"")
                       .append(" text-align=\"center\" font-weight=\"bold\" space-before=\"10pt\" space-after=\"3pt\">")
-                      .append("Seção ").append(toRoman(sec[0])).append("</fo:block>\n");
+                      .append("Seção ").append(secLabel(item, num)).append("</fo:block>\n");
                     if (item.getElementTitle() != null && !item.getElementTitle().isBlank()) {
                         sb.append("<fo:block text-align=\"center\" font-weight=\"bold\" space-after=\"5pt\">")
                           .append(foEsc(item.getElementTitle())).append("</fo:block>\n");
                     }
-                    renderNormItems(item.getChildren(), sb, cap, sec, sub, art);
+                    renderNormItems(item.getChildren(), sb, num);
                 }
                 case SUBSECAO_NORMATIVA -> {
-                    sub[0]++;
                     sb.append("<fo:block id=\"").append(anc).append("\"")
                       .append(" text-align=\"center\" font-weight=\"bold\" space-before=\"8pt\" space-after=\"3pt\">")
-                      .append("Subseção ").append(toRoman(sub[0])).append("</fo:block>\n");
+                      .append("Subseção ").append(subLabel(item, num)).append("</fo:block>\n");
                     if (item.getElementTitle() != null && !item.getElementTitle().isBlank()) {
                         sb.append("<fo:block text-align=\"center\" font-weight=\"bold\" space-after=\"5pt\">")
                           .append(foEsc(item.getElementTitle())).append("</fo:block>\n");
                     }
-                    renderNormItems(item.getChildren(), sb, cap, sec, sub, art);
+                    renderNormItems(item.getChildren(), sb, num);
                 }
                 case ARTIGO -> {
-                    art[0]++;
-                    renderBodyEl(sb, anc, "Art. " + ordinalOrCardinal(art[0]) + "  ", true,
+                    renderBodyEl(sb, anc, "Art. " + artLabel(item, num) + "  ", true,
                             item.getElementContent(), item.getEmendaStatus(), item.getConteudoEmenda());
                     renderArtigoFilhos(item.getChildren(), sb);
                 }
@@ -695,22 +813,21 @@ public class DocumentoFoBuilder {
         private void renderBodyEl(StringBuilder sb, String id, String label, boolean labelBold, String conteudo) {
             String idAttr = (id != null && !id.isBlank()) ? " id=\"" + id + "\"" : "";
             if (conteudo == null || conteudo.isBlank()) {
-                sb.append("<fo:block").append(idAttr).append(" text-indent=\"2.5cm\" space-after=\"5pt\">")
+                sb.append("<fo:block").append(idAttr).append(" text-indent=\"2.5cm\" space-after=\"8pt\">")
                   .append(labelFo(label, labelBold)).append("</fo:block>\n");
                 return;
             }
             TipTapNode doc = parseConteudo(conteudo);
             if (doc == null) {
-                sb.append("<fo:block").append(idAttr).append(" text-indent=\"2.5cm\" space-after=\"5pt\">")
+                sb.append("<fo:block").append(idAttr).append(" text-indent=\"2.5cm\" space-after=\"8pt\">")
                   .append(labelFo(label, labelBold)).append("</fo:block>\n");
                 return;
             }
             boolean blockContent = renderer.hasBlockContent(doc);
             if (blockContent) {
                 if (!label.isBlank() && renderer.startsWithParagraph(doc)) {
-                    // Label + first paragraph text on the same line; remaining blocks (figures, etc.) follow
                     sb.append("<fo:block").append(idAttr)
-                      .append(" text-indent=\"2.5cm\" space-after=\"2pt\" text-align=\"justify\">")
+                      .append(" text-indent=\"2.5cm\" space-after=\"3pt\" text-align=\"justify\">")
                       .append(labelFo(label, labelBold))
                       .append(renderer.renderInlineContent(doc))
                       .append("</fo:block>\n");
@@ -718,13 +835,13 @@ public class DocumentoFoBuilder {
                 } else {
                     if (!label.isBlank()) {
                         sb.append("<fo:block").append(idAttr)
-                          .append(" text-indent=\"2.5cm\" space-after=\"2pt\" text-align=\"justify\">")
+                          .append(" text-indent=\"2.5cm\" space-after=\"3pt\" text-align=\"justify\">")
                           .append(labelFo(label, labelBold)).append("</fo:block>\n");
                     }
                     sb.append(renderer.renderDocContent(doc));
                 }
             } else {
-                sb.append("<fo:block").append(idAttr).append(" text-indent=\"2.5cm\" space-after=\"5pt\" text-align=\"justify\">")
+                sb.append("<fo:block").append(idAttr).append(" text-indent=\"2.5cm\" space-after=\"8pt\" text-align=\"justify\">")
                   .append(labelFo(label, labelBold))
                   .append(renderer.renderInlineContent(doc))
                   .append("</fo:block>\n");
@@ -743,19 +860,26 @@ public class DocumentoFoBuilder {
                 return;
             }
             String idAttr = (id != null && !id.isBlank()) ? " id=\"" + id + "\"" : "";
+            String refInline = emendaRefInline(emendaStatus);
             switch (emendaStatus) {
                 case REVOGADO -> {
-                    renderStrikethroughBlock(sb, idAttr, label, labelBold, conteudo);
-                    renderEmendaRefBlock(sb, emendaStatus);
+                    var tmp = new StringBuilder();
+                    renderStrikethroughBlock(tmp, idAttr, label, labelBold, conteudo);
+                    insertBeforeLastBlockClose(tmp, refInline);
+                    sb.append(tmp);
                 }
                 case ALTERADO -> {
                     renderStrikethroughBlock(sb, idAttr, label, labelBold, conteudo);
-                    renderBodyEl(sb, null, label, labelBold, conteudoEmenda);
-                    renderEmendaRefBlock(sb, emendaStatus);
+                    var tmp = new StringBuilder();
+                    renderBodyEl(tmp, null, label, labelBold, conteudoEmenda);
+                    insertBeforeLastBlockClose(tmp, refInline);
+                    sb.append(tmp);
                 }
                 case INCLUIDO -> {
-                    renderIncludidoBlock(sb, idAttr, label, labelBold, conteudo);
-                    renderEmendaRefBlock(sb, emendaStatus);
+                    var tmp = new StringBuilder();
+                    renderIncludidoBlock(tmp, idAttr, label, labelBold, conteudo);
+                    insertBeforeLastBlockClose(tmp, refInline);
+                    sb.append(tmp);
                 }
             }
         }
@@ -764,7 +888,7 @@ public class DocumentoFoBuilder {
                                                String label, boolean labelBold, String conteudo) {
             if (conteudo == null || conteudo.isBlank()) {
                 sb.append("<fo:block").append(idAttr)
-                  .append(" text-indent=\"2.5cm\" space-after=\"2pt\" text-align=\"justify\"")
+                  .append(" text-indent=\"2.5cm\" space-after=\"3pt\" text-align=\"justify\"")
                   .append(" text-decoration=\"line-through\">")
                   .append(labelFo(label, labelBold))
                   .append("</fo:block>\n");
@@ -773,7 +897,7 @@ public class DocumentoFoBuilder {
             TipTapNode doc = parseConteudo(conteudo);
             if (doc == null) {
                 sb.append("<fo:block").append(idAttr)
-                  .append(" text-indent=\"2.5cm\" space-after=\"2pt\" text-align=\"justify\"")
+                  .append(" text-indent=\"2.5cm\" space-after=\"3pt\" text-align=\"justify\"")
                   .append(" text-decoration=\"line-through\">")
                   .append(labelFo(label, labelBold))
                   .append(foEsc(conteudo))
@@ -787,7 +911,7 @@ public class DocumentoFoBuilder {
                     : java.util.List.of();
             if (paras.isEmpty()) {
                 sb.append("<fo:block").append(idAttr)
-                  .append(" text-indent=\"2.5cm\" space-after=\"2pt\" text-align=\"justify\"")
+                  .append(" text-indent=\"2.5cm\" space-after=\"3pt\" text-align=\"justify\"")
                   .append(" text-decoration=\"line-through\">")
                   .append(labelFo(label, labelBold))
                   .append("</fo:block>\n");
@@ -796,7 +920,7 @@ public class DocumentoFoBuilder {
             boolean first = true;
             for (var para : paras) {
                 sb.append("<fo:block").append(first ? idAttr : "")
-                  .append(" text-indent=\"2.5cm\" space-after=\"2pt\" text-align=\"justify\"")
+                  .append(" text-indent=\"2.5cm\" space-after=\"3pt\" text-align=\"justify\"")
                   .append(" text-decoration=\"line-through\">");
                 if (first) sb.append(labelFo(label, labelBold));
                 sb.append(renderer.renderParagraphInlines(para));
@@ -810,14 +934,13 @@ public class DocumentoFoBuilder {
             TipTapNode node = parseConteudo(conteudo);
             String inline = node != null ? renderer.renderInlineContent(node) : foEsc(conteudo);
             sb.append("<fo:block").append(idAttr)
-              .append(" text-indent=\"2.5cm\" space-after=\"2pt\" text-align=\"justify\"")
-              .append(" color=\"#004400\">")
+              .append(" text-indent=\"2.5cm\" space-after=\"8pt\" text-align=\"justify\">")
               .append(labelFo(label, labelBold))
               .append(inline)
               .append("</fo:block>\n");
         }
 
-        private void renderEmendaRefBlock(StringBuilder sb, ElementoEmendaStatusEnum status) {
+        private String emendaRefInline(ElementoEmendaStatusEnum status) {
             String acao = switch (status) {
                 case ALTERADO -> "alterado";
                 case REVOGADO -> "revogado";
@@ -828,15 +951,23 @@ public class DocumentoFoBuilder {
             String bca      = doc.getBcaReferencia();
             String ref;
             if (portaria != null && !portaria.isBlank() && bca != null && !bca.isBlank()) {
-                ref = "(" + acao + " pela " + portaria + ", publicada no " + bca + ")";
+                ref = " (" + acao + " pela " + portaria + ", publicada no " + bca + ")";
             } else {
-                ref = "(" + acao + " pela Portaria DIRAD n° XYZ, de DD de MÊS de AAAA,"
+                ref = " (" + acao + " pela Portaria DIRAD n° XYZ, de DD de MÊS de AAAA,"
                     + " publicada no BCA n° ABC, de DD de mês de AAAA)";
             }
-            sb.append("<fo:block font-size=\"10pt\" font-style=\"italic\" color=\"#555555\"")
-              .append(" start-indent=\"2.5cm\" space-after=\"3pt\">")
-              .append(foEsc(ref))
-              .append("</fo:block>\n");
+            return "<fo:inline font-size=\"10pt\" font-style=\"italic\" color=\"#0000FF\">"
+                 + foEsc(ref) + "</fo:inline>";
+        }
+
+        // Inserts an inline fragment just before the last </fo:block> in a local buffer.
+        private void insertBeforeLastBlockClose(StringBuilder sb, String inline) {
+            if (inline == null || inline.isBlank()) return;
+            String s = sb.toString();
+            int idx = s.lastIndexOf("</fo:block>");
+            if (idx < 0) return;
+            sb.setLength(0);
+            sb.append(s, 0, idx).append(inline).append(s.substring(idx));
         }
 
         private TipTapNode parseConteudo(String conteudo) {
