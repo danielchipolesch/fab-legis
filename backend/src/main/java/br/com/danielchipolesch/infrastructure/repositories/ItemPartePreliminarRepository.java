@@ -20,4 +20,9 @@ public interface ItemPartePreliminarRepository extends JpaRepository<ItemPartePr
     @Transactional
     @Query("DELETE FROM ItemPartePreliminar i WHERE i.documento.id = :documentoId")
     void deleteAllByDocumentoId(@Param("documentoId") Long documentoId);
+
+    @Modifying
+    @Transactional
+    @Query("UPDATE ItemPartePreliminar i SET i.elementOrder = i.elementOrder * 100 WHERE i.documento.id = :documentoId AND i.elementOrder IS NOT NULL")
+    void respacarElementOrders(@Param("documentoId") Long documentoId);
 }

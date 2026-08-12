@@ -198,9 +198,9 @@ public class DocumentoHtmlService {
                 figure img { max-width: 100%; height: auto; max-height: 500pt; display: block; margin: 0 auto; }
                 .figura-titulo { font-size: 10pt; font-style: italic; margin: 0; text-align: center; }
                 .figura-fonte  { font-size: 9pt; color: #555; margin: 3pt 0 0; text-align: center; }
-                .emenda-strikethrough { text-decoration: line-through; }
-                .emenda-incluido { color: #004400; }
-                .emenda-ref-block { font-size: 10pt; font-style: italic; color: #555555; display: block; padding-left: 2.5cm; margin-bottom: 3pt; }
+                .emenda-strikethrough { text-decoration: line-through; color: #0000FF; }
+                .emenda-incluido { color: #0000FF; }
+                .emenda-ref-block { font-size: 10pt; font-style: italic; color: #0000FF; display: block; padding-left: 2.5cm; margin-bottom: 3pt; }
                 """;
         }
 
@@ -590,7 +590,7 @@ public class DocumentoHtmlService {
                 }
                 case ALTERADO -> {
                     renderBodyElStyled(sb, label, labelBold, conteudo, "emenda-strikethrough");
-                    renderBodyEl(sb, label, labelBold, conteudoEmenda);
+                    renderBodyElStyled(sb, label, labelBold, conteudoEmenda, "emenda-incluido");
                     sb.append(buildEmendaRef(emendaStatus));
                 }
                 case INCLUIDO -> {
@@ -607,14 +607,16 @@ public class DocumentoHtmlService {
             String labelHtml = labelBold
                     ? "<span class=\"norm-lbl norm-lbl-bold\">" + label + "</span>"
                     : "<span class=\"norm-lbl\">" + label + "</span>";
+            // Always use <div> to avoid invalid <p>-in-<p> nesting when TipTap content
+            // contains <p> tags — browsers auto-close the outer <p>, losing CSS inheritance.
             if (hasBlock) {
                 sb.append("<div class=\"body-el norm-el ").append(extraClass).append("\">")
                   .append(labelHtml)
                   .append("<div class=\"norm-content-block\">").append(safe).append("</div>")
                   .append("</div>\n");
             } else {
-                sb.append("<p class=\"body-el norm-el ").append(extraClass).append("\">")
-                  .append(labelHtml).append(safe).append("</p>\n");
+                sb.append("<div class=\"body-el norm-el ").append(extraClass).append("\">")
+                  .append(labelHtml).append(safe).append("</div>\n");
             }
         }
 
@@ -650,10 +652,10 @@ public class DocumentoHtmlService {
                   .append(safe)
                   .append("</div></div>\n");
             } else {
-                sb.append("<p class=\"body-el norm-el\">")
+                sb.append("<div class=\"body-el norm-el\">")
                   .append(labelHtml)
                   .append(safe)
-                  .append("</p>\n");
+                  .append("</div>\n");
             }
         }
 

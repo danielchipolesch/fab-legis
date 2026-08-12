@@ -16,6 +16,31 @@ function parseDtCriacao(dt) {
   return String(dt).slice(0, 10)
 }
 
+// Ordena elementos por elementOrder; empates resolvidos por tipo + status:
+// - REVOGADO (order=null → Infinity) fica sempre por último.
+// - Mesmo tipo: INCLUIDO ANTES do INALTERADO — o elementOrder do INCLUIDO é calculado
+//   como afterEl.order+1, que coincide com o order do próximo elemento existente; logo,
+//   o INCLUIDO deve aparecer imediatamente ANTES desse próximo elemento.
+// - Tipos diferentes: INALTERADO ANTES do INCLUIDO — estrutura existente tem prioridade
+//   (ex.: CAPITULO INALTERADO antes de ARTIGO INCLUIDO com mesmo order).
+function sortEmendaItens(itens) {
+  if (!itens?.length) return itens ?? []
+  return [...itens].sort((a, b) => {
+    const oa = a.elementOrder ?? Infinity
+    const ob = b.elementOrder ?? Infinity
+    if (oa !== ob) return oa - ob
+    // REVOGADO por último
+    if (a.emendaStatus === 'REVOGADO' && b.emendaStatus !== 'REVOGADO') return 1
+    if (b.emendaStatus === 'REVOGADO' && a.emendaStatus !== 'REVOGADO') return -1
+    if (a.tipo === b.tipo) {
+      // Mesmo tipo: INCLUIDO antes de INALTERADO/ALTERADO
+      return (a.emendaStatus === 'INCLUIDO' ? 0 : 1) - (b.emendaStatus === 'INCLUIDO' ? 0 : 1)
+    }
+    // Tipos diferentes: INALTERADO/ALTERADO antes de INCLUIDO
+    return (a.emendaStatus === 'INCLUIDO' ? 1 : 0) - (b.emendaStatus === 'INCLUIDO' ? 1 : 0)
+  })
+}
+
 function apiItemParaFrontend(item) {
   return {
     id: String(item.id),
@@ -29,7 +54,7 @@ function apiItemParaFrontend(item) {
     conteudoEmenda: item.conteudoEmenda ?? null,
     tituloEmenda: item.tituloEmenda ?? null,
     justificativaEmenda: item.justificativaEmenda ?? null,
-    filhos: (item.children ?? []).map(apiItemParaFrontend),
+    filhos: sortEmendaItens(item.children ?? []).map(apiItemParaFrontend),
   }
 }
 
@@ -37,7 +62,7 @@ function buildSecao(secaoKey, itensApi) {
   return {
     ...SECAO_CONFIG[secaoKey],
     id: crypto.randomUUID(),
-    elementos: (itensApi ?? []).map(apiItemParaFrontend),
+    elementos: sortEmendaItens(itensApi ?? []).map(apiItemParaFrontend),
   }
 }
 

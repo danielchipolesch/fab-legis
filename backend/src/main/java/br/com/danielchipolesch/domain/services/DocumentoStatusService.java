@@ -10,6 +10,9 @@ import br.com.danielchipolesch.domain.handlers.exceptions.StatusCannotBeUpdatedE
 import br.com.danielchipolesch.domain.handlers.exceptions.enums.DocumentException;
 import br.com.danielchipolesch.domain.mappers.DocumentoMapper;
 import br.com.danielchipolesch.infrastructure.repositories.DocumentoRepository;
+import br.com.danielchipolesch.infrastructure.repositories.ItemAnexoParteNormativaRepository;
+import br.com.danielchipolesch.infrastructure.repositories.ItemParteFinalRepository;
+import br.com.danielchipolesch.infrastructure.repositories.ItemPartePreliminarRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -19,14 +22,12 @@ import java.time.Instant;
 @Service
 public class DocumentoStatusService {
 
-    @Autowired
-    DocumentoRepository documentoRepository;
-
-    @Autowired
-    DocumentoHistoricoService documentoHistoricoService;
-
-    @Autowired
-    DocumentoPdfService documentoPdfService;
+    @Autowired DocumentoRepository documentoRepository;
+    @Autowired DocumentoHistoricoService documentoHistoricoService;
+    @Autowired DocumentoPdfService documentoPdfService;
+    @Autowired ItemAnexoParteNormativaRepository normativaRepository;
+    @Autowired ItemPartePreliminarRepository preliminarRepository;
+    @Autowired ItemParteFinalRepository finalRepository;
 
     public DocumentoResponseSemAnexoTextualDto changeStatus(Long id, DocumentoStatusRequestDto request) throws RuntimeException {
 
@@ -38,8 +39,10 @@ public class DocumentoStatusService {
 
         boolean transicaoValida = switch (novoStatus) {
             case MINUTA       -> current == DocumentoStatusEnum.RASCUNHO || current == DocumentoStatusEnum.APROVADO;
-            case APROVADO     -> current == DocumentoStatusEnum.RASCUNHO || current == DocumentoStatusEnum.MINUTA;
-            case PUBLICADO    -> current == DocumentoStatusEnum.APROVADO || current == DocumentoStatusEnum.EM_ALTERACAO;
+            case APROVADO     -> current == DocumentoStatusEnum.RASCUNHO
+                             || current == DocumentoStatusEnum.MINUTA
+                             || current == DocumentoStatusEnum.EM_ALTERACAO;
+            case PUBLICADO    -> current == DocumentoStatusEnum.APROVADO;
             case EM_ALTERACAO -> current == DocumentoStatusEnum.PUBLICADO;
             case ARQUIVADO    -> current == DocumentoStatusEnum.PUBLICADO;
             case REVOGADO     -> current == DocumentoStatusEnum.PUBLICADO;
@@ -51,13 +54,13 @@ public class DocumentoStatusService {
             throw new StatusCannotBeUpdatedException(DocumentException.CANNOT_BE_UPDATED.getMessage());
         }
 
-        // Ao republicar após emenda, portaria e BCA são obrigatórios
-        if (novoStatus == DocumentoStatusEnum.PUBLICADO && current == DocumentoStatusEnum.EM_ALTERACAO) {
+        // Ao aprovar após emenda, portaria e BCA são obrigatórios (o PDF os embute)
+        if (novoStatus == DocumentoStatusEnum.APROVADO && current == DocumentoStatusEnum.EM_ALTERACAO) {
             String portaria = request.getPortariaReferencia();
             String bca = request.getBcaReferencia();
             if (portaria == null || portaria.isBlank() || bca == null || bca.isBlank()) {
                 throw new StatusCannotBeUpdatedException(
-                        "Para publicar um documento em alteração é obrigatório informar a portaria e o BCA de referência.");
+                        "Para aprovar um documento em alteração é obrigatório informar a portaria e o BCA de referência.");
             }
             document.setPortariaReferencia(portaria.strip());
             document.setBcaReferencia(bca.strip());
@@ -77,6 +80,14 @@ public class DocumentoStatusService {
 
         document.setDocumentoStatus(novoStatus);
         documentoRepository.save(document);
+
+        // Ao entrar em EM_ALTERACAO, espaça os elementOrder (×100) para que novos
+        // elementos incluídos por emenda possam ser inseridos em posições intermediárias.
+        if (novoStatus == DocumentoStatusEnum.EM_ALTERACAO) {
+            normativaRepository.respacarElementOrders(id);
+            preliminarRepository.respacarElementOrders(id);
+            finalRepository.respacarElementOrders(id);
+        }
 
         if (novoStatus == DocumentoStatusEnum.APROVADO) {
             try {

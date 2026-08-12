@@ -1,11 +1,16 @@
 import { defineStore } from 'pinia'
 import { v4 as uuidv4 } from 'uuid'
-import { renumberElements } from '@/utils/numbering.js'
+import { renumberElements, renumberElementsEmAlteracao } from '@/utils/numbering.js'
 import * as api from '@/api/documents.js'
 
 function renumerarSecaoNormativa(doc) {
   const normativa = doc.secoes?.find(s => s.tipo === 'parte_normativa')
-  if (normativa?.elementos?.length) renumberElements(normativa.elementos)
+  if (!normativa?.elementos?.length) return
+  if (doc.status === 'EM_ALTERACAO') {
+    renumberElementsEmAlteracao(normativa.elementos)
+  } else {
+    renumberElements(normativa.elementos)
+  }
 }
 
 function makeElement(tipo, numero, conteudo = '', filhos = []) {

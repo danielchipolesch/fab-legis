@@ -27,4 +27,9 @@ public interface ItemAnexoParteNormativaRepository extends JpaRepository<ItemAne
     @Transactional
     @Query("DELETE FROM ItemAnexoParteNormativa i WHERE i.documento.id = :documentoId")
     void deleteAllByDocumentoId(@Param("documentoId") Long documentoId);
+
+    @Modifying
+    @Transactional
+    @Query("UPDATE ItemAnexoParteNormativa i SET i.elementOrder = i.elementOrder * 100 WHERE i.documento.id = :documentoId AND i.elementOrder IS NOT NULL")
+    void respacarElementOrders(@Param("documentoId") Long documentoId);
 }

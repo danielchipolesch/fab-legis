@@ -23,6 +23,7 @@ import javax.xml.parsers.SAXParserFactory;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.StringReader;
+import java.time.Instant;
 import java.util.List;
 
 @Service
@@ -63,7 +64,7 @@ public class DocumentoPdfService {
     public String gerarEArmazenarPdf(Documento documento) {
         try {
             byte[] pdfBytes = renderPdf(documento);
-            String filename = "documento-" + documento.getId() + ".pdf";
+            String filename = "documento-" + documento.getId() + "-" + Instant.now().toEpochMilli() + ".pdf";
             return imagemService.uploadPdf(pdfBytes, filename);
         } catch (Exception e) {
             throw new RuntimeException("Erro ao gerar/armazenar PDF: " + e.getMessage(), e);

@@ -69,6 +69,18 @@ public class EmendaService {
             return;
         }
 
+        // Elemento INCLUIDO: edição livre sem cláusula de alteração
+        if (acao == EmendaAcaoEnum.ALTERAR && item.getEmendaStatus() == ElementoEmendaStatusEnum.INCLUIDO) {
+            if (req.getNovoConteudo() != null) item.setConteudo(req.getNovoConteudo());
+            if (req.getNovoTitulo()   != null) item.setTitulo(req.getNovoTitulo());
+            preliminarRepository.save(item);
+            return;
+        }
+        if (acao == EmendaAcaoEnum.REVOGAR && item.getEmendaStatus() == ElementoEmendaStatusEnum.INCLUIDO) {
+            throw new IllegalArgumentException(
+                    "Elemento incluído por emenda não pode ser revogado. Use a opção de excluir.");
+        }
+
         validarJustificativa(req.getJustificativa());
 
         if (acao == EmendaAcaoEnum.ALTERAR) {
@@ -108,6 +120,18 @@ public class EmendaService {
             return;
         }
 
+        // Elemento INCLUIDO: edição livre sem cláusula de alteração
+        if (acao == EmendaAcaoEnum.ALTERAR && item.getEmendaStatus() == ElementoEmendaStatusEnum.INCLUIDO) {
+            if (req.getNovoConteudo() != null) item.setConteudo(req.getNovoConteudo());
+            if (req.getNovoTitulo()   != null) item.setTitulo(req.getNovoTitulo());
+            normativaRepository.save(item);
+            return;
+        }
+        if (acao == EmendaAcaoEnum.REVOGAR && item.getEmendaStatus() == ElementoEmendaStatusEnum.INCLUIDO) {
+            throw new IllegalArgumentException(
+                    "Elemento incluído por emenda não pode ser revogado. Use a opção de excluir.");
+        }
+
         validarJustificativa(req.getJustificativa());
 
         if (acao == EmendaAcaoEnum.ALTERAR) {
@@ -145,6 +169,18 @@ public class EmendaService {
             item.setEmendaStatus(ElementoEmendaStatusEnum.INALTERADO);
             finalRepository.save(item);
             return;
+        }
+
+        // Elemento INCLUIDO: edição livre sem cláusula de alteração
+        if (acao == EmendaAcaoEnum.ALTERAR && item.getEmendaStatus() == ElementoEmendaStatusEnum.INCLUIDO) {
+            if (req.getNovoConteudo() != null) item.setConteudo(req.getNovoConteudo());
+            if (req.getNovoTitulo()   != null) item.setTitulo(req.getNovoTitulo());
+            finalRepository.save(item);
+            return;
+        }
+        if (acao == EmendaAcaoEnum.REVOGAR && item.getEmendaStatus() == ElementoEmendaStatusEnum.INCLUIDO) {
+            throw new IllegalArgumentException(
+                    "Elemento incluído por emenda não pode ser revogado. Use a opção de excluir.");
         }
 
         validarJustificativa(req.getJustificativa());

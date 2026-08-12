@@ -8,6 +8,7 @@ const JSON_HEADERS = {
 export async function get(path) {
   const res = await fetch(`${BASE_URL}${path}`, {
     headers: { 'Accept': 'application/json' },
+    cache: 'no-cache',
   })
   if (!res.ok) throw new Error(`${res.status} ${res.statusText}`)
   return res.json()

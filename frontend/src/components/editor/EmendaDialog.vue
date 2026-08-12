@@ -15,24 +15,43 @@
           Elemento: <strong>{{ elementoLabel }}</strong>
         </div>
 
-        <!-- ALTERAR: editor para novo conteúdo + justificativa -->
+        <!-- ALTERAR: editor para novo conteúdo + justificativa (ou edição livre se INCLUIDO) -->
         <template v-if="acao === 'ALTERAR'">
-          <div class="text-caption text-weight-bold q-mb-xs">Novo conteúdo *</div>
-          <div style="border:1px solid rgba(0,0,0,0.2);border-radius:4px;overflow:hidden" class="q-mb-md">
-            <WysiwygEditor
-              :key="elemento?.id + '-alterar'"
-              v-model="novoConteudo"
-            />
+          <div v-if="isIncluido" class="q-mb-md q-pa-sm rounded-borders text-caption text-green-9"
+               style="background:rgba(2,110,44,0.08);border:1px solid rgba(2,110,44,0.25)">
+            Este elemento foi <strong>incluído por emenda</strong>. A edição do conteúdo não gera
+            cláusula de alteração — a cláusula de inclusão continua vigente.
           </div>
-          <div class="text-caption text-weight-bold q-mb-xs">Justificativa *</div>
-          <q-input
-            v-model="justificativa"
-            outlined dense
-            type="textarea"
-            :rows="3"
-            placeholder="Informe o motivo da alteração..."
-            :disable="salvando"
-          />
+          <!-- Campo de título para elementos superiores ao artigo (capítulo, seção, subseção) -->
+          <template v-if="isSuperTipo">
+            <div class="text-caption text-weight-bold q-mb-xs">Novo título *</div>
+            <q-input
+              v-model="novoTitulo"
+              outlined dense
+              class="q-mb-md"
+              :disable="salvando"
+            />
+          </template>
+          <template v-else>
+            <div class="text-caption text-weight-bold q-mb-xs">Novo conteúdo *</div>
+            <div style="border:1px solid rgba(0,0,0,0.2);border-radius:4px;overflow:hidden" class="q-mb-md">
+              <WysiwygEditor
+                :key="elemento?.id + '-alterar'"
+                v-model="novoConteudo"
+              />
+            </div>
+          </template>
+          <template v-if="!isIncluido">
+            <div class="text-caption text-weight-bold q-mb-xs">Justificativa *</div>
+            <q-input
+              v-model="justificativa"
+              outlined dense
+              type="textarea"
+              :rows="3"
+              placeholder="Informe o motivo da alteração..."
+              :disable="salvando"
+            />
+          </template>
         </template>
 
         <!-- REVOGAR: conteúdo atual (referência) + justificativa -->
@@ -120,41 +139,48 @@ const $q = useQuasar()
 const docStore  = useDocumentsStore()
 const editorStore = useEditorStore()
 
-const salvando     = ref(false)
+const SUPER_TIPOS = new Set(['capitulo', 'secao_normativa', 'subsecao_normativa'])
+
+const salvando      = ref(false)
 const justificativa = ref('')
 const novoConteudo  = ref('')
+const novoTitulo    = ref('')
+
+const isIncluido = computed(() => props.elemento?.emendaStatus === 'INCLUIDO')
+const isSuperTipo = computed(() => SUPER_TIPOS.has(props.elemento?.tipo ?? ''))
 
 watch(() => [props.modelValue, props.elemento, props.acao], ([open]) => {
   if (open) {
     justificativa.value = ''
-    // Se o elemento já foi alterado, o editor começa a partir do conteúdo da emenda anterior.
-    // Caso contrário, começa a partir do conteúdo original publicado.
-    novoConteudo.value = props.elemento?.conteudoEmenda ?? props.elemento?.conteudo ?? ''
+    novoConteudo.value  = props.elemento?.conteudoEmenda ?? props.elemento?.conteudo ?? ''
+    novoTitulo.value    = props.elemento?.tituloEmenda   ?? props.elemento?.titulo   ?? ''
   }
 }, { immediate: false })
 
-const acaoTitulo = computed(() => ({
-  ALTERAR:  'Alterar texto',
-  REVOGAR:  'Revogar elemento',
-  DESFAZER: 'Desfazer emenda',
-}[props.acao] ?? props.acao))
+const acaoTitulo = computed(() => {
+  if (props.acao === 'ALTERAR' && isIncluido.value) return 'Editar conteúdo'
+  if (props.acao === 'DESFAZER' && isIncluido.value) return 'Excluir elemento'
+  return { ALTERAR: 'Alterar texto', REVOGAR: 'Revogar elemento', DESFAZER: 'Desfazer emenda' }[props.acao] ?? props.acao
+})
 
 const acaoIcon = computed(() => ({
   ALTERAR:  'mdi-pencil-outline',
   REVOGAR:  'mdi-delete-outline',
-  DESFAZER: 'mdi-undo-variant',
+  DESFAZER: isIncluido.value ? 'mdi-trash-can-outline' : 'mdi-undo-variant',
 }[props.acao] ?? 'mdi-help'))
 
 const acaoColor = computed(() => ({
   ALTERAR:  'primary',
   REVOGAR:  'negative',
-  DESFAZER: 'warning',
+  DESFAZER: 'negative',
 }[props.acao] ?? 'grey'))
 
 const elementoLabel = computed(() => props.elemento ? formatLabel(props.elemento) : '—')
 
 const podeConfirmar = computed(() => {
   if (props.acao === 'DESFAZER') return true
+  // Edição de INCLUIDO não requer justificativa
+  if (props.acao === 'ALTERAR' && isIncluido.value) return true
   return justificativa.value?.trim().length > 0
 })
 
@@ -168,9 +194,9 @@ async function confirmar() {
       props.secao,
       id,
       props.acao,
-      props.acao === 'ALTERAR' ? novoConteudo.value : null,
-      null,
-      props.acao !== 'DESFAZER' ? justificativa.value : null,
+      props.acao === 'ALTERAR' && !isSuperTipo.value ? novoConteudo.value : null,
+      props.acao === 'ALTERAR' && isSuperTipo.value  ? novoTitulo.value  : null,
+      props.acao !== 'DESFAZER' && !isIncluido.value ? justificativa.value : null,
     )
     editorStore.reload()
     emit('update:model-value', false)
