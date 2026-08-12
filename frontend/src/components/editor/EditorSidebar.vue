@@ -111,7 +111,7 @@
                   >{{ nodePreview(node) }}</span>
                   <!-- Indicador de vazio -->
                   <q-icon
-                    v-if="!isGroupingType(node.tipo) && !isNodeFilled(node)"
+                    v-if="!isNodeFilled(node)"
                     name="mdi-alert-circle"
                     color="amber-7"
                     size="12px"
@@ -134,16 +134,22 @@
                   >{{ emendaStatusLabel(node.emendaStatus) }}</q-chip>
                   <!-- Ações normais (visíveis ao passar o mouse, ocultas quando EM_ALTERACAO) -->
                   <div v-if="!isEmAlteracao" class="norm-actions row items-center q-ml-xs" style="gap:2px;flex-shrink:0">
-                    <q-btn round size="xs" flat dense color="grey" @click.stop="$emit('move-up', node.id)">
+                    <q-btn
+                      v-if="editorStore.canMoveUp(node.id)"
+                      round size="xs" flat dense color="grey" @click.stop="$emit('move-up', node.id)"
+                    >
                       <q-icon size="11px" name="mdi-arrow-up" />
                       <q-tooltip anchor="center right" self="center left">Mover acima</q-tooltip>
                     </q-btn>
-                    <q-btn round size="xs" flat dense color="grey" @click.stop="$emit('move-down', node.id)">
+                    <q-btn
+                      v-if="editorStore.canMoveDown(node.id)"
+                      round size="xs" flat dense color="grey" @click.stop="$emit('move-down', node.id)"
+                    >
                       <q-icon size="11px" name="mdi-arrow-down" />
                       <q-tooltip anchor="center right" self="center left">Mover abaixo</q-tooltip>
                     </q-btn>
                     <q-btn
-                      v-if="childOptions(node).length || canPromoteNode(node)"
+                      v-if="childOptions(node).length || canDemoteNode(node) || canMoveNode(node)"
                       round size="xs" flat dense color="grey"
                       @click.stop
                     >
@@ -165,9 +171,9 @@
                             </q-item>
                             <q-separator />
                           </template>
-                          <template v-if="canPromoteNode(node)">
+                          <template v-if="canDemoteNode(node)">
                             <q-item-label header>Reorganizar</q-item-label>
-                            <q-item clickable v-close-popup @click="$emit('promote', node.id)">
+                            <q-item v-if="canPromoteNode(node)" clickable v-close-popup @click="$emit('promote', node.id)">
                               <q-item-section avatar>
                                 <q-icon name="mdi-arrow-collapse-up" />
                               </q-item-section>
@@ -178,6 +184,21 @@
                                 <q-icon name="mdi-arrow-expand-down" />
                               </q-item-section>
                               <q-item-section>Rebaixar nível</q-item-section>
+                            </q-item>
+                            <q-separator />
+                          </template>
+                          <template v-if="canMoveNode(node)">
+                            <q-item-label header>Mover para</q-item-label>
+                            <q-item
+                              v-for="target in moveTargets(node)"
+                              :key="target.id ?? 'root'"
+                              clickable v-close-popup
+                              @click="$emit('move-to-parent', node.id, target.id)"
+                            >
+                              <q-item-section avatar>
+                                <q-icon :name="target.id === null ? 'mdi-arrow-collapse-up' : 'mdi-folder-move-outline'" />
+                              </q-item-section>
+                              <q-item-section>{{ target.label }}</q-item-section>
                             </q-item>
                             <q-separator />
                           </template>
@@ -197,7 +218,8 @@
                   </div>
                   <!-- Ações de emenda (visíveis ao passar o mouse, quando EM_ALTERACAO) -->
                   <div v-else class="norm-actions row items-center q-ml-xs" style="gap:2px;flex-shrink:0">
-                    <template v-if="node.emendaStatus === 'INALTERADO' || node.emendaStatus === 'INCLUIDO'">
+                    <!-- Elemento original INALTERADO: pode alterar e revogar -->
+                    <template v-if="node.emendaStatus === 'INALTERADO'">
                       <q-btn round size="xs" flat dense color="primary" @click.stop="$emit('emenda-alterar', node.id, 'PARTE_NORMATIVA')">
                         <q-icon size="11px" name="mdi-pencil-outline" />
                         <q-tooltip anchor="center right" self="center left">Alterar texto</q-tooltip>
@@ -207,10 +229,22 @@
                         <q-tooltip anchor="center right" self="center left">Revogar</q-tooltip>
                       </q-btn>
                     </template>
-                    <template v-else>
+                    <!-- Emenda pendente no original (ALTERADO/REVOGADO): pode desfazer -->
+                    <template v-else-if="node.emendaStatus === 'ALTERADO' || node.emendaStatus === 'REVOGADO'">
                       <q-btn round size="xs" flat dense color="warning" @click.stop="$emit('emenda-desfazer', node.id, 'PARTE_NORMATIVA')">
                         <q-icon size="11px" name="mdi-undo-variant" />
                         <q-tooltip anchor="center right" self="center left">Desfazer emenda</q-tooltip>
+                      </q-btn>
+                    </template>
+                    <!-- Elemento inserido por emenda (INCLUIDO): edição livre ou exclusão direta -->
+                    <template v-else-if="node.emendaStatus === 'INCLUIDO'">
+                      <q-btn round size="xs" flat dense color="primary" @click.stop="$emit('emenda-alterar', node.id, 'PARTE_NORMATIVA')">
+                        <q-icon size="11px" name="mdi-pencil-outline" />
+                        <q-tooltip anchor="center right" self="center left">Editar conteúdo</q-tooltip>
+                      </q-btn>
+                      <q-btn round size="xs" flat dense color="negative" @click.stop="$emit('emenda-desfazer', node.id, 'PARTE_NORMATIVA')">
+                        <q-icon size="11px" name="mdi-trash-can-outline" />
+                        <q-tooltip anchor="center right" self="center left">Excluir elemento</q-tooltip>
                       </q-btn>
                     </template>
                   </div>
@@ -219,13 +253,13 @@
             </q-tree>
 
             <div class="q-mt-sm column q-px-xs" style="gap:4px">
-              <div>
+              <div v-if="!isEmAlteracao">
                 <q-btn
                   outline
                   color="primary"
                   size="sm"
                   class="full-width"
-                  :disable="isEmAlteracao || hasTopLevelArtigos || editorStore.adicionando"
+                  :disable="hasTopLevelArtigos || editorStore.adicionando"
                   :loading="editorStore.adicionando"
                 >
                   <q-icon left name="mdi-folder-plus-outline" />
@@ -255,6 +289,19 @@
                       </q-item>
                     </q-list>
                   </q-menu>
+                </q-btn>
+              </div>
+
+              <div v-if="isEmAlteracao">
+                <q-btn
+                  outline
+                  color="green-8"
+                  size="sm"
+                  class="full-width"
+                  @click="$emit('emenda-incluir', 'PARTE_NORMATIVA', normativaElementos)"
+                >
+                  <q-icon left name="mdi-plus-circle-outline" />
+                  Incluir novo elemento
                 </q-btn>
               </div>
 
@@ -519,8 +566,9 @@ const emit = defineEmits([
   'move-up', 'move-down',
   'add-child', 'add-artigo', 'add-capitulo',
   'promote', 'demote', 'remove',
+  'move-to-parent',
   'reorder-normativa',
-  'emenda-alterar', 'emenda-revogar', 'emenda-desfazer',
+  'emenda-alterar', 'emenda-revogar', 'emenda-desfazer', 'emenda-incluir',
 ])
 
 // ── Dialog de metadados ──────────────────────────────────────────────────────
@@ -593,8 +641,16 @@ const CHILD_MAP = {
 
 // ── Helpers p/ q-tree ────────────────────────────────────────────────────────
 const isGroupingType = (tipo) => GROUPING_TIPOS.has(tipo)
-const canPromoteNode = (node) => ARTIGO_TIPOS.has(node.tipo)
+const canPromoteNode = (node) => ARTIGO_TIPOS.has(node.tipo) && node.tipo !== 'artigo'
+const canDemoteNode  = (node) => ARTIGO_TIPOS.has(node.tipo)
 const childOptions   = (node) => CHILD_MAP[node.tipo] ?? []
+
+// ── "Mover para" (reparenteamento sem alterar tipo) ─────────────────────────
+// A lista de destinos válidos (incluindo "Nível superior", quando aplicável) é
+// inteiramente decidida pela store, que é a única fonte de verdade sobre a
+// hierarquia — evita que a UI ofereça um destino que viole o agrupamento.
+const moveTargets = (node) => editorStore.getMoveTargets(node.id)
+const canMoveNode = (node) => moveTargets(node).length > 0
 
 function extractText(conteudo) {
   if (!conteudo) return ''
@@ -609,7 +665,9 @@ function extractText(conteudo) {
   } catch { return '' }
 }
 
-const isNodeFilled = (node) => extractText(node?.conteudo).length > 0
+const isNodeFilled = (node) => isGroupingType(node?.tipo)
+  ? (node?.titulo ?? '').trim().length > 0
+  : extractText(node?.conteudo).length > 0
 
 const nodePreview = (node) => {
   const text = extractText(node?.conteudo)

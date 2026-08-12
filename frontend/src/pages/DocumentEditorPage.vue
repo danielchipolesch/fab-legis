@@ -17,13 +17,15 @@
       @promote="onPromote"
       @demote="handleDemote"
       @remove="onRemove"
+      @move-to-parent="onMoveToParent"
       @reorder-normativa="onReorderNormativa"
       @emenda-alterar="(id, secao) => abrirEmendaDialog(id, secao, 'ALTERAR')"
       @emenda-revogar="(id, secao) => abrirEmendaDialog(id, secao, 'REVOGAR')"
       @emenda-desfazer="(id, secao) => abrirEmendaDialog(id, secao, 'DESFAZER')"
+      @emenda-incluir="(secao, elementos) => abrirIncluirDialog(secao, elementos)"
     />
 
-    <!-- Dialog de emenda -->
+    <!-- Dialog de emenda (alterar / revogar / desfazer) -->
     <EmendaDialog
       v-if="isEmAlteracao"
       v-model="emendaDialogOpen"
@@ -31,6 +33,15 @@
       :elemento="emendaElemento"
       :secao="emendaSecao"
       :documento-id="documentoId"
+    />
+
+    <!-- Dialog de inclusão de novo elemento por emenda -->
+    <IncluirElementoDialog
+      v-if="isEmAlteracao"
+      v-model="incluirDialogOpen"
+      :secao="incluirSecao"
+      :documento-id="documentoId"
+      :elementos="incluirElementos"
     />
 
     <!-- Coluna principal: topbar + área de edição -->
@@ -125,26 +136,7 @@
                 </div>
                 <div class="row">
                   <q-btn
-                    v-if="!isGroupingEl && hasChildren(selectedElement)"
-                    size="sm"
-                    outline
-                    class="q-ml-sm"
-                    @click="handleDemote(selectedElement.id)"
-                  >
-                    <q-icon left name="mdi-arrow-expand-down" />
-                    Rebaixar
-                  </q-btn>
-                  <q-btn
-                    v-if="!isGroupingEl"
-                    size="sm"
-                    outline
-                    class="q-ml-sm"
-                    @click="editorStore.promote(selectedElement.id)"
-                  >
-                    <q-icon left name="mdi-arrow-collapse-up" />
-                    Promover
-                  </q-btn>
-                  <q-btn
+                    v-if="!isEmAlteracao"
                     size="sm"
                     outline
                     color="negative"
@@ -177,7 +169,7 @@
             <WysiwygEditor
               v-else
               :key="selectedElement.id"
-              :model-value="selectedElement.conteudo"
+              :model-value="wysiwygConteudo"
               :readonly="isReadonly"
               @update:model-value="onContentUpdate"
             />
@@ -246,6 +238,7 @@ import EditorSidebar from '@/components/editor/EditorSidebar.vue'
 import WysiwygEditor from '@/components/editor/WysiwygEditor.vue'
 import DocumentPreview from '@/components/editor/DocumentPreview.vue'
 import EmendaDialog from '@/components/editor/EmendaDialog.vue'
+import IncluirElementoDialog from '@/components/editor/IncluirElementoDialog.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -268,7 +261,10 @@ function scheduleAutoSave() {
 }
 
 async function autoSave() {
-  if (!editorStore.isDirty) return
+  if (!editorStore.isDirty) {
+    saveStatus.value = 'idle'
+    return
+  }
   saveStatus.value = 'saving'
   try {
     await editorStore.save()
@@ -301,6 +297,15 @@ const isReadonly = computed(() =>
   ['PUBLICADO', 'EM_ALTERACAO', 'ARQUIVADO', 'CANCELADO', 'REVOGADO'].includes(documento.value?.status)
 )
 
+// Elemento ALTERADO por emenda: o texto vigente fica em conteudoEmenda, não em
+// conteudo (que preserva o original para o tachado no preview). Demais status
+// (INALTERADO, INCLUIDO, REVOGADO) usam conteudo normalmente.
+const wysiwygConteudo = computed(() => {
+  const el = selectedElement.value
+  if (!el) return ''
+  return el.emendaStatus === 'ALTERADO' ? el.conteudoEmenda : el.conteudo
+})
+
 // ── Emenda dialog state ───────────────────────────────────────────────────────
 const emendaDialogOpen  = ref(false)
 const emendaAcao        = ref('ALTERAR')
@@ -314,6 +319,17 @@ function abrirEmendaDialog(elementoId, secao, acao) {
   emendaSecao.value      = secao
   emendaAcao.value       = acao
   emendaDialogOpen.value = true
+}
+
+// ── Incluir elemento dialog state ────────────────────────────────────────────
+const incluirDialogOpen = ref(false)
+const incluirSecao      = ref('PARTE_NORMATIVA')
+const incluirElementos  = ref([])
+
+function abrirIncluirDialog(secao, elementos = []) {
+  incluirSecao.value      = secao
+  incluirElementos.value  = elementos
+  incluirDialogOpen.value = true
 }
 
 const docLabel = computed(() => {
@@ -371,10 +387,6 @@ const childOptions = computed(() => {
   return el ? (CHILD_OPTIONS[el.tipo] ?? []) : []
 })
 
-function hasChildren(el) {
-  return el?.filhos?.length > 0
-}
-
 onMounted(async () => {
   if (documentoId.value) {
     // Tenta buscar do backend; se falhar, cai para versão em memória (recém-criada)
@@ -423,6 +435,10 @@ async function baixarPdf() {
   if (!documento.value) return
   pdfLoading.value = true
   try {
+    if (editorStore.isDirty) {
+      clearTimeout(autoSaveTimer)
+      await autoSave()
+    }
     await gerarPdf(documento.value)
   } catch (e) {
     console.error('[PDF]', e)
@@ -461,20 +477,63 @@ function onReorderNormativa() {
   }
 }
 
-function onMoveUp(id)            { editorStore.moveUp(id);        scheduleAutoSave() }
-function onMoveDown(id)          { editorStore.moveDown(id);      scheduleAutoSave() }
+function onMoveUp(id)   { if (editorStore.moveUp(id).ok)   scheduleAutoSave() }
+function onMoveDown(id) { if (editorStore.moveDown(id).ok) scheduleAutoSave() }
 function onAddChild(parentId, tipo) { editorStore.addFilho(parentId, tipo); scheduleAutoSave() }
-function onPromote(id)           { editorStore.promote(id);       scheduleAutoSave() }
 function onRemove(id)            { editorStore.removeElement(id); scheduleAutoSave() }
 
-function handleDemote(id) {
-  const result = editorStore.demote(id)
-  if (result && !result.ok && result.reason === 'at-bottom') {
+function onPromote(id) {
+  const result = editorStore.promote(id)
+  if (result && !result.ok) {
+    const messages = {
+      ceiling: 'Promoção bloqueada: o elemento está diretamente sob um artigo e promovê-lo o tornaria filho direto de um agrupamento (capítulo/seção/subseção), o que não é permitido.',
+      'no-parent': 'Promoção bloqueada: o elemento já está no nível mais alto possível.',
+    }
     $q.notify({
       type: 'warning',
       icon: 'mdi-alert-circle-outline',
-      message: 'Rebaixamento bloqueado: um subelemento já está no nível mais baixo (sub-alínea).',
-      position: 'top',
+      message: messages[result.reason] ?? 'Não foi possível promover o elemento.',
+      position: 'bottom-right',
+      timeout: 4000,
+    })
+  } else {
+    scheduleAutoSave()
+  }
+}
+
+function handleDemote(id) {
+  const result = editorStore.demote(id)
+  if (result && !result.ok) {
+    const messages = {
+      'at-bottom': 'Rebaixamento bloqueado: um subelemento já está no nível mais baixo (sub-alínea).',
+      'invalid-sibling': 'Rebaixamento bloqueado: o elemento anterior é um agrupamento (capítulo/seção/subseção) e não pode receber subelementos.',
+      'no-prev': 'Rebaixamento bloqueado: não há elemento anterior no mesmo nível para se tornar o novo pai.',
+    }
+    $q.notify({
+      type: 'warning',
+      icon: 'mdi-alert-circle-outline',
+      message: messages[result.reason] ?? 'Não foi possível rebaixar o elemento.',
+      position: 'bottom-right',
+      timeout: 4000,
+    })
+  } else {
+    scheduleAutoSave()
+  }
+}
+
+function onMoveToParent(id, newParentId) {
+  const result = editorStore.moveToParent(id, newParentId)
+  if (result && !result.ok) {
+    const messages = {
+      cycle: 'Não é possível mover um elemento para dentro dele mesmo.',
+      'invalid-parent': 'Destino inválido para este elemento.',
+      'not-movable': 'Este elemento não pode ser movido.',
+    }
+    $q.notify({
+      type: 'warning',
+      icon: 'mdi-alert-circle-outline',
+      message: messages[result.reason] ?? 'Não foi possível mover o elemento.',
+      position: 'bottom-right',
       timeout: 4000,
     })
   } else {
