@@ -381,32 +381,51 @@
           <strong>{{ dialog.target?.especie }} {{ dialog.target?.numero_basico }}<template v-if="dialog.target?.numero_secundario">-{{ dialog.target?.numero_secundario }}</template></strong>
           terá seu status alterado para <strong>{{ dialog.statusOpt?.status }}</strong>.
         </q-card-section>
-        <!-- Campos obrigatórios para re-publicação após alteração -->
+        <!-- Campos obrigatórios para republicação após alteração -->
         <template v-if="dialog.statusOpt?.requiresRefs">
           <q-separator />
           <q-card-section class="q-pt-sm column q-gutter-sm">
             <div class="text-caption text-grey-7">
               Informe os dados da Portaria e do BCA que registram esta alteração:
             </div>
-            <q-input
-              v-model="dialog.portariaReferencia"
-              label="Portaria de referência *"
-              outlined dense
-              placeholder="Ex: Portaria DIRAD n° 123, de 1° de jan. de 2026"
-            />
-            <q-input
-              v-model="dialog.bcaReferencia"
-              label="BCA de referência *"
-              outlined dense
-              placeholder="Ex: BCA n° 10, de 15 de jan. de 2026"
-            />
+            <div class="row q-gutter-sm">
+              <q-input
+                v-model="dialog.numeroPortaria"
+                label="Número da portaria *"
+                outlined dense class="col"
+                placeholder="Ex: DIRAD n° 123"
+              />
+              <q-input
+                v-model="dialog.dataPortaria"
+                type="date"
+                label="Data *"
+                outlined dense class="col"
+              />
+            </div>
+            <div class="row q-gutter-sm">
+              <q-input
+                v-model="dialog.numeroBca"
+                type="number" min="1" max="366"
+                label="Número do BCA *"
+                outlined dense class="col"
+              />
+              <q-input
+                v-model="dialog.dataBca"
+                type="date"
+                label="Data *"
+                outlined dense class="col"
+              />
+            </div>
+            <div v-if="errosRefs.length" class="text-caption text-negative">
+              <div v-for="err in errosRefs" :key="err">{{ err }}</div>
+            </div>
           </q-card-section>
         </template>
         <q-card-actions align="right" class="q-pb-md q-px-md">
           <q-btn flat v-close-popup>Cancelar</q-btn>
           <q-btn
             unelevated color="primary"
-            :disable="dialog.statusOpt?.requiresRefs && (!dialog.portariaReferencia?.trim() || !dialog.bcaReferencia?.trim())"
+            :disable="dialog.statusOpt?.requiresRefs && errosRefs.length > 0"
             @click="executarMudancaStatus"
           >Confirmar</q-btn>
         </q-card-actions>
@@ -516,16 +535,20 @@ function docRoute(doc) {
 }
 
 function statusActions(doc) {
+  // Depois de uma alteração (EM_ALTERACAO), o próximo passo é aprovar essa alteração
+  // — só então republicar fica disponível, a partir de APROVADO. "Publicar" vira
+  // "Republicar" quando o documento já passou por uma alteração antes.
+  const veioDeAlteracao = !!doc.data_em_alteracao
   const transitions = {
     RASCUNHO:     [{ status: 'MINUTA',        label: 'Enviar para Minuta',   icon: 'mdi-file-edit-outline' }],
     MINUTA:       [{ status: 'APROVADO',      label: 'Aprovar',              icon: 'mdi-check-circle-outline' },
                    { status: 'RASCUNHO',      label: 'Retornar p/ Rascunho', icon: 'mdi-undo' }],
-    APROVADO:     [{ status: 'PUBLICADO',     label: 'Publicar',             icon: 'mdi-publish' },
+    APROVADO:     [{ status: 'PUBLICADO',     label: veioDeAlteracao ? 'Republicar' : 'Publicar', icon: 'mdi-publish' },
                    { status: 'MINUTA',        label: 'Retornar p/ Minuta',   icon: 'mdi-undo' }],
     PUBLICADO:    [{ status: 'EM_ALTERACAO',  label: 'Iniciar Alteração',    icon: 'mdi-pencil-lock-outline' },
                    { status: 'ARQUIVADO',     label: 'Arquivar',             icon: 'mdi-archive-outline' },
                    { status: 'REVOGADO',      label: 'Revogar',             icon: 'mdi-file-remove-outline' }],
-    EM_ALTERACAO: [{ status: 'PUBLICADO', label: 'Re-publicar', icon: 'mdi-publish', requiresRefs: true }],
+    EM_ALTERACAO: [{ status: 'APROVADO', label: 'Aprovar Alteração', icon: 'mdi-check-circle-outline', requiresRefs: true }],
     ARQUIVADO: [],
     CANCELADO: [],
     REVOGADO:  [],
@@ -540,19 +563,23 @@ function confirmarMudancaStatus(doc, opt) {
 }
 
 function executarMudancaStatus() {
+  if (dialog.statusOpt?.requiresRefs && errosRefs.value.length) return
   if (dialog.target && dialog.statusOpt) {
-    store.changeStatus(
-      dialog.target.id,
-      dialog.statusOpt.status,
-      dialog.statusOpt.requiresRefs ? dialog.portariaReferencia : undefined,
-      dialog.statusOpt.requiresRefs ? dialog.bcaReferencia : undefined,
-    )
+    const refs = dialog.statusOpt.requiresRefs ? {
+      numeroPortaria: dialog.numeroPortaria.trim(),
+      dataPortaria:   dialog.dataPortaria,
+      numeroBca:      parseInt(dialog.numeroBca, 10),
+      dataBca:        dialog.dataBca,
+    } : undefined
+    store.changeStatus(dialog.target.id, dialog.statusOpt.status, refs)
   }
   dialog.status = false
   dialog.target = null
   dialog.statusOpt = null
-  dialog.portariaReferencia = ''
-  dialog.bcaReferencia = ''
+  dialog.numeroPortaria = ''
+  dialog.dataPortaria = ''
+  dialog.numeroBca = ''
+  dialog.dataBca = ''
 }
 
 async function baixarPdf(doc) {
@@ -583,7 +610,39 @@ function executarClone() {
 const dialog = reactive({
   delete: false, status: false, clone: false,
   target: null, statusOpt: null,
-  portariaReferencia: '', bcaReferencia: '',
+  numeroPortaria: '', dataPortaria: '',
+  numeroBca: '', dataBca: '',
+})
+
+// Validação dos dados de referência (só relevantes quando requiresRefs).
+// Datas são strings ISO "YYYY-MM-DD" (tanto as do formulário quanto as vindas do
+// backend), então comparação de string já basta para checar ordem cronológica.
+const errosRefs = computed(() => {
+  if (!dialog.statusOpt?.requiresRefs) return []
+  const errs = []
+  if (!dialog.numeroPortaria?.trim()) errs.push('Informe o número da portaria.')
+  if (!dialog.dataPortaria) errs.push('Informe a data da portaria.')
+
+  const bcaNum = parseInt(dialog.numeroBca, 10)
+  if (dialog.numeroBca === '' || isNaN(bcaNum)) {
+    errs.push('Informe o número do BCA.')
+  } else if (bcaNum < 1 || bcaNum > 366) {
+    // O BCA é publicado apenas em dias úteis, então nunca passa de 366 (dias do ano).
+    errs.push('O número do BCA deve estar entre 1 e 366.')
+  }
+  if (!dialog.dataBca) errs.push('Informe a data do BCA.')
+
+  // A data de cada alteração não pode ser anterior à alteração anterior.
+  if (dialog.dataPortaria && dialog.target?.data_portaria_referencia
+      && dialog.dataPortaria < dialog.target.data_portaria_referencia) {
+    errs.push('A data da portaria não pode ser anterior à da alteração anterior.')
+  }
+  if (dialog.dataBca && dialog.target?.data_bca_referencia
+      && dialog.dataBca < dialog.target.data_bca_referencia) {
+    errs.push('A data do BCA não pode ser anterior à da alteração anterior.')
+  }
+
+  return errs
 })
 
 function confirmarExclusao(doc) {

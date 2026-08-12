@@ -36,7 +36,9 @@ public class DocumentoMapper {
                 documento.getQtdReplicas(),
                 documento.getDtEmAlteracao(),
                 documento.getPortariaReferencia(),
-                documento.getBcaReferencia()
+                documento.getBcaReferencia(),
+                documento.getDtPortariaReferencia(),
+                documento.getDtBcaReferencia()
         );
     }
 
@@ -70,6 +72,8 @@ public class DocumentoMapper {
                 documento.getDtEmAlteracao(),
                 documento.getPortariaReferencia(),
                 documento.getBcaReferencia(),
+                documento.getDtPortariaReferencia(),
+                documento.getDtBcaReferencia(),
                 preliminares,
                 normativos,
                 finais

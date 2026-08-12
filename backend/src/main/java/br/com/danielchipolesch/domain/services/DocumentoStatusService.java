@@ -18,6 +18,7 @@ import org.springframework.stereotype.Service;
 
 import java.sql.Timestamp;
 import java.time.Instant;
+import java.time.LocalDate;
 
 @Service
 public class DocumentoStatusService {
@@ -54,16 +55,44 @@ public class DocumentoStatusService {
             throw new StatusCannotBeUpdatedException(DocumentException.CANNOT_BE_UPDATED.getMessage());
         }
 
-        // Ao aprovar após emenda, portaria e BCA são obrigatórios (o PDF os embute)
-        if (novoStatus == DocumentoStatusEnum.APROVADO && current == DocumentoStatusEnum.EM_ALTERACAO) {
-            String portaria = request.getPortariaReferencia();
-            String bca = request.getBcaReferencia();
-            if (portaria == null || portaria.isBlank() || bca == null || bca.isBlank()) {
+        // Ao republicar um documento que já passou por alteração (PUBLICADO vindo de
+        // APROVADO, que por sua vez veio de EM_ALTERACAO em algum momento), portaria e
+        // BCA de referência são obrigatórios — o PDF os embute. A aprovação da alteração
+        // em si (EM_ALTERACAO -> APROVADO) não exige nada além da confirmação de status.
+        boolean republicacaoPosAlteracao = novoStatus == DocumentoStatusEnum.PUBLICADO
+                && current == DocumentoStatusEnum.APROVADO
+                && document.getDtEmAlteracao() != null;
+        if (republicacaoPosAlteracao) {
+            String numeroPortaria = request.getNumeroPortaria();
+            LocalDate dataPortaria = request.getDataPortaria();
+            Integer numeroBca = request.getNumeroBca();
+            LocalDate dataBca = request.getDataBca();
+
+            if (numeroPortaria == null || numeroPortaria.isBlank() || dataPortaria == null
+                    || numeroBca == null || dataBca == null) {
                 throw new StatusCannotBeUpdatedException(
-                        "Para aprovar um documento em alteração é obrigatório informar a portaria e o BCA de referência.");
+                        "Para republicar um documento alterado é obrigatório informar a portaria e o BCA de referência.");
             }
-            document.setPortariaReferencia(portaria.strip());
-            document.setBcaReferencia(bca.strip());
+            // O BCA é publicado apenas em dias úteis, então nunca passa de 366 (dias do ano).
+            if (numeroBca < 1 || numeroBca > 366) {
+                throw new StatusCannotBeUpdatedException(
+                        "O número do BCA deve estar entre 1 e 366.");
+            }
+            if (document.getDtPortariaReferencia() != null
+                    && dataPortaria.isBefore(document.getDtPortariaReferencia().toLocalDateTime().toLocalDate())) {
+                throw new StatusCannotBeUpdatedException(
+                        "A data da portaria não pode ser anterior à da alteração anterior.");
+            }
+            if (document.getDtBcaReferencia() != null
+                    && dataBca.isBefore(document.getDtBcaReferencia().toLocalDateTime().toLocalDate())) {
+                throw new StatusCannotBeUpdatedException(
+                        "A data do BCA não pode ser anterior à da alteração anterior.");
+            }
+
+            document.setPortariaReferencia("Portaria " + numeroPortaria.strip() + ", de " + formatarDataPorExtenso(dataPortaria));
+            document.setBcaReferencia("BCA nº " + numeroBca + ", de " + formatarDataPorExtenso(dataBca));
+            document.setDtPortariaReferencia(Timestamp.valueOf(dataPortaria.atStartOfDay()));
+            document.setDtBcaReferencia(Timestamp.valueOf(dataBca.atStartOfDay()));
         }
 
         Timestamp agora = Timestamp.from(Instant.now());
@@ -102,5 +131,14 @@ public class DocumentoStatusService {
         documentoHistoricoService.registrar(document, TipoAlteracaoEnum.ALTERACAO_STATUS,
                 current.name() + " → " + novoStatus.name(), current, novoStatus);
         return DocumentoMapper.documentoToDocumentoSemAnexoTextualResponseDto(document);
+    }
+
+    private static final String[] MESES = {
+            "janeiro", "fevereiro", "março", "abril", "maio", "junho",
+            "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"
+    };
+
+    private static String formatarDataPorExtenso(LocalDate data) {
+        return data.getDayOfMonth() + " de " + MESES[data.getMonthValue() - 1] + " de " + data.getYear();
     }
 }

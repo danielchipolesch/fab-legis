@@ -83,6 +83,12 @@ public class Documento extends RepresentationModel<Documento> {
     @Column(name = "tx_bca_referencia")
     private String bcaReferencia;
 
+    @Column(name = "dt_portaria_referencia")
+    private Timestamp dtPortariaReferencia;
+
+    @Column(name = "dt_bca_referencia")
+    private Timestamp dtBcaReferencia;
+
     @Column(name = "nr_versao", nullable = false)
     @Version
     private Integer versao;

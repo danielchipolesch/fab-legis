@@ -54,4 +54,10 @@ public class DocumentoResponseSemAnexoTextualDto {
     private String portariaReferencia;
 
     private String bcaReferencia;
+
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd", timezone = "America/Sao_Paulo")
+    private Timestamp dtPortariaReferencia;
+
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd", timezone = "America/Sao_Paulo")
+    private Timestamp dtBcaReferencia;
 }

@@ -116,6 +116,8 @@ export function backendParaFrontend(doc) {
     qtd_replicas: doc.qtdReplicas ?? 0,
     portaria_referencia: doc.portariaReferencia ?? null,
     bca_referencia: doc.bcaReferencia ?? null,
+    data_portaria_referencia: parseDtCriacao(doc.dtPortariaReferencia),
+    data_bca_referencia:      parseDtCriacao(doc.dtBcaReferencia),
     versoes: [],
     secoes,
   }
@@ -160,10 +162,14 @@ export async function updateDocumento(id, data) {
   return backendParaFrontend(result)
 }
 
-export async function changeDocumentoStatus(id, novoStatus, portariaReferencia, bcaReferencia) {
+export async function changeDocumentoStatus(id, novoStatus, refs) {
   const body = { status: novoStatus }
-  if (portariaReferencia) body.portariaReferencia = portariaReferencia
-  if (bcaReferencia) body.bcaReferencia = bcaReferencia
+  if (refs) {
+    body.numeroPortaria = refs.numeroPortaria ?? null
+    body.dataPortaria    = refs.dataPortaria ?? null
+    body.numeroBca       = refs.numeroBca ?? null
+    body.dataBca         = refs.dataBca ?? null
+  }
   const result = await http.patch(`/documentos/${id}/status`, body)
   return backendParaFrontend(result)
 }

@@ -215,8 +215,8 @@ export const useDocumentsStore = defineStore('documents', {
       return atualizado
     },
 
-    async changeStatus(id, novoStatus, portariaReferencia, bcaReferencia) {
-      const atualizado = await api.changeDocumentoStatus(id, novoStatus, portariaReferencia, bcaReferencia)
+    async changeStatus(id, novoStatus, refs) {
+      const atualizado = await api.changeDocumentoStatus(id, novoStatus, refs)
       if (atualizado) {
         const idx = this.documentos.findIndex(d => String(d.id) === String(id))
         if (idx !== -1) this.documentos[idx] = { ...this.documentos[idx], ...atualizado }
