@@ -341,15 +341,16 @@ const GROUPING_TYPES = new Set(['capitulo', 'secao_normativa', 'subsecao_normati
 // Regras de "mover para" (reparenteamento sem alterar tipo): para cada tipo de
 // elemento, `parents` lista os tipos de agrupamento aos quais ele pode ser filho
 // direto, `root` indica se ele pode existir solto no nível raiz da Parte
-// Normativa, e `scopeToLineage` restringe os destinos ao capítulo em que o
-// elemento já está (evita que um artigo "pule" para um capítulo distante e
-// sem relação, mantendo o "mover para" como reorganização local). Isso
-// espelha estritamente a hierarquia capítulo → seção → subseção → artigo —
-// nunca pode ser violada, sob pena de o elemento ficar sem pai válido.
-// Elementos ausentes deste mapa não são movíveis (ex.: parágrafo, inciso, alínea
-// e sub-alínea só existem dentro da cadeia de um artigo).
+// Normativa (só capítulo — nunca artigo nem qualquer outro tipo), e
+// `scopeToLineage` restringe os destinos ao capítulo em que o elemento já está
+// (evita que um artigo "pule" para um capítulo distante e sem relação, mantendo
+// o "mover para" como reorganização local). Isso espelha estritamente a
+// hierarquia capítulo → seção → subseção → artigo — nunca pode ser violada, sob
+// pena de o elemento ficar sem pai válido. Elementos ausentes deste mapa não são
+// movíveis (ex.: parágrafo, inciso, alínea e sub-alínea só existem dentro da
+// cadeia de um artigo).
 const VALID_MOVE_PARENT_TYPES = {
-  artigo:              { parents: new Set(['capitulo', 'secao_normativa', 'subsecao_normativa']), root: true, scopeToLineage: true },
+  artigo:              { parents: new Set(['capitulo', 'secao_normativa', 'subsecao_normativa']), root: false, scopeToLineage: true },
   capitulo:            { parents: new Set([]), root: true },
   secao_normativa:     { parents: new Set(['capitulo']), root: false },
   subsecao_normativa:  { parents: new Set(['secao_normativa']), root: false },
