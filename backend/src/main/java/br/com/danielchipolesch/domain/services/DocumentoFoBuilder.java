@@ -534,8 +534,11 @@ public class DocumentoFoBuilder {
 
         private String artLabel(ItemAnexoParteNormativaResponseDto item, Numbering num) {
             String letra = num.letra.get(item.getId());
-            String base = ordinalOrCardinal(num.numero.getOrDefault(item.getId(), 0));
-            return letra != null ? base + "-" + letra : base;
+            int n = num.numero.getOrDefault(item.getId(), 0);
+            if (letra == null) return ordinalOrCardinal(n);
+            // Com sufixo de letra, o ponto do cardinal (a partir do 10°) migra para o
+            // final, depois da letra — nunca fica entre o número e o hífen.
+            return n <= 9 ? n + "º-" + letra : n + "-" + letra + ".";
         }
 
         // ─── TOC ──────────────────────────────────────────────────────────────
@@ -583,39 +586,39 @@ public class DocumentoFoBuilder {
             return sb.toString();
         }
 
-        private int firstArtigoNum(List<ItemAnexoParteNormativaResponseDto> items, Map<Long, Integer> artNums) {
-            if (items == null) return -1;
+        private ItemAnexoParteNormativaResponseDto firstArtigoItem(List<ItemAnexoParteNormativaResponseDto> items, Numbering num) {
+            if (items == null) return null;
             for (var item : items) {
-                if (item.getElementType() == ItemAnexoParteNormativaTipoEnum.ARTIGO) {
-                    int n = artNums.getOrDefault(item.getId(), -1);
-                    if (n > 0) return n;
+                if (item.getElementType() == ItemAnexoParteNormativaTipoEnum.ARTIGO
+                        && num.numero.getOrDefault(item.getId(), -1) > 0) {
+                    return item;
                 }
-                int found = firstArtigoNum(item.getChildren(), artNums);
-                if (found > 0) return found;
+                var found = firstArtigoItem(item.getChildren(), num);
+                if (found != null) return found;
             }
-            return -1;
+            return null;
         }
 
-        private int lastArtigoNum(List<ItemAnexoParteNormativaResponseDto> items, Map<Long, Integer> artNums) {
-            if (items == null) return -1;
-            int last = -1;
+        private ItemAnexoParteNormativaResponseDto lastArtigoItem(List<ItemAnexoParteNormativaResponseDto> items, Numbering num) {
+            if (items == null) return null;
+            ItemAnexoParteNormativaResponseDto last = null;
             for (var item : items) {
-                if (item.getElementType() == ItemAnexoParteNormativaTipoEnum.ARTIGO) {
-                    int n = artNums.getOrDefault(item.getId(), -1);
-                    if (n > 0) last = n;
+                if (item.getElementType() == ItemAnexoParteNormativaTipoEnum.ARTIGO
+                        && num.numero.getOrDefault(item.getId(), -1) > 0) {
+                    last = item;
                 }
-                int childLast = lastArtigoNum(item.getChildren(), artNums);
-                if (childLast > 0) last = childLast;
+                var childLast = lastArtigoItem(item.getChildren(), num);
+                if (childLast != null) last = childLast;
             }
             return last;
         }
 
-        private String fmtRange(List<ItemAnexoParteNormativaResponseDto> children, Map<Long, Integer> artNums) {
-            int first = firstArtigoNum(children, artNums);
-            if (first < 0) return "";
-            int last = lastArtigoNum(children, artNums);
-            if (last < 0) last = first;
-            return first == last ? fmtNum(first) : fmtNum(first) + "/" + fmtNum(last);
+        // Endpoint de intervalo do sumário: número + sufixo de letra (ex.: "13-A"), para
+        // que um artigo incluído por emenda apareça refletido no intervalo do capítulo/seção.
+        private String artEndpoint(ItemAnexoParteNormativaResponseDto item, Numbering num) {
+            String base = fmtNum(num.numero.getOrDefault(item.getId(), 0));
+            String letra = num.letra.get(item.getId());
+            return letra != null ? base + "-" + letra : base;
         }
 
         private static final java.util.Set<ItemAnexoParteNormativaTipoEnum> GROUPING_TYPES = java.util.Set.of(
@@ -629,46 +632,59 @@ public class DocumentoFoBuilder {
         private String artRangeFor(ItemAnexoParteNormativaResponseDto item,
                                    List<ItemAnexoParteNormativaResponseDto> siblings,
                                    int idx,
-                                   Map<Long, Integer> artNums) {
-            int first = firstArtigoNum(item.getChildren(), artNums);
-            int last  = lastArtigoNum (item.getChildren(), artNums);
+                                   Numbering num) {
+            var first = firstArtigoItem(item.getChildren(), num);
+            var last  = lastArtigoItem(item.getChildren(), num);
             for (int j = idx + 1; j < siblings.size(); j++) {
                 var sib = siblings.get(j);
                 if (GROUPING_TYPES.contains(sib.getElementType())) break;
                 if (sib.getElementType() == ItemAnexoParteNormativaTipoEnum.ARTIGO) {
-                    int n = artNums.getOrDefault(sib.getId(), -1);
+                    int n = num.numero.getOrDefault(sib.getId(), -1);
                     if (n > 0) {
-                        if (first < 0) first = n; else first = Math.min(first, n);
-                        if (last  < 0) last  = n; else last  = Math.max(last,  n);
+                        if (first == null || n < num.numero.getOrDefault(first.getId(), -1)) first = sib;
+                        if (last  == null || n > num.numero.getOrDefault(last.getId(), -1))  last  = sib;
                     }
                 }
             }
-            if (first < 0) return "";
-            if (last  < 0) last = first;
-            return first == last ? fmtNum(first) : fmtNum(first) + "/" + fmtNum(last);
+            if (first == null) return "";
+            if (last == null) last = first;
+            String a = artEndpoint(first, num);
+            String b = artEndpoint(last, num);
+            return a.equals(b) ? a : a + "/" + b;
+        }
+
+        // Título vigente para o sumário: se ALTERADO por emenda, usa o novo título
+        // (o original tachado só faz sentido no corpo, não numa linha de sumário).
+        private String effectiveTitle(ItemAnexoParteNormativaResponseDto item) {
+            if (item.getEmendaStatus() == ElementoEmendaStatusEnum.ALTERADO
+                    && item.getTituloEmenda() != null && !item.getTituloEmenda().isBlank()) {
+                return item.getTituloEmenda();
+            }
+            return item.getElementTitle();
         }
 
         private void walkToc(List<ItemAnexoParteNormativaResponseDto> items, List<TocEntry> entries, Numbering num) {
             if (items == null) return;
             for (int i = 0; i < items.size(); i++) {
                 var item = items.get(i);
+                String titulo = effectiveTitle(item);
                 switch (item.getElementType()) {
                     case CAPITULO -> {
-                        String t = item.getElementTitle() != null ? " - " + item.getElementTitle().toUpperCase() : "";
+                        String t = titulo != null ? " - " + titulo.toUpperCase() : "";
                         entries.add(new TocEntry("CAPÍTULO " + capLabel(item, num) + t, true, false, false,
-                                "norm-" + item.getId(), artRangeFor(item, items, i, num.numero)));
+                                "norm-" + item.getId(), artRangeFor(item, items, i, num)));
                         walkToc(item.getChildren(), entries, num);
                     }
                     case SECAO_NORMATIVA -> {
-                        String t = item.getElementTitle() != null ? " - " + item.getElementTitle() : "";
+                        String t = titulo != null ? " - " + titulo : "";
                         entries.add(new TocEntry("Seção " + secLabel(item, num) + t, false, true, false,
-                                "norm-" + item.getId(), artRangeFor(item, items, i, num.numero)));
+                                "norm-" + item.getId(), artRangeFor(item, items, i, num)));
                         walkToc(item.getChildren(), entries, num);
                     }
                     case SUBSECAO_NORMATIVA -> {
-                        String t = item.getElementTitle() != null ? " - " + item.getElementTitle() : "";
+                        String t = titulo != null ? " - " + titulo : "";
                         entries.add(new TocEntry("Subseção " + subLabel(item, num) + t, false, true, true,
-                                "norm-" + item.getId(), artRangeFor(item, items, i, num.numero)));
+                                "norm-" + item.getId(), artRangeFor(item, items, i, num)));
                         walkToc(item.getChildren(), entries, num);
                     }
                     default -> {}
@@ -701,37 +717,57 @@ public class DocumentoFoBuilder {
             for (var item : items) renderNormItem(item, sb, num);
         }
 
+        // Cabeçalho de capítulo/seção/subseção, ciente de emenda: título original tachado
+        // para REVOGADO/ALTERADO, novo título para ALTERADO/INCLUIDO, nota de referência
+        // para os três — espelha renderBodyEl's overload de emenda para conteúdo de artigo.
+        private void renderGroupingHeading(StringBuilder sb, String anc, String headingText, String spaceBefore,
+                                           String titulo, String tituloEmenda,
+                                           ElementoEmendaStatusEnum emendaStatus, boolean uppercase) {
+            sb.append("<fo:block id=\"").append(anc).append("\"")
+              .append(" text-align=\"center\" font-weight=\"bold\" space-before=\"").append(spaceBefore)
+              .append("\" space-after=\"3pt\">").append(headingText).append("</fo:block>\n");
+
+            if (emendaStatus == null || emendaStatus == ElementoEmendaStatusEnum.INALTERADO) {
+                if (titulo != null && !titulo.isBlank()) {
+                    sb.append("<fo:block text-align=\"center\" font-weight=\"bold\" space-after=\"6pt\">")
+                      .append(foEsc(uppercase ? titulo.toUpperCase() : titulo)).append("</fo:block>\n");
+                }
+                return;
+            }
+
+            if (emendaStatus == ElementoEmendaStatusEnum.REVOGADO || emendaStatus == ElementoEmendaStatusEnum.ALTERADO) {
+                if (titulo != null && !titulo.isBlank()) {
+                    sb.append("<fo:block text-align=\"center\" font-weight=\"bold\" space-after=\"3pt\" text-decoration=\"line-through\">")
+                      .append(foEsc(uppercase ? titulo.toUpperCase() : titulo)).append("</fo:block>\n");
+                }
+            }
+            if (emendaStatus == ElementoEmendaStatusEnum.ALTERADO || emendaStatus == ElementoEmendaStatusEnum.INCLUIDO) {
+                String texto = emendaStatus == ElementoEmendaStatusEnum.ALTERADO ? tituloEmenda : titulo;
+                if (texto != null && !texto.isBlank()) {
+                    sb.append("<fo:block text-align=\"center\" font-weight=\"bold\" space-after=\"3pt\">")
+                      .append(foEsc(uppercase ? texto.toUpperCase() : texto)).append("</fo:block>\n");
+                }
+            }
+            sb.append("<fo:block text-align=\"center\" space-after=\"5pt\">")
+              .append(emendaRefInline(emendaStatus)).append("</fo:block>\n");
+        }
+
         private void renderNormItem(ItemAnexoParteNormativaResponseDto item, StringBuilder sb, Numbering num) {
             String anc = "norm-" + item.getId();
             switch (item.getElementType()) {
                 case CAPITULO -> {
-                    sb.append("<fo:block id=\"").append(anc).append("\"")
-                      .append(" text-align=\"center\" font-weight=\"bold\" space-before=\"15pt\" space-after=\"3pt\">")
-                      .append("CAPÍTULO ").append(capLabel(item, num)).append("</fo:block>\n");
-                    if (item.getElementTitle() != null && !item.getElementTitle().isBlank()) {
-                        sb.append("<fo:block text-align=\"center\" font-weight=\"bold\" space-after=\"6pt\">")
-                          .append(foEsc(item.getElementTitle().toUpperCase())).append("</fo:block>\n");
-                    }
+                    renderGroupingHeading(sb, anc, "CAPÍTULO " + capLabel(item, num), "15pt",
+                            item.getElementTitle(), item.getTituloEmenda(), item.getEmendaStatus(), true);
                     renderNormItems(item.getChildren(), sb, num);
                 }
                 case SECAO_NORMATIVA -> {
-                    sb.append("<fo:block id=\"").append(anc).append("\"")
-                      .append(" text-align=\"center\" font-weight=\"bold\" space-before=\"10pt\" space-after=\"3pt\">")
-                      .append("Seção ").append(secLabel(item, num)).append("</fo:block>\n");
-                    if (item.getElementTitle() != null && !item.getElementTitle().isBlank()) {
-                        sb.append("<fo:block text-align=\"center\" font-weight=\"bold\" space-after=\"5pt\">")
-                          .append(foEsc(item.getElementTitle())).append("</fo:block>\n");
-                    }
+                    renderGroupingHeading(sb, anc, "Seção " + secLabel(item, num), "10pt",
+                            item.getElementTitle(), item.getTituloEmenda(), item.getEmendaStatus(), false);
                     renderNormItems(item.getChildren(), sb, num);
                 }
                 case SUBSECAO_NORMATIVA -> {
-                    sb.append("<fo:block id=\"").append(anc).append("\"")
-                      .append(" text-align=\"center\" font-weight=\"bold\" space-before=\"8pt\" space-after=\"3pt\">")
-                      .append("Subseção ").append(subLabel(item, num)).append("</fo:block>\n");
-                    if (item.getElementTitle() != null && !item.getElementTitle().isBlank()) {
-                        sb.append("<fo:block text-align=\"center\" font-weight=\"bold\" space-after=\"5pt\">")
-                          .append(foEsc(item.getElementTitle())).append("</fo:block>\n");
-                    }
+                    renderGroupingHeading(sb, anc, "Subseção " + subLabel(item, num), "8pt",
+                            item.getElementTitle(), item.getTituloEmenda(), item.getEmendaStatus(), false);
                     renderNormItems(item.getChildren(), sb, num);
                 }
                 case ARTIGO -> {
