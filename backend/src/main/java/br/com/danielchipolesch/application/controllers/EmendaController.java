@@ -44,4 +44,20 @@ public class EmendaController {
         emendaService.incluir(docId, secao, request);
         return ResponseEntity.noContent().build();
     }
+
+    /**
+     * Reordena um artigo incluído por emenda (ainda não aprovado) entre seus irmãos.
+     * Só é permitido trocar de posição com outro artigo também incluído — nunca com
+     * um artigo original (INALTERADO/ALTERADO/REVOGADO), cuja renumeração é vedada.
+     * direcao: CIMA | BAIXO
+     */
+    @PatchMapping("/{secao}/{elementoId}/reordenar")
+    public ResponseEntity<Void> reordenar(
+            @PathVariable Long docId,
+            @PathVariable String secao,
+            @PathVariable Long elementoId,
+            @RequestParam String direcao) {
+        emendaService.reordenarIncluido(docId, secao, elementoId, direcao);
+        return ResponseEntity.noContent().build();
+    }
 }

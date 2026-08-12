@@ -9,6 +9,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+
 @Service
 public class EmendaService {
 
@@ -199,6 +201,59 @@ public class EmendaService {
         }
         item.setJustificativaEmenda(req.getJustificativa());
         finalRepository.save(item);
+    }
+
+    // ─── Reordenar artigo incluído por emenda ──────────────────────────────────────
+    //
+    // Regra (LGCP): é vedada a renumeração de artigos e unidades superiores ao artigo
+    // — cada um mantém sua posição fixa, identificada por número-base + sufixo de
+    // letra quando inserido por emenda. A ÚNICA exceção é entre artigos ainda em modo
+    // de inclusão (INCLUIDO, ainda não aprovados): como nenhum deles tem posição
+    // definitiva até a aprovação, podem ser livremente reordenados ENTRE SI. Nunca é
+    // permitido trocar de posição com um artigo original (INALTERADO/ALTERADO/
+    // REVOGADO), pois isso equivaleria a renumerá-lo.
+
+    @Transactional
+    public void reordenarIncluido(Long docId, String secao, Long elementoId, String direcao) {
+        carregarEmAlteracao(docId);
+        SecaoDocumentoEnum secaoEnum = SecaoDocumentoEnum.valueOf(secao.toUpperCase());
+        if (secaoEnum != SecaoDocumentoEnum.PARTE_NORMATIVA) {
+            throw new IllegalArgumentException("Reordenação só é permitida na parte normativa.");
+        }
+
+        ItemAnexoParteNormativa item = normativaRepository.findById(elementoId)
+                .filter(e -> e.getDocumento().getId().equals(docId))
+                .orElseThrow(() -> new RuntimeException(ELEM_NAO_ENCONTRADO));
+
+        if (item.getTipo() != ItemAnexoParteNormativaTipoEnum.ARTIGO
+                || item.getEmendaStatus() != ElementoEmendaStatusEnum.INCLUIDO) {
+            throw new IllegalArgumentException(
+                    "Só é possível reordenar artigos incluídos por emenda e ainda não aprovados.");
+        }
+
+        List<ItemAnexoParteNormativa> siblings = item.getParent() != null
+                ? normativaRepository.findByParentOrderByElementOrderAsc(item.getParent())
+                : normativaRepository.findRootItemsByDocumentoId(docId);
+
+        int idx = siblings.indexOf(item);
+        boolean cima = "CIMA".equalsIgnoreCase(direcao);
+        int targetIdx = idx + (cima ? -1 : 1);
+        if (idx < 0 || targetIdx < 0 || targetIdx >= siblings.size()) {
+            throw new IllegalArgumentException("Não é possível mover o elemento nessa direção.");
+        }
+
+        ItemAnexoParteNormativa vizinho = siblings.get(targetIdx);
+        if (vizinho.getTipo() != ItemAnexoParteNormativaTipoEnum.ARTIGO
+                || vizinho.getEmendaStatus() != ElementoEmendaStatusEnum.INCLUIDO) {
+            throw new IllegalArgumentException(
+                    "Só é possível trocar de posição com outro artigo incluído por emenda.");
+        }
+
+        Integer ordemItem = item.getElementOrder();
+        item.setElementOrder(vizinho.getElementOrder());
+        vizinho.setElementOrder(ordemItem);
+        normativaRepository.save(item);
+        normativaRepository.save(vizinho);
     }
 
     // ─── Incluir novo elemento ────────────────────────────────────────────────────
