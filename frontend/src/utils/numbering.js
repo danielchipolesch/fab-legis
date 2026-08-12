@@ -17,10 +17,13 @@ function ordinalOrCardinal(n) {
   return n <= 9 ? `${n}` + '\xBA' : `${n}.`
 }
 
-// Sufixo de letra para elementos inseridos por emenda (Art. 7°-A, 7°-B, …)
+// Sufixo de letra para elementos inseridos por emenda (Art. 7°-A, Art. 27-A., …)
+// Quando há letra, o ponto do cardinal (a partir do 10°) migra para o final,
+// depois da letra — nunca fica entre o número e o hífen.
 function ordinalWithLetra(n, letra) {
-  const base = ordinalOrCardinal(n)
-  return letra ? `${base}-${letra}` : base
+  if (!letra) return ordinalOrCardinal(n)
+  if (n <= 9) return `${n}\xBA-${letra}`
+  return `${n}-${letra}.`
 }
 
 export function formatLabel(element) {

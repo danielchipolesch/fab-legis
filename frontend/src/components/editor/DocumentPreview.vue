@@ -166,19 +166,26 @@
         <!-- Parte Normativa — capítulos, seções, artigos, parágrafos, incisos, alíneas -->
         <template v-for="item in normativaFlat" :key="item.el.id">
 
-          <div v-if="item.el.tipo === 'capitulo'" :id="'prev-' + item.el.id" class="capitulo-heading">
-            <p class="cap-numero">CAPÍTULO {{ toRomanStr(item.el.numero) }}</p>
-            <p v-if="item.el.titulo" class="cap-titulo">{{ item.el.titulo.toUpperCase() }}</p>
-          </div>
-
-          <div v-else-if="item.el.tipo === 'secao_normativa'" :id="'prev-' + item.el.id" class="secao-heading">
-            <p class="sec-numero"><strong>Seção {{ toRomanStr(item.el.numero) }}</strong></p>
-            <p v-if="item.el.titulo" class="sec-titulo"><strong>{{ item.el.titulo }}</strong></p>
-          </div>
-
-          <div v-else-if="item.el.tipo === 'subsecao_normativa'" :id="'prev-' + item.el.id" class="subsecao-heading">
-            <p class="subsec-numero"><strong>Subseção {{ toRomanStr(item.el.numero) }}</strong></p>
-            <p v-if="item.el.titulo" class="subsec-titulo"><strong>{{ item.el.titulo }}</strong></p>
+          <div v-if="isGrouping(item.el.tipo)" :id="'prev-' + item.el.id" :class="groupingHeadingClass(item.el.tipo)">
+            <p :class="groupingNumeroClass(item.el.tipo)">{{ groupingLabel(item.el) }}</p>
+            <!-- REVOGADO: título original tachado + referência -->
+            <template v-if="item.el.emendaStatus === 'REVOGADO'">
+              <p v-if="item.el.titulo" :class="[groupingTituloClass(item.el.tipo), 'emenda-strikethrough']">{{ groupingTituloTexto(item.el.tipo, item.el.titulo) }}</p>
+              <p class="emenda-ref">{{ emendaRef(item.el) }}</p>
+            </template>
+            <!-- ALTERADO: título original tachado + novo título + referência -->
+            <template v-else-if="item.el.emendaStatus === 'ALTERADO'">
+              <p v-if="item.el.titulo" :class="[groupingTituloClass(item.el.tipo), 'emenda-strikethrough']">{{ groupingTituloTexto(item.el.tipo, item.el.titulo) }}</p>
+              <p v-if="item.el.tituloEmenda" :class="groupingTituloClass(item.el.tipo)">{{ groupingTituloTexto(item.el.tipo, item.el.tituloEmenda) }}</p>
+              <p class="emenda-ref">{{ emendaRef(item.el) }}</p>
+            </template>
+            <!-- INCLUIDO: título + referência -->
+            <template v-else-if="item.el.emendaStatus === 'INCLUIDO'">
+              <p v-if="item.el.titulo" :class="groupingTituloClass(item.el.tipo)">{{ groupingTituloTexto(item.el.tipo, item.el.titulo) }}</p>
+              <p class="emenda-ref">{{ emendaRef(item.el) }}</p>
+            </template>
+            <!-- INALTERADO -->
+            <p v-else-if="item.el.titulo" :class="groupingTituloClass(item.el.tipo)">{{ groupingTituloTexto(item.el.tipo, item.el.titulo) }}</p>
           </div>
 
           <!-- REVOGADO: conteúdo tachado + referência inline -->
@@ -344,6 +351,32 @@ function formatarDataBR(iso) {
 
 const GROUPING_TIPOS = new Set(['capitulo', 'secao_normativa', 'subsecao_normativa'])
 
+function isGrouping(tipo) {
+  return GROUPING_TIPOS.has(tipo)
+}
+
+const GROUPING_HEADING_CLASS = { capitulo: 'capitulo-heading', secao_normativa: 'secao-heading', subsecao_normativa: 'subsecao-heading' }
+const GROUPING_NUMERO_CLASS  = { capitulo: 'cap-numero',       secao_normativa: 'sec-numero',     subsecao_normativa: 'subsec-numero' }
+const GROUPING_TITULO_CLASS  = { capitulo: 'cap-titulo',       secao_normativa: 'sec-titulo',     subsecao_normativa: 'subsec-titulo' }
+
+function groupingHeadingClass(tipo) { return GROUPING_HEADING_CLASS[tipo] }
+function groupingNumeroClass(tipo)  { return GROUPING_NUMERO_CLASS[tipo] }
+function groupingTituloClass(tipo)  { return GROUPING_TITULO_CLASS[tipo] }
+
+function groupingLabel(el) {
+  const roman = toRomanStr(el.numero)
+  switch (el.tipo) {
+    case 'capitulo':           return `CAPÍTULO ${roman}`
+    case 'secao_normativa':    return `Seção ${roman}`
+    case 'subsecao_normativa': return `Subseção ${roman}`
+    default: return ''
+  }
+}
+
+function groupingTituloTexto(tipo, titulo) {
+  return tipo === 'capitulo' ? (titulo ?? '').toUpperCase() : titulo
+}
+
 /**
  * Achata os elementos normativos preservando os agrupamentos (capítulo, seção, subseção)
  * como itens especiais para renderização no preview.
@@ -447,50 +480,67 @@ const tocItems = computed(() => {
   const items = []
   const elementos = secaoNormativa.value?.elementos ?? []
 
-  function firstArtigoNum(lista) {
+  function firstArtigoEl(lista) {
     for (const el of lista ?? []) {
-      if (el.tipo === 'artigo') return el.numero
-      if (el.filhos?.length) { const f = firstArtigoNum(el.filhos); if (f != null) return f }
+      if (el.tipo === 'artigo') return el
+      if (el.filhos?.length) { const f = firstArtigoEl(el.filhos); if (f) return f }
     }
     return null
   }
 
-  function lastArtigoNum(lista) {
+  function lastArtigoEl(lista) {
     let last = null
     for (const el of lista ?? []) {
-      if (el.tipo === 'artigo') last = el.numero
-      if (el.filhos?.length) { const l = lastArtigoNum(el.filhos); if (l != null) last = l }
+      if (el.tipo === 'artigo') last = el
+      if (el.filhos?.length) { const l = lastArtigoEl(el.filhos); if (l) last = l }
     }
     return last
   }
 
-  // Formato: ordinal (°) até 9, cardinal (sem sufixo) a partir de 10 — Decreto 12.002 Art. 9
+  // Formato: ordinal (°) até 9, cardinal (sem sufixo) a partir de 10 — Decreto 12.002 Art. 9.
+  // Mesma convenção de fmtNum, mas inclui o sufixo de letra (ex.: "13-A") quando presente,
+  // para que artigos incluídos por emenda apareçam refletidos no intervalo do sumário.
   function fmtNum(n) { return n <= 9 ? `${n}°` : `${n}` }
+  function fmtArtEndpoint(el) {
+    const base = fmtNum(el.numero ?? 0)
+    return el._emendaLetra ? `${base}-${el._emendaLetra}` : base
+  }
 
   function fmtRange(lista) {
-    const first = firstArtigoNum(lista)
-    if (first == null) return ''
-    const last = lastArtigoNum(lista)
-    return first === last ? fmtNum(first) : `${fmtNum(first)}/${fmtNum(last)}`
+    const first = firstArtigoEl(lista)
+    if (!first) return ''
+    const last = lastArtigoEl(lista) ?? first
+    const a = fmtArtEndpoint(first)
+    const b = fmtArtEndpoint(last)
+    return a === b ? a : `${a}/${b}`
   }
 
   const temAgrupamento = elementos.some(el =>
     el.tipo === 'capitulo' || el.tipo === 'secao_normativa' || el.tipo === 'subsecao_normativa'
   )
 
+  // Título vigente para o sumário: se ALTERADO por emenda, usa o novo título.
+  function effectiveTitulo(el) {
+    if (el.emendaStatus === 'ALTERADO' && el.tituloEmenda) return el.tituloEmenda
+    return el.titulo
+  }
+
   if (temAgrupamento) {
     function walk(lista) {
       for (const el of lista ?? []) {
         if (el.tipo === 'capitulo') {
-          const titulo = el.titulo ? ` - ${el.titulo.toUpperCase()}` : ''
+          const t = effectiveTitulo(el)
+          const titulo = t ? ` - ${t.toUpperCase()}` : ''
           items.push({ id: el.id, label: `CAPÍTULO ${toRomanStr(el.numero)}${titulo}`, kind: 'toc-capitulo', pg: fmtRange(el.filhos) })
           walk(el.filhos)
         } else if (el.tipo === 'secao_normativa') {
-          const titulo = el.titulo ? ` - ${el.titulo}` : ''
+          const t = effectiveTitulo(el)
+          const titulo = t ? ` - ${t}` : ''
           items.push({ id: el.id, label: `Seção ${toRomanStr(el.numero)}${titulo}`, kind: 'toc-secao', pg: fmtRange(el.filhos) })
           walk(el.filhos)
         } else if (el.tipo === 'subsecao_normativa') {
-          const titulo = el.titulo ? ` - ${el.titulo}` : ''
+          const t = effectiveTitulo(el)
+          const titulo = t ? ` - ${t}` : ''
           items.push({ id: el.id, label: `Subseção ${toRomanStr(el.numero)}${titulo}`, kind: 'toc-subsecao', pg: fmtRange(el.filhos) })
           walk(el.filhos)
         }
@@ -799,11 +849,13 @@ const anexosDocumento = computed(() =>
   text-indent:   0;
 }
 .sec-numero, .subsec-numero {
+  font-weight: bold;
   font-size: 16px;
   margin: 0;
   text-indent: 0;
 }
 .sec-titulo, .subsec-titulo {
+  font-weight: bold;
   font-size: 16px;
   margin: 0 0 6px;
   text-indent: 0;
