@@ -29,11 +29,11 @@ public class DocumentoHistorico {
     @Column(name = "tx_descricao", nullable = false)
     private String descricao;
 
-    @Column(name = "sg_status_anterior")
+    @Column(name = "sg_status_anterior", columnDefinition = "VARCHAR(30)")
     @Enumerated(EnumType.STRING)
     private DocumentoStatusEnum statusAnterior;
 
-    @Column(name = "sg_status_novo")
+    @Column(name = "sg_status_novo", columnDefinition = "VARCHAR(30)")
     @Enumerated(EnumType.STRING)
     private DocumentoStatusEnum statusNovo;
 
