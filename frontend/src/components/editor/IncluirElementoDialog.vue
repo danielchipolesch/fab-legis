@@ -151,7 +151,6 @@ const editorStore = useEditorStore()
 
 const salvando      = ref(false)
 const tipo          = ref('ARTIGO')
-const posicaoEntry  = ref(null)
 const conteudo      = ref('')
 const titulo        = ref('')
 const justificativa = ref('')
@@ -241,8 +240,6 @@ function dfsIndexOf(el) {
 }
 
 // ── Onde inserir: containers válidos para o tipo selecionado ─────────────────
-const containerEntry = ref(null)
-
 const containerOptions = computed(() => {
   const targetTipo = tipo.value?.toLowerCase()
   const rule = PARENT_TIPOS_FOR[targetTipo]
@@ -256,6 +253,32 @@ const containerOptions = computed(() => {
     opts.push({ label: formatLabel(c), el: c, filhos: c.filhos ?? [] })
   }
   return opts
+})
+
+// containerOptions recria os objetos de opção a cada reavaliação (mesmo quando os
+// elementos subjacentes não mudaram de fato), então comparar por REFERÊNCIA de
+// objeto perde a seleção do usuário a qualquer recomputação. containerIdRaw guarda
+// só a CHAVE ESTÁVEL (id do elemento, ou '__root__') da escolha explícita — nula
+// até o usuário escolher — e containerEntry é um computed com get/set que resolve
+// essa chave contra as opções atuais, caindo no último container quando a escolha
+// ainda não existe ou deixou de ser válida para o tipo selecionado.
+function containerKey(opt) {
+  return opt?.el ? String(opt.el.id) : '__root__'
+}
+const containerIdRaw = ref(null)
+
+const containerEntry = computed({
+  get() {
+    const opts = containerOptions.value
+    if (containerIdRaw.value !== null) {
+      const found = opts.find(o => containerKey(o) === containerIdRaw.value)
+      if (found) return found
+    }
+    return opts.length ? opts[opts.length - 1] : null
+  },
+  set(val) {
+    containerIdRaw.value = val ? containerKey(val) : null
+  },
 })
 
 // ── Posição dentro do container escolhido ─────────────────────────────────────
@@ -291,6 +314,26 @@ const posicaoOptions = computed(() => {
   }
 
   return opts
+})
+
+// Mesmo raciocínio de containerEntry: posicaoValueRaw guarda a chave estável (o
+// `value` da opção — null para "No início", ou o id do elemento-âncora) em vez do
+// objeto em si. `undefined` = usuário ainda não escolheu (distinto de `null`, que é
+// a escolha explícita de "No início").
+const posicaoValueRaw = ref(undefined)
+
+const posicaoEntry = computed({
+  get() {
+    const opts = posicaoOptions.value
+    if (posicaoValueRaw.value !== undefined) {
+      const found = opts.find(o => o.value === posicaoValueRaw.value)
+      if (found) return found
+    }
+    return opts.length ? opts[opts.length - 1] : null
+  },
+  set(val) {
+    posicaoValueRaw.value = val ? val.value : undefined
+  },
 })
 
 // ── elementOrder calculado para inserção ──────────────────────────────────────
@@ -456,40 +499,26 @@ const labelResultante = computed(() => {
 })
 
 // ── Reset ao abrir ────────────────────────────────────────────────────────────
+// containerEntry/posicaoEntry não precisam de reset explícito: são computeds com
+// fallback automático (ver acima) — bastam limpar as escolhas EXPLÍCITAS (as chaves raw).
 watch(() => props.modelValue, (open) => {
   if (open) {
-    tipo.value           = 'ARTIGO'
-    containerEntry.value = null
-    posicaoEntry.value   = null
-    conteudo.value       = ''
-    titulo.value         = ''
-    justificativa.value  = ''
+    tipo.value            = 'ARTIGO'
+    containerIdRaw.value  = null
+    posicaoValueRaw.value = undefined
+    conteudo.value        = ''
+    titulo.value          = ''
+    justificativa.value   = ''
     dialogKey.value++
-    // Garante containerEntry mesmo quando containerOptions não muda (mesmo tipo+elementos)
-    const copts = containerOptions.value
-    if (copts.length) containerEntry.value = copts[copts.length - 1]
   }
 })
 
-// Reseta o container (e, em cascata, a posição) quando o tipo muda
-watch(tipo, () => { containerEntry.value = null; posicaoEntry.value = null })
+// Limpa a escolha explícita de container quando o tipo muda (a de posição já se
+// invalida sozinha, pois deixa de pertencer a posicaoOptions do novo container).
+watch(tipo, () => { containerIdRaw.value = null })
 
-// Auto-seleciona o último container ao abrir / mudar tipo
-watch(containerOptions, (opts) => {
-  if (opts.length && containerEntry.value === null) {
-    containerEntry.value = opts[opts.length - 1]
-  }
-}, { immediate: false })
-
-// Reseta a posição quando o container muda
-watch(containerEntry, () => { posicaoEntry.value = null })
-
-// Auto-seleciona a última posição (padrão: ao final do container) ao trocar de container
-watch(posicaoOptions, (opts) => {
-  if (opts.length && posicaoEntry.value === null) {
-    posicaoEntry.value = opts[opts.length - 1]
-  }
-}, { immediate: false })
+// Limpa a escolha explícita de posição quando o container muda.
+watch(containerEntry, () => { posicaoValueRaw.value = undefined })
 
 const podeConfirmar = computed(() =>
   !!tipo.value && !!containerEntry.value && !!posicaoEntry.value && justificativa.value?.trim().length > 0
