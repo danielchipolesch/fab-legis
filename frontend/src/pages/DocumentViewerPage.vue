@@ -92,7 +92,7 @@
                   <q-timeline color="primary" layout="dense">
                     <q-timeline-entry
                       v-for="evento in timelineEventos"
-                      :key="evento.status"
+                      :key="evento.key"
                       :title="evento.titulo"
                       :subtitle="evento.data"
                       :icon="evento.icon"
@@ -238,26 +238,32 @@ const docLabel = computed(() => {
   return [d.especie, num].filter(Boolean).join(' ') || 'Documento'
 })
 
-const STATUS_TIMELINE = [
-  { campo: 'data_criacao',      titulo: 'Criado',     icon: 'mdi-file-plus-outline',    color: 'grey'       },
-  { campo: 'data_minuta',       titulo: 'Minuta',     icon: 'mdi-file-edit-outline',    color: 'orange'     },
-  { campo: 'data_aprovacao',    titulo: 'Aprovado',      icon: 'mdi-check-circle-outline', color: 'green'      },
-  { campo: 'data_publicacao',   titulo: 'Publicado',     icon: 'mdi-publish',              color: 'primary'    },
-  { campo: 'data_em_alteracao', titulo: 'Em Alteração',  icon: 'mdi-pencil-lock-outline',  color: 'deep-orange' },
-  { campo: 'data_alterado',     titulo: 'Alterado',      icon: 'mdi-check-circle-outline', color: 'teal'       },
-  { campo: 'data_arquivamento', titulo: 'Arquivado',     icon: 'mdi-archive-outline',      color: 'blue-grey'  },
-  { campo: 'data_revogacao',    titulo: 'Revogado',      icon: 'mdi-file-remove-outline',  color: 'brown'      },
-  { campo: 'data_cancelamento', titulo: 'Cancelado',     icon: 'mdi-close-circle-outline', color: 'negative'   },
-]
+// Metadados visuais por status — os ciclos EM_ALTERACAO <-> ALTERADO podem se repetir
+// várias vezes até a republicação, então o histórico vem do log de transições
+// (t_historico_documento), não de um timestamp único por status.
+const STATUS_META = {
+  RASCUNHO:     { titulo: 'Rascunho',     icon: 'mdi-pencil-outline',       color: 'grey'        },
+  MINUTA:       { titulo: 'Minuta',       icon: 'mdi-file-edit-outline',    color: 'orange'      },
+  APROVADO:     { titulo: 'Aprovado',     icon: 'mdi-check-circle-outline', color: 'green'       },
+  PUBLICADO:    { titulo: 'Publicado',    icon: 'mdi-publish',              color: 'primary'     },
+  EM_ALTERACAO: { titulo: 'Em Alteração', icon: 'mdi-pencil-lock-outline',  color: 'deep-orange' },
+  ALTERADO:     { titulo: 'Alterado',     icon: 'mdi-check-circle-outline', color: 'teal'        },
+  ARQUIVADO:    { titulo: 'Arquivado',    icon: 'mdi-archive-outline',      color: 'blue-grey'   },
+  REVOGADO:     { titulo: 'Revogado',     icon: 'mdi-file-remove-outline',  color: 'brown'       },
+  CANCELADO:    { titulo: 'Cancelado',    icon: 'mdi-close-circle-outline', color: 'negative'    },
+}
+
+const historico = computed(() => docStore.historicoPorDocumento[String(documentoId.value)] ?? [])
 
 const timelineEventos = computed(() => {
-  const d = documento.value
-  if (!d) return []
-  return STATUS_TIMELINE
-    .filter(ev => d[ev.campo])
-    .map(ev => ({
-      ...ev,
-      data: formatarData(d[ev.campo]),
+  return historico.value
+    .filter(h => h.statusNovo)
+    .slice()
+    .sort((a, b) => String(a.dtRegistro).localeCompare(String(b.dtRegistro)))
+    .map(h => ({
+      key: h.id,
+      ...(STATUS_META[h.statusNovo] ?? { titulo: h.statusNovo, icon: 'mdi-help', color: 'grey' }),
+      data: formatarData(h.dtRegistro),
     }))
 })
 
@@ -277,6 +283,7 @@ onMounted(async () => {
   }
   try {
     await docStore.fetchDocumento(documentoId.value)
+    await docStore.fetchHistorico(documentoId.value)
   } catch (e) {
     console.error('[Viewer] Erro ao buscar documento:', e)
     $q.notify({ type: 'negative', message: 'Erro ao carregar documento.' })

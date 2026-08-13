@@ -219,6 +219,12 @@ export async function deleteDocumento(id) {
   return http.del(`/documentos/${id}`)
 }
 
+// ── Histórico ─────────────────────────────────────────────────────────────────
+
+export async function listHistorico(documentoId) {
+  return http.get(`/documentos/${documentoId}/historico`)
+}
+
 // ── Anexos ────────────────────────────────────────────────────────────────────
 
 export async function listAnexos(documentoId) {

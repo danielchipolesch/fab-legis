@@ -139,6 +139,7 @@ export const useDocumentsStore = defineStore('documents', {
     documentos: [],
     loading: false,
     anexosPorDocumento: {},
+    historicoPorDocumento: {},
   }),
 
   getters: {
@@ -253,12 +254,10 @@ export const useDocumentsStore = defineStore('documents', {
       return lista
     },
 
-    async addAnexo(documentoId, titulo, arquivo) {
-      const novo = await api.uploadAnexo(documentoId, titulo, arquivo)
-      const key = String(documentoId)
-      if (!this.anexosPorDocumento[key]) this.anexosPorDocumento[key] = []
-      this.anexosPorDocumento[key].push(novo)
-      return novo
+    async fetchHistorico(documentoId) {
+      const lista = await api.listHistorico(documentoId)
+      this.historicoPorDocumento[String(documentoId)] = lista ?? []
+      return lista
     },
 
     async removeAnexo(documentoId, anexoId) {
