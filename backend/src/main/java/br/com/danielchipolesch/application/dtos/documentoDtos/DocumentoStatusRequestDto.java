@@ -16,7 +16,9 @@ public class DocumentoStatusRequestDto {
     @NotNull
     private DocumentoStatusEnum status;
 
-    // Obrigatórios apenas ao transicionar de APROVADO (pós-alteração) para PUBLICADO
+    // Obrigatórios apenas ao publicar (transição para PUBLICADO)
+    private String orgaoPortaria;
+    private String setorPortaria;
     private String numeroPortaria;
     private LocalDate dataPortaria;
     private Integer numeroBca;

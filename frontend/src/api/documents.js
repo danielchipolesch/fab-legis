@@ -166,7 +166,9 @@ export async function updateDocumento(id, data) {
 export async function changeDocumentoStatus(id, novoStatus, refs) {
   const body = { status: novoStatus }
   if (refs) {
-    body.numeroPortaria = refs.numeroPortaria ?? null
+    body.orgaoPortaria   = refs.orgaoPortaria ?? null
+    body.setorPortaria   = refs.setorPortaria ?? null
+    body.numeroPortaria  = refs.numeroPortaria ?? null
     body.dataPortaria    = refs.dataPortaria ?? null
     body.numeroBca       = refs.numeroBca ?? null
     body.dataBca         = refs.dataBca ?? null

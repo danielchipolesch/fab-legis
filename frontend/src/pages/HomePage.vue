@@ -373,8 +373,8 @@
     </q-dialog>
 
     <!-- Confirm status change dialog -->
-    <q-dialog v-model="dialog.status">
-      <q-card style="min-width:420px;max-width:500px;width:100%">
+    <q-dialog v-model="dialog.status" :persistent="alterandoStatus">
+      <q-card :style="dialog.statusOpt?.requiresRefs ? 'min-width:420px;max-width:760px;width:100%' : 'min-width:420px;max-width:500px;width:100%'">
         <q-card-section class="text-h6">{{ dialog.statusOpt?.label }}?</q-card-section>
         <q-card-section class="q-pt-none">
           O documento
@@ -384,50 +384,94 @@
         <!-- Campos obrigatórios para republicação após alteração -->
         <template v-if="dialog.statusOpt?.requiresRefs">
           <q-separator />
-          <q-card-section class="q-pt-sm column q-gutter-sm">
+          <q-card-section class="q-pt-md q-pb-sm column q-gutter-y-md">
             <div class="text-caption text-grey-7">
               Informe os dados da Portaria e do BCA que registram esta alteração:
             </div>
-            <div class="row q-gutter-sm">
+            <div class="row q-col-gutter-md">
+              <q-input
+                v-model="dialog.orgaoPortaria"
+                label="Órgão *"
+                outlined dense class="col-3"
+                placeholder="Ex: DIRAD"
+                lazy-rules
+                :rules="[v => !!v?.trim() || 'Informe o órgão']"
+                :disable="alterandoStatus"
+              />
+              <q-input
+                v-model="dialog.setorPortaria"
+                label="Setor(es) *"
+                outlined dense class="col-3"
+                placeholder="Ex: PP6"
+                lazy-rules
+                :rules="[v => !!v?.trim() || 'Informe o setor']"
+                :disable="alterandoStatus"
+              />
               <q-input
                 v-model="dialog.numeroPortaria"
-                label="Número da portaria *"
-                outlined dense class="col"
-                placeholder="Ex: DIRAD n° 123"
+                label="Número *"
+                outlined dense class="col-2"
+                placeholder="Ex: 1.731"
+                lazy-rules
+                :rules="[v => !!v?.trim() || 'Obrigatório']"
+                :disable="alterandoStatus"
               />
               <q-input
                 v-model="dialog.dataPortaria"
                 type="date"
                 label="Data *"
-                outlined dense class="col"
+                outlined dense class="col-4"
+                lazy-rules
+                :rules="[
+                  v => !!v || 'Informe a data',
+                  v => !dialog.target?.data_portaria_referencia || v >= dialog.target.data_portaria_referencia
+                    || 'Anterior à alteração anterior',
+                ]"
+                :disable="alterandoStatus"
               />
             </div>
-            <div class="row q-gutter-sm">
+            <div class="row q-col-gutter-md">
               <q-input
                 v-model="dialog.numeroBca"
                 type="number" min="1" max="366"
                 label="Número do BCA *"
-                outlined dense class="col"
+                outlined dense class="col-4"
+                lazy-rules
+                :rules="[
+                  v => (v !== '' && v !== null && v !== undefined) || 'Informe o número',
+                  v => (v >= 1 && v <= 366) || 'Deve estar entre 1 e 366',
+                ]"
+                :disable="alterandoStatus"
               />
               <q-input
                 v-model="dialog.dataBca"
                 type="date"
                 label="Data *"
-                outlined dense class="col"
+                outlined dense class="col-4"
+                lazy-rules
+                :rules="[
+                  v => !!v || 'Informe a data',
+                  v => !dialog.target?.data_bca_referencia || v >= dialog.target.data_bca_referencia
+                    || 'Anterior à alteração anterior',
+                ]"
+                :disable="alterandoStatus"
               />
             </div>
-            <div v-if="errosRefs.length" class="text-caption text-negative">
-              <div v-for="err in errosRefs" :key="err">{{ err }}</div>
-            </div>
+            <template v-if="dialog.statusOpt?.isRepublicacao">
+              <q-separator />
+              <div class="text-caption text-grey-7">Prévia da cláusula:</div>
+              <div class="text-body2 text-italic">{{ previewClausula }}</div>
+            </template>
           </q-card-section>
         </template>
         <q-card-actions align="right" class="q-pb-md q-px-md">
-          <q-btn flat v-close-popup>Cancelar</q-btn>
+          <q-btn flat label="Cancelar" :disable="alterandoStatus" v-close-popup />
           <q-btn
-            unelevated color="primary"
+            unelevated color="primary" label="Confirmar"
+            :loading="alterandoStatus"
             :disable="dialog.statusOpt?.requiresRefs && errosRefs.length > 0"
             @click="executarMudancaStatus"
-          >Confirmar</q-btn>
+          />
         </q-card-actions>
       </q-card>
     </q-dialog>
@@ -544,13 +588,13 @@ function statusActions(doc) {
     RASCUNHO:     [{ status: 'MINUTA',        label: 'Enviar para Minuta',   icon: 'mdi-file-edit-outline' }],
     MINUTA:       [{ status: 'APROVADO',      label: 'Aprovar',              icon: 'mdi-check-circle-outline' },
                    { status: 'RASCUNHO',      label: 'Retornar p/ Rascunho', icon: 'mdi-undo' }],
-    APROVADO:     [{ status: 'PUBLICADO',     label: 'Publicar',             icon: 'mdi-publish' },
+    APROVADO:     [{ status: 'PUBLICADO',     label: 'Publicar',             icon: 'mdi-publish', requiresRefs: true },
                    { status: 'MINUTA',        label: 'Retornar p/ Minuta',   icon: 'mdi-undo' }],
     PUBLICADO:    [{ status: 'EM_ALTERACAO',  label: 'Iniciar Alteração',    icon: 'mdi-pencil-lock-outline' },
                    { status: 'ARQUIVADO',     label: 'Arquivar',             icon: 'mdi-archive-outline' },
                    { status: 'REVOGADO',      label: 'Revogar',             icon: 'mdi-file-remove-outline' }],
     EM_ALTERACAO: [{ status: 'ALTERADO', label: 'Aprovar Alteração', icon: 'mdi-check-circle-outline' }],
-    ALTERADO:     [{ status: 'PUBLICADO',    label: 'Republicar',           icon: 'mdi-publish', requiresRefs: true },
+    ALTERADO:     [{ status: 'PUBLICADO',    label: 'Republicar',           icon: 'mdi-publish', requiresRefs: true, isRepublicacao: true },
                    { status: 'EM_ALTERACAO', label: 'Retornar p/ Alteração', icon: 'mdi-undo' }],
     ARQUIVADO: [],
     CANCELADO: [],
@@ -565,24 +609,43 @@ function confirmarMudancaStatus(doc, opt) {
   dialog.status = true
 }
 
-function executarMudancaStatus() {
+const alterandoStatus = ref(false)
+
+async function executarMudancaStatus() {
+  // Evita disparar o PATCH duas vezes num duplo-clique — a segunda requisição
+  // chegaria depois da primeira já ter mudado o status no banco e seria rejeitada
+  // (403), mesmo com a primeira tendo funcionado normalmente.
+  if (alterandoStatus.value) return
   if (dialog.statusOpt?.requiresRefs && errosRefs.value.length) return
-  if (dialog.target && dialog.statusOpt) {
-    const refs = dialog.statusOpt.requiresRefs ? {
-      numeroPortaria: dialog.numeroPortaria.trim(),
-      dataPortaria:   dialog.dataPortaria,
-      numeroBca:      parseInt(dialog.numeroBca, 10),
-      dataBca:        dialog.dataBca,
-    } : undefined
-    store.changeStatus(dialog.target.id, dialog.statusOpt.status, refs)
+  const alvo = dialog.target
+  const opt  = dialog.statusOpt
+  const refs = opt?.requiresRefs ? {
+    orgaoPortaria:  dialog.orgaoPortaria.trim(),
+    setorPortaria:  dialog.setorPortaria.trim(),
+    numeroPortaria: dialog.numeroPortaria.trim(),
+    dataPortaria:   dialog.dataPortaria,
+    numeroBca:      parseInt(dialog.numeroBca, 10),
+    dataBca:        dialog.dataBca,
+  } : undefined
+  if (!alvo || !opt) return
+
+  alterandoStatus.value = true
+  try {
+    await store.changeStatus(alvo.id, opt.status, refs)
+    dialog.status = false
+    dialog.target = null
+    dialog.statusOpt = null
+    dialog.orgaoPortaria = ''
+    dialog.setorPortaria = ''
+    dialog.numeroPortaria = ''
+    dialog.dataPortaria = ''
+    dialog.numeroBca = ''
+    dialog.dataBca = ''
+  } catch (e) {
+    $q.notify({ type: 'negative', message: `Erro ao mudar status: ${e?.message ?? 'erro desconhecido'}` })
+  } finally {
+    alterandoStatus.value = false
   }
-  dialog.status = false
-  dialog.target = null
-  dialog.statusOpt = null
-  dialog.numeroPortaria = ''
-  dialog.dataPortaria = ''
-  dialog.numeroBca = ''
-  dialog.dataBca = ''
 }
 
 async function baixarPdf(doc) {
@@ -613,16 +676,43 @@ function executarClone() {
 const dialog = reactive({
   delete: false, status: false, clone: false,
   target: null, statusOpt: null,
+  orgaoPortaria: '', setorPortaria: '',
   numeroPortaria: '', dataPortaria: '',
   numeroBca: '', dataBca: '',
 })
 
-// Validação dos dados de referência (só relevantes quando requiresRefs).
+const MESES_EXTENSO = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
+  'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro']
+
+function dataPorExtenso(isoStr) {
+  if (!isoStr) return null
+  const [y, m, d] = isoStr.split('-')
+  return `${parseInt(d, 10)} de ${MESES_EXTENSO[parseInt(m, 10) - 1]} de ${y}`
+}
+
+// Prévia da cláusula "Portaria X/Y n° Z, de D, publica no BCA n° W, de D" — só faz
+// sentido para republicação, já que é o único momento em que essa cláusula é gerada.
+const previewClausula = computed(() => {
+  const orgao = dialog.orgaoPortaria?.trim() || 'ÓRGÃO'
+  const setor = dialog.setorPortaria?.trim() || 'SETOR'
+  const numeroPortaria = dialog.numeroPortaria?.trim() || 'XYZ'
+  const dataPortariaExt = dataPorExtenso(dialog.dataPortaria) || 'DD de MÊS de AAAA'
+  const numeroBca = dialog.numeroBca !== '' && dialog.numeroBca != null ? dialog.numeroBca : 'ABC'
+  const dataBcaExt = dataPorExtenso(dialog.dataBca) || 'DD de mês de AAAA'
+  return `Portaria ${orgao}/${setor} n° ${numeroPortaria}, de ${dataPortariaExt}, `
+    + `publica no BCA n° ${numeroBca}, de ${dataBcaExt}.`
+})
+
+// Espelha a validação exibida por campo (via :rules nos q-inputs) para saber se o
+// formulário está completo e habilitar o botão Confirmar — não é mais renderizada
+// como lista de erros, cada input mostra sua própria mensagem nativamente.
 // Datas são strings ISO "YYYY-MM-DD" (tanto as do formulário quanto as vindas do
 // backend), então comparação de string já basta para checar ordem cronológica.
 const errosRefs = computed(() => {
   if (!dialog.statusOpt?.requiresRefs) return []
   const errs = []
+  if (!dialog.orgaoPortaria?.trim()) errs.push('Informe o órgão da portaria.')
+  if (!dialog.setorPortaria?.trim()) errs.push('Informe o setor da portaria.')
   if (!dialog.numeroPortaria?.trim()) errs.push('Informe o número da portaria.')
   if (!dialog.dataPortaria) errs.push('Informe a data da portaria.')
 

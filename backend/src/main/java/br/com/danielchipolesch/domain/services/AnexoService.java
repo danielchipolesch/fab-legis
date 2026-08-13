@@ -56,7 +56,7 @@ public class AnexoService {
         AnexoResponseDto resultado = AnexoResponseDto.from(anexoRepository.save(anexo));
 
         if (documento.getDocumentoStatus() == DocumentoStatusEnum.RASCUNHO) {
-            documentoStatusService.changeStatus(documentoId, new DocumentoStatusRequestDto(DocumentoStatusEnum.MINUTA, null, null, null, null));
+            documentoStatusService.changeStatus(documentoId, new DocumentoStatusRequestDto(DocumentoStatusEnum.MINUTA, null, null, null, null, null, null));
         }
 
         return resultado;

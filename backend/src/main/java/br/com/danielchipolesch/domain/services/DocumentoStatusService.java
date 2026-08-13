@@ -64,22 +64,25 @@ public class DocumentoStatusService {
             throw new StatusCannotBeUpdatedException(DocumentException.CANNOT_BE_UPDATED.getMessage());
         }
 
-        // Ao republicar um documento que passou por alteração (PUBLICADO vindo de
-        // ALTERADO), portaria e BCA de referência são obrigatórios — o PDF os embute.
-        // A aprovação da alteração em si (EM_ALTERACAO -> ALTERADO) não exige nada além
-        // da confirmação de status.
-        boolean republicacaoPosAlteracao = novoStatus == DocumentoStatusEnum.PUBLICADO
-                && current == DocumentoStatusEnum.ALTERADO;
-        if (republicacaoPosAlteracao) {
+        // Toda publicação (primeira publicação a partir de APROVADO ou republicação a
+        // partir de ALTERADO) exige portaria e BCA de referência — o PDF os embute. A
+        // aprovação em si (MINUTA -> APROVADO, EM_ALTERACAO -> ALTERADO) não exige nada
+        // além da confirmação de status.
+        boolean publicacao = novoStatus == DocumentoStatusEnum.PUBLICADO;
+        if (publicacao) {
+            String orgaoPortaria = request.getOrgaoPortaria();
+            String setorPortaria = request.getSetorPortaria();
             String numeroPortaria = request.getNumeroPortaria();
             LocalDate dataPortaria = request.getDataPortaria();
             Integer numeroBca = request.getNumeroBca();
             LocalDate dataBca = request.getDataBca();
 
-            if (numeroPortaria == null || numeroPortaria.isBlank() || dataPortaria == null
+            if (orgaoPortaria == null || orgaoPortaria.isBlank()
+                    || setorPortaria == null || setorPortaria.isBlank()
+                    || numeroPortaria == null || numeroPortaria.isBlank() || dataPortaria == null
                     || numeroBca == null || dataBca == null) {
                 throw new StatusCannotBeUpdatedException(
-                        "Para republicar um documento alterado é obrigatório informar a portaria e o BCA de referência.");
+                        "Para publicar um documento é obrigatório informar a portaria e o BCA de referência.");
             }
             // O BCA é publicado apenas em dias úteis, então nunca passa de 366 (dias do ano).
             if (numeroBca < 1 || numeroBca > 366) {
@@ -97,8 +100,12 @@ public class DocumentoStatusService {
                         "A data do BCA não pode ser anterior à da alteração anterior.");
             }
 
-            document.setPortariaReferencia("Portaria " + numeroPortaria.strip() + ", de " + formatarDataPorExtenso(dataPortaria));
-            document.setBcaReferencia("BCA nº " + numeroBca + ", de " + formatarDataPorExtenso(dataBca));
+            String orgaoSetor = (setorPortaria != null && !setorPortaria.isBlank())
+                    ? orgaoPortaria.strip() + "/" + setorPortaria.strip()
+                    : orgaoPortaria.strip();
+            document.setPortariaReferencia("Portaria " + orgaoSetor + " n° " + numeroPortaria.strip()
+                    + ", de " + formatarDataPorExtenso(dataPortaria));
+            document.setBcaReferencia("BCA n° " + numeroBca + ", de " + formatarDataPorExtenso(dataBca));
             document.setDtPortariaReferencia(Timestamp.valueOf(dataPortaria.atStartOfDay()));
             document.setDtBcaReferencia(Timestamp.valueOf(dataBca.atStartOfDay()));
         }
