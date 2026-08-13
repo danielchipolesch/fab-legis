@@ -521,24 +521,32 @@
 
       <q-separator class="q-mt-sm" />
 
-      <q-card-section class="q-pa-md column q-gutter-sm">
+      <q-card-section class="q-pa-md column" style="gap:12px">
         <q-input
           v-model="anexoForm.titulo"
           label="Título do anexo"
           outlined dense autofocus
           :disable="anexoUploadando"
         />
-        <q-file
-          v-model="anexoForm.arquivo"
+        <q-uploader
+          ref="anexoUploaderRef"
+          :url="anexoUploadUrl"
+          field-name="arquivo"
+          :form-fields="anexoFormFields"
           label="Imagem (PNG, JPEG)"
-          outlined dense
           accept="image/png,image/jpeg,image/jpg"
-          :disable="anexoUploadando"
-        >
-          <template v-slot:prepend>
-            <q-icon name="mdi-image-outline" />
-          </template>
-        </q-file>
+          :multiple="false"
+          :max-files="1"
+          :auto-upload="false"
+          :disable="!anexoForm.titulo || anexoUploadando"
+          flat bordered
+          style="max-height:200px;width:100%"
+          @added="anexoFileQueued = true"
+          @removed="anexoFileQueued = false"
+          @uploading="anexoUploadando = true"
+          @uploaded="onAnexoUploaded"
+          @failed="onAnexoFailed"
+        />
       </q-card-section>
 
       <q-separator />
@@ -548,8 +556,8 @@
         <q-btn
           unelevated color="primary" label="Enviar"
           :loading="anexoUploadando"
-          :disable="!anexoForm.titulo || !anexoForm.arquivo"
-          @click="enviarAnexo"
+          :disable="!anexoForm.titulo || !anexoFileQueued"
+          @click="iniciarUploadAnexo"
         />
       </q-card-actions>
     </q-card>
@@ -563,6 +571,7 @@ import StatusBadge from '@/components/common/StatusBadge.vue'
 import { formatLabel, elementIcon } from '@/utils/numbering.js'
 import { useEditorStore } from '@/stores/editor.js'
 import { useDocumentsStore } from '@/stores/documents.js'
+import { BASE_URL } from '@/api/client.js'
 
 const $q = useQuasar()
 const editorStore = useEditorStore()
@@ -745,7 +754,12 @@ const anexos = computed(() => documentsStore.anexosPorDocumento[String(props.doc
 
 const anexoDialogOpen = ref(false)
 const anexoUploadando = ref(false)
-const anexoForm = reactive({ titulo: '', arquivo: null })
+const anexoFileQueued = ref(false)
+const anexoForm = reactive({ titulo: '' })
+const anexoUploaderRef = ref(null)
+
+const anexoUploadUrl = computed(() => `${BASE_URL}/documentos/${props.documento?.id}/anexos`)
+const anexoFormFields = computed(() => [{ name: 'titulo', value: anexoForm.titulo }])
 
 function toRoman(n) {
   if (n <= 0) return ''
@@ -758,23 +772,27 @@ function toRoman(n) {
 }
 
 function abrirDialogAnexo() {
-  anexoForm.titulo  = ''
-  anexoForm.arquivo = null
+  anexoForm.titulo = ''
+  anexoFileQueued.value = false
+  anexoUploadando.value = false
+  anexoUploaderRef.value?.reset()
   anexoDialogOpen.value = true
 }
 
-async function enviarAnexo() {
-  if (!props.documento?.id || !anexoForm.titulo || !anexoForm.arquivo) return
-  anexoUploadando.value = true
-  try {
-    await documentsStore.addAnexo(props.documento.id, anexoForm.titulo, anexoForm.arquivo)
-    anexoDialogOpen.value = false
-    $q.notify({ type: 'positive', message: 'Anexo adicionado com sucesso.' })
-  } catch (e) {
-    $q.notify({ type: 'negative', message: 'Erro ao enviar anexo.' })
-  } finally {
-    anexoUploadando.value = false
-  }
+function iniciarUploadAnexo() {
+  anexoUploaderRef.value?.upload()
+}
+
+async function onAnexoUploaded() {
+  anexoUploadando.value = false
+  anexoDialogOpen.value = false
+  if (props.documento?.id) await documentsStore.fetchAnexos(props.documento.id)
+  $q.notify({ type: 'positive', message: 'Anexo adicionado com sucesso.' })
+}
+
+function onAnexoFailed() {
+  anexoUploadando.value = false
+  $q.notify({ type: 'negative', message: 'Erro ao enviar anexo.' })
 }
 
 function removerAnexo(anexoId) {
