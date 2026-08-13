@@ -178,11 +178,11 @@ public class DocumentoFoBuilder {
                 <fo:layout-master-set>
                   <fo:simple-page-master master-name="a4"
                       page-width="21cm" page-height="29.7cm"
-                      margin-top="2cm" margin-bottom="2cm"
+                      margin-top="2cm" margin-bottom="1cm"
                       margin-left="2cm" margin-right="2cm">
-                    <fo:region-body region-name="xsl-region-body"/>
+                    <fo:region-body region-name="xsl-region-body" margin-bottom="1cm"/>
                     <fo:region-before region-name="wm" extent="0pt" overflow="visible"/>
-                    <fo:region-after region-name="xsl-region-after" extent="1cm"/>
+                    <fo:region-after region-name="xsl-region-after" extent="1cm" display-align="after"/>
                   </fo:simple-page-master>
                   <fo:simple-page-master master-name="a4-nofooter"
                       page-width="21cm" page-height="29.7cm"
