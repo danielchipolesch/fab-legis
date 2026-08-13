@@ -15,6 +15,7 @@ import br.com.danielchipolesch.infrastructure.repositories.ItemParteFinalReposit
 import br.com.danielchipolesch.infrastructure.repositories.ItemPartePreliminarRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.sql.Timestamp;
 import java.time.Instant;
@@ -30,6 +31,11 @@ public class DocumentoStatusService {
     @Autowired ItemPartePreliminarRepository preliminarRepository;
     @Autowired ItemParteFinalRepository finalRepository;
 
+    // Atômico de propósito: a mudança de status envolve várias tabelas (documento,
+    // respaçamento de nr_ordem, histórico) e não pode ficar parcialmente aplicada se
+    // alguma etapa falhar — foi exatamente essa falta de atomicidade que permitiu o
+    // status mudar no banco mesmo quando respacarElementOrders lançava exceção.
+    @Transactional
     public DocumentoResponseSemAnexoTextualDto changeStatus(Long id, DocumentoStatusRequestDto request) throws RuntimeException {
 
         Documento document = documentoRepository.findById(id)

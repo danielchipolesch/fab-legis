@@ -28,8 +28,20 @@ public interface ItemAnexoParteNormativaRepository extends JpaRepository<ItemAne
     @Query("DELETE FROM ItemAnexoParteNormativa i WHERE i.documento.id = :documentoId")
     void deleteAllByDocumentoId(@Param("documentoId") Long documentoId);
 
+    // Renumera pelo RANK relativo (não multiplica o valor armazenado) para que ciclos
+    // repetidos de EM_ALTERACAO não acumulem fatores de 100 e estourem o INTEGER —
+    // ver incidente de "integer out of range" em nr_ordem.
     @Modifying
     @Transactional
-    @Query("UPDATE ItemAnexoParteNormativa i SET i.elementOrder = i.elementOrder * 100 WHERE i.documento.id = :documentoId AND i.elementOrder IS NOT NULL")
+    @Query(value = """
+            UPDATE t_item_parte_normativa t
+            SET nr_ordem = ranked.rn * 100
+            FROM (
+                SELECT id_item, ROW_NUMBER() OVER (PARTITION BY parent_id ORDER BY nr_ordem) AS rn
+                FROM t_item_parte_normativa
+                WHERE documento_id = :documentoId AND nr_ordem IS NOT NULL
+            ) ranked
+            WHERE t.id_item = ranked.id_item
+            """, nativeQuery = true)
     void respacarElementOrders(@Param("documentoId") Long documentoId);
 }
