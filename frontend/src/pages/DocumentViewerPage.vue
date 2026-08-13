@@ -215,7 +215,7 @@ const expanded = reactive({
   versoes: false,
 })
 
-const STATUS_COM_PDF = new Set(['APROVADO', 'PUBLICADO', 'ARQUIVADO', 'REVOGADO'])
+const STATUS_COM_PDF = new Set(['APROVADO', 'ALTERADO', 'PUBLICADO', 'ARQUIVADO', 'REVOGADO'])
 
 const documentoId = computed(() => route.params.id)
 const documento   = computed(() => docStore.getById(documentoId.value))
@@ -241,11 +241,13 @@ const docLabel = computed(() => {
 const STATUS_TIMELINE = [
   { campo: 'data_criacao',      titulo: 'Criado',     icon: 'mdi-file-plus-outline',    color: 'grey'       },
   { campo: 'data_minuta',       titulo: 'Minuta',     icon: 'mdi-file-edit-outline',    color: 'orange'     },
-  { campo: 'data_aprovacao',    titulo: 'Aprovado',   icon: 'mdi-check-circle-outline', color: 'green'      },
-  { campo: 'data_publicacao',   titulo: 'Publicado',  icon: 'mdi-publish',              color: 'primary'    },
-  { campo: 'data_arquivamento', titulo: 'Arquivado',  icon: 'mdi-archive-outline',      color: 'blue-grey'  },
-  { campo: 'data_revogacao',    titulo: 'Revogado',   icon: 'mdi-file-remove-outline',  color: 'brown'      },
-  { campo: 'data_cancelamento', titulo: 'Cancelado',  icon: 'mdi-close-circle-outline', color: 'negative'   },
+  { campo: 'data_aprovacao',    titulo: 'Aprovado',      icon: 'mdi-check-circle-outline', color: 'green'      },
+  { campo: 'data_publicacao',   titulo: 'Publicado',     icon: 'mdi-publish',              color: 'primary'    },
+  { campo: 'data_em_alteracao', titulo: 'Em Alteração',  icon: 'mdi-pencil-lock-outline',  color: 'deep-orange' },
+  { campo: 'data_alterado',     titulo: 'Alterado',      icon: 'mdi-check-circle-outline', color: 'teal'       },
+  { campo: 'data_arquivamento', titulo: 'Arquivado',     icon: 'mdi-archive-outline',      color: 'blue-grey'  },
+  { campo: 'data_revogacao',    titulo: 'Revogado',      icon: 'mdi-file-remove-outline',  color: 'brown'      },
+  { campo: 'data_cancelamento', titulo: 'Cancelado',     icon: 'mdi-close-circle-outline', color: 'negative'   },
 ]
 
 const timelineEventos = computed(() => {
@@ -261,8 +263,11 @@ const timelineEventos = computed(() => {
 
 function formatarData(isoStr) {
   if (!isoStr) return '—'
-  const [y, m, d] = String(isoStr).slice(0, 10).split('-')
-  return `${d}/${m}/${y}`
+  const [dataParte, horaParte] = String(isoStr).split('T')
+  const [y, m, d] = dataParte.split('-')
+  const dataFormatada = `${d}/${m}/${y}`
+  if (!horaParte) return dataFormatada
+  return `${dataFormatada} às ${horaParte.slice(0, 5)}h`
 }
 
 onMounted(async () => {
@@ -346,6 +351,10 @@ function executarClone() {
   height: 80vh;
   border: none;
   display: block;
+}
+
+:deep(.q-timeline__subtitle) {
+  text-transform: none;
 }
 
 .info-label {

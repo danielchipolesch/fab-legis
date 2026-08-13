@@ -12,8 +12,8 @@ const SECAO_ENUM_MAP = {
 
 function parseDtCriacao(dt) {
   if (!dt) return null
-  if (typeof dt === 'number') return new Date(dt).toISOString().slice(0, 10)
-  return String(dt).slice(0, 10)
+  if (typeof dt === 'number') return new Date(dt).toISOString()
+  return String(dt)
 }
 
 // Ordena elementos por elementOrder; empates resolvidos por tipo + status:
@@ -111,6 +111,7 @@ export function backendParaFrontend(doc) {
     data_revogacao:    parseDtCriacao(doc.dtRevogacao),
     data_cancelamento: parseDtCriacao(doc.dtCancelamento),
     data_em_alteracao: parseDtCriacao(doc.dtEmAlteracao),
+    data_alterado:     parseDtCriacao(doc.dtAlterado),
     status: doc.statusDocumento,
     url_pdf: doc.urlPdf ?? null,
     qtd_replicas: doc.qtdReplicas ?? 0,

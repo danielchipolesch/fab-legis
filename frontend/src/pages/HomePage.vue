@@ -469,7 +469,7 @@ const viewMode = ref('tabela')
 const filtros = reactive({ busca: '', especie: null, status: null })
 
 const especies = ['ICA', 'NSCA', 'Portaria', 'Resolução', 'Decreto', 'Aviso']
-const statusOptions = ['RASCUNHO', 'MINUTA', 'APROVADO', 'PUBLICADO', 'EM_ALTERACAO', 'ARQUIVADO', 'CANCELADO', 'REVOGADO']
+const statusOptions = ['RASCUNHO', 'MINUTA', 'APROVADO', 'PUBLICADO', 'EM_ALTERACAO', 'ALTERADO', 'ARQUIVADO', 'CANCELADO', 'REVOGADO']
 
 const columns = [
   { name: 'especie',        label: 'Espécie',        field: 'especie',        align: 'center', sortable: true,  style: 'width: 100px' },
@@ -509,6 +509,7 @@ const STATUS_CFG = {
   APROVADO:     { bg: 'green-2',       fg: 'green-10',        label: 'Aprovado'     },
   PUBLICADO:    { bg: 'blue-2',        fg: 'primary',         label: 'Publicado'    },
   EM_ALTERACAO: { bg: 'deep-orange-2', fg: 'deep-orange-10',  label: 'Em Alteração' },
+  ALTERADO:     { bg: 'teal-2',        fg: 'teal-10',         label: 'Alterado'     },
   ARQUIVADO:    { bg: 'blue-grey-2',   fg: 'blue-grey-10',    label: 'Arquivado'    },
   CANCELADO:    { bg: 'red-2',         fg: 'red-10',          label: 'Cancelado'    },
   REVOGADO:     { bg: 'brown-2',       fg: 'brown-10',        label: 'Revogado'     },
@@ -535,20 +536,22 @@ function docRoute(doc) {
 }
 
 function statusActions(doc) {
-  // Depois de uma alteração (EM_ALTERACAO), o próximo passo é aprovar essa alteração
-  // — só então republicar fica disponível, a partir de APROVADO. "Publicar" vira
-  // "Republicar" quando o documento já passou por uma alteração antes.
-  const veioDeAlteracao = !!doc.data_em_alteracao
+  // ALTERADO é um status distinto de APROVADO — nunca reaproveitá-lo aqui. Um
+  // documento pós-alteração jamais deve poder "Retornar p/ Minuta": ele carrega
+  // numeração com sufixo de letra e elementos INCLUIDO/ALTERADO/REVOGADO que a
+  // renumeração simples de MINUTA não entende e corromperia.
   const transitions = {
     RASCUNHO:     [{ status: 'MINUTA',        label: 'Enviar para Minuta',   icon: 'mdi-file-edit-outline' }],
     MINUTA:       [{ status: 'APROVADO',      label: 'Aprovar',              icon: 'mdi-check-circle-outline' },
                    { status: 'RASCUNHO',      label: 'Retornar p/ Rascunho', icon: 'mdi-undo' }],
-    APROVADO:     [{ status: 'PUBLICADO',     label: veioDeAlteracao ? 'Republicar' : 'Publicar', icon: 'mdi-publish' },
+    APROVADO:     [{ status: 'PUBLICADO',     label: 'Publicar',             icon: 'mdi-publish' },
                    { status: 'MINUTA',        label: 'Retornar p/ Minuta',   icon: 'mdi-undo' }],
     PUBLICADO:    [{ status: 'EM_ALTERACAO',  label: 'Iniciar Alteração',    icon: 'mdi-pencil-lock-outline' },
                    { status: 'ARQUIVADO',     label: 'Arquivar',             icon: 'mdi-archive-outline' },
                    { status: 'REVOGADO',      label: 'Revogar',             icon: 'mdi-file-remove-outline' }],
-    EM_ALTERACAO: [{ status: 'APROVADO', label: 'Aprovar Alteração', icon: 'mdi-check-circle-outline', requiresRefs: true }],
+    EM_ALTERACAO: [{ status: 'ALTERADO', label: 'Aprovar Alteração', icon: 'mdi-check-circle-outline' }],
+    ALTERADO:     [{ status: 'PUBLICADO',    label: 'Republicar',           icon: 'mdi-publish', requiresRefs: true },
+                   { status: 'EM_ALTERACAO', label: 'Retornar p/ Alteração', icon: 'mdi-undo' }],
     ARQUIVADO: [],
     CANCELADO: [],
     REVOGADO:  [],

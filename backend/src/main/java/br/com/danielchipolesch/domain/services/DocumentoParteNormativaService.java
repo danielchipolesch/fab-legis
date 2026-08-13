@@ -86,9 +86,11 @@ public class DocumentoParteNormativaService {
         Documento documento = documentoRepository.findById(documentoId)
                 .orElseThrow(() -> new RuntimeException("Documento não encontrado"));
 
-        if (documento.getDocumentoStatus() == DocumentoStatusEnum.EM_ALTERACAO) {
+        if (documento.getDocumentoStatus() == DocumentoStatusEnum.EM_ALTERACAO
+                || documento.getDocumentoStatus() == DocumentoStatusEnum.ALTERADO) {
             throw new IllegalStateException(
-                    "Documento em alteração: utilize os endpoints de emenda para modificar elementos individualmente.");
+                    "Documento em alteração (ou aguardando republicação): utilize os endpoints de emenda "
+                    + "para modificar elementos individualmente, nunca o salvamento em massa.");
         }
 
         if (request.getItens() == null) return;

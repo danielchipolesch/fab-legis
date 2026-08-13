@@ -52,7 +52,7 @@ function buildDocId(doc) {
 
 function formatDateBR(iso) {
   if (!iso) return ''
-  const [y, m, d] = iso.split('-')
+  const [y, m, d] = String(iso).slice(0, 10).split('-')
   const meses = ['janeiro','fevereiro','março','abril','maio','junho',
                  'julho','agosto','setembro','outubro','novembro','dezembro']
   return `${parseInt(d)} de ${meses[parseInt(m) - 1]} de ${y}`

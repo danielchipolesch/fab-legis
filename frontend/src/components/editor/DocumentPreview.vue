@@ -343,7 +343,7 @@ function hasBlockContent(html) {
 
 function formatarDataBR(iso) {
   if (!iso) return '___________'
-  const [y, m, d] = iso.split('-')
+  const [y, m, d] = String(iso).slice(0, 10).split('-')
   const meses = ['janeiro','fevereiro','março','abril','maio','junho',
                  'julho','agosto','setembro','outubro','novembro','dezembro']
   return `${+d} de ${meses[+m - 1]} de ${y}`

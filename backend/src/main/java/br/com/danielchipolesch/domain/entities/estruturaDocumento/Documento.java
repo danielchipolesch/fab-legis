@@ -77,6 +77,11 @@ public class Documento extends RepresentationModel<Documento> {
     @Column(name = "dt_em_alteracao")
     private Timestamp dtEmAlteracao;
 
+    // Timestamp próprio para EM_ALTERACAO -> ALTERADO, separado de dtAprovacao para não
+    // sobrescrever o momento da aprovação original do fluxo normal (RASCUNHO->...->APROVADO).
+    @Column(name = "dt_alterado")
+    private Timestamp dtAlterado;
+
     @Column(name = "tx_portaria_referencia")
     private String portariaReferencia;
 

@@ -39,12 +39,15 @@ public class DocumentoStatusService {
         DocumentoStatusEnum current = document.getDocumentoStatus();
 
         boolean transicaoValida = switch (novoStatus) {
+            // MINUTA nunca é alcançável a partir de ALTERADO: um documento que passou por
+            // EM_ALTERACAO carrega numeração com sufixo de letra e elementos marcados
+            // (INCLUIDO/ALTERADO/REVOGADO) que a renumeração simples de MINUTA não entende
+            // — só é permitido a partir do fluxo normal (RASCUNHO/APROVADO).
             case MINUTA       -> current == DocumentoStatusEnum.RASCUNHO || current == DocumentoStatusEnum.APROVADO;
-            case APROVADO     -> current == DocumentoStatusEnum.RASCUNHO
-                             || current == DocumentoStatusEnum.MINUTA
-                             || current == DocumentoStatusEnum.EM_ALTERACAO;
-            case PUBLICADO    -> current == DocumentoStatusEnum.APROVADO;
-            case EM_ALTERACAO -> current == DocumentoStatusEnum.PUBLICADO;
+            case APROVADO     -> current == DocumentoStatusEnum.RASCUNHO || current == DocumentoStatusEnum.MINUTA;
+            case ALTERADO     -> current == DocumentoStatusEnum.EM_ALTERACAO;
+            case PUBLICADO    -> current == DocumentoStatusEnum.APROVADO || current == DocumentoStatusEnum.ALTERADO;
+            case EM_ALTERACAO -> current == DocumentoStatusEnum.PUBLICADO || current == DocumentoStatusEnum.ALTERADO;
             case ARQUIVADO    -> current == DocumentoStatusEnum.PUBLICADO;
             case REVOGADO     -> current == DocumentoStatusEnum.PUBLICADO;
             case CANCELADO    -> current == DocumentoStatusEnum.RASCUNHO || current == DocumentoStatusEnum.MINUTA;
@@ -55,13 +58,12 @@ public class DocumentoStatusService {
             throw new StatusCannotBeUpdatedException(DocumentException.CANNOT_BE_UPDATED.getMessage());
         }
 
-        // Ao republicar um documento que já passou por alteração (PUBLICADO vindo de
-        // APROVADO, que por sua vez veio de EM_ALTERACAO em algum momento), portaria e
-        // BCA de referência são obrigatórios — o PDF os embute. A aprovação da alteração
-        // em si (EM_ALTERACAO -> APROVADO) não exige nada além da confirmação de status.
+        // Ao republicar um documento que passou por alteração (PUBLICADO vindo de
+        // ALTERADO), portaria e BCA de referência são obrigatórios — o PDF os embute.
+        // A aprovação da alteração em si (EM_ALTERACAO -> ALTERADO) não exige nada além
+        // da confirmação de status.
         boolean republicacaoPosAlteracao = novoStatus == DocumentoStatusEnum.PUBLICADO
-                && current == DocumentoStatusEnum.APROVADO
-                && document.getDtEmAlteracao() != null;
+                && current == DocumentoStatusEnum.ALTERADO;
         if (republicacaoPosAlteracao) {
             String numeroPortaria = request.getNumeroPortaria();
             LocalDate dataPortaria = request.getDataPortaria();
@@ -98,7 +100,8 @@ public class DocumentoStatusService {
         Timestamp agora = Timestamp.from(Instant.now());
         switch (novoStatus) {
             case MINUTA       -> document.setDtMinuta(agora);
-            case APROVADO     -> document.setDtAprovacao(agora);
+            case APROVADO    -> document.setDtAprovacao(agora);
+            case ALTERADO    -> document.setDtAlterado(agora);
             case PUBLICADO    -> document.setDtPublicacao(agora);
             case EM_ALTERACAO -> document.setDtEmAlteracao(agora);
             case ARQUIVADO    -> document.setDtArquivamento(agora);
@@ -118,7 +121,7 @@ public class DocumentoStatusService {
             finalRepository.respacarElementOrders(id);
         }
 
-        if (novoStatus == DocumentoStatusEnum.APROVADO) {
+        if (novoStatus == DocumentoStatusEnum.APROVADO || novoStatus == DocumentoStatusEnum.ALTERADO) {
             try {
                 String urlPdf = documentoPdfService.gerarEArmazenarPdf(document);
                 document.setUrlPdf(urlPdf);

@@ -6,7 +6,7 @@ import * as api from '@/api/documents.js'
 function renumerarSecaoNormativa(doc) {
   const normativa = doc.secoes?.find(s => s.tipo === 'parte_normativa')
   if (!normativa?.elementos?.length) return
-  if (doc.status === 'EM_ALTERACAO') {
+  if (doc.status === 'EM_ALTERACAO' || doc.status === 'ALTERADO') {
     renumberElementsEmAlteracao(normativa.elementos)
   } else {
     renumberElements(normativa.elementos)

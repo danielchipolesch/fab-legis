@@ -295,7 +295,7 @@ const selectedElement = computed(() => editorStore.selectedElement)
 const isEmAlteracao = computed(() => documento.value?.status === 'EM_ALTERACAO')
 
 const isReadonly = computed(() =>
-  ['PUBLICADO', 'EM_ALTERACAO', 'ARQUIVADO', 'CANCELADO', 'REVOGADO'].includes(documento.value?.status)
+  ['PUBLICADO', 'EM_ALTERACAO', 'ALTERADO', 'ARQUIVADO', 'CANCELADO', 'REVOGADO'].includes(documento.value?.status)
 )
 
 // Elemento ALTERADO por emenda: o texto vigente fica em conteudoEmenda, não em

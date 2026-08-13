@@ -590,7 +590,7 @@ const emit = defineEmits([
 // ── Dialog de metadados ──────────────────────────────────────────────────────
 function formatarData(iso) {
   if (!iso) return '—'
-  const [y, m, d] = iso.split('-')
+  const [y, m, d] = String(iso).slice(0, 10).split('-')
   const meses = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez']
   return `${+d} ${meses[+m - 1]} ${y}`
 }
