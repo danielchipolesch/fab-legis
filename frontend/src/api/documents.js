@@ -55,6 +55,7 @@ function apiItemParaFrontend(item) {
     tituloEmenda: item.tituloEmenda ?? null,
     justificativaEmenda: item.justificativaEmenda ?? null,
     clausulaEmenda: item.clausulaEmenda ?? null,
+    clausulaEmendaAnterior: item.clausulaEmendaAnterior ?? null,
     incluidoPorEmenda: item.incluidoPorEmenda ?? false,
     filhos: sortEmendaItens(item.children ?? []).map(apiItemParaFrontend),
   }

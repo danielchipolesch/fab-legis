@@ -24,6 +24,7 @@ public class ItemAnexoParteNormativaResponseDto {
     private String tituloEmenda;
     private String justificativaEmenda;
     private String clausulaEmenda;
+    private String clausulaEmendaAnterior;
     private boolean incluidoPorEmenda;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
@@ -43,6 +44,7 @@ public class ItemAnexoParteNormativaResponseDto {
         dto.setTituloEmenda(item.getTituloEmenda());
         dto.setJustificativaEmenda(item.getJustificativaEmenda());
         dto.setClausulaEmenda(item.getClausulaEmenda());
+        dto.setClausulaEmendaAnterior(item.getClausulaEmendaAnterior());
         dto.setIncluidoPorEmenda(item.isIncluidoPorEmenda());
         dto.setCreatedAt(item.getCreatedAt());
         dto.setUpdatedAt(item.getUpdatedAt());

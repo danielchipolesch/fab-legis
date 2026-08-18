@@ -168,14 +168,19 @@
 
           <div v-if="isGrouping(item.el.tipo)" :id="'prev-' + item.el.id" :class="groupingHeadingClass(item.el.tipo)">
             <p :class="groupingNumeroClass(item.el.tipo)">{{ groupingLabel(item.el) }}</p>
-            <!-- REVOGADO: título original tachado + referência -->
+            <!-- REVOGADO: título original tachado (+ cláusula anterior tachada, se
+                 esta redação já havia sido publicada com sua própria emenda) + referência -->
             <template v-if="item.el.emendaStatus === 'REVOGADO'">
-              <p v-if="item.el.titulo" :class="[groupingTituloClass(item.el.tipo), 'emenda-strikethrough']">{{ groupingTituloTexto(item.el.tipo, item.el.titulo) }}</p>
+              <p v-if="item.el.titulo" :class="[groupingTituloClass(item.el.tipo), 'emenda-strikethrough']">
+                {{ groupingTituloTexto(item.el.tipo, item.el.titulo) }}<span v-if="item.el.clausulaEmendaAnterior" class="emenda-ref emenda-strikethrough"> {{ item.el.clausulaEmendaAnterior }}</span>
+              </p>
               <p class="emenda-ref">{{ emendaRef(item.el) }}</p>
             </template>
-            <!-- ALTERADO: título original tachado + novo título + referência -->
+            <!-- ALTERADO: título original tachado (+ cláusula anterior tachada) + novo título + referência -->
             <template v-else-if="item.el.emendaStatus === 'ALTERADO'">
-              <p v-if="item.el.titulo" :class="[groupingTituloClass(item.el.tipo), 'emenda-strikethrough']">{{ groupingTituloTexto(item.el.tipo, item.el.titulo) }}</p>
+              <p v-if="item.el.titulo" :class="[groupingTituloClass(item.el.tipo), 'emenda-strikethrough']">
+                {{ groupingTituloTexto(item.el.tipo, item.el.titulo) }}<span v-if="item.el.clausulaEmendaAnterior" class="emenda-ref emenda-strikethrough"> {{ item.el.clausulaEmendaAnterior }}</span>
+              </p>
               <p v-if="item.el.tituloEmenda" :class="groupingTituloClass(item.el.tipo)">{{ groupingTituloTexto(item.el.tipo, item.el.tituloEmenda) }}</p>
               <p class="emenda-ref">{{ emendaRef(item.el) }}</p>
             </template>
@@ -189,17 +194,18 @@
             <p v-else-if="item.el.titulo" :class="groupingTituloClass(item.el.tipo)">{{ groupingTituloTexto(item.el.tipo, item.el.titulo) }}</p>
           </div>
 
-          <!-- REVOGADO: conteúdo tachado + referência inline -->
+          <!-- REVOGADO: conteúdo tachado (+ cláusula anterior tachada, se esta redação
+               já havia sido publicada com sua própria emenda) + referência inline -->
           <div v-else-if="item.el.emendaStatus === 'REVOGADO'" :id="'prev-' + item.el.id" class="body-el norm-el">
             <span class="norm-lbl emenda-strikethrough" :class="{ 'norm-lbl-bold': item.el.tipo === 'artigo' }">{{ item.label }}</span>
-            <div class="norm-content-block emenda-strikethrough" v-html="conteudoToHtml(item.el.conteudo)"></div><span class="emenda-ref"> {{ emendaRef(item.el) }}</span>
+            <div class="norm-content-block emenda-strikethrough" v-html="conteudoToHtml(item.el.conteudo)"></div><span v-if="item.el.clausulaEmendaAnterior" class="emenda-ref emenda-strikethrough"> {{ item.el.clausulaEmendaAnterior }}</span><span class="emenda-ref"> {{ emendaRef(item.el) }}</span>
           </div>
 
-          <!-- ALTERADO: original tachado + nova redação + referência inline -->
+          <!-- ALTERADO: original tachado (+ cláusula anterior tachada) + nova redação + referência inline -->
           <template v-else-if="item.el.emendaStatus === 'ALTERADO'">
             <div :id="'prev-' + item.el.id" class="body-el norm-el">
               <span class="norm-lbl emenda-strikethrough" :class="{ 'norm-lbl-bold': item.el.tipo === 'artigo' }">{{ item.label }}</span>
-              <div class="norm-content-block emenda-strikethrough" v-html="conteudoToHtml(item.el.conteudo)"></div>
+              <div class="norm-content-block emenda-strikethrough" v-html="conteudoToHtml(item.el.conteudo)"></div><span v-if="item.el.clausulaEmendaAnterior" class="emenda-ref emenda-strikethrough"> {{ item.el.clausulaEmendaAnterior }}</span>
             </div>
             <div class="body-el norm-el emenda-incluido">
               <span class="norm-lbl" :class="{ 'norm-lbl-bold': item.el.tipo === 'artigo' }">{{ item.label }}</span>

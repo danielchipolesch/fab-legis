@@ -59,6 +59,9 @@ public class ItemPartePreliminar {
     @Column(name = "tx_clausula_emenda", columnDefinition = "TEXT")
     private String clausulaEmenda;
 
+    @Column(name = "tx_clausula_emenda_anterior", columnDefinition = "TEXT")
+    private String clausulaEmendaAnterior;
+
     @CreationTimestamp
     @Column(name = "dt_criacao", updatable = false)
     private LocalDateTime createdAt;

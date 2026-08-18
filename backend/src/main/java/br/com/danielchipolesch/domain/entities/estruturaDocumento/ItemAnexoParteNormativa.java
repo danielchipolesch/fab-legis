@@ -61,6 +61,13 @@ public class ItemAnexoParteNormativa {
     @Column(name = "tx_clausula_emenda", columnDefinition = "TEXT")
     private String clausulaEmenda;
 
+    // Cláusula da redação ANTERIOR a esta emenda (ex.: "incluído pela Portaria X"),
+    // preenchida só quando uma nova emenda começa sobre um elemento já publicado — ver
+    // EmendaService. Mostrada riscada ao lado do texto que ela descreve (LC 95/1998),
+    // diferente de clausulaEmenda (a atual, nunca riscada).
+    @Column(name = "tx_clausula_emenda_anterior", columnDefinition = "TEXT")
+    private String clausulaEmendaAnterior;
+
     // Permanente, independente de emendaStatus — usada só pela numeração com sufixo de
     // letra (ex.: "Art. 5-A"). emendaStatus é livre para evoluir (INCLUIDO -> ALTERADO
     // -> REVOGADO) sem nunca perder a marca de inclusão, senão a numeração sequencial

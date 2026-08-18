@@ -117,14 +117,17 @@ public class EmendaService {
         // conteudoEmenda, não em conteudo (que ainda guarda o texto anterior a ESSA
         // alteração — LC 95/1998 exige mostrar a redação imediatamente anterior
         // tachada), então promove-a antes de aceitar a nova mudança. Para INCLUIDO,
-        // conteudo já é a vigente (nunca usou conteudoEmenda), nada a promover. A
-        // cláusula antiga é descartada aqui — uma cláusula NOVA é gerada na próxima
+        // conteudo já é a vigente (nunca usou conteudoEmenda), nada a promover. Em
+        // ambos os casos, a cláusula antiga (ex.: "incluído pela Portaria X") não é
+        // descartada — move para clausulaEmendaAnterior, para ser exibida riscada ao
+        // lado da redação que ela descreve; uma cláusula NOVA é gerada na próxima
         // publicação, em clausulaEmenda.
         if (item.getClausulaEmenda() != null) {
             if (item.getEmendaStatus() == ElementoEmendaStatusEnum.ALTERADO) {
                 if (item.getConteudoEmenda() != null) item.setConteudo(item.getConteudoEmenda());
                 if (item.getTituloEmenda() != null) item.setTitulo(item.getTituloEmenda());
             }
+            item.setClausulaEmendaAnterior(item.getClausulaEmenda());
             item.setClausulaEmenda(null);
         }
 
@@ -207,14 +210,17 @@ public class EmendaService {
         // conteudoEmenda, não em conteudo (que ainda guarda o texto anterior a ESSA
         // alteração — LC 95/1998 exige mostrar a redação imediatamente anterior
         // tachada), então promove-a antes de aceitar a nova mudança. Para INCLUIDO,
-        // conteudo já é a vigente (nunca usou conteudoEmenda), nada a promover. A
-        // cláusula antiga é descartada aqui — uma cláusula NOVA é gerada na próxima
+        // conteudo já é a vigente (nunca usou conteudoEmenda), nada a promover. Em
+        // ambos os casos, a cláusula antiga (ex.: "incluído pela Portaria X") não é
+        // descartada — move para clausulaEmendaAnterior, para ser exibida riscada ao
+        // lado da redação que ela descreve; uma cláusula NOVA é gerada na próxima
         // publicação, em clausulaEmenda.
         if (item.getClausulaEmenda() != null) {
             if (item.getEmendaStatus() == ElementoEmendaStatusEnum.ALTERADO) {
                 if (item.getConteudoEmenda() != null) item.setConteudo(item.getConteudoEmenda());
                 if (item.getTituloEmenda() != null) item.setTitulo(item.getTituloEmenda());
             }
+            item.setClausulaEmendaAnterior(item.getClausulaEmenda());
             item.setClausulaEmenda(null);
         }
 
@@ -297,14 +303,17 @@ public class EmendaService {
         // conteudoEmenda, não em conteudo (que ainda guarda o texto anterior a ESSA
         // alteração — LC 95/1998 exige mostrar a redação imediatamente anterior
         // tachada), então promove-a antes de aceitar a nova mudança. Para INCLUIDO,
-        // conteudo já é a vigente (nunca usou conteudoEmenda), nada a promover. A
-        // cláusula antiga é descartada aqui — uma cláusula NOVA é gerada na próxima
+        // conteudo já é a vigente (nunca usou conteudoEmenda), nada a promover. Em
+        // ambos os casos, a cláusula antiga (ex.: "incluído pela Portaria X") não é
+        // descartada — move para clausulaEmendaAnterior, para ser exibida riscada ao
+        // lado da redação que ela descreve; uma cláusula NOVA é gerada na próxima
         // publicação, em clausulaEmenda.
         if (item.getClausulaEmenda() != null) {
             if (item.getEmendaStatus() == ElementoEmendaStatusEnum.ALTERADO) {
                 if (item.getConteudoEmenda() != null) item.setConteudo(item.getConteudoEmenda());
                 if (item.getTituloEmenda() != null) item.setTitulo(item.getTituloEmenda());
             }
+            item.setClausulaEmendaAnterior(item.getClausulaEmenda());
             item.setClausulaEmenda(null);
         }
 
