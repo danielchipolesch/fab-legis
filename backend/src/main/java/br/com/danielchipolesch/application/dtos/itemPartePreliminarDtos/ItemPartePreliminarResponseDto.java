@@ -20,6 +20,7 @@ public class ItemPartePreliminarResponseDto {
     private String conteudoEmenda;
     private String tituloEmenda;
     private String justificativaEmenda;
+    private String clausulaEmenda;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -35,6 +36,7 @@ public class ItemPartePreliminarResponseDto {
         dto.setConteudoEmenda(item.getConteudoEmenda());
         dto.setTituloEmenda(item.getTituloEmenda());
         dto.setJustificativaEmenda(item.getJustificativaEmenda());
+        dto.setClausulaEmenda(item.getClausulaEmenda());
         dto.setCreatedAt(item.getCreatedAt());
         dto.setUpdatedAt(item.getUpdatedAt());
         return dto;

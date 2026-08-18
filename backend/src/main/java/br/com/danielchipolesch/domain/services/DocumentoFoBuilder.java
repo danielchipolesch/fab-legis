@@ -726,11 +726,15 @@ public class DocumentoFoBuilder {
         // para os três — espelha renderBodyEl's overload de emenda para conteúdo de artigo.
         private void renderGroupingHeading(StringBuilder sb, String anc, String headingText, String spaceBefore,
                                            String titulo, String tituloEmenda,
-                                           ElementoEmendaStatusEnum emendaStatus, boolean uppercase) {
+                                           ElementoEmendaStatusEnum emendaStatus, boolean uppercase,
+                                           String clausulaEmenda) {
             sb.append("<fo:block id=\"").append(anc).append("\"")
               .append(" text-align=\"center\" font-weight=\"bold\" space-before=\"").append(spaceBefore)
               .append("\" space-after=\"3pt\">").append(headingText).append("</fo:block>\n");
 
+            // Elementos com emenda (INCLUIDO/ALTERADO/REVOGADO) nunca voltam a INALTERADO
+            // — ver consolidarPublicacao — então este ramo é só para elementos que de
+            // fato nunca tiveram emenda; clausulaEmenda nunca está presente aqui.
             if (emendaStatus == null || emendaStatus == ElementoEmendaStatusEnum.INALTERADO) {
                 if (titulo != null && !titulo.isBlank()) {
                     sb.append("<fo:block text-align=\"center\" font-weight=\"bold\" space-after=\"6pt\">")
@@ -752,8 +756,13 @@ public class DocumentoFoBuilder {
                       .append(foEsc(uppercase ? texto.toUpperCase() : texto)).append("</fo:block>\n");
                 }
             }
+            // Elemento já consolidado numa publicação anterior (REVOGADO permanente, ou
+            // INCLUIDO que permanece INCLUIDO para sempre — ver consolidarPublicacao):
+            // mostra a cláusula congelada em vez do placeholder ao vivo.
+            String refInline = clausulaEmenda != null
+                    ? wrapEmendaInline(clausulaEmenda) : emendaRefInline(emendaStatus);
             sb.append("<fo:block text-align=\"center\" space-after=\"5pt\">")
-              .append(emendaRefInline(emendaStatus)).append("</fo:block>\n");
+              .append(refInline).append("</fo:block>\n");
         }
 
         private void renderNormItem(ItemAnexoParteNormativaResponseDto item, StringBuilder sb, Numbering num) {
@@ -761,26 +770,30 @@ public class DocumentoFoBuilder {
             switch (item.getElementType()) {
                 case CAPITULO -> {
                     renderGroupingHeading(sb, anc, "CAPÍTULO " + capLabel(item, num), "15pt",
-                            item.getElementTitle(), item.getTituloEmenda(), item.getEmendaStatus(), true);
+                            item.getElementTitle(), item.getTituloEmenda(), item.getEmendaStatus(), true,
+                            item.getClausulaEmenda());
                     renderNormItems(item.getChildren(), sb, num);
                 }
                 case SECAO_NORMATIVA -> {
                     renderGroupingHeading(sb, anc, "Seção " + secLabel(item, num), "10pt",
-                            item.getElementTitle(), item.getTituloEmenda(), item.getEmendaStatus(), false);
+                            item.getElementTitle(), item.getTituloEmenda(), item.getEmendaStatus(), false,
+                            item.getClausulaEmenda());
                     renderNormItems(item.getChildren(), sb, num);
                 }
                 case SUBSECAO_NORMATIVA -> {
                     renderGroupingHeading(sb, anc, "Subseção " + subLabel(item, num), "8pt",
-                            item.getElementTitle(), item.getTituloEmenda(), item.getEmendaStatus(), false);
+                            item.getElementTitle(), item.getTituloEmenda(), item.getEmendaStatus(), false,
+                            item.getClausulaEmenda());
                     renderNormItems(item.getChildren(), sb, num);
                 }
                 case ARTIGO -> {
                     renderBodyEl(sb, anc, "Art. " + artLabel(item, num) + "  ", true,
-                            item.getElementContent(), item.getEmendaStatus(), item.getConteudoEmenda());
+                            item.getElementContent(), item.getEmendaStatus(), item.getConteudoEmenda(),
+                            item.getClausulaEmenda());
                     renderArtigoFilhos(item.getChildren(), sb);
                 }
                 default -> renderBodyEl(sb, null, "", false, item.getElementContent(),
-                        item.getEmendaStatus(), item.getConteudoEmenda());
+                        item.getEmendaStatus(), item.getConteudoEmenda(), item.getClausulaEmenda());
             }
         }
 
@@ -797,17 +810,17 @@ public class DocumentoFoBuilder {
                         parNum++;
                         boolean unico = parCount == 1 && child.getElementType() == ItemAnexoParteNormativaTipoEnum.PARAGRAFO_UNICO;
                         renderBodyEl(sb, null, unico ? "Parágrafo único.  " : "§ " + ordinalOrCardinal(parNum) + "  ",
-                                false, child.getElementContent(), child.getEmendaStatus(), child.getConteudoEmenda());
+                                false, child.getElementContent(), child.getEmendaStatus(), child.getConteudoEmenda(), child.getClausulaEmenda());
                         renderIncisoFilhos(child.getChildren(), sb);
                     }
                     case INCISO -> {
                         incisoNum++;
                         renderBodyEl(sb, null, toRoman(incisoNum) + " - ", false, child.getElementContent(),
-                                child.getEmendaStatus(), child.getConteudoEmenda());
+                                child.getEmendaStatus(), child.getConteudoEmenda(), child.getClausulaEmenda());
                         renderAlineaFilhos(child.getChildren(), sb);
                     }
                     default -> renderBodyEl(sb, null, "", false, child.getElementContent(),
-                            child.getEmendaStatus(), child.getConteudoEmenda());
+                            child.getEmendaStatus(), child.getConteudoEmenda(), child.getClausulaEmenda());
                 }
             }
         }
@@ -819,7 +832,7 @@ public class DocumentoFoBuilder {
                 if (child.getElementType() == ItemAnexoParteNormativaTipoEnum.INCISO) {
                     n++;
                     renderBodyEl(sb, null, toRoman(n) + " - ", false, child.getElementContent(),
-                            child.getEmendaStatus(), child.getConteudoEmenda());
+                            child.getEmendaStatus(), child.getConteudoEmenda(), child.getClausulaEmenda());
                     renderAlineaFilhos(child.getChildren(), sb);
                 }
             }
@@ -832,7 +845,7 @@ public class DocumentoFoBuilder {
                 if (child.getElementType() == ItemAnexoParteNormativaTipoEnum.ALINEA) {
                     n++;
                     renderBodyEl(sb, null, toLetter(n) + ") ", false, child.getElementContent(),
-                            child.getEmendaStatus(), child.getConteudoEmenda());
+                            child.getEmendaStatus(), child.getConteudoEmenda(), child.getClausulaEmenda());
                     renderSubAlineaFilhos(child.getChildren(), sb);
                 }
             }
@@ -845,7 +858,7 @@ public class DocumentoFoBuilder {
                 if (child.getElementType() == ItemAnexoParteNormativaTipoEnum.SUB_ALINEA) {
                     n++;
                     renderBodyEl(sb, null, n + ". ", false, child.getElementContent(),
-                            child.getEmendaStatus(), child.getConteudoEmenda());
+                            child.getEmendaStatus(), child.getConteudoEmenda(), child.getClausulaEmenda());
                 }
             }
         }
@@ -889,18 +902,28 @@ public class DocumentoFoBuilder {
         }
 
         // Overload aware of emenda status:
-        //   conteudo      = original published content (always preserved, shown struck through for ALTERADO/REVOGADO)
-        //   conteudoEmenda = new amendment content (shown as current text for ALTERADO)
+        //   conteudo       = redação imediatamente anterior a ESTA emenda (mostrada
+        //                    tachada para ALTERADO/REVOGADO — LC 95/1998)
+        //   conteudoEmenda = redação vigente após a emenda (texto atual para ALTERADO)
+        //   clausulaEmenda = cláusula congelada de uma emenda já publicada. Elementos
+        //                    com emenda nunca voltam a INALTERADO (ver
+        //                    consolidarPublicacao), então este parâmetro só é usado
+        //                    dentro dos ramos REVOGADO/ALTERADO/INCLUIDO abaixo.
         private void renderBodyEl(StringBuilder sb, String id, String label, boolean labelBold,
                                   String conteudo,
                                   ElementoEmendaStatusEnum emendaStatus,
-                                  String conteudoEmenda) {
+                                  String conteudoEmenda,
+                                  String clausulaEmenda) {
             if (emendaStatus == null || emendaStatus == ElementoEmendaStatusEnum.INALTERADO) {
                 renderBodyEl(sb, id, label, labelBold, conteudo);
                 return;
             }
             String idAttr = (id != null && !id.isBlank()) ? " id=\"" + id + "\"" : "";
-            String refInline = emendaRefInline(emendaStatus);
+            // Elemento já consolidado numa publicação anterior (REVOGADO permanente, ou
+            // INCLUIDO que permanece INCLUIDO para sempre — ver consolidarPublicacao):
+            // mostra a cláusula congelada em vez do placeholder ao vivo.
+            String refInline = clausulaEmenda != null
+                    ? wrapEmendaInline(clausulaEmenda) : emendaRefInline(emendaStatus);
             switch (emendaStatus) {
                 case REVOGADO -> {
                     var tmp = new StringBuilder();
@@ -980,6 +1003,13 @@ public class DocumentoFoBuilder {
               .append("</fo:block>\n");
         }
 
+        // Cláusula ao vivo para emenda ainda pendente (não publicada nesta alteração):
+        // sempre o placeholder XYZ/ABC, nunca doc.getPortariaReferencia()/getBcaReferencia()
+        // — esses campos guardam a portaria/BCA da ÚLTIMA publicação (que pode já existir
+        // mesmo numa primeira alteração após a publicação inicial) e não têm relação com
+        // a emenda em curso, cuja portaria/BCA só existem quando ELA for republicada. Uma
+        // vez publicada, a cláusula é congelada (ver clausulaEmenda) e este cálculo deixa
+        // de valer para aquele elemento.
         private String emendaRefInline(ElementoEmendaStatusEnum status) {
             String acao = switch (status) {
                 case ALTERADO -> "alterado";
@@ -987,17 +1017,18 @@ public class DocumentoFoBuilder {
                 case INCLUIDO -> "incluído";
                 default -> "modificado";
             };
-            String portaria = doc.getPortariaReferencia();
-            String bca      = doc.getBcaReferencia();
-            String ref;
-            if (portaria != null && !portaria.isBlank() && bca != null && !bca.isBlank()) {
-                ref = " (" + acao + " pela " + portaria + ", publicada no " + bca + ")";
-            } else {
-                ref = " (" + acao + " pela Portaria DIRAD n° XYZ, de DD de MÊS de AAAA,"
+            String ref = "(" + acao + " pela Portaria DIRAD n° XYZ, de DD de MÊS de AAAA,"
                     + " publicada no BCA n° ABC, de DD de mês de AAAA)";
-            }
-            return "<fo:inline font-size=\"10pt\" font-style=\"italic\" color=\"#0000FF\">"
-                 + foEsc(ref) + "</fo:inline>";
+            return wrapEmendaInline(ref);
+        }
+
+        private String wrapEmendaInline(String ref) {
+            // text-decoration="none" é necessário porque este inline pode ser inserido
+            // dentro de um fo:block tachado (REVOGADO) — sem isso, herdaria o tachado do
+            // pai e a cláusula apareceria riscada, o que não pode ocorrer para a cláusula
+            // ATUAL (só o texto legislativo é tachado, nunca a cláusula que o acompanha).
+            return "<fo:inline font-size=\"10pt\" font-style=\"italic\" color=\"#0000FF\" text-decoration=\"none\">"
+                 + foEsc(" " + ref) + "</fo:inline>";
         }
 
         // Inserts an inline fragment just before the last </fo:block> in a local buffer.

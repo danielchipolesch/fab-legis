@@ -184,7 +184,8 @@
               <p v-if="item.el.titulo" :class="groupingTituloClass(item.el.tipo)">{{ groupingTituloTexto(item.el.tipo, item.el.titulo) }}</p>
               <p class="emenda-ref">{{ emendaRef(item.el) }}</p>
             </template>
-            <!-- INALTERADO -->
+            <!-- INALTERADO: elementos com emenda nunca voltam a este estado (ver
+                 consolidarPublicacao no backend), então não há cláusula a mostrar aqui -->
             <p v-else-if="item.el.titulo" :class="groupingTituloClass(item.el.tipo)">{{ groupingTituloTexto(item.el.tipo, item.el.titulo) }}</p>
           </div>
 
@@ -327,13 +328,16 @@ function stripHtml(html) {
   return (d.textContent || '').trim()
 }
 
+// Cláusula ao vivo para emenda ainda pendente (não publicada nesta alteração): sempre
+// o placeholder XYZ/ABC, nunca documento.portaria_referencia/bca_referencia — esses
+// campos guardam a portaria/BCA da ÚLTIMA publicação (que pode já existir mesmo numa
+// primeira alteração após a publicação inicial) e não têm relação com a emenda em
+// curso, cuja portaria/BCA só existem quando ELA for republicada. Uma vez publicada,
+// a cláusula fica congelada em el.clausulaEmenda e este cálculo deixa de ser usado
+// para aquele elemento (ver os v-if de clausulaEmenda no template).
 function emendaRef(el) {
+  if (el.clausulaEmenda) return ` ${el.clausulaEmenda}`
   const acao = { ALTERADO: 'alterado', REVOGADO: 'revogado', INCLUIDO: 'incluído' }[el.emendaStatus] ?? 'modificado'
-  const portaria = props.documento?.portaria_referencia
-  const bca = props.documento?.bca_referencia
-  if (portaria && bca) {
-    return ` (${acao} pela ${portaria}, publicada no ${bca})`
-  }
   return ` (${acao} pela Portaria DIRAD n° XYZ, de DD de MÊS de AAAA, publicada no BCA n° ABC, de DD de mês de AAAA)`
 }
 

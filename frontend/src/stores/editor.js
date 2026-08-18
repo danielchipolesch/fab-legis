@@ -325,11 +325,13 @@ export const useEditorStore = defineStore('editor', {
       const idx = siblings.findIndex(el => el.id === id)
       if (idx === -1) return false
       const el = siblings[idx]
-      if (el.tipo !== 'artigo' || el.emendaStatus !== 'INCLUIDO') return false
+      // clausulaEmenda preenchida = já consolidado numa publicação anterior — a posição
+      // (e portanto a numeração com sufixo de letra) já é definitiva e não pode mudar.
+      if (el.tipo !== 'artigo' || el.emendaStatus !== 'INCLUIDO' || el.clausulaEmenda) return false
       const targetIdx = idx + direction
       if (targetIdx < 0 || targetIdx >= siblings.length) return false
       const target = siblings[targetIdx]
-      return target.tipo === 'artigo' && target.emendaStatus === 'INCLUIDO'
+      return target.tipo === 'artigo' && target.emendaStatus === 'INCLUIDO' && !target.clausulaEmenda
     },
   },
 })

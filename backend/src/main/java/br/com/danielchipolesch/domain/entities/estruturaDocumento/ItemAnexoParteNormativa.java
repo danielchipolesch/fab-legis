@@ -56,6 +56,11 @@ public class ItemAnexoParteNormativa {
     @Column(name = "tx_justificativa_emenda", columnDefinition = "TEXT")
     private String justificativaEmenda;
 
+    // Texto da cláusula (ex.: "(incluído pela Portaria X, publicada no BCA Y)")
+    // congelado no momento da (re)publicação — permanece mesmo depois que emendaStatus volta a INALTERADO no próximo ciclo. Distinto do cálculo ao vivo usado enquanto a emenda ainda está pendente (não publicada).
+    @Column(name = "tx_clausula_emenda", columnDefinition = "TEXT")
+    private String clausulaEmenda;
+
     // Permanente, independente de emendaStatus — usada só pela numeração com sufixo de
     // letra (ex.: "Art. 5-A"). emendaStatus é livre para evoluir (INCLUIDO -> ALTERADO
     // -> REVOGADO) sem nunca perder a marca de inclusão, senão a numeração sequencial

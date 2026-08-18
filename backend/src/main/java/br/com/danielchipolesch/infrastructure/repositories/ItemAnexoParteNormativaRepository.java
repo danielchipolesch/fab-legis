@@ -16,6 +16,9 @@ public interface ItemAnexoParteNormativaRepository extends JpaRepository<ItemAne
     @Query("SELECT i FROM ItemAnexoParteNormativa i WHERE i.documento.id = :documentoId AND i.parent IS NULL ORDER BY i.elementOrder ASC")
     List<ItemAnexoParteNormativa> findRootItemsByDocumentoId(@Param("documentoId") Long documentoId);
 
+    @Query("SELECT i FROM ItemAnexoParteNormativa i WHERE i.documento.id = :documentoId")
+    List<ItemAnexoParteNormativa> findAllByDocumentoId(@Param("documentoId") Long documentoId);
+
     List<ItemAnexoParteNormativa> findByParentOrderByElementOrderAsc(ItemAnexoParteNormativa parent);
 
     @Modifying

@@ -122,7 +122,9 @@
                       Vazio — necessário para aprovação
                     </q-tooltip>
                   </q-icon>
-                  <!-- Indicador de emenda (quando EM_ALTERACAO) -->
+                  <!-- Indicador de emenda (quando EM_ALTERACAO). Cadeado = já publicado em
+                       ciclo anterior (permanente, ver clausulaEmenda) — distingue de uma
+                       emenda feita agora mesmo, ainda pendente nesta alteração. -->
                   <q-chip
                     v-if="isEmAlteracao && node.emendaStatus && node.emendaStatus !== 'INALTERADO'"
                     :color="emendaStatusColor(node.emendaStatus)"
@@ -131,7 +133,12 @@
                     size="xs"
                     class="q-ml-xs"
                     style="flex-shrink:0;font-size:9px;height:14px;padding:0 4px"
-                  >{{ emendaStatusLabel(node.emendaStatus) }}</q-chip>
+                  >
+                    <q-icon v-if="node.clausulaEmenda" name="mdi-lock-outline" size="9px" class="q-mr-xs" />{{ emendaStatusLabel(node.emendaStatus) }}
+                    <q-tooltip v-if="node.clausulaEmenda" anchor="top middle" self="bottom middle">
+                      Já publicado numa alteração anterior — use os botões para uma nova emenda
+                    </q-tooltip>
+                  </q-chip>
                   <!-- Ações normais (visíveis ao passar o mouse, ocultas quando EM_ALTERACAO) -->
                   <div v-if="!isEmAlteracao" class="norm-actions row items-center q-ml-xs" style="gap:2px;flex-shrink:0">
                     <q-btn
@@ -218,8 +225,12 @@
                   </div>
                   <!-- Ações de emenda (visíveis ao passar o mouse, quando EM_ALTERACAO) -->
                   <div v-else class="norm-actions row items-center q-ml-xs" style="gap:2px;flex-shrink:0">
-                    <!-- Elemento original INALTERADO: pode alterar e revogar -->
-                    <template v-if="node.emendaStatus === 'INALTERADO'">
+                    <!-- Elemento sem emenda pendente — original INALTERADO, ou ALTERADO/
+                         INCLUIDO já publicado num ciclo anterior (permanente): uma nova
+                         emenda aqui é tratada como alterar/revogar de novo, exatamente como
+                         um original, não como "desfazer"/"excluir" a emenda anterior —
+                         é assim que o ciclo se repete também para inclusões -->
+                    <template v-if="node.emendaStatus === 'INALTERADO' || ((node.emendaStatus === 'ALTERADO' || node.emendaStatus === 'INCLUIDO') && node.clausulaEmenda)">
                       <q-btn round size="xs" flat dense color="primary" @click.stop="$emit('emenda-alterar', node.id, 'PARTE_NORMATIVA')">
                         <q-icon size="11px" name="mdi-pencil-outline" />
                         <q-tooltip anchor="center right" self="center left">Alterar texto</q-tooltip>
@@ -229,15 +240,22 @@
                         <q-tooltip anchor="center right" self="center left">Revogar</q-tooltip>
                       </q-btn>
                     </template>
-                    <!-- Emenda pendente no original (ALTERADO/REVOGADO): pode desfazer -->
-                    <template v-else-if="node.emendaStatus === 'ALTERADO' || node.emendaStatus === 'REVOGADO'">
+                    <!-- Emenda pendente nesta alteração (ainda não publicada): pode desfazer -->
+                    <template v-else-if="(node.emendaStatus === 'ALTERADO' || node.emendaStatus === 'REVOGADO') && !node.clausulaEmenda">
                       <q-btn round size="xs" flat dense color="warning" @click.stop="$emit('emenda-desfazer', node.id, 'PARTE_NORMATIVA')">
                         <q-icon size="11px" name="mdi-undo-variant" />
                         <q-tooltip anchor="center right" self="center left">Desfazer emenda</q-tooltip>
                       </q-btn>
                     </template>
-                    <!-- Elemento inserido por emenda (INCLUIDO): edição livre, reordenação entre
-                         incluídos (única exceção à vedação de renumeração) ou exclusão direta -->
+                    <!-- REVOGADO consolidado numa publicação anterior: permanente, sem ações -->
+                    <template v-else-if="node.emendaStatus === 'REVOGADO' && node.clausulaEmenda">
+                      <q-icon size="14px" name="mdi-lock-outline" color="grey-6">
+                        <q-tooltip anchor="center right" self="center left">Revogado permanentemente por publicação anterior</q-tooltip>
+                      </q-icon>
+                    </template>
+                    <!-- Elemento inserido por emenda ainda não publicado (INCLUIDO pendente):
+                         edição livre, reordenação entre incluídos (única exceção à vedação
+                         de renumeração) ou exclusão direta -->
                     <template v-else-if="node.emendaStatus === 'INCLUIDO'">
                       <q-btn
                         v-if="editorStore.canReorderIncluido(node.id, -1)"

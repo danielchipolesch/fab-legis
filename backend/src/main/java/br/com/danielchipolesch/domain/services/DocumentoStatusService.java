@@ -30,6 +30,7 @@ public class DocumentoStatusService {
     @Autowired ItemAnexoParteNormativaRepository normativaRepository;
     @Autowired ItemPartePreliminarRepository preliminarRepository;
     @Autowired ItemParteFinalRepository finalRepository;
+    @Autowired EmendaService emendaService;
 
     // Atômico de propósito: a mudança de status envolve várias tabelas (documento,
     // respaçamento de nr_ordem, histórico) e não pode ficar parcialmente aplicada se
@@ -108,6 +109,13 @@ public class DocumentoStatusService {
             document.setBcaReferencia("BCA n° " + numeroBca + ", de " + formatarDataPorExtenso(dataBca));
             document.setDtPortariaReferencia(Timestamp.valueOf(dataPortaria.atStartOfDay()));
             document.setDtBcaReferencia(Timestamp.valueOf(dataBca.atStartOfDay()));
+
+            // Só há emendas pendentes a consolidar quando vem de ALTERADO (ciclo de
+            // alteração concluído); a primeira publicação (a partir de APROVADO) nunca
+            // passou por EM_ALTERACAO, então não há nada para consolidar.
+            if (current == DocumentoStatusEnum.ALTERADO) {
+                emendaService.consolidarPublicacao(id, document.getPortariaReferencia(), document.getBcaReferencia());
+            }
         }
 
         Timestamp agora = Timestamp.from(Instant.now());

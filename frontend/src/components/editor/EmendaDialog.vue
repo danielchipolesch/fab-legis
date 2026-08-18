@@ -79,8 +79,8 @@
         <template v-else-if="acao === 'DESFAZER'">
           <p class="text-body2 q-mb-md">
             Deseja desfazer a emenda neste elemento?
-            <template v-if="elemento?.emendaStatus === 'INCLUIDO'">
-              Por ser um elemento <strong>incluído por emenda</strong>, ele será <strong>removido</strong> permanentemente.
+            <template v-if="isIncluido">
+              Por ser um elemento <strong>incluído por emenda</strong> ainda não publicado, ele será <strong>removido</strong> permanentemente.
             </template>
             <template v-else>
               O conteúdo da emenda será removido e o status voltará a <strong>INALTERADO</strong>.
@@ -146,7 +146,13 @@ const justificativa = ref('')
 const novoConteudo  = ref('')
 const novoTitulo    = ref('')
 
-const isIncluido = computed(() => props.elemento?.emendaStatus === 'INCLUIDO')
+// Só é "edição livre de inclusão" enquanto a inclusão ainda não foi publicada
+// (clausulaEmenda null). Uma vez publicada, uma nova emenda sobre ela segue o fluxo
+// normal — exige justificativa e gera sua própria cláusula, exatamente como uma
+// alteração comum, pois o ciclo de emendas se repete também para inclusões.
+const isIncluido = computed(() =>
+  props.elemento?.emendaStatus === 'INCLUIDO' && !props.elemento?.clausulaEmenda
+)
 const isSuperTipo = computed(() => SUPER_TIPOS.has(props.elemento?.tipo ?? ''))
 
 watch(() => [props.modelValue, props.elemento, props.acao], ([open]) => {
