@@ -506,10 +506,25 @@ const tocItems = computed(() => {
     return el._emendaLetra ? `${base}-${el._emendaLetra}` : base
   }
 
-  function fmtRange(lista) {
-    const first = firstArtigoEl(lista)
+  const GROUPING_TIPOS = new Set(['capitulo', 'secao_normativa', 'subsecao_normativa'])
+
+  // Intervalo de artigos deste agrupamento: olha os filhos (estrutura em árvore) E os
+  // irmãos seguintes até o próximo agrupamento (estrutura "achatada", onde artigos são
+  // irmãos da seção em vez de filhos dela — ex.: seção sem filhos diretos, artigos logo
+  // após ela sob o mesmo capítulo). Espelha artRangeFor() em DocumentoFoBuilder.java.
+  function artRangeFor(el, siblings, idx) {
+    let first = firstArtigoEl(el.filhos)
+    let last = lastArtigoEl(el.filhos)
+    for (let j = idx + 1; j < siblings.length; j++) {
+      const sib = siblings[j]
+      if (GROUPING_TIPOS.has(sib.tipo)) break
+      if (sib.tipo === 'artigo') {
+        if (!first) first = sib
+        last = sib
+      }
+    }
     if (!first) return ''
-    const last = lastArtigoEl(lista) ?? first
+    if (!last) last = first
     const a = fmtArtEndpoint(first)
     const b = fmtArtEndpoint(last)
     return a === b ? a : `${a}/${b}`
@@ -527,21 +542,23 @@ const tocItems = computed(() => {
 
   if (temAgrupamento) {
     function walk(lista) {
-      for (const el of lista ?? []) {
+      const arr = lista ?? []
+      for (let i = 0; i < arr.length; i++) {
+        const el = arr[i]
         if (el.tipo === 'capitulo') {
           const t = effectiveTitulo(el)
           const titulo = t ? ` - ${t.toUpperCase()}` : ''
-          items.push({ id: el.id, label: `CAPÍTULO ${toRomanStr(el.numero)}${titulo}`, kind: 'toc-capitulo', pg: fmtRange(el.filhos) })
+          items.push({ id: el.id, label: `CAPÍTULO ${toRomanStr(el.numero)}${titulo}`, kind: 'toc-capitulo', pg: artRangeFor(el, arr, i) })
           walk(el.filhos)
         } else if (el.tipo === 'secao_normativa') {
           const t = effectiveTitulo(el)
           const titulo = t ? ` - ${t}` : ''
-          items.push({ id: el.id, label: `Seção ${toRomanStr(el.numero)}${titulo}`, kind: 'toc-secao', pg: fmtRange(el.filhos) })
+          items.push({ id: el.id, label: `Seção ${toRomanStr(el.numero)}${titulo}`, kind: 'toc-secao', pg: artRangeFor(el, arr, i) })
           walk(el.filhos)
         } else if (el.tipo === 'subsecao_normativa') {
           const t = effectiveTitulo(el)
           const titulo = t ? ` - ${t}` : ''
-          items.push({ id: el.id, label: `Subseção ${toRomanStr(el.numero)}${titulo}`, kind: 'toc-subsecao', pg: fmtRange(el.filhos) })
+          items.push({ id: el.id, label: `Subseção ${toRomanStr(el.numero)}${titulo}`, kind: 'toc-subsecao', pg: artRangeFor(el, arr, i) })
           walk(el.filhos)
         }
       }
