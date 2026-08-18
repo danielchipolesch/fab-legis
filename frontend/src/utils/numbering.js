@@ -234,7 +234,7 @@ export function renumberElementsEmAlteracao(elements, _ctx = null) {
 
   for (let i = 0; i < elements.length; i++) {
     const el = elements[i]
-    const isIncluido = el.emendaStatus === 'INCLUIDO'
+    const isIncluido = el.incluidoPorEmenda === true
 
     switch (el.tipo) {
       case 'capitulo': {

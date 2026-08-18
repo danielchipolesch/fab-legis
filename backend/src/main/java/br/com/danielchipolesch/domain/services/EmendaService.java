@@ -295,6 +295,7 @@ public class EmendaService {
         item.setConteudo(req.getConteudo());
         item.setElementOrder(req.getElementOrder());
         item.setEmendaStatus(ElementoEmendaStatusEnum.INCLUIDO);
+        item.setIncluidoPorEmenda(true);
         item.setJustificativaEmenda(req.getJustificativa());
         if (req.getParentId() != null) {
             ItemAnexoParteNormativa parent = normativaRepository.findById(req.getParentId())

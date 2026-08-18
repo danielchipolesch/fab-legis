@@ -452,7 +452,11 @@ public class DocumentoFoBuilder {
             int capLetterIdx = 0, secLetterIdx = 0, subLetterIdx = 0, artLetterIdx = 0;
             for (int i = 0; i < items.size(); i++) {
                 var item = items.get(i);
-                boolean isIncluido = item.getEmendaStatus() == ElementoEmendaStatusEnum.INCLUIDO;
+                // Marca permanente, não o status ao vivo: um artigo incluído por emenda
+                // mantém seu sufixo de letra mesmo depois de ser alterado ou revogado —
+                // só assim emendaStatus fica livre para evoluir sem deslocar a numeração
+                // sequencial dos artigos seguintes (vedado pela LC 95/1998).
+                boolean isIncluido = item.isIncluidoPorEmenda();
                 switch (item.getElementType()) {
                     case CAPITULO -> {
                         boolean atEnd = isIncluido && !hasNonIncludedSameTypeAfter(items, i, ItemAnexoParteNormativaTipoEnum.CAPITULO);
