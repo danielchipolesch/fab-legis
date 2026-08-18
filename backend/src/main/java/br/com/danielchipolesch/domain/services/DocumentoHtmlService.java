@@ -448,7 +448,7 @@ public class DocumentoHtmlService {
         }
 
         private String fmtNum(int n) {
-            return n <= 9 ? n + "º" : String.valueOf(n);
+            return n <= 9 ? n + "º" : comSeparadorMilhar(n);
         }
 
         // ─── Corpo normativo ─────────────────────────────────────────────────────
@@ -769,8 +769,12 @@ public class DocumentoHtmlService {
             return String.valueOf((char) ('a' + n - 1));
         }
 
+        private static String comSeparadorMilhar(int n) {
+            return String.format("%,d", n).replace(",", ".");
+        }
+
         private static String ordinalOrCardinal(int n) {
-            return n <= 9 ? n + "º" : n + ".";
+            return n <= 9 ? n + "º" : comSeparadorMilhar(n) + ".";
         }
 
         private static String esc(String s) {

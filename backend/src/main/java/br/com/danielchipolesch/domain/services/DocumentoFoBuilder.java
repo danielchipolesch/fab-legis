@@ -542,7 +542,7 @@ public class DocumentoFoBuilder {
             if (letra == null) return ordinalOrCardinal(n);
             // Com sufixo de letra, o ponto do cardinal (a partir do 10°) migra para o
             // final, depois da letra — nunca fica entre o número e o hífen.
-            return n <= 9 ? n + "º-" + letra : n + "-" + letra + ".";
+            return n <= 9 ? n + "º-" + letra : comSeparadorMilhar(n) + "-" + letra + ".";
         }
 
         // ─── TOC ──────────────────────────────────────────────────────────────
@@ -1177,8 +1177,12 @@ public class DocumentoFoBuilder {
         }
 
         private static String toLetter(int n) { return String.valueOf((char) ('a' + n - 1)); }
-        private static String ordinalOrCardinal(int n) { return n <= 9 ? n + "º" : n + "."; }
-        private static String fmtNum(int n) { return n <= 9 ? n + "º" : String.valueOf(n); }
+
+        // Separador de milhar (padrão brasileiro) — nunca aplicado a anos.
+        private static String comSeparadorMilhar(int n) { return String.format("%,d", n).replace(",", "."); }
+
+        private static String ordinalOrCardinal(int n) { return n <= 9 ? n + "º" : comSeparadorMilhar(n) + "."; }
+        private static String fmtNum(int n) { return n <= 9 ? n + "º" : comSeparadorMilhar(n); }
 
         private String docId() {
             return doc.getEspecieNormativa().getSigla()

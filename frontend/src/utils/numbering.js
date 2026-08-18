@@ -12,9 +12,14 @@ export function toLetter(n) {
   return String.fromCharCode(96 + n)
 }
 
+// Separador de milhar (padrão brasileiro) — nunca aplicado a anos.
+function comSeparadorMilhar(n) {
+  return n.toLocaleString('pt-BR')
+}
+
 // Decreto 12.002/2024 Art. 9 deg I e VII: ordinal (grau) ate o 9, cardinal (.) a partir do 10.
 function ordinalOrCardinal(n) {
-  return n <= 9 ? `${n}` + '\xBA' : `${n}.`
+  return n <= 9 ? `${n}` + '\xBA' : `${comSeparadorMilhar(n)}.`
 }
 
 // Sufixo de letra para elementos inseridos por emenda (Art. 7°-A, Art. 27-A., …)
@@ -23,7 +28,7 @@ function ordinalOrCardinal(n) {
 function ordinalWithLetra(n, letra) {
   if (!letra) return ordinalOrCardinal(n)
   if (n <= 9) return `${n}\xBA-${letra}`
-  return `${n}-${letra}.`
+  return `${comSeparadorMilhar(n)}-${letra}.`
 }
 
 export function formatLabel(element) {
@@ -234,6 +239,10 @@ export function renumberElementsEmAlteracao(elements, _ctx = null) {
 
   for (let i = 0; i < elements.length; i++) {
     const el = elements[i]
+    // Marca permanente, não o status ao vivo: um artigo incluído por emenda mantém seu
+    // sufixo de letra mesmo depois de ser alterado ou revogado — só assim emendaStatus
+    // fica livre para evoluir sem deslocar a numeração sequencial dos artigos seguintes
+    // (vedado pela LC 95/1998). Espelha DocumentoFoBuilder.java's assignNumbering.
     const isIncluido = el.incluidoPorEmenda === true
 
     switch (el.tipo) {

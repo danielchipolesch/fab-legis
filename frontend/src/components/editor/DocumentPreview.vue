@@ -510,7 +510,7 @@ const tocItems = computed(() => {
   // Formato: ordinal (°) até 9, cardinal (sem sufixo) a partir de 10 — Decreto 12.002 Art. 9.
   // Mesma convenção de fmtNum, mas inclui o sufixo de letra (ex.: "13-A") quando presente,
   // para que artigos incluídos por emenda apareçam refletidos no intervalo do sumário.
-  function fmtNum(n) { return n <= 9 ? `${n}°` : `${n}` }
+  function fmtNum(n) { return n <= 9 ? `${n}°` : n.toLocaleString('pt-BR') }
   function fmtArtEndpoint(el) {
     const base = fmtNum(el.numero ?? 0)
     return el._emendaLetra ? `${base}-${el._emendaLetra}` : base
