@@ -6,6 +6,7 @@ import br.com.danielchipolesch.application.dtos.documentoDtos.DocumentoRequestUp
 import br.com.danielchipolesch.application.dtos.documentoDtos.DocumentoResponseComAnexoTextualDto;
 import br.com.danielchipolesch.application.dtos.documentoDtos.DocumentoResponseSemAnexoTextualDto;
 import br.com.danielchipolesch.application.dtos.documentoDtos.DocumentoStatusRequestDto;
+import br.com.danielchipolesch.application.dtos.emendaDtos.MapaAlteracaoItemResponseDto;
 import br.com.danielchipolesch.application.dtos.itemAnexoParteNormativaDtos.ItemAnexoParteNormativaRequestDto;
 import br.com.danielchipolesch.application.dtos.itemAnexoParteNormativaDtos.SecoesSaveRequestDto;
 import br.com.danielchipolesch.domain.mappers.DocumentoMapper;
@@ -14,6 +15,7 @@ import br.com.danielchipolesch.domain.services.DocumentoParteNormativaService;
 import br.com.danielchipolesch.domain.services.DocumentoPdfService;
 import br.com.danielchipolesch.domain.services.DocumentoService;
 import br.com.danielchipolesch.domain.services.DocumentoStatusService;
+import br.com.danielchipolesch.domain.services.EmendaService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -50,6 +52,9 @@ public class DocumentoController {
 
     @Autowired
     private DocumentoPdfService documentoPdfService;
+
+    @Autowired
+    private EmendaService emendaService;
 
     private EntityModel<DocumentoResponseSemAnexoTextualDto> toModel(DocumentoResponseSemAnexoTextualDto dto) {
         Long id = dto.getIdDocumento();
@@ -151,6 +156,12 @@ public class DocumentoController {
     public ResponseEntity<List<DocumentoHistoricoResponseDto>> getHistorico(
             @PathVariable(value = "id") Long id) {
         return ResponseEntity.ok(documentoHistoricoService.listarPorDocumento(id));
+    }
+
+    @GetMapping("{id}/mapa-alteracao")
+    public ResponseEntity<List<MapaAlteracaoItemResponseDto>> getMapaAlteracao(
+            @PathVariable(value = "id") Long id) {
+        return ResponseEntity.ok(emendaService.listarMapaAlteracao(id));
     }
 
     @GetMapping(value = "{id}/pdf", produces = "application/pdf")

@@ -140,6 +140,7 @@ export const useDocumentsStore = defineStore('documents', {
     loading: false,
     anexosPorDocumento: {},
     historicoPorDocumento: {},
+    mapaAlteracaoPorDocumento: {},
   }),
 
   getters: {
@@ -257,6 +258,12 @@ export const useDocumentsStore = defineStore('documents', {
     async fetchHistorico(documentoId) {
       const lista = await api.listHistorico(documentoId)
       this.historicoPorDocumento[String(documentoId)] = lista ?? []
+      return lista
+    },
+
+    async fetchMapaAlteracao(documentoId) {
+      const lista = await api.listMapaAlteracao(documentoId)
+      this.mapaAlteracaoPorDocumento[String(documentoId)] = lista ?? []
       return lista
     },
 

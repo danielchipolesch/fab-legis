@@ -55,4 +55,9 @@ public class EmendaHistorico {
     @Column(name = "dt_emenda", updatable = false)
     @CreationTimestamp
     private LocalDateTime dtEmenda;
+
+    // Preenchida em EmendaService.consolidarPublicacao() no momento da (re)publicação.
+    // NULL significa que esta linha pertence ao ciclo de alteração ainda em andamento.
+    @Column(name = "tx_ciclo_referencia", columnDefinition = "TEXT")
+    private String cicloReferencia;
 }

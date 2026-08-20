@@ -230,6 +230,12 @@ export async function listHistorico(documentoId) {
   return http.get(`/documentos/${documentoId}/historico`)
 }
 
+// ── Mapa de alteração (Quadro de Justificativas, NSCA 5-3 Anexo XXIV) ──────────
+
+export async function listMapaAlteracao(documentoId) {
+  return http.get(`/documentos/${documentoId}/mapa-alteracao`)
+}
+
 // ── Anexos ────────────────────────────────────────────────────────────────────
 
 export async function listAnexos(documentoId) {

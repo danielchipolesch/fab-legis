@@ -3,7 +3,7 @@
 
     <!-- Row label -->
     <div class="diff-row-label text-caption text-weight-bold text-grey-7 q-px-sm q-py-xs q-mb-sm">
-      {{ formatLabel(elemento) }}
+      {{ label ?? formatLabel(elemento) }}
     </div>
 
     <!-- Side-by-side or unified diff -->
@@ -56,6 +56,7 @@ import { formatLabel } from '@/utils/numbering.js'
 const props = defineProps({
   elemento:  { type: Object, required: true },
   elementoB: { type: Object, default: null },
+  label:     { type: String, default: null }, // override para formatLabel(elemento)
   labelA:    { type: String, default: 'Versão anterior' },
   labelB:    { type: String, default: 'Versão atual' },
   mode:      { type: String, default: 'side' }, // 'side' | 'unified'

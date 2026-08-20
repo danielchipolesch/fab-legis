@@ -3,13 +3,17 @@ package br.com.danielchipolesch.domain.services;
 import br.com.danielchipolesch.application.dtos.emendaDtos.EmendaAcaoEnum;
 import br.com.danielchipolesch.application.dtos.emendaDtos.EmendaElementoRequestDto;
 import br.com.danielchipolesch.application.dtos.emendaDtos.EmendaIncluirRequestDto;
+import br.com.danielchipolesch.application.dtos.emendaDtos.MapaAlteracaoItemResponseDto;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.*;
 import br.com.danielchipolesch.infrastructure.repositories.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 public class EmendaService {
@@ -487,6 +491,10 @@ public class EmendaService {
             item.setClausulaEmenda(buildClausula(item.getEmendaStatus(), portariaReferencia, bcaReferencia));
             finalRepository.save(item);
         }
+        // Carimba o histórico deste ciclo com a referência desta publicação, para que o
+        // Quadro de Justificativas (NSCA 5-3, Anexo XXIV) consiga separar "1ª alteração",
+        // "2ª alteração" etc. — ver EmendaHistorico.cicloReferencia.
+        historicoRepository.marcarCicloPendentes(docId, portariaReferencia + " (" + bcaReferencia + ")");
     }
 
     // Retorna false quando não há nada pendente (INALTERADO) ou quando o elemento já
@@ -526,6 +534,81 @@ public class EmendaService {
                 .tituloNovo(tituloNovo)
                 .justificativa(justificativa)
                 .build());
+    }
+
+    // Quadro de Justificativas das Modificações Propostas (NSCA 5-3, Anexo XXIV).
+    //
+    // Ciclos já publicados: o histórico é a fonte — é um registro imutável do que
+    // realmente foi publicado. Mantém só a linha mais recente por (ciclo, secao,
+    // elemento), pois uma reedição do mesmo elemento ANTES daquela publicação também
+    // grava uma linha própria, que ficaria obsoleta.
+    //
+    // Ciclo em andamento (ainda não publicado): NÃO usa o histórico bruto. O
+    // histórico pode conter edições intermediárias já superadas por reedições, ou já
+    // desfeitas via DESFAZER — que não deixa nenhum rastro de invalidação nas linhas
+    // anteriores. A verdade aqui é o próprio elemento ao vivo (conteudo/
+    // conteudoEmenda/emendaStatus), a mesma fonte que consolidarPublicacao() usa.
+    public List<MapaAlteracaoItemResponseDto> listarMapaAlteracao(Long docId) {
+        List<MapaAlteracaoItemResponseDto> publicados = historicoRepository.findByDocumentoIdOrderByDtEmendaDesc(docId).stream()
+                .filter(h -> h.getAcao() != EmendaAcaoEnum.DESFAZER)
+                .filter(h -> h.getCicloReferencia() != null)
+                .collect(Collectors.toMap(
+                        h -> h.getCicloReferencia() + "|" + h.getSecao() + "|" + h.getElementoId(),
+                        h -> h,
+                        (a, b) -> a.getDtEmenda().isAfter(b.getDtEmenda()) ? a : b))
+                .values().stream()
+                // Collectors.toMap perde a ordem por dtEmenda desc da query original —
+                // o frontend depende dessa ordem para saber qual ciclo é o mais recente.
+                .sorted((a, b) -> b.getDtEmenda().compareTo(a.getDtEmenda()))
+                .map(MapaAlteracaoItemResponseDto::from)
+                .toList();
+
+        var todos = new ArrayList<>(listarItensPendentes(docId));
+        todos.addAll(publicados);
+        return todos;
+    }
+
+    private List<MapaAlteracaoItemResponseDto> listarItensPendentes(Long docId) {
+        var itens = new ArrayList<MapaAlteracaoItemResponseDto>();
+        for (var item : normativaRepository.findAllByDocumentoId(docId)) {
+            if (!precisaConsolidar(item.getEmendaStatus(), item.getClausulaEmenda())) continue;
+            itens.add(pendenteDto(SecaoDocumentoEnum.PARTE_NORMATIVA, item.getId(), item.getEmendaStatus(),
+                    item.getConteudo(), item.getConteudoEmenda(), item.getTitulo(), item.getTituloEmenda(),
+                    item.getJustificativaEmenda(), item.getUpdatedAt()));
+        }
+        for (var item : preliminarRepository.findByDocumentoIdOrderByElementOrderAsc(docId)) {
+            if (!precisaConsolidar(item.getEmendaStatus(), item.getClausulaEmenda())) continue;
+            itens.add(pendenteDto(SecaoDocumentoEnum.PARTE_PRELIMINAR, item.getId(), item.getEmendaStatus(),
+                    item.getConteudo(), item.getConteudoEmenda(), item.getTitulo(), item.getTituloEmenda(),
+                    item.getJustificativaEmenda(), item.getUpdatedAt()));
+        }
+        for (var item : finalRepository.findByDocumentoIdOrderByElementOrderAsc(docId)) {
+            if (!precisaConsolidar(item.getEmendaStatus(), item.getClausulaEmenda())) continue;
+            itens.add(pendenteDto(SecaoDocumentoEnum.PARTE_FINAL, item.getId(), item.getEmendaStatus(),
+                    item.getConteudo(), item.getConteudoEmenda(), item.getTitulo(), item.getTituloEmenda(),
+                    item.getJustificativaEmenda(), item.getUpdatedAt()));
+        }
+        return itens;
+    }
+
+    private MapaAlteracaoItemResponseDto pendenteDto(SecaoDocumentoEnum secao, Long elementoId,
+            ElementoEmendaStatusEnum status, String conteudo, String conteudoEmenda,
+            String titulo, String tituloEmenda, String justificativa, LocalDateTime dtAtualizacao) {
+        boolean incluido = status == ElementoEmendaStatusEnum.INCLUIDO;
+        boolean revogado = status == ElementoEmendaStatusEnum.REVOGADO;
+        MapaAlteracaoItemResponseDto dto = new MapaAlteracaoItemResponseDto();
+        dto.setId(elementoId);
+        dto.setSecao(secao);
+        dto.setElementoId(elementoId);
+        dto.setAcao(incluido ? EmendaAcaoEnum.INCLUIR : revogado ? EmendaAcaoEnum.REVOGAR : EmendaAcaoEnum.ALTERAR);
+        dto.setTextoAnterior(incluido ? null : conteudo);
+        dto.setTextoNovo(revogado ? null : incluido ? conteudo : conteudoEmenda);
+        dto.setTituloAnterior(incluido ? null : titulo);
+        dto.setTituloNovo(revogado ? null : incluido ? titulo : tituloEmenda);
+        dto.setJustificativa(justificativa);
+        dto.setDtEmenda(dtAtualizacao);
+        dto.setCicloReferencia(null);
+        return dto;
     }
 
     // ─── Utilitários ──────────────────────────────────────────────────────────────

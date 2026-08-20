@@ -12,7 +12,13 @@
       <StatusBadge v-if="documento" :status="documento.status" />
     </div>
 
-    <template v-if="!documento">
+    <template v-if="loading">
+      <div class="row justify-center q-py-xl">
+        <q-spinner color="primary" size="40px" />
+      </div>
+    </template>
+
+    <template v-else-if="!documento">
       <q-banner class="bg-negative text-white" rounded>
         <template #avatar>
           <q-icon name="mdi-alert-circle-outline" color="white" />
@@ -21,48 +27,36 @@
       </q-banner>
     </template>
 
+    <template v-else-if="!ciclos.length">
+      <q-banner class="bg-grey-3 text-grey-9" rounded>
+        <template #avatar>
+          <q-icon name="mdi-information-outline" />
+        </template>
+        Este documento ainda não teve nenhuma emenda registrada.
+      </q-banner>
+    </template>
+
     <template v-else>
 
-      <!-- Version selectors -->
+      <!-- Seletor de ciclo -->
       <q-card flat bordered class="q-mb-lg">
         <q-card-section class="q-pa-md">
           <div class="row items-center q-col-gutter-md">
-            <div class="col-12 col-md-4">
+            <div class="col-12 col-md-6">
               <q-select
-                v-model="selectedVersionA"
-                :options="versaoOptions"
+                v-model="selectedCiclo"
+                :options="ciclos"
                 option-label="label"
                 option-value="id"
                 emit-value
                 map-options
-                label="Versão A (base)"
+                label="Ciclo de alteração"
                 outlined
                 dense
                 hide-bottom-space
               >
                 <template #prepend>
                   <q-icon name="mdi-tag-outline" />
-                </template>
-              </q-select>
-            </div>
-            <div class="col-12 col-md-1 row justify-center">
-              <q-icon size="28px" color="secondary" name="mdi-swap-horizontal" />
-            </div>
-            <div class="col-12 col-md-4">
-              <q-select
-                v-model="selectedVersionB"
-                :options="versaoOptions"
-                option-label="label"
-                option-value="id"
-                emit-value
-                map-options
-                label="Versão B (comparar com)"
-                outlined
-                dense
-                hide-bottom-space
-              >
-                <template #prepend>
-                  <q-icon name="mdi-tag-check-outline" />
                 </template>
               </q-select>
             </div>
@@ -86,22 +80,19 @@
 
       <!-- Summary badges -->
       <div class="row q-gutter-sm q-mb-lg">
-        <q-chip color="red-2" text-color="red-10" size="sm" square icon="mdi-minus-circle-outline">
-          {{ stats.removed }} remoções
-        </q-chip>
         <q-chip color="green-2" text-color="green-10" size="sm" square icon="mdi-plus-circle-outline">
-          {{ stats.added }} adições
+          {{ stats.incluido }} inclusões
         </q-chip>
         <q-chip color="orange-2" text-color="orange-10" size="sm" square icon="mdi-pencil-circle-outline">
-          {{ stats.modified }} modificações
+          {{ stats.alterado }} alterações
         </q-chip>
-        <q-chip color="grey-3" text-color="grey-9" size="sm" square icon="mdi-equal-box">
-          {{ stats.unchanged }} sem alteração
+        <q-chip color="red-2" text-color="red-10" size="sm" square icon="mdi-minus-circle-outline">
+          {{ stats.revogado }} revogações
         </q-chip>
       </div>
 
       <!-- Per-section diffs -->
-      <template v-for="secao in secoesComDiff" :key="secao.id">
+      <template v-for="secao in itensPorSecao" :key="secao.tipo">
         <q-card flat bordered class="q-mb-md">
           <q-card-section class="text-subtitle1 text-weight-bold q-px-md q-py-sm row items-center">
             <q-icon name="mdi-folder-outline" color="amber-8" class="q-mr-sm" size="18px" />
@@ -109,16 +100,17 @@
           </q-card-section>
           <q-separator />
           <q-card-section class="q-pa-md">
-            <div v-if="!secao.pares.length" class="text-caption text-grey-7">
-              Seção sem elementos.
+            <div v-if="!secao.itens.length" class="text-caption text-grey-7">
+              Seção sem modificações neste ciclo.
             </div>
             <DiffViewer
-              v-for="par in secao.pares"
-              :key="par.id"
-              :elemento="par.elementoA"
-              :elemento-b="par.elementoB"
-              :label-a="labelA"
-              :label-b="labelB"
+              v-for="item in secao.itens"
+              :key="item.id"
+              :label="referenciaLabel(item)"
+              :elemento="{ conteudo: item.textoAnterior }"
+              :elemento-b="{ conteudo: item.textoNovo }"
+              label-a="Texto anterior"
+              label-b="Texto proposto"
               :mode="diffMode"
             />
           </q-card-section>
@@ -127,19 +119,26 @@
 
       <!-- QUADRO DE JUSTIFICATIVAS -->
       <q-card flat bordered class="q-mt-xl">
-        <q-card-section class="text-subtitle1 text-weight-bold q-px-md q-py-sm row items-center">
-          <q-icon name="mdi-table-edit" color="primary" class="q-mr-sm" size="18px" />
-          Quadro de Justificativas das Modificações Propostas
-          <q-space />
-          <q-btn
-            size="sm"
-            outline
-            color="primary"
-            @click="exportarQuadro"
-          >
-            <q-icon left name="mdi-file-pdf-box" />
-            Exportar
-          </q-btn>
+        <q-card-section
+          class="text-subtitle1 text-weight-bold q-px-md q-py-sm"
+          style="display:grid;grid-template-columns:1fr auto 1fr;align-items:center"
+        >
+          <div></div>
+          <div class="text-center">
+            <q-icon name="mdi-table-edit" color="primary" class="q-mr-sm" size="18px" />
+            Quadro de Justificativas das Modificações Propostas
+          </div>
+          <div class="row justify-end">
+            <q-btn
+              size="sm"
+              outline
+              color="primary"
+              @click="exportarQuadro"
+            >
+              <q-icon left name="mdi-file-pdf-box" />
+              Exportar
+            </q-btn>
+          </div>
         </q-card-section>
         <q-separator />
         <q-card-section class="q-pa-none">
@@ -147,45 +146,31 @@
             <thead>
               <tr>
                 <th style="width:120px">Referência</th>
-                <th>Texto Atual</th>
+                <th>Texto em Vigor</th>
                 <th>Texto Proposto</th>
                 <th>Justificativa</th>
               </tr>
             </thead>
             <tbody>
-              <template v-for="secao in secoesComDiff" :key="secao.id">
-                <tr
-                  v-for="par in secao.pares.filter(p => p.hasDiff)"
-                  :key="par.id"
-                >
-                  <td class="text-caption text-weight-bold text-primary">
-                    {{ formatLabel(par.elementoA) }}
-                  </td>
-                  <td class="text-caption" style="max-width:220px">
-                    <div class="text-truncate-3" v-html="conteudoToHtml(par.elementoA?.conteudo)" />
-                  </td>
-                  <td class="text-caption" style="max-width:220px">
-                    <div class="text-truncate-3" v-html="par.elementoB ? conteudoToHtml(par.elementoB.conteudo) : '<em>Elemento removido</em>'" />
-                  </td>
-                  <td>
-                    <q-input
-                      v-model="justificativas[par.id]"
-                      type="textarea"
-                      borderless
-                      dense
-                      autogrow
-                      hide-bottom-space
-                      placeholder="Informe a justificativa…"
-                      class="text-caption"
-                    />
-                  </td>
-                </tr>
-                <tr v-if="!secao.pares.filter(p => p.hasDiff).length">
-                  <td colspan="4" class="text-caption text-grey-7 text-center q-py-sm">
-                    Sem modificações em {{ secao.titulo }}
-                  </td>
-                </tr>
-              </template>
+              <tr v-for="item in itensCiclo" :key="item.id">
+                <td class="text-caption text-weight-bold text-primary">
+                  {{ referenciaLabel(item) }}
+                </td>
+                <td class="text-caption" style="max-width:220px">
+                  <div v-if="item.acao === 'INCLUIR'" class="text-italic text-grey-7">(novo)</div>
+                  <div v-else class="text-truncate-3" v-html="conteudoToHtml(item.textoAnterior)" />
+                </td>
+                <td class="text-caption" style="max-width:220px">
+                  <div v-if="item.acao === 'REVOGAR'" class="text-italic text-grey-7">(revogado)</div>
+                  <div v-else class="text-truncate-3" v-html="conteudoToHtml(item.textoNovo)" />
+                </td>
+                <td class="text-caption">{{ item.justificativa || '—' }}</td>
+              </tr>
+              <tr v-if="!itensCiclo.length">
+                <td colspan="4" class="text-caption text-grey-7 text-center q-py-sm">
+                  Sem modificações neste ciclo.
+                </td>
+              </tr>
             </tbody>
           </q-markup-table>
         </q-card-section>
@@ -196,13 +181,12 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useDocumentsStore } from '@/stores/documents.js'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import DiffViewer from '@/components/comparison/DiffViewer.vue'
 import { formatLabel } from '@/utils/numbering.js'
-import { diffWords } from 'diff'
 import { generateHTML } from '@tiptap/html'
 import { editorExtensions } from '@/editor/extensions.js'
 
@@ -211,123 +195,124 @@ function conteudoToHtml(conteudo) {
   try { return generateHTML(JSON.parse(conteudo), editorExtensions) } catch { return '' }
 }
 
-function extractText(conteudo) {
-  if (!conteudo) return ''
-  try {
-    const visit = (node) => {
-      if (!node) return ''
-      if (node.type === 'hardBreak') return '\n'
-      if (node.text) return node.text
-      if (node.content) return node.content.map(visit).join('')
-      return ''
-    }
-    return visit(JSON.parse(conteudo)).trim()
-  } catch { return '' }
-}
-
 const route = useRoute()
 const store = useDocumentsStore()
+const loading = ref(true)
+
+onMounted(async () => {
+  try {
+    if (!store.getById(route.params.id)) {
+      await store.fetchDocumento(route.params.id)
+    }
+    await store.fetchMapaAlteracao(route.params.id)
+  } finally {
+    loading.value = false
+  }
+})
 
 const documento = computed(() => store.getById(route.params.id))
+const mapaAlteracao = computed(() => store.mapaAlteracaoPorDocumento[String(route.params.id)] ?? [])
+
+const docId = computed(() => documento.value?.codigo_documento ?? '')
 
 const docLabel = computed(() => {
   const d = documento.value
   if (!d) return ''
-  return [d.especie, d.numero_basico, d.numero_secundario].filter(Boolean).join(' ')
-    + (d.assunto_basico ? ` — ${d.assunto_basico}` : '')
+  return docId.value + (d.assunto_basico ? ` — ${d.assunto_basico}` : '')
 })
 
-// Build version list: current + snapshots
-const versaoOptions = computed(() => {
-  const d = documento.value
-  if (!d) return []
-  const opts = [{ id: '__atual__', label: `Versão atual (${d.status})`, secoes: d.secoes }]
-  for (const v of (d.versoes ?? []).slice().reverse()) {
-    opts.push({ id: v.versao_id, label: `${v.status} — ${v.data_snapshot?.slice(0, 10) ?? ''}`, secoes: v.secoes })
-  }
-  return opts
-})
-
-// Default: latest published vs. current
-const defaultA = computed(() => {
-  const pub = versaoOptions.value.find(v => v.label?.includes('PUBLICADO'))
-  return pub?.id ?? versaoOptions.value[1]?.id ?? versaoOptions.value[0]?.id
-})
-const defaultB = '__atual__'
-
-const selectedVersionA = ref(null)
-const selectedVersionB = ref(defaultB)
-
-watch(versaoOptions, (opts) => {
-  if (!selectedVersionA.value && opts.length >= 2) {
-    selectedVersionA.value = defaultA.value
-  }
-}, { immediate: true })
-
-const diffMode = ref('side')
-const justificativas = ref({})
-
-function getSecoes(versionId) {
-  const opt = versaoOptions.value.find(v => v.id === versionId)
-  return opt?.secoes ?? documento.value?.secoes ?? []
-}
-
-function hasDiff(a, b) {
-  return extractText(a?.conteudo) !== extractText(b?.conteudo)
-}
-
-function flatElements(elementos, acc = []) {
-  for (const el of (elementos ?? [])) {
-    acc.push(el)
-    flatElements(el.filhos, acc)
-  }
-  return acc
-}
-
-const secoesComDiff = computed(() => {
-  const secoesA = getSecoes(selectedVersionA.value)
-  const secoesB = getSecoes(selectedVersionB.value)
-
-  return secoesA.map(secA => {
-    const secB = secoesB.find(s => s.tipo === secA.tipo) ?? { elementos: [] }
-    const elA = flatElements(secA.elementos)
-    const elB = flatElements(secB.elementos)
-
-    const pares = []
-    const maxLen = Math.max(elA.length, elB.length)
-    for (let i = 0; i < maxLen; i++) {
-      const eA = elA[i] ?? null
-      const eB = elB[i] ?? null
-      pares.push({
-        id: eA?.id ?? eB?.id ?? `par-${i}`,
-        elementoA: eA,
-        elementoB: eB,
-        hasDiff: hasDiff(eA, eB),
+// Ciclos disponíveis: agrupamento de cicloReferencia (a lista já vem ordenada por
+// dtEmenda desc do backend, então o primeiro id visto de cada ciclo já é o mais
+// recente — preserva essa ordem "mais recente primeiro").
+const CICLO_ATUAL_ID = '__atual__'
+const ciclos = computed(() => {
+  const vistos = new Map()
+  for (const item of mapaAlteracao.value) {
+    const id = item.cicloReferencia ?? CICLO_ATUAL_ID
+    if (!vistos.has(id)) {
+      vistos.set(id, {
+        id,
+        label: item.cicloReferencia ?? 'Ciclo em andamento (não publicado)',
       })
     }
-
-    return { id: secA.id, titulo: secA.titulo, tipo: secA.tipo, pares }
-  })
+  }
+  return Array.from(vistos.values())
 })
+
+const selectedCiclo = ref(null)
+const diffMode = ref('side')
+
+// Seleciona automaticamente o ciclo mais recente assim que a lista chega
+function ensureSelectedCiclo() {
+  if (selectedCiclo.value == null && ciclos.value.length) {
+    selectedCiclo.value = ciclos.value[0].id
+  }
+}
+
+const itensCiclo = computed(() => {
+  ensureSelectedCiclo()
+  return mapaAlteracao.value
+    .filter(item => (item.cicloReferencia ?? CICLO_ATUAL_ID) === selectedCiclo.value)
+    .slice()
+    .sort((a, b) => new Date(a.dtEmenda) - new Date(b.dtEmenda))
+})
+
+const SECAO_LABELS = {
+  PARTE_PRELIMINAR: 'Parte Preliminar',
+  PARTE_NORMATIVA: 'Parte Normativa',
+  PARTE_FINAL: 'Parte Final',
+}
+const SECAO_TIPO_FRONTEND = {
+  PARTE_PRELIMINAR: 'parte_preliminar',
+  PARTE_NORMATIVA: 'parte_normativa',
+}
+
+const itensPorSecao = computed(() => {
+  const grupos = new Map()
+  for (const item of itensCiclo.value) {
+    if (!grupos.has(item.secao)) grupos.set(item.secao, [])
+    grupos.get(item.secao).push(item)
+  }
+  return Array.from(grupos.entries()).map(([tipo, itens]) => ({
+    tipo,
+    titulo: SECAO_LABELS[tipo] ?? tipo,
+    itens,
+  }))
+})
+
+// Resolve o elemento vivo na árvore atual do documento a partir de secao+elementoId,
+// para reaproveitar a numeração já calculada (formatLabel) — o histórico de emenda não
+// guarda tipo/número do elemento, só o conteúdo antes/depois.
+function findElemento(secaoBackend, elementoId) {
+  const tipoFrontend = SECAO_TIPO_FRONTEND[secaoBackend]
+  const secao = documento.value?.secoes?.find(s => s.tipo === tipoFrontend)
+  if (!secao) return null
+  const pilha = [...(secao.elementos ?? [])]
+  while (pilha.length) {
+    const el = pilha.shift()
+    if (String(el.id) === String(elementoId)) return el
+    if (el.filhos?.length) pilha.push(...el.filhos)
+  }
+  return null
+}
+
+function referenciaLabel(item) {
+  const el = findElemento(item.secao, item.elementoId)
+  if (el) return formatLabel(el)
+  return (SECAO_LABELS[item.secao] ?? item.secao) + ' — ' + (item.tituloNovo ?? item.tituloAnterior ?? `#${item.elementoId}`)
+}
 
 const stats = computed(() => {
-  let added = 0, removed = 0, modified = 0, unchanged = 0
-  for (const sec of secoesComDiff.value) {
-    for (const par of sec.pares) {
-      if (!par.elementoA) added++
-      else if (!par.elementoB) removed++
-      else if (par.hasDiff) modified++
-      else unchanged++
-    }
+  let incluido = 0, alterado = 0, revogado = 0
+  for (const item of itensCiclo.value) {
+    if (item.acao === 'INCLUIR') incluido++
+    else if (item.acao === 'ALTERAR') alterado++
+    else if (item.acao === 'REVOGAR') revogado++
   }
-  return { added, removed, modified, unchanged }
+  return { incluido, alterado, revogado }
 })
 
-const labelA = computed(() => versaoOptions.value.find(v => v.id === selectedVersionA.value)?.label ?? 'Versão A')
-const labelB = computed(() => versaoOptions.value.find(v => v.id === selectedVersionB.value)?.label ?? 'Versão B')
-
 function exportarQuadro() {
-  // Future: export to PDF/DOCX
   window.print()
 }
 </script>
