@@ -83,7 +83,7 @@
               Por ser um elemento <strong>incluído por emenda</strong> ainda não publicado, ele será <strong>removido</strong> permanentemente.
             </template>
             <template v-else>
-              O conteúdo da emenda será removido e o status voltará a <strong>INALTERADO</strong>.
+              O conteúdo da emenda será removido e a situação voltará a <strong>INALTERADO</strong>.
               O texto original publicado permanece intacto.
             </template>
           </p>

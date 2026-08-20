@@ -249,7 +249,7 @@ export const useDocumentsStore = defineStore('documents', {
     async deleteDocumento(id) {
       const doc = this.documentos.find(d => String(d.id) === String(id))
       if (doc && !['RASCUNHO', 'MINUTA'].includes(doc.status)) {
-        throw new Error(`Não é possível excluir um documento com status "${doc.status}". Somente documentos em RASCUNHO ou MINUTA podem ser excluídos.`)
+        throw new Error(`Não é possível excluir um documento com situação "${doc.status}". Somente documentos em RASCUNHO ou MINUTA podem ser excluídos.`)
       }
       await api.deleteDocumento(id)
       this.documentos = this.documentos.filter(d => String(d.id) !== String(id))

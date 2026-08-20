@@ -76,7 +76,7 @@
                       <div class="info-value">{{ documento.assunto_basico || '—' }}</div>
                     </div>
                     <div class="col-6">
-                      <div class="info-label">Status atual</div>
+                      <div class="info-label">Situação atual</div>
                       <StatusBadge :status="documento.status" class="q-mt-xs" />
                     </div>
                     <div class="col-6">
@@ -88,7 +88,7 @@
 
                 <!-- Timeline de datas -->
                 <div class="col-12 col-md-6">
-                  <div class="info-label q-mb-sm">Histórico de Status</div>
+                  <div class="info-label q-mb-sm">Histórico de Situação</div>
                   <q-timeline color="primary" layout="dense">
                     <q-timeline-entry
                       v-for="evento in timelineEventos"

@@ -21,7 +21,7 @@ public class EmendaService {
     private static final String DOC_NAO_ENCONTRADO   = "Documento não encontrado";
     private static final String ELEM_NAO_ENCONTRADO  = "Elemento não encontrado";
     private static final String DOC_NAO_EM_ALTERACAO =
-            "O documento não está em status EM_ALTERACAO. Inicie uma alteração antes de emendar.";
+            "O documento não está em situação EM_ALTERACAO. Inicie uma alteração antes de emendar.";
     private static final String JUSTIFICATIVA_REQUERIDA =
             "Justificativa é obrigatória para alterar ou revogar um elemento.";
     private static final String ELEMENTO_REVOGADO_PERMANENTE =

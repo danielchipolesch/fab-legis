@@ -461,11 +461,11 @@
           </div>
         </div>
 
-        <!-- Status -->
-        <div class="text-caption text-weight-bold text-grey-6 text-uppercase q-mb-sm">Status</div>
+        <!-- Situação -->
+        <div class="text-caption text-weight-bold text-grey-6 text-uppercase q-mb-sm">Situação</div>
         <div class="row q-col-gutter-sm q-mb-md">
           <div class="col-8">
-            <q-input :model-value="props.documento?.status" label="Status" outlined dense disable />
+            <q-input :model-value="props.documento?.status" label="Situação" outlined dense disable />
           </div>
           <div class="col-4">
             <q-input :model-value="props.documento?.qtd_replicas" label="Réplicas" outlined dense disable />
