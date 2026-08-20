@@ -4,6 +4,7 @@ import br.com.danielchipolesch.application.dtos.anexoDtos.AnexoResponseDto;
 import br.com.danielchipolesch.application.dtos.itemAnexoParteNormativaDtos.ItemAnexoParteNormativaResponseDto;
 import br.com.danielchipolesch.application.dtos.itemPartePreliminarDtos.ItemPartePreliminarResponseDto;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.Documento;
+import br.com.danielchipolesch.domain.entities.estruturaDocumento.DocumentoStatusEnum;
 import br.com.danielchipolesch.domain.handlers.exceptions.ResourceNotFoundException;
 import br.com.danielchipolesch.domain.handlers.exceptions.enums.DocumentException;
 import br.com.danielchipolesch.infrastructure.repositories.AnexoRepository;
@@ -24,10 +25,20 @@ import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.StringReader;
 import java.time.Instant;
+import java.util.EnumSet;
 import java.util.List;
+import java.util.Set;
 
 @Service
 public class DocumentoPdfService {
+
+    // Situações em que o documento tem redação estável e já possui PDF salvo no
+    // MinIO (gerado por DocumentoStatusService nas transições correspondentes) —
+    // nesses casos o PDF é sempre servido do MinIO, nunca renderizado de novo,
+    // independente da tela/botão que disparou a exportação (PUBLICADO cobre tanto
+    // a primeira publicação quanto qualquer republicação).
+    private static final Set<DocumentoStatusEnum> STATUS_COM_PDF_ARMAZENADO = EnumSet.of(
+            DocumentoStatusEnum.APROVADO, DocumentoStatusEnum.ALTERADO, DocumentoStatusEnum.PUBLICADO);
 
     private static final FopFactory FOP_FACTORY;
 
@@ -57,10 +68,25 @@ public class DocumentoPdfService {
     public byte[] gerarPdfBytes(Long documentoId) {
         Documento doc = documentoRepository.findById(documentoId)
                 .orElseThrow(() -> new ResourceNotFoundException(DocumentException.NOT_FOUND.getMessage()));
+
+        if (STATUS_COM_PDF_ARMAZENADO.contains(doc.getDocumentoStatus()) && doc.getUrlPdf() != null) {
+            byte[] armazenado = imagemService.getObjectBytes(doc.getUrlPdf());
+            if (armazenado != null) return armazenado;
+            // urlPdf presente mas não recuperável (objeto removido/inconsistência): recai
+            // na renderização ao vivo em vez de falhar a exportação.
+        }
         return renderPdf(doc);
     }
 
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    // readOnly=true é essencial aqui, não só um detalhe de estilo: sem ele, o Hibernate
+    // faz auto-flush antes de cada query emitida durante a travessia recursiva da
+    // árvore de itens normativos (getItensNormativosByDocumento), e como
+    // carregarChildrenRecursivamente substitui a coleção `children` (orphanRemoval=true)
+    // gerenciada pelo Hibernate por uma List avulsa a cada nível, esse auto-flush no
+    // meio da travessia lança "A collection with orphan deletion was no longer
+    // referenced" para documentos com mais de um nível de aninhamento. readOnly=true
+    // desativa o auto-flush (FlushMode.MANUAL) nesta transação somente-leitura.
+    @Transactional(propagation = Propagation.REQUIRES_NEW, readOnly = true)
     public String gerarEArmazenarPdf(Documento documento) {
         try {
             byte[] pdfBytes = renderPdf(documento);

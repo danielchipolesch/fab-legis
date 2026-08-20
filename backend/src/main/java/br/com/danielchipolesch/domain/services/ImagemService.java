@@ -102,6 +102,29 @@ public class ImagemService {
         }
     }
 
+    /**
+     * Busca um objeto armazenado no MinIO (ex: PDF já renderizado) e retorna seus bytes crus.
+     * Usado para servir um PDF já gerado sem renderizá-lo novamente.
+     *
+     * @param url URL pública do objeto (ex: http://localhost:9000/bucket/pdf/arquivo.pdf)
+     * @return bytes do objeto, ou null se não for uma URL MinIO reconhecida ou a busca falhar
+     */
+    public byte[] getObjectBytes(String url) {
+        if (url == null || url.isBlank()) return null;
+        try {
+            String prefix = publicUrl + "/" + bucket + "/";
+            if (!url.startsWith(prefix)) return null;
+            String objectKey = url.substring(prefix.length());
+
+            try (var response = minioClient.getObject(
+                    GetObjectArgs.builder().bucket(bucket).object(objectKey).build())) {
+                return response.readAllBytes();
+            }
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
     private static String guessMimeFromKey(String key) {
         String lc = key.toLowerCase();
         if (lc.endsWith(".png"))                        return "image/png";

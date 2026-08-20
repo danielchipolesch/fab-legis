@@ -13,6 +13,8 @@ import br.com.danielchipolesch.infrastructure.repositories.DocumentoRepository;
 import br.com.danielchipolesch.infrastructure.repositories.ItemAnexoParteNormativaRepository;
 import br.com.danielchipolesch.infrastructure.repositories.ItemParteFinalRepository;
 import br.com.danielchipolesch.infrastructure.repositories.ItemPartePreliminarRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,6 +25,8 @@ import java.time.LocalDate;
 
 @Service
 public class DocumentoStatusService {
+
+    private static final Logger log = LoggerFactory.getLogger(DocumentoStatusService.class);
 
     @Autowired DocumentoRepository documentoRepository;
     @Autowired DocumentoHistoricoService documentoHistoricoService;
@@ -142,13 +146,26 @@ public class DocumentoStatusService {
             finalRepository.respacarElementOrders(id);
         }
 
-        if (novoStatus == DocumentoStatusEnum.APROVADO || novoStatus == DocumentoStatusEnum.ALTERADO) {
+        // O PDF é gerado e salvo no MinIO nestas transições, e só nelas: exportações
+        // subsequentes (independente da tela/botão) sempre servem essa cópia em vez de
+        // renderizar de novo — ver DocumentoPdfService.gerarPdfBytes. PUBLICADO precisa
+        // regenerar mesmo que ALTERADO já tenha uma cópia, pois é só na publicação que
+        // portaria/BCA reais substituem o placeholder e consolidarPublicacao (acima)
+        // congela as cláusulas de emenda — o conteúdo efetivamente muda.
+        if (novoStatus == DocumentoStatusEnum.APROVADO
+                || novoStatus == DocumentoStatusEnum.ALTERADO
+                || novoStatus == DocumentoStatusEnum.PUBLICADO) {
             try {
                 String urlPdf = documentoPdfService.gerarEArmazenarPdf(document);
                 document.setUrlPdf(urlPdf);
                 documentoRepository.save(document);
             } catch (Exception e) {
-                // PDF generation failure is non-fatal
+                // Não-fatal: a mudança de status não pode falhar por causa do PDF —
+                // gerarPdfBytes cai de volta para renderização ao vivo quando urlPdf
+                // está ausente. Mas o erro precisa ficar visível, senão a causa de um
+                // PDF armazenado desatualizado/ausente é impossível de diagnosticar.
+                log.error("Falha ao gerar/armazenar PDF do documento {} na transição para {}",
+                        document.getId(), novoStatus, e);
             }
         }
 
