@@ -91,12 +91,8 @@ public class MapaAlteracaoPdfService {
         sb.append("<fo:flow flow-name=\"xsl-region-body\">\n");
 
         sb.append("<fo:block font-size=\"14pt\" font-weight=\"bold\" text-align=\"center\"")
-          .append(" color=\"").append(HEADER_TEXT).append("\" space-after=\"4pt\">")
+          .append(" color=\"").append(HEADER_TEXT).append("\" space-after=\"14pt\">")
           .append("Quadro de Justificativas das Modificações Propostas</fo:block>\n");
-        if (req.getCiclo() != null && !req.getCiclo().isBlank()) {
-            sb.append("<fo:block font-size=\"10pt\" text-align=\"center\" color=\"#666666\" space-after=\"14pt\">")
-              .append(foEsc(req.getCiclo())).append("</fo:block>\n");
-        }
 
         sb.append("<fo:table table-layout=\"fixed\" width=\"100%\" border-collapse=\"separate\">\n");
         sb.append("  <fo:table-column column-width=\"13%\"/>\n");
@@ -109,7 +105,7 @@ public class MapaAlteracaoPdfService {
         for (String header : new String[]{"Referência", "Texto em Vigor", "Texto Proposto", "Justificativa"}) {
             sb.append("      <fo:table-cell border=\"1pt solid ").append(BORDER).append("\"")
               .append(" background-color=\"").append(HEADER_BG).append("\" padding=\"5pt 6pt\">")
-              .append("<fo:block font-size=\"9pt\" font-weight=\"bold\" color=\"").append(HEADER_TEXT).append("\">")
+              .append("<fo:block font-size=\"9pt\" font-weight=\"bold\" text-align=\"center\" color=\"").append(HEADER_TEXT).append("\">")
               .append(header).append("</fo:block></fo:table-cell>\n");
         }
         sb.append("    </fo:table-row>\n");
@@ -134,6 +130,11 @@ public class MapaAlteracaoPdfService {
         }
         sb.append("  </fo:table-body>\n");
         sb.append("</fo:table>\n");
+
+        if (req.getCiclo() != null && !req.getCiclo().isBlank()) {
+            sb.append("<fo:block font-size=\"9pt\" text-align=\"center\" color=\"#666666\" space-before=\"10pt\">")
+              .append("Versão base atual comparada: ").append(foEsc(req.getCiclo())).append("</fo:block>\n");
+        }
 
         sb.append("</fo:flow>\n");
         sb.append("</fo:page-sequence>\n");
