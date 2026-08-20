@@ -206,7 +206,11 @@ const exportando = ref(false)
 
 onMounted(async () => {
   try {
-    if (!store.getById(route.params.id)) {
+    // store.getById pode já retornar um documento vindo da listagem da homepage
+    // (DocumentoResponseSemAnexoTextualDto), que não traz itens/seções — sem elas,
+    // referenciaLabel() nunca encontra o elemento na árvore e cai no fallback
+    // "#id". Só pula o fetch completo quando as seções já estiverem carregadas.
+    if (!store.getById(route.params.id)?.secoes) {
       await store.fetchDocumento(route.params.id)
     }
     await store.fetchMapaAlteracao(route.params.id)
@@ -347,6 +351,15 @@ async function exportarQuadro() {
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+/* -webkit-line-clamp só se aplica a linhas de texto — sem isso, uma figura/anexo
+   inserida no conteúdo renderiza no tamanho original e estoura a célula. */
+.text-truncate-3 :deep(img) {
+  display: block;
+  max-width: 100%;
+  max-height: 80px;
+  object-fit: contain;
+  margin: 2px auto;
 }
 .justificativas-table th {
   background: rgba(11, 61, 145, 0.08) !important;

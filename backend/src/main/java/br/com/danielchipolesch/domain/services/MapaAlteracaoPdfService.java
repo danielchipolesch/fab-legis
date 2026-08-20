@@ -29,8 +29,8 @@ public class MapaAlteracaoPdfService {
     private static final String HEADER_BG   = "#ECF0F6"; // rgba(11,61,145,0.08) sobre branco
     private static final String HEADER_TEXT = "#0B3D91";
     private static final String BORDER      = "#CCCCCC";  // rgba(0,0,0,0.2) sobre branco
-    private static final String COR_EXCLUIDO = "#B71C1C"; // texto em vigor sendo substituído/removido
-    private static final String COR_INSERIDO = "#0D47A1"; // texto proposto sendo inserido
+    private static final String COR_EXCLUIDO = "#FF0000"; // texto em vigor sendo substituído/removido
+    private static final String COR_INSERIDO = "#0000FF"; // texto proposto sendo inserido
 
     private static final FopFactory FOP_FACTORY;
 
@@ -44,6 +44,9 @@ public class MapaAlteracaoPdfService {
 
     @Autowired
     private ObjectMapper objectMapper;
+
+    @Autowired
+    private ImagemService imagemService;
 
     public byte[] gerarPdf(MapaAlteracaoPdfRequestDto req) {
         String fo = buildFo(req);
@@ -62,6 +65,9 @@ public class MapaAlteracaoPdfService {
 
     private String buildFo(MapaAlteracaoPdfRequestDto req) {
         var renderer = new XslFoContentRenderer();
+        if (imagemService != null) {
+            renderer.setImageResolver(imagemService::getImageAsDataUri);
+        }
         var sb = new StringBuilder();
         sb.append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
         sb.append("<fo:root xmlns:fo=\"http://www.w3.org/1999/XSL/Format\">\n");
@@ -159,7 +165,11 @@ public class MapaAlteracaoPdfService {
         // color no fo:block externo herda para os fo:block/fo:inline internos, exceto
         // onde o próprio conteúdo já define uma cor explícita (textStyle do TipTap),
         // que corretamente prevalece por ser mais específica.
-        return "<fo:block color=\"" + cor + "\">" + fo.replace("font-size=\"12pt\"", "font-size=\"9pt\"") + "</fo:block>";
+        fo = fo.replace("font-size=\"12pt\"", "font-size=\"9pt\"")
+               // XslFoContentRenderer dimensiona figuras para uma página inteira
+               // (450x350pt) — grande demais para uma coluna de ~29% da tabela.
+               .replace("width=\"450pt\" height=\"350pt\"", "width=\"140pt\" height=\"110pt\"");
+        return "<fo:block color=\"" + cor + "\">" + fo + "</fo:block>";
     }
 
     private TipTapNode parseConteudo(String conteudo) {
