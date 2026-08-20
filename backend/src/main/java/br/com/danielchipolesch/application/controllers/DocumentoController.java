@@ -7,6 +7,7 @@ import br.com.danielchipolesch.application.dtos.documentoDtos.DocumentoResponseC
 import br.com.danielchipolesch.application.dtos.documentoDtos.DocumentoResponseSemAnexoTextualDto;
 import br.com.danielchipolesch.application.dtos.documentoDtos.DocumentoStatusRequestDto;
 import br.com.danielchipolesch.application.dtos.emendaDtos.MapaAlteracaoItemResponseDto;
+import br.com.danielchipolesch.application.dtos.emendaDtos.MapaAlteracaoPdfRequestDto;
 import br.com.danielchipolesch.application.dtos.itemAnexoParteNormativaDtos.ItemAnexoParteNormativaRequestDto;
 import br.com.danielchipolesch.application.dtos.itemAnexoParteNormativaDtos.SecoesSaveRequestDto;
 import br.com.danielchipolesch.domain.mappers.DocumentoMapper;
@@ -16,6 +17,7 @@ import br.com.danielchipolesch.domain.services.DocumentoPdfService;
 import br.com.danielchipolesch.domain.services.DocumentoService;
 import br.com.danielchipolesch.domain.services.DocumentoStatusService;
 import br.com.danielchipolesch.domain.services.EmendaService;
+import br.com.danielchipolesch.domain.services.MapaAlteracaoPdfService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -55,6 +57,9 @@ public class DocumentoController {
 
     @Autowired
     private EmendaService emendaService;
+
+    @Autowired
+    private MapaAlteracaoPdfService mapaAlteracaoPdfService;
 
     private EntityModel<DocumentoResponseSemAnexoTextualDto> toModel(DocumentoResponseSemAnexoTextualDto dto) {
         Long id = dto.getIdDocumento();
@@ -162,6 +167,17 @@ public class DocumentoController {
     public ResponseEntity<List<MapaAlteracaoItemResponseDto>> getMapaAlteracao(
             @PathVariable(value = "id") Long id) {
         return ResponseEntity.ok(emendaService.listarMapaAlteracao(id));
+    }
+
+    @PostMapping(value = "{id}/mapa-alteracao/pdf", produces = "application/pdf")
+    public ResponseEntity<byte[]> getMapaAlteracaoPdf(
+            @PathVariable(value = "id") Long id,
+            @RequestBody MapaAlteracaoPdfRequestDto request) {
+        byte[] pdfBytes = mapaAlteracaoPdfService.gerarPdf(request);
+        return ResponseEntity.ok()
+                .header("Content-Disposition", "inline; filename=\"mapa-alteracao-" + id + ".pdf\"")
+                .header("Cache-Control", "no-store")
+                .body(pdfBytes);
     }
 
     @GetMapping(value = "{id}/pdf", produces = "application/pdf")

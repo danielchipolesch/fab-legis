@@ -21,11 +21,7 @@ export function pdfUrl(documentoId) {
   return `${API_BASE}/documentos/${documentoId}/pdf`
 }
 
-export async function gerarPdf(documento) {
-  const response = await fetch(pdfUrl(documento.id), {
-    method: 'GET',
-  })
-
+async function baixarPdf(response, filename) {
   if (!response.ok) {
     let msg = `Erro ${response.status}`
     try {
@@ -39,9 +35,45 @@ export async function gerarPdf(documento) {
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  a.download = buildFilename(documento)
+  a.download = filename
   document.body.appendChild(a)
   a.click()
   document.body.removeChild(a)
   URL.revokeObjectURL(url)
+}
+
+export async function gerarPdf(documento) {
+  const response = await fetch(pdfUrl(documento.id), { method: 'GET' })
+  await baixarPdf(response, buildFilename(documento))
+}
+
+export async function gerarMapaAlteracaoPdf(documentoId, payload, filenameHint) {
+  // Abre a aba ANTES do fetch (síncrono, na mesma call stack do clique) para não
+  // ser bloqueado pelo popup blocker — só depois preenchemos a URL com o PDF.
+  const novaAba = window.open('', '_blank')
+  const response = await fetch(`${API_BASE}/documentos/${documentoId}/mapa-alteracao/pdf`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+  if (!response.ok) {
+    novaAba?.close()
+    let msg = `Erro ${response.status}`
+    try {
+      const text = await response.text()
+      if (text) msg = text
+    } catch { /* noop */ }
+    throw new Error(msg)
+  }
+  const blob = await response.blob()
+  // Empacota o blob num File nomeado: navegadores usam esse nome como sugestão ao
+  // salvar o PDF a partir da aba (Ctrl+S / botão de download do visualizador nativo).
+  const filename = `mapa-alteracao_${sanitize(filenameHint)}.pdf`
+  const file = new File([blob], filename, { type: 'application/pdf' })
+  const url = URL.createObjectURL(file)
+  if (novaAba) {
+    novaAba.location.href = url
+  } else {
+    window.open(url, '_blank')
+  }
 }

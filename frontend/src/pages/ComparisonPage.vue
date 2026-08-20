@@ -133,6 +133,7 @@
               size="sm"
               outline
               color="primary"
+              :loading="exportando"
               @click="exportarQuadro"
             >
               <q-icon left name="mdi-file-pdf-box" />
@@ -189,6 +190,8 @@ import DiffViewer from '@/components/comparison/DiffViewer.vue'
 import { formatLabel } from '@/utils/numbering.js'
 import { generateHTML } from '@tiptap/html'
 import { editorExtensions } from '@/editor/extensions.js'
+import { gerarMapaAlteracaoPdf } from '@/services/pdfService.js'
+import { useQuasar } from 'quasar'
 
 function conteudoToHtml(conteudo) {
   if (!conteudo) return ''
@@ -197,7 +200,9 @@ function conteudoToHtml(conteudo) {
 
 const route = useRoute()
 const store = useDocumentsStore()
+const $q = useQuasar()
 const loading = ref(true)
+const exportando = ref(false)
 
 onMounted(async () => {
   try {
@@ -312,8 +317,27 @@ const stats = computed(() => {
   return { incluido, alterado, revogado }
 })
 
-function exportarQuadro() {
-  window.print()
+async function exportarQuadro() {
+  const cicloAtual = ciclos.value.find(c => c.id === selectedCiclo.value)
+  const payload = {
+    docId: docId.value,
+    ciclo: cicloAtual?.label ?? null,
+    itens: itensCiclo.value.map(item => ({
+      referencia: referenciaLabel(item),
+      acao: item.acao,
+      textoAnterior: item.textoAnterior,
+      textoNovo: item.textoNovo,
+      justificativa: item.justificativa,
+    })),
+  }
+  exportando.value = true
+  try {
+    await gerarMapaAlteracaoPdf(route.params.id, payload, docId.value)
+  } catch (e) {
+    $q.notify({ type: 'negative', message: `Erro ao exportar o quadro: ${e?.message ?? 'erro desconhecido'}` })
+  } finally {
+    exportando.value = false
+  }
 }
 </script>
 
