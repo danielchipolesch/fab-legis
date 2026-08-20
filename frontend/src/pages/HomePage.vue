@@ -196,11 +196,11 @@
                   round
                   dense
                   color="primary"
-                  :disable="!props.row.versoes?.length"
-                  :to="props.row.versoes?.length ? { name: 'documento-comparar', params: { id: props.row.id } } : undefined"
+                  :disable="!store.temVersoesComparaveis(props.row.id)"
+                  :to="store.temVersoesComparaveis(props.row.id) ? { name: 'documento-comparar', params: { id: props.row.id } } : undefined"
                 >
                   <q-tooltip anchor="top middle" self="bottom middle">
-                    {{ props.row.versoes?.length ? 'Comparar versões' : 'Sem versões anteriores para comparar' }}
+                    {{ store.temVersoesComparaveis(props.row.id) ? 'Comparar versões' : 'Sem versões anteriores para comparar' }}
                   </q-tooltip>
                 </q-btn>
 
@@ -245,13 +245,15 @@
                         </q-item-section>
                         <q-item-section>{{ opt.label }}</q-item-section>
                       </q-item>
-                      <q-separator />
-                      <q-item clickable v-close-popup class="text-negative" @click="confirmarExclusao(props.row)">
-                        <q-item-section avatar>
-                          <q-icon name="mdi-delete-outline" color="negative" />
-                        </q-item-section>
-                        <q-item-section>Excluir</q-item-section>
-                      </q-item>
+                      <template v-if="canDelete(props.row)">
+                        <q-separator />
+                        <q-item clickable v-close-popup class="text-negative" @click="confirmarExclusao(props.row)">
+                          <q-item-section avatar>
+                            <q-icon name="mdi-delete-outline" color="negative" />
+                          </q-item-section>
+                          <q-item-section>Excluir</q-item-section>
+                        </q-item>
+                      </template>
                     </q-list>
                   </q-menu>
                 </q-btn>
@@ -336,10 +338,12 @@
                 round
                 dense
                 color="primary"
-                :disable="!doc.versoes?.length"
-                :to="doc.versoes?.length ? { name: 'documento-comparar', params: { id: doc.id } } : undefined"
+                :disable="!store.temVersoesComparaveis(doc.id)"
+                :to="store.temVersoesComparaveis(doc.id) ? { name: 'documento-comparar', params: { id: doc.id } } : undefined"
               >
-                <q-tooltip anchor="top middle" self="bottom middle">Comparar versões</q-tooltip>
+                <q-tooltip anchor="top middle" self="bottom middle">
+                  {{ store.temVersoesComparaveis(doc.id) ? 'Comparar versões' : 'Sem versões anteriores para comparar' }}
+                </q-tooltip>
               </q-btn>
               <q-btn size="sm" icon="mdi-file-pdf-box" flat round dense color="primary" @click="baixarPdf(doc)">
                 <q-tooltip anchor="top middle" self="bottom middle">Baixar PDF</q-tooltip>
@@ -571,6 +575,10 @@ const statusSummary = computed(() =>
 
 function canEdit(doc) {
   return ['RASCUNHO', 'MINUTA', 'EM_ALTERACAO'].includes(doc.status)
+}
+
+function canDelete(doc) {
+  return ['RASCUNHO', 'MINUTA'].includes(doc.status)
 }
 
 function docRoute(doc) {

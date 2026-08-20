@@ -157,6 +157,11 @@ public class DocumentoController {
         return ResponseEntity.noContent().build();
     }
 
+    @GetMapping("com-historico-emenda")
+    public ResponseEntity<List<Long>> getDocumentosComHistoricoEmenda() {
+        return ResponseEntity.ok(emendaService.listarDocumentosComHistorico());
+    }
+
     @GetMapping("{id}/historico")
     public ResponseEntity<List<DocumentoHistoricoResponseDto>> getHistorico(
             @PathVariable(value = "id") Long id) {

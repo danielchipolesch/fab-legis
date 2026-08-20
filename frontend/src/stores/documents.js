@@ -141,10 +141,12 @@ export const useDocumentsStore = defineStore('documents', {
     anexosPorDocumento: {},
     historicoPorDocumento: {},
     mapaAlteracaoPorDocumento: {},
+    documentosComHistorico: [],
   }),
 
   getters: {
     getById: (state) => (id) => state.documentos.find(d => String(d.id) === String(id)) ?? null,
+    temVersoesComparaveis: (state) => (id) => state.documentosComHistorico.includes(String(id)),
   },
 
   actions: {
@@ -152,8 +154,12 @@ export const useDocumentsStore = defineStore('documents', {
       if (this.loading) return
       this.loading = true
       try {
-        const docs = await api.listDocumentos()
+        const [docs, comHistorico] = await Promise.all([
+          api.listDocumentos(),
+          api.listDocumentosComHistoricoEmenda(),
+        ])
         this.documentos = docs.map(d => ({ ...d }))
+        this.documentosComHistorico = comHistorico
       } finally {
         this.loading = false
       }

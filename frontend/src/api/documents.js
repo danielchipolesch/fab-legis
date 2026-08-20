@@ -141,6 +141,11 @@ export async function listDocumentos() {
   return items.map(backendParaFrontend)
 }
 
+export async function listDocumentosComHistoricoEmenda() {
+  const data = await http.get('/documentos/com-historico-emenda')
+  return Array.isArray(data) ? data.map(String) : []
+}
+
 export async function getDocumento(id) {
   const data = await http.get(`/documentos/${id}`)
   return backendParaFrontend(data)

@@ -548,6 +548,10 @@ public class EmendaService {
     // desfeitas via DESFAZER — que não deixa nenhum rastro de invalidação nas linhas
     // anteriores. A verdade aqui é o próprio elemento ao vivo (conteudo/
     // conteudoEmenda/emendaStatus), a mesma fonte que consolidarPublicacao() usa.
+    public List<Long> listarDocumentosComHistorico() {
+        return historicoRepository.findDocumentoIdsComHistorico();
+    }
+
     public List<MapaAlteracaoItemResponseDto> listarMapaAlteracao(Long docId) {
         List<MapaAlteracaoItemResponseDto> publicados = historicoRepository.findByDocumentoIdOrderByDtEmendaDesc(docId).stream()
                 .filter(h -> h.getAcao() != EmendaAcaoEnum.DESFAZER)

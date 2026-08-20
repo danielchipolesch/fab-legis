@@ -33,7 +33,10 @@
       <q-btn flat round dense size="sm" color="grey-7" icon="mdi-file-document-edit-outline" @click="abrirDialogMeta">
         <q-tooltip anchor="top middle" self="bottom middle">Metadados</q-tooltip>
       </q-btn>
-      <q-btn flat round dense size="sm" color="grey-7" icon="mdi-source-branch">
+      <q-btn
+        flat round dense size="sm" color="grey-7" icon="mdi-source-branch"
+        :to="{ name: 'documento-comparar', params: { id: props.documento?.id } }"
+      >
         <q-tooltip anchor="top middle" self="bottom middle">Comparar versões</q-tooltip>
       </q-btn>
       <q-btn flat round dense size="sm" color="grey-7" icon="mdi-download-outline">

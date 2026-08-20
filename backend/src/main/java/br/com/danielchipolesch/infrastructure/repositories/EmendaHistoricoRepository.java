@@ -25,4 +25,9 @@ public interface EmendaHistoricoRepository extends JpaRepository<EmendaHistorico
     @Query("UPDATE EmendaHistorico e SET e.cicloReferencia = :ciclo " +
            "WHERE e.documentoId = :documentoId AND e.cicloReferencia IS NULL")
     void marcarCicloPendentes(@Param("documentoId") Long documentoId, @Param("ciclo") String ciclo);
+
+    // Documentos com pelo menos uma emenda registrada (excluindo DESFAZER) — usado para
+    // habilitar o botão "Comparar versões" só quando há de fato algo para comparar.
+    @Query("SELECT DISTINCT h.documentoId FROM EmendaHistorico h WHERE h.acao <> 'DESFAZER'")
+    List<Long> findDocumentoIdsComHistorico();
 }
