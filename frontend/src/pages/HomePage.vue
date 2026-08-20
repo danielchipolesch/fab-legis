@@ -55,7 +55,7 @@
             <q-select
               v-model="filtros.status"
               :options="statusOptions"
-              label="Status"
+              label="Situação"
               outlined
               dense
               clearable
@@ -108,7 +108,7 @@
           :columns="columns"
           row-key="id"
           :rows-per-page-options="[15, 25, 50]"
-          :pagination="{ rowsPerPage: 15 }"
+          :pagination="{ rowsPerPage: 15, sortBy: 'data_criacao', descending: true }"
           flat
           class="legis-table"
         >
@@ -383,7 +383,7 @@
         <q-card-section class="q-pt-none">
           O documento
           <strong>{{ dialog.target?.especie }} {{ dialog.target?.numero_basico }}<template v-if="dialog.target?.numero_secundario">-{{ dialog.target?.numero_secundario }}</template></strong>
-          terá seu status alterado para <strong>{{ dialog.statusOpt?.status }}</strong>.
+          terá sua situação alterada para <strong>{{ dialog.statusOpt?.status }}</strong>.
         </q-card-section>
         <!-- Campos obrigatórios para republicação após alteração -->
         <template v-if="dialog.statusOpt?.requiresRefs">
@@ -487,7 +487,7 @@
         <q-card-section class="q-pt-none">
           Será criada uma cópia do documento
           <strong>{{ dialog.target?.especie }} {{ dialog.target?.numero_basico }}<template v-if="dialog.target?.numero_secundario">-{{ dialog.target?.numero_secundario }}</template></strong>
-          com status <strong>RASCUNHO</strong>.
+          com situação <strong>RASCUNHO</strong>.
         </q-card-section>
         <q-card-actions align="right" class="q-pb-md q-px-md">
           <q-btn flat v-close-popup>Cancelar</q-btn>
@@ -525,7 +525,7 @@ const columns = [
   { name: 'titulo',         label: 'Título',         field: 'titulo',         align: 'center', sortable: true },
   { name: 'assunto_basico', label: 'Assunto Básico', field: 'assunto_basico', align: 'center', sortable: true },
   { name: 'data_criacao',   label: 'Data',           field: 'data_criacao',   align: 'center', sortable: true,  style: 'width: 120px' },
-  { name: 'status',         label: 'Status',         field: 'status',         align: 'center', sortable: true,  style: 'width: 140px' },
+  { name: 'status',         label: 'Situação',       field: 'status',         align: 'center', sortable: true,  style: 'width: 140px' },
   { name: 'replicas',       label: 'Réplicas',       field: 'qtd_replicas',   align: 'center', sortable: true,  style: 'width: 90px' },
   { name: 'actions',        label: 'Ações',          field: 'actions',        align: 'center', sortable: false, style: 'width: 220px' },
 ]
@@ -650,7 +650,7 @@ async function executarMudancaStatus() {
     dialog.numeroBca = ''
     dialog.dataBca = ''
   } catch (e) {
-    $q.notify({ type: 'negative', message: `Erro ao mudar status: ${e?.message ?? 'erro desconhecido'}` })
+    $q.notify({ type: 'negative', message: `Erro ao mudar situação: ${e?.message ?? 'erro desconhecido'}` })
   } finally {
     alterandoStatus.value = false
   }
