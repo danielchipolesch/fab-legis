@@ -87,21 +87,27 @@ cima/baixo, remover e reordenar por *drag and drop* (persistido no backend).
 
 ### 🔢 Numeração automática conforme a técnica legislativa
 
-Implementada em `frontend/src/utils/numbering.js` seguindo o **Decreto nº
-12.002/2024, art. 9º**:
+Segue o **Decreto nº 12.002/2024, art. 9º**:
 
 | Elemento | Formato | Exemplo |
 |---|---|---|
 | Capítulo / Seção / Subseção | Romano | `CAPÍTULO IV` |
-| Artigo | Ordinal até o 9º, cardinal a partir do 10 | `Art. 3º` · `Art. 12.` |
+| Artigo | Ordinal até o 9º, cardinal a partir do 10 (com separador de milhar) | `Art. 3º` · `Art. 12.` · `Art. 1.024.` |
 | Parágrafo | Ordinal/cardinal com `§` | `§ 1º` · `§ 10.` |
 | Parágrafo único | Literal | `Parágrafo único` |
 | Inciso | Romano | `VII` |
 | Alínea | Letra minúscula | `c)` |
 | Subalínea (item) | Arábico | `2.` |
+| Artigo incluído por emenda | Sufixo de letra, permanente | `Art. 5-A` |
 
 A renumeração é **recalculada a cada mutação da árvore** — inserir um artigo no
-meio do documento reordena todos os subsequentes automaticamente.
+meio do documento reordena todos os subsequentes automaticamente, exceto os
+incluídos por emenda (sufixo de letra, nunca renumerados — ver "Ciclo de
+emenda"). ⚠️ Esse algoritmo hoje existe **em duas implementações mantidas
+manualmente em paralelo** — `frontend/src/utils/numbering.js` (preview ao
+vivo) e a classe interna `Numbering` de
+`DocumentoFoBuilder.java` (fonte de verdade do PDF) — ver a discussão sobre
+essa duplicação em "Perspectivas para o futuro".
 
 ### 🖼️ Figuras com numeração sequencial
 
@@ -126,14 +132,19 @@ padrão da **NSCA 5-3**:
 
 O pipeline de geração é: conteúdo JSON TipTap → `XslFoContentRenderer` (serializa
 inlines: negrito, itálico, cor, links, imagens) → `DocumentoFoBuilder` (monta o
-XSL-FO completo) → Apache FOP → bytes PDF. O PDF pode ser baixado diretamente
-(rascunho) ou armazenado no MinIO quando o documento é aprovado.
+XSL-FO completo) → Apache FOP → bytes PDF. Ao entrar em `APROVADO` ou
+`ALTERADO`, o PDF é gerado e armazenado no MinIO (`urlPdf`) — a prévia embutida
+na página de visualização usa essa cópia quando disponível. O botão **Baixar
+PDF**, porém, sempre chama a geração ao vivo (`GET /{id}/pdf`), independente de
+já existir uma cópia armazenada (ver discussão sobre cache na seção
+"Perspectivas para o futuro").
 
 ### 🔍 Comparação de versões
 
-Página dedicada (`ComparisonPage.vue`) com seletores de Versão A / Versão B e um
-`DiffViewer` baseado na biblioteca **diff**, destacando inclusões, remoções e
-alterações entre revisões do mesmo ato.
+Página dedicada (`ComparisonPage.vue`) alimentada pelo histórico real de
+emendas (`EmendaHistorico`, agrupado por ciclo de publicação) — não por
+snapshots do documento. Ver "Ciclo de emenda" e "Quadro de Justificativas"
+acima para o detalhamento completo.
 
 ### 🔎 Visualização do documento
 
@@ -143,7 +154,7 @@ A `DocumentViewerPage` exibe o documento em modo leitura com quatro seções exp
 |---|---|
 | **Informações do Documento** | Metadados (espécie, número, título, assunto, código, status) e linha do tempo de datas por status |
 | **Visualização do Documento** | Iframe com o PDF armazenado (disponível a partir de `APROVADO`) ou mensagem de indisponibilidade; exibe `q-inner-loading` enquanto o PDF carrega |
-| **Anexos** | Reservado para futura vinculação de anexos ao documento |
+| **Anexos** | Upload/listagem/remoção de arquivos vinculados ao documento (`AnexoController`), incluídos como páginas próprias na exportação em PDF |
 | **Histórico de Versões** | Acesso direto à página de comparação de versões |
 
 Ações disponíveis na topbar: baixar PDF (rascunho gerado sob demanda), clonar e
@@ -151,9 +162,14 @@ navegar para a comparação de versões.
 
 ### 🚦 Gestão do acervo
 
-A `HomePage` oferece visão em tabela ou cards, filtros por espécie, status e
-busca textual, resumo quantitativo por status e ações contextuais — editar
-(apenas em Rascunho/Minuta), clonar, comparar, exportar e transicionar de status.
+A `HomePage` oferece visão em tabela (ordenada por data de criação
+decrescente por padrão) ou cards, filtros por espécie, situação e busca
+textual, resumo quantitativo por situação e ações contextuais — editar
+(Rascunho/Minuta/Em Alteração), clonar, comparar (habilitado só quando o
+documento tem emendas registradas), exportar em PDF e transicionar de
+situação. **Excluir** só aparece no menu de ações para documentos em
+Rascunho ou Minuta — outras situações já são bloqueadas no backend
+(`DocumentoService.delete()`), e a opção nem é oferecida na interface.
 
 ---
 
@@ -243,11 +259,13 @@ br.com.danielchipolesch
 │   ├── entities/
 │   │   ├── estruturaDocumento/   ← Documento, ItemPartePreliminar,
 │   │   │                            ItemAnexoParteNormativa, ItemParteFinal,
-│   │   │                            FileAttachment, DocumentVersion + enums
+│   │   │                            Anexo, EmendaHistorico + enums
 │   │   └── numeracaoDocumento/   ← EspecieNormativa, AssuntoBasico
 │   ├── services/          ← Regras de negócio (DocumentoService, DocumentoStatusService,
-│   │                        DocumentoParteNormativaService, ImagemService…)
+│   │                        DocumentoParteNormativaService, EmendaService,
+│   │                        ImagemService, MapaAlteracaoPdfService…)
 │   ├── builders/          ← DocumentoBuilder (construção fluente)
+│   ├── util/tiptap/       ← TipTapNode + XslFoContentRenderer (JSON TipTap → XSL-FO)
 │   ├── mappers/           ← Entidade ⇄ DTO
 │   └── handlers/          ← GlobalExceptionHandler + exceções tipadas por domínio
 │
@@ -335,7 +353,7 @@ graph LR
     IN --> AL[Alínea]
     AL --> SA[Subalínea]
 
-    AN --> A1["(em desenvolvimento)"]
+    AN --> A1["Arquivos anexados (upload livre)"]
 ```
 
 ### Numeração oficial do documento
@@ -375,18 +393,71 @@ stateDiagram-v2
     MINUTA --> CANCELADO
     APROVADO --> MINUTA
     APROVADO --> PUBLICADO
+    PUBLICADO --> EM_ALTERACAO
     PUBLICADO --> ARQUIVADO
     PUBLICADO --> REVOGADO
+    EM_ALTERACAO --> ALTERADO
+    ALTERADO --> EM_ALTERACAO
+    ALTERADO --> PUBLICADO
     CANCELADO --> [*]
     ARQUIVADO --> [*]
     REVOGADO --> [*]
 ```
 
 **Regra de imutabilidade:** o conteúdo textual só pode ser alterado enquanto o
-documento estiver em `RASCUNHO` ou `MINUTA`. A partir de `APROVADO`, qualquer
-tentativa de edição é rejeitada — para evoluir o ato, use a operação de
-**clonagem**, que cria um novo documento em `RASCUNHO` com um novo número
-secundário, preservando o original como registro histórico.
+documento estiver em `RASCUNHO`, `MINUTA` ou `EM_ALTERACAO`. A partir de
+`APROVADO`/`PUBLICADO`, qualquer tentativa de edição direta é rejeitada — para
+alterar um ato já publicado, o documento entra em **ciclo de emenda**
+(`PUBLICADO → EM_ALTERACAO → ALTERADO → PUBLICADO`, ver seção seguinte); para
+criar uma revisão totalmente nova, use a operação de **clonagem**, que gera um
+novo documento em `RASCUNHO` com novo número secundário, preservando o
+original como registro histórico.
+
+### ✍️ Ciclo de emenda — alterando um ato já publicado
+
+Um ato normativo publicado não é reescrito livremente: a LC 95/1998 exige que
+alterações a um dispositivo já em vigor apareçam com a redação anterior
+riscada ao lado da nova, cada uma com sua própria cláusula de referência
+("*incluído pela Portaria X, publicada no BCA Y*"). O FAB Legis modela isso
+como um ciclo em cima do próprio elemento (artigo, parágrafo, inciso…), não
+do documento inteiro:
+
+1. O documento vai a `EM_ALTERACAO` (a partir de `PUBLICADO`).
+2. Cada elemento tocado recebe uma ação — `INCLUIR`, `ALTERAR`, `REVOGAR` ou
+   `DESFAZER` (desiste da edição pendente) — via
+   `PATCH /v1/documentos/{id}/emendar/{secao}/{elementoId}`. O `ElementoEmendaStatusEnum`
+   (`INALTERADO · INCLUIDO · ALTERADO · REVOGADO`) e o texto anterior ficam
+   guardados no próprio registro do elemento; nada é sobrescrito.
+3. O documento avança para `ALTERADO` e, na republicação (`ALTERADO → PUBLICADO`,
+   com nova Portaria/BCA), `EmendaService.consolidarPublicacao()` **congela** a
+   cláusula de cada elemento alterado — ela deixa de ser recalculada e passa a
+   valer para sempre, mesmo que o documento entre em um novo ciclo depois.
+4. Uma nova emenda sobre um elemento **já publicado** promove a redação vigente
+   e reinicia o ciclo para aquele elemento — o texto anterior a essa nova
+   emenda também fica registrado (`clausulaEmendaAnterior`), aparecendo riscado
+   ao lado da cláusula que o descreveu originalmente.
+5. Artigos incluídos por emenda recebem sufixo de letra (`Art. 5-A`) e **nunca**
+   voltam a consumir numeração sequencial simples, mesmo depois de alterados ou
+   revogados — a marca `incluidoPorEmenda` é permanente e independente do
+   status ao vivo do elemento, evitando a renumeração de todo o documento a
+   cada novo ciclo (vedada pela técnica legislativa).
+
+### 📋 Quadro de Justificativas das Modificações Propostas
+
+A cada ciclo de emenda, o sistema monta automaticamente o **Anexo XXIV da
+NSCA 5-3** — a tabela (referência · texto em vigor · texto proposto ·
+justificativa) que a autoridade exige junto da nova redação antes de aprovar
+a publicação. Fica disponível na página **Comparar Versões**
+(`/documento/{id}/comparar`):
+
+- o seletor de **ciclo** lista tanto a rodada em andamento (ainda não
+  publicada, comparada contra o texto vigente) quanto todos os ciclos já
+  publicados anteriormente, cada um com sua própria Portaria/BCA;
+- cards de comparação lado a lado/unificado por elemento (`DiffViewer`, com
+  destaque de palavras via `diff`), incluindo anexos com imagem;
+- **exportação em PDF** (`POST /{id}/mapa-alteracao/pdf`) no mesmo motor
+  Apache FOP/XSL-FO do documento oficial — A4 paisagem, texto excluído em
+  vermelho, texto inserido em azul, abre em nova aba.
 
 ---
 
@@ -499,14 +570,34 @@ Documentação interativa completa em **`/swagger-ui.html`**. Resumo dos endpoin
 | `POST` | `/` | Cria documento (calcula o número secundário) |
 | `POST` | `/{id}/clonar` | Clona o documento em novo `RASCUNHO` |
 | `GET` | `/{id}` | Obtém documento com anexo textual + links HATEOAS |
-| `GET` | `/obter-todos` | Lista paginada |
+| `GET` | `/obter-todos` | Lista paginada (DTO enxuto, sem os itens da árvore) |
 | `GET` | `/filtrar` | Filtra por espécie normativa e assunto básico |
 | `PUT` | `/{id}` | Atualiza metadados (somente Rascunho/Minuta) |
-| `PUT` | `/{id}/aprovar` | Aprova o documento |
-| `PATCH` | `/{id}/status` | Transição de status validada |
+| `PATCH` | `/{id}/status` | Transição de status validada (aprovação, publicação, republicação com Portaria/BCA…) |
 | `PUT` | `/{id}/secoes` | Salva a árvore completa de seções |
 | `PUT` | `/{idDocumento}/adicionar-item-anexo-parte-textual` | Adiciona item à parte normativa |
-| `DELETE` | `/{id}` | Remove o documento e seus itens em cascata |
+| `GET` | `/{id}/pdf` | Gera o PDF oficial do documento sob demanda (Apache FOP) |
+| `DELETE` | `/{id}` | Remove o documento e seus itens em cascata (somente Rascunho/Minuta) |
+
+### Emendas — `/v1/documentos` (ciclo de alteração)
+
+| Método | Rota | Descrição |
+|---|---|---|
+| `PATCH` | `/{docId}/emendar/{secao}/{elementoId}` | Aplica `ALTERAR` \| `REVOGAR` \| `DESFAZER` a um elemento (documento deve estar `EM_ALTERACAO`) |
+| `POST` | `/{docId}/emendar/{secao}` | Inclui um novo elemento por emenda |
+| `PATCH` | `/{docId}/emendar/{secao}/{elementoId}/reordenar` | Reordena um artigo incluído por emenda entre outros artigos incluídos ainda não publicados |
+| `GET` | `/{id}/historico` | Histórico de transições de status do documento |
+| `GET` | `/{id}/mapa-alteracao` | Quadro de Justificativas por ciclo (elemento atual + todos os já publicados) |
+| `POST` | `/{id}/mapa-alteracao/pdf` | Exporta o quadro de um ciclo em PDF (A4 paisagem) |
+| `GET` | `/com-historico-emenda` | IDs de documentos com pelo menos uma emenda registrada — usado para habilitar "Comparar versões" na home |
+
+### Anexos — `/v1/documentos/{documentoId}/anexos`
+
+| Método | Rota | Descrição |
+|---|---|---|
+| `GET` | `/` | Lista os anexos do documento |
+| `POST` | `/` | Envia um arquivo (multipart) como anexo |
+| `DELETE` | `/{anexoId}` | Remove um anexo |
 
 ### Espécies normativas — `/v1/especie-normativa`
 
@@ -566,19 +657,32 @@ organizadas por horizonte e refletem o que a arquitetura atual já prepara.
   (LDAP/Active Directory) via Spring Security, com perfis distintos para
   **Redator**, **Revisor**, **Aprovador** e **Publicador**, amarrando cada
   transição de status a uma competência real.
-- **Versionamento efetivo** — a entidade `DocumentVersion` já existe no domínio;
-  o próximo passo é materializar *snapshots* imutáveis a cada aprovação, dando
-  ao `DiffViewer` um histórico completo em vez de comparações pontuais.
-- **Trilha de auditoria** — registro de quem alterou o quê e quando, requisito
-  essencial para documentos oficiais.
+- **Versionamento por snapshot** — `EmendaHistorico` já registra o quê mudou em
+  cada ciclo de emenda (texto anterior/novo, justificativa, ciclo de
+  publicação), mas não guarda uma foto completa da árvore do documento em cada
+  publicação; um snapshot imutável por ciclo daria ao `DiffViewer` comparações
+  de estrutura inteira, não só por elemento.
+- **Trilha de auditoria com identidade** — `EmendaHistorico` já registra o quê
+  e quando; falta o **quem**, que depende da autenticação acima.
 - **Flyway ativo** — migrações versionadas em `resources/db/migration` já em
-  uso, com histórico rastreável de mudanças de esquema (ex: V2 que removeu
-  `FUNDAMENTACAO` e migrou `FECHO`/`ASSINATURA` para a parte preliminar).
+  uso (atualmente em V8), com histórico rastreável de mudanças de esquema —
+  da remoção de `FUNDAMENTACAO` (V1) ao rastreio de ciclo de emenda por
+  publicação (V7/V8).
 - **Cobertura de testes** — testes unitários dos serviços de domínio (com
   destaque para a numeração e as transições de status) e testes de integração
   dos controllers com Testcontainers.
 - **Exportação DOCX nativa** — o HTML portável produzido pelo editor já foi
   pensado para isso; falta o conversor no backend.
+- **Backend como fonte única da numeração/ordenação** — hoje `numbering.js`
+  (frontend) e a classe `Numbering` de `DocumentoFoBuilder.java` (backend)
+  implementam a mesma regra em paralelo, mantidas manualmente em sincronia; um
+  endpoint que devolva a numeração já calculada eliminaria esse risco de
+  divergência (ver opinião detalhada mais abaixo).
+- **Cache do PDF gerado** — hoje todo PDF (documento oficial ou quadro de
+  emendas) é renderizado do zero a cada download/exportação; avaliar
+  armazenar o resultado no MinIO (documentos imutáveis) e/ou cache de curto
+  prazo em Redis (rascunhos voláteis) para reduzir custo de CPU do FOP sob
+  carga (ver opinião detalhada mais abaixo).
 
 ### 🚀 Médio prazo — fluxo de trabalho completo
 
