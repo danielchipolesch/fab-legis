@@ -3,6 +3,7 @@ package br.com.danielchipolesch.domain.services;
 import br.com.danielchipolesch.application.dtos.documentoDtos.DocumentoResponseComAnexoTextualDto;
 import br.com.danielchipolesch.application.dtos.itemAnexoParteNormativaDtos.ItemAnexoParteNormativaRequestDto;
 import br.com.danielchipolesch.application.dtos.itemAnexoParteNormativaDtos.ItemAnexoParteNormativaResponseDto;
+import br.com.danielchipolesch.application.dtos.itemAnexoParteNormativaDtos.NumeracaoElementoResponseDto;
 import br.com.danielchipolesch.application.dtos.itemAnexoParteNormativaDtos.SecaoItemRequestDto;
 import br.com.danielchipolesch.application.dtos.itemAnexoParteNormativaDtos.SecoesSaveRequestDto;
 import br.com.danielchipolesch.application.dtos.itemParteFinalDtos.ItemParteFinalResponseDto;
@@ -39,6 +40,9 @@ public class DocumentoParteNormativaService {
     @Autowired
     DocumentoHistoricoService documentoHistoricoService;
 
+    @Autowired
+    NumeracaoService numeracaoService;
+
     // ─── Carregamento ────────────────────────────────────────────────────────────
 
     public List<ItemPartePreliminar> getItensPreliminaresByDocumento(Long documentoId) {
@@ -59,6 +63,17 @@ public class DocumentoParteNormativaService {
         List<ItemAnexoParteNormativa> children = itemAnexoParteNormativaRepository.findByParentOrderByElementOrderAsc(item);
         item.setChildren(children);
         children.forEach(this::carregarChildrenRecursivamente);
+    }
+
+    // Numeração calculada da parte normativa (capítulo/seção/subseção/artigo) —
+    // mesmo cálculo usado no PDF oficial (ver NumeracaoService), exposto para
+    // qualquer consumidor via API.
+    public List<NumeracaoElementoResponseDto> listarNumeracao(Long documentoId) {
+        List<ItemAnexoParteNormativaResponseDto> normativos = getItensNormativosByDocumento(documentoId)
+                .stream().map(ItemAnexoParteNormativaResponseDto::from).toList();
+        return numeracaoService.calcular(normativos).entrySet().stream()
+                .map(e -> NumeracaoElementoResponseDto.from(e.getKey(), e.getValue()))
+                .toList();
     }
 
     // ─── Consulta completa ────────────────────────────────────────────────────────

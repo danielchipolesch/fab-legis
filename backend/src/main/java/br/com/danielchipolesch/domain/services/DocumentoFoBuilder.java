@@ -19,7 +19,6 @@ import java.sql.Timestamp;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Base64;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -35,6 +34,9 @@ public class DocumentoFoBuilder {
 
     @Autowired
     private ImagemService imagemService;
+
+    @Autowired
+    private NumeracaoService numeracaoService;
 
     private String brasaoRepublica = "";
     private String brasaoFab       = "";
@@ -64,7 +66,7 @@ public class DocumentoFoBuilder {
                 preliminares != null ? preliminares : List.of(),
                 normativos   != null ? normativos   : List.of(),
                 anexos       != null ? anexos       : List.of(),
-                brasaoRepublica, brasaoFab, objectMapper, imagemService).build();
+                brasaoRepublica, brasaoFab, objectMapper, imagemService, numeracaoService).build();
     }
 
     // ─── Stateful generator ───────────────────────────────────────────────────
@@ -92,6 +94,7 @@ public class DocumentoFoBuilder {
         private final ObjectMapper objectMapper;
         private final XslFoContentRenderer renderer;
         private final ImagemService imagemService;
+        private final NumeracaoService numeracaoService;
 
         Generator(Documento doc,
                   List<ItemPartePreliminarResponseDto> preliminares,
@@ -100,7 +103,8 @@ public class DocumentoFoBuilder {
                   String brasaoRepublica,
                   String brasaoFab,
                   ObjectMapper objectMapper,
-                  ImagemService imagemService) {
+                  ImagemService imagemService,
+                  NumeracaoService numeracaoService) {
             this.doc            = doc;
             this.preliminares   = preliminares;
             this.normativos     = normativos;
@@ -109,6 +113,7 @@ public class DocumentoFoBuilder {
             this.brasaoFab      = brasaoFab;
             this.objectMapper   = objectMapper;
             this.imagemService  = imagemService;
+            this.numeracaoService = numeracaoService;
             this.renderer       = new XslFoContentRenderer();
             if (imagemService != null) {
                 this.renderer.setImageResolver(imagemService::getImageAsDataUri);
@@ -351,7 +356,7 @@ public class DocumentoFoBuilder {
             sb.append(block(foEsc(titulo) + " (" + foEsc(docId()) + ")", "center", "12pt", "bold", "0", "10pt"));
             sb.append(block("SUMÁRIO", "center", "12pt", "bold", "0", "8pt"));
 
-            Numbering numbering = computeNumbering(normativos);
+            Map<Long, NumeracaoService.ElementoNumeracao> numbering = numeracaoService.calcular(normativos);
             sb.append(buildToc(numbering));
             sb.append("<fo:block space-after=\"1.2em\"/>\n");
             sb.append(buildCorpoNormativo(numbering));
@@ -371,7 +376,7 @@ public class DocumentoFoBuilder {
             sb.append(buildStaticContentWatermark());
             sb.append("<fo:flow flow-name=\"xsl-region-body\">\n");
 
-            String numRomano = toRoman(anexo.getOrdem() + 1);
+            String numRomano = NumeracaoService.toRoman(anexo.getOrdem() + 1);
             sb.append(block("ANEXO " + numRomano, "center", "12pt", "bold", "0", "4pt"));
             sb.append(block(foEsc(anexo.getTitulo().toUpperCase()), "center", "12pt", "bold", "0", "12pt"));
 
@@ -393,168 +398,37 @@ public class DocumentoFoBuilder {
 
         // ─── Numeração (capítulo/seção/subseção/artigo, com sufixo de letra p/ EM_ALTERACAO) ──
         //
-        // Espelha exatamente `renumberElementsEmAlteracao` de frontend/src/utils/numbering.js:
-        // - Capítulo, seção e subseção: numeração local ao pai. Elemento INCLUIDO entre dois
-        //   elementos ativos (não-INCLUIDO/não-REVOGADO) do mesmo tipo recebe sufixo de letra
-        //   (ex.: "II-A") sem consumir a contagem; se estiver ao final da sequência, recebe
-        //   numeração normal.
-        // - Artigo: numeração GLOBAL (contínua por todo o documento), mesma regra de sufixo.
-        // Calculada uma única vez e compartilhada entre o sumário e o corpo do documento,
-        // garantindo que os dois nunca divirjam.
+        // O cálculo em si vive em NumeracaoService (extraído daqui para ser reutilizável
+        // e exposto via API — GET /v1/documentos/{id}/numeracao) — aqui só resta o
+        // "type alias" e pequenos acessores de conveniência para o restante do arquivo.
 
-        private static final class Numbering {
-            final Map<Long, Integer> numero = new HashMap<>();
-            final Map<Long, String> letra = new HashMap<>();
-            final List<ItemAnexoParteNormativaResponseDto> flatArtigos = new ArrayList<>();
+        private String capLabel(ItemAnexoParteNormativaResponseDto item, Map<Long, NumeracaoService.ElementoNumeracao> num) {
+            var en = num.get(item.getId());
+            return en != null ? en.label() : "";
         }
 
-        private Numbering computeNumbering(List<ItemAnexoParteNormativaResponseDto> items) {
-            Numbering num = new Numbering();
-            collectArtigosFlat(items, num.flatArtigos);
-            assignNumbering(items, num, new int[]{0});
-            return num;
+        private String secLabel(ItemAnexoParteNormativaResponseDto item, Map<Long, NumeracaoService.ElementoNumeracao> num) {
+            var en = num.get(item.getId());
+            return en != null ? en.label() : "";
         }
 
-        private void collectArtigosFlat(List<ItemAnexoParteNormativaResponseDto> items,
-                                        List<ItemAnexoParteNormativaResponseDto> out) {
-            if (items == null) return;
-            for (var item : items) {
-                if (item.getElementType() == ItemAnexoParteNormativaTipoEnum.ARTIGO) out.add(item);
-                collectArtigosFlat(item.getChildren(), out);
-            }
+        private String subLabel(ItemAnexoParteNormativaResponseDto item, Map<Long, NumeracaoService.ElementoNumeracao> num) {
+            var en = num.get(item.getId());
+            return en != null ? en.label() : "";
         }
 
-        private boolean hasActiveArtigoAfterGlobal(ItemAnexoParteNormativaResponseDto item,
-                                                    List<ItemAnexoParteNormativaResponseDto> flatArtigos) {
-            int idx = flatArtigos.indexOf(item);
-            for (int i = idx + 1; i < flatArtigos.size(); i++) {
-                var s = flatArtigos.get(i);
-                if (s.getEmendaStatus() != ElementoEmendaStatusEnum.INCLUIDO
-                        && s.getEmendaStatus() != ElementoEmendaStatusEnum.REVOGADO) return true;
-            }
-            return false;
-        }
-
-        private boolean hasNonIncludedSameTypeAfter(List<ItemAnexoParteNormativaResponseDto> siblings, int idx,
-                                                     ItemAnexoParteNormativaTipoEnum tipo) {
-            for (int i = idx + 1; i < siblings.size(); i++) {
-                var s = siblings.get(i);
-                if (s.getElementType() == tipo
-                        && s.getEmendaStatus() != ElementoEmendaStatusEnum.INCLUIDO
-                        && s.getEmendaStatus() != ElementoEmendaStatusEnum.REVOGADO) return true;
-            }
-            return false;
-        }
-
-        private void assignNumbering(List<ItemAnexoParteNormativaResponseDto> items, Numbering num, int[] artCounter) {
-            if (items == null) return;
-            int cap = 0, sec = 0, sub = 0;
-            int capLetterIdx = 0, secLetterIdx = 0, subLetterIdx = 0, artLetterIdx = 0;
-            for (int i = 0; i < items.size(); i++) {
-                var item = items.get(i);
-                // Marca permanente, não o status ao vivo: um artigo incluído por emenda
-                // mantém seu sufixo de letra mesmo depois de ser alterado ou revogado —
-                // só assim emendaStatus fica livre para evoluir sem deslocar a numeração
-                // sequencial dos artigos seguintes (vedado pela LC 95/1998).
-                boolean isIncluido = item.isIncluidoPorEmenda();
-                switch (item.getElementType()) {
-                    case CAPITULO -> {
-                        boolean atEnd = isIncluido && !hasNonIncludedSameTypeAfter(items, i, ItemAnexoParteNormativaTipoEnum.CAPITULO);
-                        if (!isIncluido || atEnd) {
-                            cap++;
-                            num.numero.put(item.getId(), cap);
-                            capLetterIdx = 0;
-                        } else {
-                            num.numero.put(item.getId(), cap);
-                            num.letra.put(item.getId(), letterFor(capLetterIdx++));
-                        }
-                        assignNumbering(item.getChildren(), num, artCounter);
-                    }
-                    case SECAO_NORMATIVA -> {
-                        boolean atEnd = isIncluido && !hasNonIncludedSameTypeAfter(items, i, ItemAnexoParteNormativaTipoEnum.SECAO_NORMATIVA);
-                        if (!isIncluido || atEnd) {
-                            sec++;
-                            num.numero.put(item.getId(), sec);
-                            secLetterIdx = 0;
-                        } else {
-                            num.numero.put(item.getId(), sec);
-                            num.letra.put(item.getId(), letterFor(secLetterIdx++));
-                        }
-                        assignNumbering(item.getChildren(), num, artCounter);
-                    }
-                    case SUBSECAO_NORMATIVA -> {
-                        boolean atEnd = isIncluido && !hasNonIncludedSameTypeAfter(items, i, ItemAnexoParteNormativaTipoEnum.SUBSECAO_NORMATIVA);
-                        if (!isIncluido || atEnd) {
-                            sub++;
-                            num.numero.put(item.getId(), sub);
-                            subLetterIdx = 0;
-                        } else {
-                            num.numero.put(item.getId(), sub);
-                            num.letra.put(item.getId(), letterFor(subLetterIdx++));
-                        }
-                        assignNumbering(item.getChildren(), num, artCounter);
-                    }
-                    case ARTIGO -> {
-                        if (!isIncluido) {
-                            artCounter[0]++;
-                            num.numero.put(item.getId(), artCounter[0]);
-                            artLetterIdx = 0;
-                        } else {
-                            boolean atEnd = !hasActiveArtigoAfterGlobal(item, num.flatArtigos);
-                            if (atEnd) {
-                                artCounter[0]++;
-                                num.numero.put(item.getId(), artCounter[0]);
-                                artLetterIdx = 0;
-                            } else {
-                                num.numero.put(item.getId(), artCounter[0]);
-                                num.letra.put(item.getId(), letterFor(artLetterIdx++));
-                            }
-                        }
-                        assignNumbering(item.getChildren(), num, artCounter);
-                    }
-                    default -> { }
-                }
-            }
-        }
-
-        private static String letterFor(int idx) {
-            return String.valueOf((char) ('A' + idx));
-        }
-
-        private String capLabel(ItemAnexoParteNormativaResponseDto item, Numbering num) {
-            String letra = num.letra.get(item.getId());
-            return toRoman(num.numero.getOrDefault(item.getId(), 0)) + (letra != null ? "-" + letra : "");
-        }
-
-        private String secLabel(ItemAnexoParteNormativaResponseDto item, Numbering num) {
-            String letra = num.letra.get(item.getId());
-            return toRoman(num.numero.getOrDefault(item.getId(), 0)) + (letra != null ? "-" + letra : "");
-        }
-
-        private String subLabel(ItemAnexoParteNormativaResponseDto item, Numbering num) {
-            String letra = num.letra.get(item.getId());
-            return toRoman(num.numero.getOrDefault(item.getId(), 0)) + (letra != null ? "-" + letra : "");
-        }
-
-        private String artLabel(ItemAnexoParteNormativaResponseDto item, Numbering num) {
-            String letra = num.letra.get(item.getId());
-            int n = num.numero.getOrDefault(item.getId(), 0);
-            if (letra == null) return ordinalOrCardinal(n);
-            // Com sufixo de letra, o ponto do cardinal (a partir do 10°) migra para o
-            // final, depois da letra — nunca fica entre o número e o hífen.
-            return n <= 9 ? n + "º-" + letra : comSeparadorMilhar(n) + "-" + letra + ".";
+        private String artLabel(ItemAnexoParteNormativaResponseDto item, Map<Long, NumeracaoService.ElementoNumeracao> num) {
+            var en = num.get(item.getId());
+            return en != null ? en.label() : "";
         }
 
         // ─── TOC ──────────────────────────────────────────────────────────────
 
         private record TocEntry(String label, boolean bold, boolean indent1, boolean indent2, String anchor, String pg) {}
 
-        private String buildToc(Numbering num) {
+        private String buildToc(Map<Long, NumeracaoService.ElementoNumeracao> num) {
             List<TocEntry> entries = new ArrayList<>();
-            boolean temAgrupamento = normativos.stream().anyMatch(el ->
-                    el.getElementType() == ItemAnexoParteNormativaTipoEnum.CAPITULO
-                    || el.getElementType() == ItemAnexoParteNormativaTipoEnum.SECAO_NORMATIVA
-                    || el.getElementType() == ItemAnexoParteNormativaTipoEnum.SUBSECAO_NORMATIVA);
+            boolean temAgrupamento = numeracaoService.temAgrupamento(normativos);
 
             if (temAgrupamento) {
                 walkToc(normativos, entries, num);
@@ -590,73 +464,6 @@ public class DocumentoFoBuilder {
             return sb.toString();
         }
 
-        private ItemAnexoParteNormativaResponseDto firstArtigoItem(List<ItemAnexoParteNormativaResponseDto> items, Numbering num) {
-            if (items == null) return null;
-            for (var item : items) {
-                if (item.getElementType() == ItemAnexoParteNormativaTipoEnum.ARTIGO
-                        && num.numero.getOrDefault(item.getId(), -1) > 0) {
-                    return item;
-                }
-                var found = firstArtigoItem(item.getChildren(), num);
-                if (found != null) return found;
-            }
-            return null;
-        }
-
-        private ItemAnexoParteNormativaResponseDto lastArtigoItem(List<ItemAnexoParteNormativaResponseDto> items, Numbering num) {
-            if (items == null) return null;
-            ItemAnexoParteNormativaResponseDto last = null;
-            for (var item : items) {
-                if (item.getElementType() == ItemAnexoParteNormativaTipoEnum.ARTIGO
-                        && num.numero.getOrDefault(item.getId(), -1) > 0) {
-                    last = item;
-                }
-                var childLast = lastArtigoItem(item.getChildren(), num);
-                if (childLast != null) last = childLast;
-            }
-            return last;
-        }
-
-        // Endpoint de intervalo do sumário: número + sufixo de letra (ex.: "13-A"), para
-        // que um artigo incluído por emenda apareça refletido no intervalo do capítulo/seção.
-        private String artEndpoint(ItemAnexoParteNormativaResponseDto item, Numbering num) {
-            String base = fmtNum(num.numero.getOrDefault(item.getId(), 0));
-            String letra = num.letra.get(item.getId());
-            return letra != null ? base + "-" + letra : base;
-        }
-
-        private static final java.util.Set<ItemAnexoParteNormativaTipoEnum> GROUPING_TYPES = java.util.Set.of(
-                ItemAnexoParteNormativaTipoEnum.CAPITULO,
-                ItemAnexoParteNormativaTipoEnum.SECAO_NORMATIVA,
-                ItemAnexoParteNormativaTipoEnum.SUBSECAO_NORMATIVA);
-
-        /** Range of artigos belonging to this grouping element.
-         *  Checks children (tree structure) AND following siblings until the next
-         *  grouping element (flat structure where artigos are siblings of sections). */
-        private String artRangeFor(ItemAnexoParteNormativaResponseDto item,
-                                   List<ItemAnexoParteNormativaResponseDto> siblings,
-                                   int idx,
-                                   Numbering num) {
-            var first = firstArtigoItem(item.getChildren(), num);
-            var last  = lastArtigoItem(item.getChildren(), num);
-            for (int j = idx + 1; j < siblings.size(); j++) {
-                var sib = siblings.get(j);
-                if (GROUPING_TYPES.contains(sib.getElementType())) break;
-                if (sib.getElementType() == ItemAnexoParteNormativaTipoEnum.ARTIGO) {
-                    int n = num.numero.getOrDefault(sib.getId(), -1);
-                    if (n > 0) {
-                        if (first == null || n < num.numero.getOrDefault(first.getId(), -1)) first = sib;
-                        if (last  == null || n > num.numero.getOrDefault(last.getId(), -1))  last  = sib;
-                    }
-                }
-            }
-            if (first == null) return "";
-            if (last == null) last = first;
-            String a = artEndpoint(first, num);
-            String b = artEndpoint(last, num);
-            return a.equals(b) ? a : a + "/" + b;
-        }
-
         // Título vigente para o sumário: se ALTERADO por emenda, usa o novo título
         // (o original tachado só faz sentido no corpo, não numa linha de sumário).
         private String effectiveTitle(ItemAnexoParteNormativaResponseDto item) {
@@ -667,7 +474,7 @@ public class DocumentoFoBuilder {
             return item.getElementTitle();
         }
 
-        private void walkToc(List<ItemAnexoParteNormativaResponseDto> items, List<TocEntry> entries, Numbering num) {
+        private void walkToc(List<ItemAnexoParteNormativaResponseDto> items, List<TocEntry> entries, Map<Long, NumeracaoService.ElementoNumeracao> num) {
             if (items == null) return;
             for (int i = 0; i < items.size(); i++) {
                 var item = items.get(i);
@@ -676,19 +483,19 @@ public class DocumentoFoBuilder {
                     case CAPITULO -> {
                         String t = titulo != null ? " - " + titulo.toUpperCase() : "";
                         entries.add(new TocEntry("CAPÍTULO " + capLabel(item, num) + t, true, false, false,
-                                "norm-" + item.getId(), artRangeFor(item, items, i, num)));
+                                "norm-" + item.getId(), numeracaoService.intervaloArtigos(item, items, i, num)));
                         walkToc(item.getChildren(), entries, num);
                     }
                     case SECAO_NORMATIVA -> {
                         String t = titulo != null ? " - " + titulo : "";
                         entries.add(new TocEntry("Seção " + secLabel(item, num) + t, false, true, false,
-                                "norm-" + item.getId(), artRangeFor(item, items, i, num)));
+                                "norm-" + item.getId(), numeracaoService.intervaloArtigos(item, items, i, num)));
                         walkToc(item.getChildren(), entries, num);
                     }
                     case SUBSECAO_NORMATIVA -> {
                         String t = titulo != null ? " - " + titulo : "";
                         entries.add(new TocEntry("Subseção " + subLabel(item, num) + t, false, true, true,
-                                "norm-" + item.getId(), artRangeFor(item, items, i, num)));
+                                "norm-" + item.getId(), numeracaoService.intervaloArtigos(item, items, i, num)));
                         walkToc(item.getChildren(), entries, num);
                     }
                     default -> {}
@@ -697,11 +504,12 @@ public class DocumentoFoBuilder {
         }
 
         private void collectArtToc(List<ItemAnexoParteNormativaResponseDto> items,
-                                   List<TocEntry> entries, Numbering num) {
+                                   List<TocEntry> entries, Map<Long, NumeracaoService.ElementoNumeracao> num) {
             for (var item : items) {
                 if (item.getElementType() == ItemAnexoParteNormativaTipoEnum.ARTIGO) {
-                    int n = num.numero.getOrDefault(item.getId(), 0);
-                    String pg = n > 0 ? fmtNum(n) : "";
+                    var en = num.get(item.getId());
+                    int n = en != null ? en.numero() : 0;
+                    String pg = n > 0 ? NumeracaoService.fmtNum(n) : "";
                     entries.add(new TocEntry("Art. " + (n > 0 ? artLabel(item, num) : "?"), false, true, false,
                             "norm-" + item.getId(), pg));
                 }
@@ -710,13 +518,13 @@ public class DocumentoFoBuilder {
 
         // ─── Corpo Normativo ──────────────────────────────────────────────────
 
-        private String buildCorpoNormativo(Numbering num) {
+        private String buildCorpoNormativo(Map<Long, NumeracaoService.ElementoNumeracao> num) {
             var sb = new StringBuilder();
             renderNormItems(normativos, sb, num);
             return sb.toString();
         }
 
-        private void renderNormItems(List<ItemAnexoParteNormativaResponseDto> items, StringBuilder sb, Numbering num) {
+        private void renderNormItems(List<ItemAnexoParteNormativaResponseDto> items, StringBuilder sb, Map<Long, NumeracaoService.ElementoNumeracao> num) {
             if (items == null) return;
             for (var item : items) renderNormItem(item, sb, num);
         }
@@ -772,7 +580,7 @@ public class DocumentoFoBuilder {
               .append(refInline).append("</fo:block>\n");
         }
 
-        private void renderNormItem(ItemAnexoParteNormativaResponseDto item, StringBuilder sb, Numbering num) {
+        private void renderNormItem(ItemAnexoParteNormativaResponseDto item, StringBuilder sb, Map<Long, NumeracaoService.ElementoNumeracao> num) {
             String anc = "norm-" + item.getId();
             switch (item.getElementType()) {
                 case CAPITULO -> {
@@ -817,13 +625,13 @@ public class DocumentoFoBuilder {
                     case PARAGRAFO, PARAGRAFO_UNICO -> {
                         parNum++;
                         boolean unico = parCount == 1 && child.getElementType() == ItemAnexoParteNormativaTipoEnum.PARAGRAFO_UNICO;
-                        renderBodyEl(sb, null, unico ? "Parágrafo único.  " : "§ " + ordinalOrCardinal(parNum) + "  ",
+                        renderBodyEl(sb, null, unico ? "Parágrafo único.  " : "§ " + NumeracaoService.ordinalOrCardinal(parNum) + "  ",
                                 false, child.getElementContent(), child.getEmendaStatus(), child.getConteudoEmenda(), child.getClausulaEmenda(), child.getClausulaEmendaAnterior());
                         renderIncisoFilhos(child.getChildren(), sb);
                     }
                     case INCISO -> {
                         incisoNum++;
-                        renderBodyEl(sb, null, toRoman(incisoNum) + " - ", false, child.getElementContent(),
+                        renderBodyEl(sb, null, NumeracaoService.toRoman(incisoNum) + " - ", false, child.getElementContent(),
                                 child.getEmendaStatus(), child.getConteudoEmenda(), child.getClausulaEmenda(), child.getClausulaEmendaAnterior());
                         renderAlineaFilhos(child.getChildren(), sb);
                     }
@@ -839,7 +647,7 @@ public class DocumentoFoBuilder {
             for (var child : filhos) {
                 if (child.getElementType() == ItemAnexoParteNormativaTipoEnum.INCISO) {
                     n++;
-                    renderBodyEl(sb, null, toRoman(n) + " - ", false, child.getElementContent(),
+                    renderBodyEl(sb, null, NumeracaoService.toRoman(n) + " - ", false, child.getElementContent(),
                             child.getEmendaStatus(), child.getConteudoEmenda(), child.getClausulaEmenda(), child.getClausulaEmendaAnterior());
                     renderAlineaFilhos(child.getChildren(), sb);
                 }
@@ -852,7 +660,7 @@ public class DocumentoFoBuilder {
             for (var child : filhos) {
                 if (child.getElementType() == ItemAnexoParteNormativaTipoEnum.ALINEA) {
                     n++;
-                    renderBodyEl(sb, null, toLetter(n) + ") ", false, child.getElementContent(),
+                    renderBodyEl(sb, null, NumeracaoService.toLetter(n) + ") ", false, child.getElementContent(),
                             child.getEmendaStatus(), child.getConteudoEmenda(), child.getClausulaEmenda(), child.getClausulaEmendaAnterior());
                     renderSubAlineaFilhos(child.getChildren(), sb);
                 }
@@ -1163,26 +971,6 @@ public class DocumentoFoBuilder {
             if (bold) return "<fo:inline font-weight=\"bold\">" + foEsc(label) + "</fo:inline>";
             return foEsc(label);
         }
-
-        // ─── Numbering ────────────────────────────────────────────────────────
-
-        private static String toRoman(int n) {
-            if (n <= 0) return "";
-            int[]    vals = {1000,900,500,400,100,90,50,40,10,9,5,4,1};
-            String[] syms = {"M","CM","D","CD","C","XC","L","XL","X","IX","V","IV","I"};
-            var sb = new StringBuilder();
-            for (int i = 0; i < vals.length; i++)
-                while (n >= vals[i]) { sb.append(syms[i]); n -= vals[i]; }
-            return sb.toString();
-        }
-
-        private static String toLetter(int n) { return String.valueOf((char) ('a' + n - 1)); }
-
-        // Separador de milhar (padrão brasileiro) — nunca aplicado a anos.
-        private static String comSeparadorMilhar(int n) { return String.format("%,d", n).replace(",", "."); }
-
-        private static String ordinalOrCardinal(int n) { return n <= 9 ? n + "º" : comSeparadorMilhar(n) + "."; }
-        private static String fmtNum(int n) { return n <= 9 ? n + "º" : comSeparadorMilhar(n); }
 
         private String docId() {
             return doc.getEspecieNormativa().getSigla()

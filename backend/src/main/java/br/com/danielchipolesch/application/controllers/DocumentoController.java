@@ -9,6 +9,7 @@ import br.com.danielchipolesch.application.dtos.documentoDtos.DocumentoStatusReq
 import br.com.danielchipolesch.application.dtos.emendaDtos.MapaAlteracaoItemResponseDto;
 import br.com.danielchipolesch.application.dtos.emendaDtos.MapaAlteracaoPdfRequestDto;
 import br.com.danielchipolesch.application.dtos.itemAnexoParteNormativaDtos.ItemAnexoParteNormativaRequestDto;
+import br.com.danielchipolesch.application.dtos.itemAnexoParteNormativaDtos.NumeracaoElementoResponseDto;
 import br.com.danielchipolesch.application.dtos.itemAnexoParteNormativaDtos.SecoesSaveRequestDto;
 import br.com.danielchipolesch.domain.mappers.DocumentoMapper;
 import br.com.danielchipolesch.domain.services.DocumentoHistoricoService;
@@ -155,6 +156,12 @@ public class DocumentoController {
             @RequestBody SecoesSaveRequestDto request) throws RuntimeException {
         documentoParteNormativaService.salvarSecoes(id, request);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("{id}/numeracao")
+    public ResponseEntity<List<NumeracaoElementoResponseDto>> getNumeracao(
+            @PathVariable(value = "id") Long id) {
+        return ResponseEntity.ok(documentoParteNormativaService.listarNumeracao(id));
     }
 
     @GetMapping("com-historico-emenda")
