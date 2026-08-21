@@ -10,9 +10,9 @@
       <div class="text-caption text-grey-7 q-px-md q-pb-sm">
         Resumo das regras da Lei Complementar nº 95/1998 (alterada pela LC 107/2001), que
         dispõe sobre a elaboração, redação, alteração e consolidação das leis — aplicadas
-        aqui, por analogia, à legislação infralegal do COMAER (Portarias, Instruções,
-        Normas de Sistema etc.), já que este sistema não produz leis. Consulte o texto
-        oficial para os casos não cobertos aqui.
+        neste sistema, por analogia, às normas infralegais do COMAER (Portarias,
+        Instruções, Normas de Sistema etc). Consulte o texto oficial para os casos não
+        cobertos aqui.
       </div>
       <q-banner dense class="bg-orange-1 text-orange-10 q-mx-md q-mb-sm" rounded>
         <template #avatar>
