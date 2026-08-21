@@ -131,7 +131,7 @@
         >
           <template #body-cell-especie="props">
             <q-td :props="props">
-              <q-chip color="blue-2" text-color="secondary" size="md" square class="text-weight-bold" style="font-size: 14px">
+              <q-chip color="blue-2" text-color="secondary" size="sm" square class="text-weight-bold">
                 {{ props.row.especie }}
               </q-chip>
             </q-td>
