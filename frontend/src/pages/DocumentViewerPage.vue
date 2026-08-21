@@ -87,8 +87,13 @@
                 </div>
 
                 <!-- Divisor semântico: histórico é a única parte que rola, os
-                     metadados à esquerda permanecem com altura fixa. -->
-                <q-separator vertical inset class="gt-sm" />
+                     metadados à esquerda permanecem com altura fixa. O q-separator
+                     precisa estar dentro de um col-auto: como filho direto da
+                     .row.q-col-gutter-xl, ele herdaria o padding do gutter e ficaria
+                     largo (48px) em vez dos 1px nativos. -->
+                <div class="col-auto flex items-stretch gt-sm">
+                  <q-separator vertical inset />
+                </div>
 
                 <!-- Histórico de situação -->
                 <div class="col-12 col-md-5">
