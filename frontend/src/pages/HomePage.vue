@@ -808,13 +808,6 @@ function limparFiltros() {
 }
 .legis-table :deep(thead th) {
   text-align: center !important;
-  position: relative;
-}
-.legis-table :deep(thead th .q-table__sort-icon) {
-  position: absolute;
-  right: 6px;
-  top: 50%;
-  transform: translateY(-50%);
 }
 .legis-table :deep(tbody tr:hover td) {
   background: rgba(74, 111, 165, 0.06) !important;
