@@ -45,6 +45,9 @@
       :elementos="incluirElementos"
     />
 
+    <!-- Dialog de referência: técnica legislativa (LC 95/1998) -->
+    <Lc95HelpDialog v-model="lc95DialogOpen" />
+
     <!-- Coluna principal: topbar + área de edição -->
     <div class="editor-main column">
 
@@ -77,6 +80,11 @@
         </div>
 
         <q-space />
+
+        <q-btn round flat color="primary" @click="lc95DialogOpen = true">
+          <q-icon name="mdi-help-circle-outline" size="22px" />
+          <q-tooltip anchor="bottom middle" self="top middle">Técnica legislativa (LC 95/1998)</q-tooltip>
+        </q-btn>
 
         <q-btn
           outline
@@ -240,6 +248,7 @@ import WysiwygEditor from '@/components/editor/WysiwygEditor.vue'
 import DocumentPreview from '@/components/editor/DocumentPreview.vue'
 import EmendaDialog from '@/components/editor/EmendaDialog.vue'
 import IncluirElementoDialog from '@/components/editor/IncluirElementoDialog.vue'
+import Lc95HelpDialog from '@/components/editor/Lc95HelpDialog.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -249,6 +258,7 @@ const docStore = useDocumentsStore()
 
 const previewMounted = ref(false)
 const pdfLoading    = ref(false)
+const lc95DialogOpen = ref(false)
 
 // ── Auto-save ────────────────────────────────────────────────────────────────
 const saveStatus = ref('idle')   // 'idle' | 'saving' | 'error'
