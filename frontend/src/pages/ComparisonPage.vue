@@ -115,7 +115,8 @@
             <DiffViewer
               v-for="item in secao.itens"
               :key="item.id"
-              :label="referenciaLabel(item)"
+              :label-ancestrais="referenciaPartes(item).ancestrais.join(', ')"
+              :label-atual="referenciaPartes(item).atual"
               :elemento="{ conteudo: item.textoAnterior }"
               :elemento-b="{ conteudo: item.textoNovo }"
               label-a="Texto anterior"
@@ -163,8 +164,11 @@
             </thead>
             <tbody>
               <tr v-for="item in itensCiclo" :key="item.id">
-                <td class="text-caption text-weight-bold text-primary">
-                  {{ referenciaLabel(item) }}
+                <td class="text-caption">
+                  <span v-if="referenciaPartes(item).ancestrais.length" class="text-grey-6">
+                    {{ referenciaPartes(item).ancestrais.join(', ') }},
+                  </span>
+                  <span class="text-weight-bold text-primary">{{ referenciaPartes(item).atual }}</span>
                 </td>
                 <td class="text-caption" style="max-width:220px">
                   <div v-if="item.acao === 'INCLUIR'" class="text-italic text-grey-7">(novo)</div>
@@ -217,7 +221,7 @@ onMounted(async () => {
   try {
     // store.getById pode já retornar um documento vindo da listagem da homepage
     // (DocumentoResponseSemAnexoTextualDto), que não traz itens/seções — sem elas,
-    // referenciaLabel() nunca encontra o elemento na árvore e cai no fallback
+    // referenciaPartes() nunca encontra o elemento na árvore e cai no fallback
     // "#id". Só pula o fetch completo quando as seções já estiverem carregadas.
     if (!store.getById(route.params.id)?.secoes) {
       await store.fetchDocumento(route.params.id)
@@ -330,17 +334,26 @@ function findElementoComAncestrais(secaoBackend, elementoId) {
 const TIPOS_REPARTICAO_ARTIGO = new Set(['artigo', 'paragrafo', 'paragrafo_unico', 'inciso', 'alinea', 'sub_alinea'])
 const TIPOS_AGRUPAMENTO = new Set(['capitulo', 'secao_normativa', 'subsecao_normativa'])
 
-function referenciaLabel(item) {
+// Separa a referência em ancestrais (contexto — exibidos em tom neutro) e o
+// elemento que de fato sofreu a alteração (destacado), para que a tela e o PDF
+// deem ênfase visual a quem importa na linha, não à cadeia inteira.
+function referenciaPartes(item) {
   const achado = findElementoComAncestrais(item.secao, item.elementoId)
   if (!achado) {
-    return (SECAO_LABELS[item.secao] ?? item.secao) + ' — ' + (item.tituloNovo ?? item.tituloAnterior ?? `#${item.elementoId}`)
+    return {
+      ancestrais: [],
+      atual: (SECAO_LABELS[item.secao] ?? item.secao) + ' — ' + (item.tituloNovo ?? item.tituloAnterior ?? `#${item.elementoId}`),
+    }
   }
   const { elemento, ancestrais } = achado
   let familia = null
   if (TIPOS_REPARTICAO_ARTIGO.has(elemento.tipo)) familia = TIPOS_REPARTICAO_ARTIGO
   else if (TIPOS_AGRUPAMENTO.has(elemento.tipo)) familia = TIPOS_AGRUPAMENTO
   const relevantes = familia ? ancestrais.filter(a => familia.has(a.tipo)) : []
-  return [...relevantes, elemento].map(formatReferenciaLabel).join(', ')
+  return {
+    ancestrais: relevantes.map(formatReferenciaLabel),
+    atual: formatReferenciaLabel(elemento),
+  }
 }
 
 const stats = computed(() => {
@@ -358,13 +371,17 @@ async function exportarQuadro() {
   const payload = {
     docId: docId.value,
     ciclo: cicloAtual?.label ?? null,
-    itens: itensCiclo.value.map(item => ({
-      referencia: referenciaLabel(item),
-      acao: item.acao,
-      textoAnterior: item.textoAnterior,
-      textoNovo: item.textoNovo,
-      justificativa: item.justificativa,
-    })),
+    itens: itensCiclo.value.map(item => {
+      const { ancestrais, atual } = referenciaPartes(item)
+      return {
+        referenciaAncestrais: ancestrais.join(', '),
+        referenciaAtual: atual,
+        acao: item.acao,
+        textoAnterior: item.textoAnterior,
+        textoNovo: item.textoNovo,
+        justificativa: item.justificativa,
+      }
+    }),
   }
   exportando.value = true
   try {

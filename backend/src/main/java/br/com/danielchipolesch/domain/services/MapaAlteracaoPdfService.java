@@ -31,6 +31,10 @@ public class MapaAlteracaoPdfService {
     private static final String BORDER      = "#CCCCCC";  // rgba(0,0,0,0.2) sobre branco
     private static final String COR_EXCLUIDO = "#FF0000"; // texto em vigor sendo substituído/removido
     private static final String COR_INSERIDO = "#0000FF"; // texto proposto sendo inserido
+    private static final String COR_ANCESTRAL = "#757575"; // cadeia de contexto na referência (grey-6)
+    // Elemento alterado, em destaque — mesma cor institucional (text-primary) usada
+    // no cabeçalho da tabela e em HEADER_TEXT, reaproveitada aqui de propósito.
+    private static final String COR_REFERENCIA_ATUAL = HEADER_TEXT;
 
     private static final FopFactory FOP_FACTORY;
 
@@ -121,8 +125,7 @@ public class MapaAlteracaoPdfService {
         var itens = req.getItens() != null ? req.getItens() : java.util.List.<MapaAlteracaoPdfRequestDto.Item>of();
         for (var item : itens) {
             sb.append("    <fo:table-row>\n");
-            sb.append(cell("<fo:block font-size=\"9pt\" font-weight=\"bold\" color=\"" + HEADER_TEXT + "\">"
-                    + foEsc(item.getReferencia()) + "</fo:block>"));
+            sb.append(cell(referenciaCelula(item)));
             sb.append(cell(conteudoCelula(renderer, item.getTextoAnterior(), "INCLUIR".equals(item.getAcao()), "(novo)", COR_EXCLUIDO)));
             sb.append(cell(conteudoCelula(renderer, item.getTextoNovo(), "REVOGAR".equals(item.getAcao()), "(revogado)", COR_INSERIDO)));
             sb.append(cell("<fo:block font-size=\"9pt\">" + foEsc(nvl(item.getJustificativa(), "—")) + "</fo:block>"));
@@ -145,6 +148,21 @@ public class MapaAlteracaoPdfService {
         sb.append("</fo:flow>\n");
         sb.append("</fo:page-sequence>\n");
         sb.append("</fo:root>");
+        return sb.toString();
+    }
+
+    // Cadeia de ancestrais em tom neutro (contexto) + elemento alterado em destaque —
+    // espelha o mesmo tratamento visual da coluna Referência na tela (ComparisonPage.vue).
+    private String referenciaCelula(MapaAlteracaoPdfRequestDto.Item item) {
+        var sb = new StringBuilder("<fo:block font-size=\"9pt\">");
+        String ancestrais = item.getReferenciaAncestrais();
+        if (ancestrais != null && !ancestrais.isBlank()) {
+            sb.append("<fo:inline color=\"").append(COR_ANCESTRAL).append("\">")
+              .append(foEsc(ancestrais)).append(", </fo:inline>");
+        }
+        sb.append("<fo:inline font-weight=\"bold\" color=\"").append(COR_REFERENCIA_ATUAL).append("\">")
+          .append(foEsc(item.getReferenciaAtual())).append("</fo:inline>");
+        sb.append("</fo:block>");
         return sb.toString();
     }
 

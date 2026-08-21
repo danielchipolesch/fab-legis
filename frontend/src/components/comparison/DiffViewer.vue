@@ -1,9 +1,12 @@
 <template>
   <div class="diff-viewer">
 
-    <!-- Row label -->
-    <div class="diff-row-label text-caption text-weight-bold text-grey-7 q-px-sm q-py-xs q-mb-sm">
-      {{ label ?? formatLabel(elemento) }}
+    <!-- Row label: ancestrais em tom neutro (contexto), elemento alterado em destaque -->
+    <div class="diff-row-label text-caption q-px-sm q-py-xs q-mb-sm">
+      <span v-if="labelAncestrais" class="text-grey-6">{{ labelAncestrais }}, </span>
+      <span class="text-weight-bold" :class="labelAtual ? 'text-primary' : 'text-grey-7'">
+        {{ labelAtual ?? formatLabel(elemento) }}
+      </span>
     </div>
 
     <!-- Side-by-side or unified diff -->
@@ -63,12 +66,13 @@ import { diffWords } from 'diff'
 import { formatLabel } from '@/utils/numbering.js'
 
 const props = defineProps({
-  elemento:  { type: Object, required: true },
-  elementoB: { type: Object, default: null },
-  label:     { type: String, default: null }, // override para formatLabel(elemento)
-  labelA:    { type: String, default: 'Versão anterior' },
-  labelB:    { type: String, default: 'Versão atual' },
-  mode:      { type: String, default: 'side' }, // 'side' | 'unified'
+  elemento:        { type: Object, required: true },
+  elementoB:       { type: Object, default: null },
+  labelAncestrais: { type: String, default: null }, // cadeia de contexto (ex.: "Art. 12., § 1º")
+  labelAtual:      { type: String, default: null },  // elemento alterado; sem override cai para formatLabel(elemento)
+  labelA:          { type: String, default: 'Versão anterior' },
+  labelB:          { type: String, default: 'Versão atual' },
+  mode:            { type: String, default: 'side' }, // 'side' | 'unified'
 })
 
 function extractText(conteudo) {

@@ -18,7 +18,11 @@ public class MapaAlteracaoPdfRequestDto {
 
     @Data
     public static class Item {
-        private String referencia;
+        // Cadeia de contexto (ex.: "Art. 12., § 1º") e o elemento que de fato sofreu a
+        // alteração, já separados pelo frontend — a coluna Referência dá destaque
+        // visual só ao segundo, mantendo o primeiro em tom neutro.
+        private String referenciaAncestrais;
+        private String referenciaAtual;
         private String acao;
         private String textoAnterior;
         private String textoNovo;
