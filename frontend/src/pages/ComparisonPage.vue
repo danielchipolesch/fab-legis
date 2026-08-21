@@ -299,25 +299,48 @@ const itensPorSecao = computed(() => {
 })
 
 // Resolve o elemento vivo na árvore atual do documento a partir de secao+elementoId,
-// para reaproveitar a numeração já calculada (formatReferenciaLabel) — o histórico de
+// junto da cadeia de ancestrais (capítulo/seção/... ou artigo/parágrafo/...), para
+// reaproveitar a numeração já calculada (formatReferenciaLabel) — o histórico de
 // emenda não guarda tipo/número do elemento, só o conteúdo antes/depois.
-function findElemento(secaoBackend, elementoId) {
+function findElementoComAncestrais(secaoBackend, elementoId) {
   const tipoFrontend = SECAO_TIPO_FRONTEND[secaoBackend]
   const secao = documento.value?.secoes?.find(s => s.tipo === tipoFrontend)
   if (!secao) return null
-  const pilha = [...(secao.elementos ?? [])]
-  while (pilha.length) {
-    const el = pilha.shift()
-    if (String(el.id) === String(elementoId)) return el
-    if (el.filhos?.length) pilha.push(...el.filhos)
+
+  function dfs(elementos, ancestrais) {
+    for (const el of elementos) {
+      if (String(el.id) === String(elementoId)) return { elemento: el, ancestrais }
+      if (el.filhos?.length) {
+        const achado = dfs(el.filhos, [...ancestrais, el])
+        if (achado) return achado
+      }
+    }
+    return null
   }
-  return null
+
+  return dfs(secao.elementos ?? [], [])
 }
 
+// Referência isolada (ex.: "Inciso I") não identifica o elemento fora do contexto
+// do artigo/agrupamento — por isso a referência inclui a cadeia de ancestrais
+// relevante: Art./§/Inciso/Alínea/Subalínea para repartições de artigo, ou
+// Capítulo/Seção/Subseção para agrupamentos. Cada família filtra só os ancestrais
+// do próprio tipo (ex.: uma alínea nunca herda capítulo/seção, que ficam acima do
+// artigo, fora do que o leitor precisa para localizá-la dentro DELE).
+const TIPOS_REPARTICAO_ARTIGO = new Set(['artigo', 'paragrafo', 'paragrafo_unico', 'inciso', 'alinea', 'sub_alinea'])
+const TIPOS_AGRUPAMENTO = new Set(['capitulo', 'secao_normativa', 'subsecao_normativa'])
+
 function referenciaLabel(item) {
-  const el = findElemento(item.secao, item.elementoId)
-  if (el) return formatReferenciaLabel(el)
-  return (SECAO_LABELS[item.secao] ?? item.secao) + ' — ' + (item.tituloNovo ?? item.tituloAnterior ?? `#${item.elementoId}`)
+  const achado = findElementoComAncestrais(item.secao, item.elementoId)
+  if (!achado) {
+    return (SECAO_LABELS[item.secao] ?? item.secao) + ' — ' + (item.tituloNovo ?? item.tituloAnterior ?? `#${item.elementoId}`)
+  }
+  const { elemento, ancestrais } = achado
+  let familia = null
+  if (TIPOS_REPARTICAO_ARTIGO.has(elemento.tipo)) familia = TIPOS_REPARTICAO_ARTIGO
+  else if (TIPOS_AGRUPAMENTO.has(elemento.tipo)) familia = TIPOS_AGRUPAMENTO
+  const relevantes = familia ? ancestrais.filter(a => familia.has(a.tipo)) : []
+  return [...relevantes, elemento].map(formatReferenciaLabel).join(', ')
 }
 
 const stats = computed(() => {
