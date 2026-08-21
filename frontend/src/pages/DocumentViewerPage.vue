@@ -94,14 +94,14 @@
                      filho, o que descentralizaria esse separador de 1px dentro do
                      próprio col-auto. O espaçamento ao redor dele é manual e
                      assimétrico de propósito -- q-pr-lg (24px) do lado dos metadados
-                     e um padding-left maior que o próprio preset "xl" do Quasar
-                     (48px) do lado do histórico, que ainda ficava próximo demais. -->
+                     e 200px do lado do histórico, bem além do maior preset do
+                     Quasar (xl, 48px), conforme pedido. -->
                 <div class="col-auto flex items-stretch gt-sm">
                   <q-separator vertical inset />
                 </div>
 
                 <!-- Histórico de situação -->
-                <div class="col-12 col-md" style="padding-left: 72px">
+                <div class="col-12 col-md" style="padding-left: 200px">
                   <div class="info-label q-mb-sm">Histórico de Situação</div>
                   <q-scroll-area v-if="timelineEventos.length" style="height: 320px" class="timeline-area">
                     <!-- q-pl-sm: os ícones do q-timeline (layout dense) sangram um
