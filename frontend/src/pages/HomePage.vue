@@ -22,6 +22,23 @@
 
     <NewDocumentDialog v-model="dialogNovoDoc" />
 
+    <!-- Abas: hoje idênticas (sem gestão de perfis/OM ainda), ver ABA_FILTROS -->
+    <q-tabs
+      v-model="abaAtiva"
+      dense
+      no-caps
+      inline-label
+      align="left"
+      active-color="primary"
+      indicator-color="primary"
+      class="text-grey-7 q-mb-md"
+    >
+      <q-tab name="meus" icon="mdi-account-outline" label="Meus Documentos" />
+      <q-tab name="minha_om" icon="mdi-office-building-outline" label="Documentos da Minha OM" />
+      <q-tab name="outras_oms" icon="mdi-domain" label="Documentos de Outras OMs" />
+    </q-tabs>
+    <q-separator class="q-mb-lg" />
+
     <!-- Filters -->
     <q-card flat bordered class="q-mb-lg">
       <q-card-section class="q-pa-md">
@@ -515,6 +532,7 @@ onMounted(() => store.fetchAll())
 
 const dialogNovoDoc = ref(false)
 const viewMode = ref('tabela')
+const abaAtiva = ref('meus')
 const filtros = reactive({ busca: '', especie: null, status: null })
 const pdfLoading = reactive({})
 
@@ -538,8 +556,20 @@ function formatarData(isoStr) {
   return `${d}/${m}/${y}`
 }
 
+// Documentos ainda não guardam autor nem OM (gestão de perfis e a feature de OMs
+// não existem no sistema ainda), então as três abas são idênticas por enquanto —
+// todas retornam true. Quando esses dados existirem, cada aba passa a comparar
+// doc.autorId/doc.omId contra o usuário logado.
+const ABA_FILTROS = {
+  meus:       () => true,
+  minha_om:   () => true,
+  outras_oms: () => true,
+}
+
 const documentosFiltrados = computed(() => {
+  const passaAba = ABA_FILTROS[abaAtiva.value] ?? (() => true)
   return store.documentos.filter(doc => {
+    if (!passaAba(doc)) return false
     if (filtros.especie && doc.especie !== filtros.especie) return false
     if (filtros.status && doc.status !== filtros.status) return false
     if (filtros.busca) {
