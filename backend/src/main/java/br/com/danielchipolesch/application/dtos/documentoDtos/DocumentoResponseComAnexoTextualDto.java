@@ -71,4 +71,13 @@ public class DocumentoResponseComAnexoTextualDto {
     private List<ItemPartePreliminarResponseDto> itensPreliminares;
     private List<ItemAnexoParteNormativaResponseDto> itensNormativos;
     private List<ItemParteFinalResponseDto> itensFinais;
+
+    // versao alimenta a checagem de conflito de edição concorrente -- o editor
+    // manda de volta como versaoEsperada em cada salvamento (SecoesSaveRequestDto,
+    // EmendaElementoRequestDto, EmendaIncluirRequestDto). Ver DocumentoConcorrenciaService.
+    private Integer versao;
+    private Long autorId;
+    private String autorNome;
+    private Long omId;
+    private String omNome;
 }

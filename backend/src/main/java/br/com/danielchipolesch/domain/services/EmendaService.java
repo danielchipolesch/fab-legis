@@ -34,12 +34,14 @@ public class EmendaService {
     @Autowired private ItemPartePreliminarRepository preliminarRepository;
     @Autowired private ItemParteFinalRepository finalRepository;
     @Autowired private EmendaHistoricoRepository historicoRepository;
+    @Autowired private DocumentoConcorrenciaService concorrenciaService;
 
     // ─── Emendar elemento existente ───────────────────────────────────────────────
 
     @Transactional
     public void emendar(Long docId, String secao, Long elementoId, EmendaElementoRequestDto req) {
-        carregarEmAlteracao(docId);
+        Documento documento = carregarEmAlteracao(docId);
+        concorrenciaService.checarEAtualizarVersao(documento, req.getVersaoEsperada());
         SecaoDocumentoEnum secaoEnum = SecaoDocumentoEnum.valueOf(secao.toUpperCase());
 
         switch (secaoEnum) {
@@ -399,7 +401,8 @@ public class EmendaService {
 
     @Transactional
     public void incluir(Long docId, String secao, EmendaIncluirRequestDto req) {
-        carregarEmAlteracao(docId);
+        Documento documento = carregarEmAlteracao(docId);
+        concorrenciaService.checarEAtualizarVersao(documento, req.getVersaoEsperada());
         if (req.getJustificativa() == null || req.getJustificativa().isBlank()) {
             throw new IllegalArgumentException(JUSTIFICATIVA_REQUERIDA);
         }

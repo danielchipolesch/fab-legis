@@ -8,6 +8,7 @@ import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -22,6 +23,7 @@ public class EmendaController {
      * Altera, revoga ou desfaz emenda de um elemento existente.
      * secao: PARTE_PRELIMINAR | PARTE_NORMATIVA | PARTE_FINAL
      */
+    @PreAuthorize("@documentoAcessoService.podeEditar(#docId, authentication)")
     @PatchMapping("/{secao}/{elementoId}")
     public ResponseEntity<Void> emendar(
             @PathVariable Long docId,
@@ -36,6 +38,7 @@ public class EmendaController {
      * Inclui novo elemento no documento em alteração, marcado como INCLUIDO.
      * secao: PARTE_PRELIMINAR | PARTE_NORMATIVA | PARTE_FINAL
      */
+    @PreAuthorize("@documentoAcessoService.podeEditar(#docId, authentication)")
     @PostMapping("/{secao}")
     public ResponseEntity<Void> incluir(
             @PathVariable Long docId,
@@ -51,6 +54,7 @@ public class EmendaController {
      * um artigo original (INALTERADO/ALTERADO/REVOGADO), cuja renumeração é vedada.
      * direcao: CIMA | BAIXO
      */
+    @PreAuthorize("@documentoAcessoService.podeEditar(#docId, authentication)")
     @PatchMapping("/{secao}/{elementoId}/reordenar")
     public ResponseEntity<Void> reordenar(
             @PathVariable Long docId,

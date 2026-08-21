@@ -11,10 +11,15 @@ import br.com.danielchipolesch.application.dtos.emendaDtos.MapaAlteracaoPdfReque
 import br.com.danielchipolesch.application.dtos.itemAnexoParteNormativaDtos.ItemAnexoParteNormativaRequestDto;
 import br.com.danielchipolesch.application.dtos.itemAnexoParteNormativaDtos.NumeracaoElementoResponseDto;
 import br.com.danielchipolesch.application.dtos.itemAnexoParteNormativaDtos.SecoesSaveRequestDto;
+import br.com.danielchipolesch.application.dtos.usuarioDtos.CompartilharDocumentoRequestDto;
+import br.com.danielchipolesch.application.dtos.usuarioDtos.CompartilhamentoResponseDto;
+import br.com.danielchipolesch.application.dtos.usuarioDtos.PresencaResponseDto;
 import br.com.danielchipolesch.domain.mappers.DocumentoMapper;
+import br.com.danielchipolesch.domain.services.DocumentoCompartilhamentoService;
 import br.com.danielchipolesch.domain.services.DocumentoHistoricoService;
 import br.com.danielchipolesch.domain.services.DocumentoParteNormativaService;
 import br.com.danielchipolesch.domain.services.DocumentoPdfService;
+import br.com.danielchipolesch.domain.services.DocumentoPresencaService;
 import br.com.danielchipolesch.domain.services.DocumentoService;
 import br.com.danielchipolesch.domain.services.DocumentoStatusService;
 import br.com.danielchipolesch.domain.services.EmendaService;
@@ -30,6 +35,7 @@ import org.springframework.hateoas.Link;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
@@ -62,6 +68,12 @@ public class DocumentoController {
 
     @Autowired
     private MapaAlteracaoPdfService mapaAlteracaoPdfService;
+
+    @Autowired
+    private DocumentoCompartilhamentoService compartilhamentoService;
+
+    @Autowired
+    private DocumentoPresencaService presencaService;
 
     private EntityModel<DocumentoResponseSemAnexoTextualDto> toModel(DocumentoResponseSemAnexoTextualDto dto) {
         Long id = dto.getIdDocumento();
@@ -124,6 +136,7 @@ public class DocumentoController {
         return ResponseEntity.ok(models);
     }
 
+    @PreAuthorize("@documentoAcessoService.podeMudarStatus(#id, #request.status, authentication)")
     @PatchMapping("{id}/status")
     public ResponseEntity<EntityModel<DocumentoResponseSemAnexoTextualDto>> changeStatus(
             @PathVariable(value = "id") Long id,
@@ -132,6 +145,7 @@ public class DocumentoController {
         return ResponseEntity.ok(toModel(dto));
     }
 
+    @PreAuthorize("@documentoAcessoService.podeEditar(#id, authentication)")
     @PutMapping("{id}")
     public ResponseEntity<EntityModel<DocumentoResponseSemAnexoTextualDto>> update(
             @PathVariable(value = "id") Long id,
@@ -139,6 +153,7 @@ public class DocumentoController {
         return ResponseEntity.ok(toModel(documentoService.update(id, request)));
     }
 
+    @PreAuthorize("@documentoAcessoService.podeEditar(#idDocumento, authentication)")
     @PutMapping("{idDocumento}/adicionar-item-anexo-parte-textual")
     public ResponseEntity<EntityModel<DocumentoResponseComAnexoTextualDto>> addItemAnexoParteNormativa(
             @PathVariable(value = "idDocumento") Long idDocumento,
@@ -151,6 +166,7 @@ public class DocumentoController {
         return ResponseEntity.ok(model);
     }
 
+    @PreAuthorize("@documentoAcessoService.podeEditar(#id, authentication)")
     @PutMapping("{id}/secoes")
     public ResponseEntity<Void> saveSecoes(
             @PathVariable(value = "id") Long id,
@@ -202,9 +218,44 @@ public class DocumentoController {
                 .body(body);
     }
 
+    @PreAuthorize("@documentoAcessoService.podeExcluir(#id, authentication)")
     @DeleteMapping("{id}")
     public ResponseEntity<Void> delete(@PathVariable(value = "id") Long id) throws RuntimeException {
         documentoService.delete(id);
         return ResponseEntity.noContent().build();
+    }
+
+    // ─── Compartilhamento (coautoria) ──────────────────────────────────────────
+
+    @PreAuthorize("@documentoAcessoService.podeCompartilhar(#id, authentication)")
+    @GetMapping("{id}/compartilhamentos")
+    public ResponseEntity<List<CompartilhamentoResponseDto>> listarCompartilhamentos(
+            @PathVariable(value = "id") Long id) {
+        return ResponseEntity.ok(compartilhamentoService.listar(id));
+    }
+
+    @PreAuthorize("@documentoAcessoService.podeCompartilhar(#id, authentication)")
+    @PostMapping("{id}/compartilhamentos")
+    public ResponseEntity<CompartilhamentoResponseDto> compartilhar(
+            @PathVariable(value = "id") Long id,
+            @RequestBody @Valid CompartilharDocumentoRequestDto request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(compartilhamentoService.compartilhar(id, request));
+    }
+
+    @PreAuthorize("@documentoAcessoService.podeCompartilhar(#id, authentication)")
+    @DeleteMapping("{id}/compartilhamentos/{usuarioId}")
+    public ResponseEntity<Void> removerCompartilhamento(
+            @PathVariable(value = "id") Long id,
+            @PathVariable(value = "usuarioId") Long usuarioId) {
+        compartilhamentoService.remover(id, usuarioId);
+        return ResponseEntity.noContent().build();
+    }
+
+    // ─── Presença de edição (aviso de edição concorrente) ──────────────────────
+
+    @PreAuthorize("@documentoAcessoService.podeEditar(#id, authentication)")
+    @PostMapping("{id}/presenca")
+    public ResponseEntity<List<PresencaResponseDto>> registrarPresenca(@PathVariable(value = "id") Long id) {
+        return ResponseEntity.ok(presencaService.registrarHeartbeatEListarOutros(id));
     }
 }

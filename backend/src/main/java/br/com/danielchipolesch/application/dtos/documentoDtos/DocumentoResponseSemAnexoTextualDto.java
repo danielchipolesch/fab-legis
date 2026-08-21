@@ -63,4 +63,10 @@ public class DocumentoResponseSemAnexoTextualDto {
 
     @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd", timezone = "America/Sao_Paulo")
     private Timestamp dtBcaReferencia;
+
+    private Integer versao;
+    private Long autorId;
+    private String autorNome;
+    private Long omId;
+    private String omNome;
 }

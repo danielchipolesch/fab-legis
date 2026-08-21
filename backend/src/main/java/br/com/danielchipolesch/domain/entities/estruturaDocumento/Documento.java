@@ -2,6 +2,8 @@ package br.com.danielchipolesch.domain.entities.estruturaDocumento;
 
 import br.com.danielchipolesch.domain.entities.numeracaoDocumento.AssuntoBasico;
 import br.com.danielchipolesch.domain.entities.numeracaoDocumento.EspecieNormativa;
+import br.com.danielchipolesch.domain.entities.usuario.OrganizacaoMilitar;
+import br.com.danielchipolesch.domain.entities.usuario.Usuario;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -97,4 +99,12 @@ public class Documento extends RepresentationModel<Documento> {
     @Column(name = "nr_versao", nullable = false)
     @Version
     private Integer versao;
+
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "autor_id", nullable = false)
+    private Usuario autor;
+
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "om_id", nullable = false)
+    private OrganizacaoMilitar om;
 }

@@ -20,6 +20,7 @@ import br.com.danielchipolesch.domain.handlers.exceptions.StatusCannotBeUpdatedE
 import br.com.danielchipolesch.domain.handlers.exceptions.enums.DocumentationTypeException;
 import br.com.danielchipolesch.domain.mappers.DocumentoMapper;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.Anexo;
+import br.com.danielchipolesch.infrastructure.security.AutenticacaoUtil;
 import br.com.danielchipolesch.infrastructure.repositories.AnexoRepository;
 import br.com.danielchipolesch.infrastructure.repositories.AssuntoBasicoRepository;
 import br.com.danielchipolesch.infrastructure.repositories.DocumentoRepository;
@@ -75,6 +76,7 @@ public class DocumentoService {
         AssuntoBasico assuntoBasico = assuntoBasicoRepository.findById(request.getIdAssuntoBasico()).orElseThrow(() ->  new ResourceNotFoundException(BasicSubjectException.NOT_FOUND.getMessage()));
 
         var secondaryNumber = this.calculateSecondaryNumber(especieNormativa, assuntoBasico);
+        var usuarioAtual = AutenticacaoUtil.usuarioAtual();
 
         Documento documento = new DocumentoBuilder()
                 .especieNormativa(especieNormativa)
@@ -82,6 +84,8 @@ public class DocumentoService {
                 .numeroSecundario(secondaryNumber)
                 .tituloDocumento(request.getTituloDocumento())
                 .documentoStatus(DocumentoStatusEnum.RASCUNHO)
+                .autor(usuarioAtual)
+                .om(usuarioAtual.getOm())
                 .build();
 
         Documento salvo = documentoRepository.save(documento);
@@ -165,13 +169,19 @@ public class DocumentoService {
                 .orElseThrow(() -> new ResourceNotFoundException(DocumentException.NOT_FOUND.getMessage()));
 
         var secondaryNumber = this.calculateSecondaryNumber(documentOld.getEspecieNormativa(), documentOld.getAssuntoBasico());
+        var usuarioAtual = AutenticacaoUtil.usuarioAtual();
 
+        // O clone é um documento novo (ver clonarNormItem): quem clona vira o
+        // autor, não quem criou o original -- mesma regra de "criar" no resto
+        // do sistema.
         Documento documentNew = new DocumentoBuilder()
                 .especieNormativa(documentOld.getEspecieNormativa())
                 .assuntoBasico(documentOld.getAssuntoBasico())
                 .numeroSecundario(secondaryNumber)
                 .tituloDocumento(documentOld.getTituloDocumento())
                 .documentoStatus(DocumentoStatusEnum.RASCUNHO)
+                .autor(usuarioAtual)
+                .om(usuarioAtual.getOm())
                 .build();
 
         documentOld.setQtdReplicas(documentOld.getQtdReplicas() + 1);

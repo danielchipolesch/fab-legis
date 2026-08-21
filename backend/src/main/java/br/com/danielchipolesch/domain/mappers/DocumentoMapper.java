@@ -39,7 +39,12 @@ public class DocumentoMapper {
                 documento.getPortariaReferencia(),
                 documento.getBcaReferencia(),
                 documento.getDtPortariaReferencia(),
-                documento.getDtBcaReferencia()
+                documento.getDtBcaReferencia(),
+                documento.getVersao(),
+                documento.getAutor().getId(),
+                documento.getAutor().getNome(),
+                documento.getOm().getId(),
+                documento.getOm().getNome()
         );
     }
 
@@ -78,7 +83,12 @@ public class DocumentoMapper {
                 documento.getDtBcaReferencia(),
                 preliminares,
                 normativos,
-                finais
+                finais,
+                documento.getVersao(),
+                documento.getAutor().getId(),
+                documento.getAutor().getNome(),
+                documento.getOm().getId(),
+                documento.getOm().getNome()
         );
     }
 }

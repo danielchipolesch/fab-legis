@@ -43,6 +43,9 @@ public class DocumentoParteNormativaService {
     @Autowired
     NumeracaoService numeracaoService;
 
+    @Autowired
+    DocumentoConcorrenciaService concorrenciaService;
+
     // ─── Carregamento ────────────────────────────────────────────────────────────
 
     public List<ItemPartePreliminar> getItensPreliminaresByDocumento(Long documentoId) {
@@ -109,6 +112,8 @@ public class DocumentoParteNormativaService {
         }
 
         if (request.getItens() == null) return;
+
+        concorrenciaService.checarEAtualizarVersao(documento, request.getVersaoEsperada());
 
         documentoHistoricoService.registrar(documento, TipoAlteracaoEnum.ALTERACAO_CONTEUDO,
                 "Conteúdo do documento salvo", null, null);

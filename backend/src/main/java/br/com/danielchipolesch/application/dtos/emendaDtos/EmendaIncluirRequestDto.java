@@ -23,4 +23,7 @@ public class EmendaIncluirRequestDto {
 
     @NotNull
     private String justificativa;
+
+    // Ver SecoesSaveRequestDto.versaoEsperada / DocumentoConcorrenciaService.
+    private Integer versaoEsperada;
 }

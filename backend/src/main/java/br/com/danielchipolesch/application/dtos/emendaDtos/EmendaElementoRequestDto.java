@@ -17,4 +17,7 @@ public class EmendaElementoRequestDto {
 
     // Obrigatória para ALTERAR e REVOGAR; ignorada em DESFAZER
     private String justificativa;
+
+    // Ver SecoesSaveRequestDto.versaoEsperada / DocumentoConcorrenciaService.
+    private Integer versaoEsperada;
 }

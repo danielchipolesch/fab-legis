@@ -19,6 +19,16 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(body, HttpStatus.BAD_REQUEST);
     }
 
+    // Negação de @PreAuthorize (ex.: DocumentoAcessoService.podeEditar retornando
+    // false) é lançada de dentro do método do controller, então chega aqui via
+    // Spring MVC -- não pelo filtro de segurança -- e cairia no handler genérico
+    // acima (400) sem este handler específico e mais concreto.
+    @ExceptionHandler(org.springframework.security.access.AccessDeniedException.class)
+    public ResponseEntity<Map<String, Object>> handleAccessDenied(org.springframework.security.access.AccessDeniedException e, WebRequest request) {
+        Map<String, Object> body = ExceptionResponseUtil.buildErrorResponse(HttpStatus.FORBIDDEN, "Acesso negado.", request);
+        return new ResponseEntity<>(body, HttpStatus.FORBIDDEN);
+    }
+
     @ExceptionHandler(ResourceNotFoundException.class)
     public ResponseEntity<Map<String, Object>> handleResourceNotFound(ResourceNotFoundException e, WebRequest request) {
         Map<String, Object> body = ExceptionResponseUtil.buildErrorResponse(HttpStatus.NOT_FOUND, e.getMessage(), request);
@@ -47,5 +57,17 @@ public class GlobalExceptionHandler {
     public  ResponseEntity<Map<String, Object>> handleStatusCannotBeUpdatedException(StatusCannotBeUpdatedException e, WebRequest request){
         Map<String, Object> body = ExceptionResponseUtil.buildErrorResponse(HttpStatus.FORBIDDEN, e.getMessage(), request);
         return new ResponseEntity<>(body, HttpStatus.FORBIDDEN);
+    }
+
+    @ExceptionHandler(CredenciaisInvalidasException.class)
+    public ResponseEntity<Map<String, Object>> handleCredenciaisInvalidas(CredenciaisInvalidasException e, WebRequest request) {
+        Map<String, Object> body = ExceptionResponseUtil.buildErrorResponse(HttpStatus.UNAUTHORIZED, e.getMessage(), request);
+        return new ResponseEntity<>(body, HttpStatus.UNAUTHORIZED);
+    }
+
+    @ExceptionHandler(ConflitoEdicaoException.class)
+    public ResponseEntity<Map<String, Object>> handleConflitoEdicao(ConflitoEdicaoException e, WebRequest request) {
+        Map<String, Object> body = ExceptionResponseUtil.buildErrorResponse(HttpStatus.CONFLICT, e.getMessage(), request);
+        return new ResponseEntity<>(body, HttpStatus.CONFLICT);
     }
 }
