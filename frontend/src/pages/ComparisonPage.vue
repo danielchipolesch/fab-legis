@@ -196,7 +196,7 @@ import { useRoute } from 'vue-router'
 import { useDocumentsStore } from '@/stores/documents.js'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import DiffViewer from '@/components/comparison/DiffViewer.vue'
-import { formatLabel } from '@/utils/numbering.js'
+import { formatReferenciaLabel } from '@/utils/numbering.js'
 import { generateHTML } from '@tiptap/html'
 import { editorExtensions } from '@/editor/extensions.js'
 import { gerarMapaAlteracaoPdf } from '@/services/pdfService.js'
@@ -299,8 +299,8 @@ const itensPorSecao = computed(() => {
 })
 
 // Resolve o elemento vivo na árvore atual do documento a partir de secao+elementoId,
-// para reaproveitar a numeração já calculada (formatLabel) — o histórico de emenda não
-// guarda tipo/número do elemento, só o conteúdo antes/depois.
+// para reaproveitar a numeração já calculada (formatReferenciaLabel) — o histórico de
+// emenda não guarda tipo/número do elemento, só o conteúdo antes/depois.
 function findElemento(secaoBackend, elementoId) {
   const tipoFrontend = SECAO_TIPO_FRONTEND[secaoBackend]
   const secao = documento.value?.secoes?.find(s => s.tipo === tipoFrontend)
@@ -316,7 +316,7 @@ function findElemento(secaoBackend, elementoId) {
 
 function referenciaLabel(item) {
   const el = findElemento(item.secao, item.elementoId)
-  if (el) return formatLabel(el)
+  if (el) return formatReferenciaLabel(el)
   return (SECAO_LABELS[item.secao] ?? item.secao) + ' — ' + (item.tituloNovo ?? item.tituloAnterior ?? `#${item.elementoId}`)
 }
 

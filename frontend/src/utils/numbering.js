@@ -65,6 +65,20 @@ export function formatLabel(element) {
   }
 }
 
+// Rótulo para a coluna "Referência" do quadro comparativo/PDF de justificativas
+// (Mapa de Alteração) — não é texto de corpo normativo, então incisos, alíneas e
+// subalíneas precisam do nome por extenso ("Inciso III", "Alínea c)") para o leitor
+// identificar o elemento fora do contexto do artigo. No corpo do documento em si
+// (formatLabel/bodyLabel) isso NUNCA aparece — a LC 95/1998 não usa esses rótulos.
+export function formatReferenciaLabel(element) {
+  switch (element.tipo) {
+    case 'inciso':     return 'Inciso ' + formatLabel(element)
+    case 'alinea':     return 'Alínea ' + formatLabel(element)
+    case 'sub_alinea': return 'Subalínea ' + formatLabel(element)
+    default:            return formatLabel(element)
+  }
+}
+
 export function elementIcon(tipo) {
   const icons = {
     capitulo:           'mdi-folder-outline',
