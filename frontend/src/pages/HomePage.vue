@@ -225,6 +225,7 @@
                   round
                   dense
                   color="primary"
+                  :loading="pdfLoading[props.row.id]"
                   @click="baixarPdf(props.row)"
                 >
                   <q-tooltip anchor="top middle" self="bottom middle">Baixar PDF</q-tooltip>
@@ -345,7 +346,7 @@
                   {{ store.temVersoesComparaveis(doc.id) ? 'Comparar versões' : 'Sem versões anteriores para comparar' }}
                 </q-tooltip>
               </q-btn>
-              <q-btn size="sm" icon="mdi-file-pdf-box" flat round dense color="primary" @click="baixarPdf(doc)">
+              <q-btn size="sm" icon="mdi-file-pdf-box" flat round dense color="primary" :loading="pdfLoading[doc.id]" @click="baixarPdf(doc)">
                 <q-tooltip anchor="top middle" self="bottom middle">Baixar PDF</q-tooltip>
               </q-btn>
             </q-card-actions>
@@ -515,6 +516,7 @@ onMounted(() => store.fetchAll())
 const dialogNovoDoc = ref(false)
 const viewMode = ref('tabela')
 const filtros = reactive({ busca: '', especie: null, status: null })
+const pdfLoading = reactive({})
 
 const especies = ['ICA', 'NSCA', 'Portaria', 'Resolução', 'Decreto', 'Aviso']
 const statusOptions = ['RASCUNHO', 'MINUTA', 'APROVADO', 'PUBLICADO', 'EM_ALTERACAO', 'ALTERADO', 'ARQUIVADO', 'CANCELADO', 'REVOGADO']
@@ -657,6 +659,7 @@ async function executarMudancaStatus() {
 }
 
 async function baixarPdf(doc) {
+  pdfLoading[doc.id] = true
   try {
     await gerarPdf(doc)
   } catch (e) {
@@ -667,6 +670,8 @@ async function baixarPdf(doc) {
       position: 'bottom-right',
       timeout: 6000,
     })
+  } finally {
+    pdfLoading[doc.id] = false
   }
 }
 
