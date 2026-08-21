@@ -55,8 +55,8 @@
               <div class="row items-stretch q-col-gutter-y-lg">
 
                 <!-- Metadados principais -->
-                <div class="col-12 col-md q-pr-lg">
-                  <div class="row q-col-gutter-md">
+                <div class="col-12 col-md" style="min-width: 0">
+                  <div class="row q-col-gutter-md q-pr-lg">
                     <div class="col-6">
                       <div class="info-label">Espécie</div>
                       <div class="info-value">{{ documento.especie || '—' }}</div>
@@ -92,34 +92,39 @@
                      em telas estreitas) em vez de q-col-gutter-xl -- um gutter
                      horizontal aplicaria padding-left só no lado esquerdo de cada
                      filho, o que descentralizaria esse separador de 1px dentro do
-                     próprio col-auto. O espaçamento ao redor dele é manual e
-                     assimétrico de propósito -- q-pr-lg (24px) do lado dos metadados
-                     e 200px do lado do histórico, bem além do maior preset do
-                     Quasar (xl, 48px), conforme pedido. -->
+                     próprio col-auto. Para o separador ficar de fato centralizado no
+                     card, os dois lados (col-12 col-md) precisam ter exatamente o
+                     mesmo peso de flex — por isso o espaçamento assimétrico
+                     (q-pr-lg / 200px) fica num wrapper INTERNO de cada lado, nunca
+                     como padding do próprio flex item: padding no item vira parte da
+                     largura mínima de conteúdo dele e quebra a divisão 50/50, mesmo
+                     com min-width:0. -->
                 <div class="col-auto flex items-stretch gt-sm">
                   <q-separator vertical inset />
                 </div>
 
                 <!-- Histórico de situação -->
-                <div class="col-12 col-md" style="padding-left: 200px">
-                  <div class="info-label q-mb-sm">Histórico de Situação</div>
-                  <q-scroll-area v-if="timelineEventos.length" style="height: 320px" class="timeline-area">
-                    <!-- q-pl-sm: os ícones do q-timeline (layout dense) sangram um
-                         pouco à esquerda da própria caixa; sem essa folga, a borda
-                         do q-scroll-area corta a lateral esquerda dos ícones. -->
-                    <q-timeline color="primary" layout="dense" class="q-pl-sm">
-                      <q-timeline-entry
-                        v-for="evento in timelineEventos"
-                        :key="evento.key"
-                        :title="evento.titulo"
-                        :subtitle="evento.data"
-                        :icon="evento.icon"
-                        :color="evento.color"
-                      />
-                    </q-timeline>
-                  </q-scroll-area>
-                  <div v-else class="text-grey-6 text-body2 text-center q-py-md">
-                    Nenhum registro de histórico.
+                <div class="col-12 col-md" style="min-width: 0">
+                  <div class="historico-indent">
+                    <div class="info-label q-mb-sm">Histórico de Situação</div>
+                    <q-scroll-area v-if="timelineEventos.length" style="height: 320px" class="timeline-area">
+                      <!-- q-pl-sm: os ícones do q-timeline (layout dense) sangram um
+                           pouco à esquerda da própria caixa; sem essa folga, a borda
+                           do q-scroll-area corta a lateral esquerda dos ícones. -->
+                      <q-timeline color="primary" layout="dense" class="q-pl-sm">
+                        <q-timeline-entry
+                          v-for="evento in timelineEventos"
+                          :key="evento.key"
+                          :title="evento.titulo"
+                          :subtitle="evento.data"
+                          :icon="evento.icon"
+                          :color="evento.color"
+                        />
+                      </q-timeline>
+                    </q-scroll-area>
+                    <div v-else class="text-grey-6 text-body2 text-center q-py-md">
+                      Nenhum registro de histórico.
+                    </div>
                   </div>
                 </div>
 
@@ -384,6 +389,19 @@ function executarClone() {
 
 :deep(.q-timeline__subtitle) {
   text-transform: none;
+}
+
+/* Afastamento do histórico em relação ao separador central -- só a partir do
+   breakpoint md (1024px, mesmo ponto do utilitário "gt-sm" no separador), já
+   que abaixo disso as colunas empilham em largura cheia e esse recuo apertaria
+   o conteúdo contra a borda da tela. */
+.historico-indent {
+  padding-left: 0;
+}
+@media (min-width: 1024px) {
+  .historico-indent {
+    padding-left: 200px;
+  }
 }
 
 .info-label {
