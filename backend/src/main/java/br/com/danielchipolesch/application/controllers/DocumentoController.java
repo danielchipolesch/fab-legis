@@ -31,6 +31,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
 import java.util.List;
 
@@ -193,12 +194,12 @@ public class DocumentoController {
     }
 
     @GetMapping(value = "{id}/pdf", produces = "application/pdf")
-    public ResponseEntity<byte[]> getPdf(@PathVariable(value = "id") Long id) {
-        byte[] pdfBytes = documentoPdfService.gerarPdfBytes(id);
+    public ResponseEntity<StreamingResponseBody> getPdf(@PathVariable(value = "id") Long id) {
+        StreamingResponseBody body = documentoPdfService.streamPdf(id);
         return ResponseEntity.ok()
                 .header("Content-Disposition", "inline; filename=\"documento-" + id + ".pdf\"")
                 .header("Cache-Control", "no-store")
-                .body(pdfBytes);
+                .body(body);
     }
 
     @DeleteMapping("{id}")

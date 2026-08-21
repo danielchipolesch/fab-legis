@@ -16,6 +16,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
 import org.xml.sax.InputSource;
 import org.xml.sax.XMLReader;
@@ -23,6 +24,7 @@ import org.xml.sax.XMLReader;
 import javax.xml.parsers.SAXParserFactory;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.InputStream;
 import java.io.StringReader;
 import java.time.Instant;
 import java.util.EnumSet;
@@ -65,17 +67,32 @@ public class DocumentoPdfService {
     @Autowired
     private AnexoRepository anexoRepository;
 
-    public byte[] gerarPdfBytes(Long documentoId) {
+    // Cópia armazenada: transmite os bytes do MinIO direto para a resposta HTTP à
+    // medida que chegam (StreamingResponseBody), sem materializar o PDF inteiro em
+    // memória no backend — o antigo getObjectBytes() lia tudo com readAllBytes()
+    // antes de responder, dobrando a latência (espera MinIO->backend, só então
+    // começa backend->navegador) e retendo o arquivo inteiro no heap por requisição.
+    // Renderização ao vivo (fallback): permanece como estava — o Apache FOP monta o
+    // PDF inteiro em memória antes de haver qualquer byte pronto, então não há como
+    // transmitir em stream nesse caminho sem reescrever a geração do FO.
+    public StreamingResponseBody streamPdf(Long documentoId) {
         Documento doc = documentoRepository.findById(documentoId)
                 .orElseThrow(() -> new ResourceNotFoundException(DocumentException.NOT_FOUND.getMessage()));
 
         if (STATUS_COM_PDF_ARMAZENADO.contains(doc.getDocumentoStatus()) && doc.getUrlPdf() != null) {
-            byte[] armazenado = imagemService.getObjectBytes(doc.getUrlPdf());
-            if (armazenado != null) return armazenado;
+            InputStream armazenado = imagemService.getObjectStream(doc.getUrlPdf());
+            if (armazenado != null) {
+                return outputStream -> {
+                    try (armazenado) {
+                        armazenado.transferTo(outputStream);
+                    }
+                };
+            }
             // urlPdf presente mas não recuperável (objeto removido/inconsistência): recai
             // na renderização ao vivo em vez de falhar a exportação.
         }
-        return renderPdf(doc);
+        byte[] renderizado = renderPdf(doc);
+        return outputStream -> outputStream.write(renderizado);
     }
 
     // readOnly=true é essencial aqui, não só um detalhe de estilo: sem ele, o Hibernate

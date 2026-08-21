@@ -148,7 +148,7 @@ public class DocumentoStatusService {
 
         // O PDF é gerado e salvo no MinIO nestas transições, e só nelas: exportações
         // subsequentes (independente da tela/botão) sempre servem essa cópia em vez de
-        // renderizar de novo — ver DocumentoPdfService.gerarPdfBytes. PUBLICADO precisa
+        // renderizar de novo — ver DocumentoPdfService.streamPdf. PUBLICADO precisa
         // regenerar mesmo que ALTERADO já tenha uma cópia, pois é só na publicação que
         // portaria/BCA reais substituem o placeholder e consolidarPublicacao (acima)
         // congela as cláusulas de emenda — o conteúdo efetivamente muda.
@@ -161,7 +161,7 @@ public class DocumentoStatusService {
                 documentoRepository.save(document);
             } catch (Exception e) {
                 // Não-fatal: a mudança de status não pode falhar por causa do PDF —
-                // gerarPdfBytes cai de volta para renderização ao vivo quando urlPdf
+                // streamPdf cai de volta para renderização ao vivo quando urlPdf
                 // está ausente. Mas o erro precisa ficar visível, senão a causa de um
                 // PDF armazenado desatualizado/ausente é impossível de diagnosticar.
                 log.error("Falha ao gerar/armazenar PDF do documento {} na transição para {}",

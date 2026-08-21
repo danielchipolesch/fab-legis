@@ -7,6 +7,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.ByteArrayInputStream;
+import java.io.InputStream;
 import java.util.Base64;
 import java.util.UUID;
 
@@ -103,23 +104,22 @@ public class ImagemService {
     }
 
     /**
-     * Busca um objeto armazenado no MinIO (ex: PDF já renderizado) e retorna seus bytes crus.
-     * Usado para servir um PDF já gerado sem renderizá-lo novamente.
+     * Busca um objeto armazenado no MinIO (ex: PDF já renderizado) e retorna seu InputStream
+     * cru, sem carregá-lo inteiro em memória. Quem chama é responsável por fechar o stream.
+     * Usado para transmitir um PDF já gerado direto para a resposta HTTP (ver
+     * DocumentoPdfService.streamPdf) sem materializar o arquivo inteiro no backend.
      *
      * @param url URL pública do objeto (ex: http://localhost:9000/bucket/pdf/arquivo.pdf)
-     * @return bytes do objeto, ou null se não for uma URL MinIO reconhecida ou a busca falhar
+     * @return InputStream do objeto, ou null se não for uma URL MinIO reconhecida ou a busca falhar
      */
-    public byte[] getObjectBytes(String url) {
+    public InputStream getObjectStream(String url) {
         if (url == null || url.isBlank()) return null;
         try {
             String prefix = publicUrl + "/" + bucket + "/";
             if (!url.startsWith(prefix)) return null;
             String objectKey = url.substring(prefix.length());
 
-            try (var response = minioClient.getObject(
-                    GetObjectArgs.builder().bucket(bucket).object(objectKey).build())) {
-                return response.readAllBytes();
-            }
+            return minioClient.getObject(GetObjectArgs.builder().bucket(bucket).object(objectKey).build());
         } catch (Exception e) {
             return null;
         }
