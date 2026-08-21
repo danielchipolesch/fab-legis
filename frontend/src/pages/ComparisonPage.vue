@@ -3,12 +3,21 @@
 
     <!-- Header -->
     <div class="row items-center q-mb-xl" style="gap:12px">
-      <q-btn :to="{ name: 'home' }" icon="mdi-arrow-left" flat round dense />
-      <div>
-        <h1 class="text-h5 text-weight-bold text-primary q-my-none">Comparação de Versões</h1>
-        <p class="text-body2 text-grey-7 q-mb-none">{{ docLabel }}</p>
+      <div class="col">
+        <q-breadcrumbs active-color="primary" style="font-size:13px">
+          <template v-slot:separator>
+            <q-icon name="mdi-chevron-right" size="16px" color="primary" />
+          </template>
+          <q-breadcrumbs-el :to="{ name: 'home' }" icon="mdi-home" />
+          <q-breadcrumbs-el label="Documentos" />
+          <q-breadcrumbs-el
+            :label="docLabel"
+            :to="{ name: 'documento-visualizar', params: { id: route.params.id } }"
+          />
+          <q-breadcrumbs-el label="Comparar Versões" />
+        </q-breadcrumbs>
+        <h1 class="text-h5 text-weight-bold text-primary q-my-none q-mt-xs">Comparação de Versões</h1>
       </div>
-      <q-space />
       <StatusBadge v-if="documento" :status="documento.status" />
     </div>
 
