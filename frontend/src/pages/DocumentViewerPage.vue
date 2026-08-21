@@ -52,10 +52,10 @@
           >
             <q-separator />
             <q-card-section v-if="documento" class="q-pa-lg">
-              <div class="row q-col-gutter-xl">
+              <div class="row items-stretch q-col-gutter-y-lg">
 
                 <!-- Metadados principais -->
-                <div class="col-12 col-md-6">
+                <div class="col-12 col-md q-pr-lg">
                   <div class="row q-col-gutter-md">
                     <div class="col-6">
                       <div class="info-label">Espécie</div>
@@ -87,16 +87,19 @@
                 </div>
 
                 <!-- Divisor semântico: histórico é a única parte que rola, os
-                     metadados à esquerda permanecem com altura fixa. O q-separator
-                     precisa estar dentro de um col-auto: como filho direto da
-                     .row.q-col-gutter-xl, ele herdaria o padding do gutter e ficaria
-                     largo (48px) em vez dos 1px nativos. -->
+                     metadados à esquerda permanecem com altura fixa. A row usa
+                     q-col-gutter-y-lg (só espaçamento vertical, para o empilhamento
+                     em telas estreitas) em vez de q-col-gutter-xl -- um gutter
+                     horizontal aplicaria padding-left só no lado esquerdo de cada
+                     filho, o que descentralizaria esse separador de 1px dentro do
+                     próprio col-auto. O espaçamento ao redor dele é manual
+                     (q-pr-lg/q-pl-xl abaixo), assimétrico de propósito. -->
                 <div class="col-auto flex items-stretch gt-sm">
                   <q-separator vertical inset />
                 </div>
 
                 <!-- Histórico de situação -->
-                <div class="col-12 col-md-5">
+                <div class="col-12 col-md q-pl-xl">
                   <div class="info-label q-mb-sm">Histórico de Situação</div>
                   <q-scroll-area v-if="timelineEventos.length" style="height: 320px" class="timeline-area">
                     <!-- q-pl-sm: os ícones do q-timeline (layout dense) sangram um
