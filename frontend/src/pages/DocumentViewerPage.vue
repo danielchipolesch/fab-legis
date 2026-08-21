@@ -52,55 +52,33 @@
           >
             <q-separator />
             <q-card-section class="q-pa-lg">
-              <div v-if="documento" class="row q-col-gutter-xl">
-
-                <!-- Metadados principais -->
-                <div class="col-12 col-md-6">
-                  <div class="row q-col-gutter-md">
-                    <div class="col-6">
-                      <div class="info-label">Espécie</div>
-                      <div class="info-value">{{ documento.especie || '—' }}</div>
-                    </div>
-                    <div class="col-6">
-                      <div class="info-label">Número</div>
-                      <div class="info-value text-primary text-weight-medium">
-                        {{ documento.especie }} {{ documento.numero_basico }}<template v-if="documento.numero_secundario">-{{ documento.numero_secundario }}</template>
-                      </div>
-                    </div>
-                    <div class="col-12">
-                      <div class="info-label">Título</div>
-                      <div class="info-value">{{ documento.titulo || '—' }}</div>
-                    </div>
-                    <div class="col-12">
-                      <div class="info-label">Assunto Básico</div>
-                      <div class="info-value">{{ documento.assunto_basico || '—' }}</div>
-                    </div>
-                    <div class="col-6">
-                      <div class="info-label">Situação atual</div>
-                      <StatusBadge :status="documento.status" class="q-mt-xs" />
-                    </div>
-                    <div class="col-6">
-                      <div class="info-label">Código</div>
-                      <div class="info-value">{{ documento.codigo_documento || '—' }}</div>
-                    </div>
+              <div v-if="documento" class="row q-col-gutter-md">
+                <div class="col-6">
+                  <div class="info-label">Espécie</div>
+                  <div class="info-value">{{ documento.especie || '—' }}</div>
+                </div>
+                <div class="col-6">
+                  <div class="info-label">Número</div>
+                  <div class="info-value text-primary text-weight-medium">
+                    {{ documento.especie }} {{ documento.numero_basico }}<template v-if="documento.numero_secundario">-{{ documento.numero_secundario }}</template>
                   </div>
                 </div>
-
-                <!-- Timeline de datas -->
-                <div class="col-12 col-md-6">
-                  <div class="info-label q-mb-sm">Histórico de Situação</div>
-                  <q-timeline color="primary" layout="dense">
-                    <q-timeline-entry
-                      v-for="evento in timelineEventos"
-                      :key="evento.key"
-                      :title="evento.titulo"
-                      :subtitle="evento.data"
-                      :icon="evento.icon"
-                      :color="evento.color"
-                    />
-                  </q-timeline>
+                <div class="col-12">
+                  <div class="info-label">Título</div>
+                  <div class="info-value">{{ documento.titulo || '—' }}</div>
                 </div>
-
+                <div class="col-12">
+                  <div class="info-label">Assunto Básico</div>
+                  <div class="info-value">{{ documento.assunto_basico || '—' }}</div>
+                </div>
+                <div class="col-6">
+                  <div class="info-label">Situação atual</div>
+                  <StatusBadge :status="documento.status" class="q-mt-xs" />
+                </div>
+                <div class="col-6">
+                  <div class="info-label">Código</div>
+                  <div class="info-value">{{ documento.codigo_documento || '—' }}</div>
+                </div>
               </div>
               <div v-else class="text-grey-6 text-body2 text-center q-py-md">
                 <q-spinner size="24px" class="q-mr-sm" />
@@ -110,7 +88,36 @@
           </q-expansion-item>
         </q-card>
 
-        <!-- 2. Visualização do documento (fechada por padrão) -->
+        <!-- 2. Histórico de situação (fechada por padrão) -->
+        <q-card flat class="section-card">
+          <q-expansion-item
+            v-model="expanded.historico"
+            icon="mdi-history"
+            label="Histórico de Situação"
+            header-class="text-primary text-weight-medium"
+          >
+            <q-separator />
+            <q-card-section class="q-pa-lg">
+              <div v-if="timelineEventos.length" class="timeline-scroll">
+                <q-timeline color="primary" layout="dense">
+                  <q-timeline-entry
+                    v-for="evento in timelineEventos"
+                    :key="evento.key"
+                    :title="evento.titulo"
+                    :subtitle="evento.data"
+                    :icon="evento.icon"
+                    :color="evento.color"
+                  />
+                </q-timeline>
+              </div>
+              <div v-else class="text-grey-6 text-body2 text-center q-py-md">
+                Nenhum registro de histórico.
+              </div>
+            </q-card-section>
+          </q-expansion-item>
+        </q-card>
+
+        <!-- 3. Visualização do documento (fechada por padrão) -->
         <q-card flat class="section-card">
           <q-expansion-item
             v-model="expanded.preview"
@@ -141,7 +148,7 @@
           </q-expansion-item>
         </q-card>
 
-        <!-- 3. Histórico de versões (fechada por padrão) -->
+        <!-- 4. Histórico de versões (fechada por padrão) -->
         <q-card flat class="section-card">
           <q-expansion-item
             v-model="expanded.versoes"
@@ -210,9 +217,10 @@ const pdfLoading = ref(false)
 
 // Só a primeira seção aberta por padrão
 const expanded = reactive({
-  info:    true,
-  preview: false,
-  versoes: false,
+  info:      true,
+  historico: false,
+  preview:   false,
+  versoes:   false,
 })
 
 const STATUS_COM_PDF = new Set(['APROVADO', 'ALTERADO', 'PUBLICADO', 'ARQUIVADO', 'REVOGADO'])
@@ -362,6 +370,12 @@ function executarClone() {
 
 :deep(.q-timeline__subtitle) {
   text-transform: none;
+}
+
+.timeline-scroll {
+  max-height: 420px;
+  overflow-y: auto;
+  padding-right: 8px;
 }
 
 .info-label {
