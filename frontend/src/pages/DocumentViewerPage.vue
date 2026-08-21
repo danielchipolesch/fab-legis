@@ -52,63 +52,73 @@
           >
             <q-separator />
             <q-card-section v-if="documento" class="q-pa-lg">
-              <div class="row q-col-gutter-md">
-                <div class="col-6">
-                  <div class="info-label">Espécie</div>
-                  <div class="info-value">{{ documento.especie || '—' }}</div>
-                </div>
-                <div class="col-6">
-                  <div class="info-label">Número</div>
-                  <div class="info-value text-primary text-weight-medium">
-                    {{ documento.especie }} {{ documento.numero_basico }}<template v-if="documento.numero_secundario">-{{ documento.numero_secundario }}</template>
+              <div class="row q-col-gutter-xl">
+
+                <!-- Metadados principais -->
+                <div class="col-12 col-md-6">
+                  <div class="row q-col-gutter-md">
+                    <div class="col-6">
+                      <div class="info-label">Espécie</div>
+                      <div class="info-value">{{ documento.especie || '—' }}</div>
+                    </div>
+                    <div class="col-6">
+                      <div class="info-label">Número</div>
+                      <div class="info-value text-primary text-weight-medium">
+                        {{ documento.especie }} {{ documento.numero_basico }}<template v-if="documento.numero_secundario">-{{ documento.numero_secundario }}</template>
+                      </div>
+                    </div>
+                    <div class="col-12">
+                      <div class="info-label">Título</div>
+                      <div class="info-value">{{ documento.titulo || '—' }}</div>
+                    </div>
+                    <div class="col-12">
+                      <div class="info-label">Assunto Básico</div>
+                      <div class="info-value">{{ documento.assunto_basico || '—' }}</div>
+                    </div>
+                    <div class="col-6">
+                      <div class="info-label">Situação atual</div>
+                      <StatusBadge :status="documento.status" class="q-mt-xs" />
+                    </div>
+                    <div class="col-6">
+                      <div class="info-label">Código</div>
+                      <div class="info-value">{{ documento.codigo_documento || '—' }}</div>
+                    </div>
                   </div>
                 </div>
-                <div class="col-12">
-                  <div class="info-label">Título</div>
-                  <div class="info-value">{{ documento.titulo || '—' }}</div>
+
+                <!-- Divisor semântico: histórico é a única parte que rola, os
+                     metadados à esquerda permanecem com altura fixa. -->
+                <q-separator vertical inset class="gt-sm" />
+
+                <!-- Histórico de situação -->
+                <div class="col-12 col-md-5">
+                  <div class="info-label q-mb-sm">Histórico de Situação</div>
+                  <q-scroll-area v-if="timelineEventos.length" style="height: 320px" class="timeline-area">
+                    <!-- q-pl-sm: os ícones do q-timeline (layout dense) sangram um
+                         pouco à esquerda da própria caixa; sem essa folga, a borda
+                         do q-scroll-area corta a lateral esquerda dos ícones. -->
+                    <q-timeline color="primary" layout="dense" class="q-pl-sm">
+                      <q-timeline-entry
+                        v-for="evento in timelineEventos"
+                        :key="evento.key"
+                        :title="evento.titulo"
+                        :subtitle="evento.data"
+                        :icon="evento.icon"
+                        :color="evento.color"
+                      />
+                    </q-timeline>
+                  </q-scroll-area>
+                  <div v-else class="text-grey-6 text-body2 text-center q-py-md">
+                    Nenhum registro de histórico.
+                  </div>
                 </div>
-                <div class="col-12">
-                  <div class="info-label">Assunto Básico</div>
-                  <div class="info-value">{{ documento.assunto_basico || '—' }}</div>
-                </div>
-                <div class="col-6">
-                  <div class="info-label">Situação atual</div>
-                  <StatusBadge :status="documento.status" class="q-mt-xs" />
-                </div>
-                <div class="col-6">
-                  <div class="info-label">Código</div>
-                  <div class="info-value">{{ documento.codigo_documento || '—' }}</div>
-                </div>
+
               </div>
             </q-card-section>
             <div v-else class="text-grey-6 text-body2 text-center q-py-md">
               <q-spinner size="24px" class="q-mr-sm" />
               Carregando informações...
             </div>
-
-            <!-- Separação semântica: o histórico é a única parte que rola, o resto
-                 do card (metadados acima) permanece com altura fixa. -->
-            <q-separator v-if="documento" />
-            <q-card-section v-if="documento" class="q-pa-lg q-pt-md">
-              <div class="info-label q-mb-sm">Histórico de Situação</div>
-              <div v-if="timelineEventos.length" class="row justify-center">
-                <q-scroll-area style="height: 380px; max-width: 640px" class="col-12">
-                  <q-timeline color="primary" layout="dense">
-                    <q-timeline-entry
-                      v-for="evento in timelineEventos"
-                      :key="evento.key"
-                      :title="evento.titulo"
-                      :subtitle="evento.data"
-                      :icon="evento.icon"
-                      :color="evento.color"
-                    />
-                  </q-timeline>
-                </q-scroll-area>
-              </div>
-              <div v-else class="text-grey-6 text-body2 text-center q-py-md">
-                Nenhum registro de histórico.
-              </div>
-            </q-card-section>
           </q-expansion-item>
         </q-card>
 
