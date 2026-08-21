@@ -279,7 +279,7 @@
                         <q-tooltip anchor="center right" self="center left">Editar conteúdo</q-tooltip>
                       </q-btn>
                       <q-btn round size="xs" flat dense color="negative" @click.stop="$emit('emenda-desfazer', node.id, 'PARTE_NORMATIVA')">
-                        <q-icon size="11px" name="mdi-trash-can-outline" />
+                        <q-icon size="11px" name="mdi-delete-outline" />
                         <q-tooltip anchor="center right" self="center left">Excluir elemento</q-tooltip>
                       </q-btn>
                     </template>
