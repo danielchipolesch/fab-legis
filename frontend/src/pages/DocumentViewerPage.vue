@@ -92,14 +92,16 @@
                      em telas estreitas) em vez de q-col-gutter-xl -- um gutter
                      horizontal aplicaria padding-left só no lado esquerdo de cada
                      filho, o que descentralizaria esse separador de 1px dentro do
-                     próprio col-auto. O espaçamento ao redor dele é manual
-                     (q-pr-lg/q-pl-xl abaixo), assimétrico de propósito. -->
+                     próprio col-auto. O espaçamento ao redor dele é manual e
+                     assimétrico de propósito -- q-pr-lg (24px) do lado dos metadados
+                     e um padding-left maior que o próprio preset "xl" do Quasar
+                     (48px) do lado do histórico, que ainda ficava próximo demais. -->
                 <div class="col-auto flex items-stretch gt-sm">
                   <q-separator vertical inset />
                 </div>
 
                 <!-- Histórico de situação -->
-                <div class="col-12 col-md q-pl-xl">
+                <div class="col-12 col-md" style="padding-left: 72px">
                   <div class="info-label q-mb-sm">Histórico de Situação</div>
                   <q-scroll-area v-if="timelineEventos.length" style="height: 320px" class="timeline-area">
                     <!-- q-pl-sm: os ícones do q-timeline (layout dense) sangram um
