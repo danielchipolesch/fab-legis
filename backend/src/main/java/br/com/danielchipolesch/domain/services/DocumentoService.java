@@ -7,6 +7,7 @@ import br.com.danielchipolesch.domain.builders.DocumentoBuilder;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.Documento;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.DocumentoStatusEnum;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.TipoAlteracaoEnum;
+import br.com.danielchipolesch.domain.entities.estruturaDocumento.ElementoEmendaStatusEnum;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.ItemAnexoParteNormativa;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.ItemPartePreliminar;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.ItemParteFinal;
@@ -218,21 +219,54 @@ public class DocumentoService {
         return DocumentoMapper.documentoToDocumentoSemAnexoTextualResponseDto(clonado);
     }
 
+    // O clone é um documento novo, sem histórico de emenda: carrega só a redação
+    // vigente de cada elemento, nunca o histórico de alterações.
     private void clonarNormItem(ItemAnexoParteNormativa original, Documento novoDoc, ItemAnexoParteNormativa novoParent) {
+        // Elemento revogado não faz mais parte do documento vigente -- nem ele nem
+        // seus filhos (ex.: incisos de um artigo revogado) vão para o clone.
+        if (original.getEmendaStatus() == ElementoEmendaStatusEnum.REVOGADO) {
+            return;
+        }
+
         ItemAnexoParteNormativa copia = new ItemAnexoParteNormativa();
         copia.setDocumento(novoDoc);
         copia.setParent(novoParent);
         copia.setTipo(original.getTipo());
         copia.setElementOrder(original.getElementOrder());
-        copia.setTitulo(original.getTitulo());
-        copia.setConteudo(original.getConteudo());
-        copia.setFullTextContent(original.getFullTextContent());
+
+        // ALTERADO: conteudo/titulo guardam a redação ANTERIOR à emenda (usada para
+        // riscar no PDF oficial — ver DocumentoFoCorpoBuilder); a vigente é
+        // conteudoEmenda/tituloEmenda. Nos demais casos (INALTERADO, INCLUIDO já
+        // consolidado ou ainda pendente) conteudo/titulo já são a redação atual.
+        String titulo, conteudo;
+        if (original.getEmendaStatus() == ElementoEmendaStatusEnum.ALTERADO) {
+            titulo   = original.getTituloEmenda() != null ? original.getTituloEmenda() : original.getTitulo();
+            conteudo = original.getConteudoEmenda();
+        } else {
+            titulo   = original.getTitulo();
+            conteudo = original.getConteudo();
+        }
+        copia.setTitulo(titulo);
+        copia.setConteudo(conteudo);
+        copia.setFullTextContent(gerarFullTextContent(titulo, conteudo, null));
+
         ItemAnexoParteNormativa salva = itemAnexoParteNormativaRepository.save(copia);
         if (original.getChildren() != null) {
             for (ItemAnexoParteNormativa filho : original.getChildren()) {
                 clonarNormItem(filho, novoDoc, salva);
             }
         }
+    }
+
+    private String gerarFullTextContent(String titulo, String conteudo, String fullTextContentEnviado) {
+        if (fullTextContentEnviado != null && !fullTextContentEnviado.isBlank()) return fullTextContentEnviado;
+        StringBuilder sb = new StringBuilder();
+        if (titulo != null && !titulo.isBlank()) sb.append(titulo);
+        if (conteudo != null && !conteudo.isBlank()) {
+            if (!sb.isEmpty()) sb.append(" ");
+            sb.append(conteudo);
+        }
+        return sb.isEmpty() ? null : sb.toString();
     }
 
     private Integer calculateSecondaryNumber(EspecieNormativa especieNormativa, AssuntoBasico assuntoBasico){
