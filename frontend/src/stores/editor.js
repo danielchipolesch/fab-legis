@@ -86,6 +86,12 @@ export const useEditorStore = defineStore('editor', {
       if (atualizado?.status && this.documento) {
         this.documento.status = atualizado.status
       }
+      // Mantém a versão local em dia com a do banco após salvar -- é ela que
+      // vai como versaoEsperada no próximo salvamento (ver
+      // DocumentoConcorrenciaService no backend).
+      if (atualizado?.versao != null && this.documento) {
+        this.documento.versao = atualizado.versao
+      }
       this.isDirty = false
     },
 

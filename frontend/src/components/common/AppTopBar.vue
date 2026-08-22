@@ -29,28 +29,22 @@
         <q-tooltip anchor="bottom middle" self="top middle">Notificações</q-tooltip>
       </q-btn>
 
-      <q-btn flat color="white" class="q-ml-xs">
+      <q-btn v-if="auth.usuario" flat color="white" class="q-ml-xs">
         <q-avatar size="30px" color="secondary" text-color="white" class="q-mr-sm">
           <q-icon name="mdi-account" size="18px" />
         </q-avatar>
-        <span class="text-caption">Usuário</span>
+        <span class="text-caption">{{ auth.usuario.nome }}</span>
         <q-icon right name="mdi-chevron-down" />
         <q-menu>
-          <q-list dense style="min-width:180px">
-            <q-item clickable v-close-popup>
-              <q-item-section avatar>
-                <q-icon name="mdi-account-outline" />
+          <q-list dense style="min-width:220px">
+            <q-item>
+              <q-item-section>
+                <q-item-label>{{ auth.usuario.nome }}</q-item-label>
+                <q-item-label caption>{{ formatarCpf(auth.usuario.cpf) }} · {{ auth.usuario.omNome }}</q-item-label>
               </q-item-section>
-              <q-item-section>Perfil</q-item-section>
-            </q-item>
-            <q-item clickable v-close-popup>
-              <q-item-section avatar>
-                <q-icon name="mdi-cog-outline" />
-              </q-item-section>
-              <q-item-section>Configurações</q-item-section>
             </q-item>
             <q-separator />
-            <q-item clickable v-close-popup>
+            <q-item clickable v-close-popup @click="sair">
               <q-item-section avatar>
                 <q-icon name="mdi-logout" />
               </q-item-section>
@@ -62,3 +56,17 @@
     </q-toolbar>
   </q-header>
 </template>
+
+<script setup>
+import { useRouter } from 'vue-router'
+import { useAuthStore } from '@/stores/auth.js'
+import { formatarCpf } from '@/utils/cpf.js'
+
+const router = useRouter()
+const auth = useAuthStore()
+
+function sair() {
+  auth.logout()
+  router.push({ name: 'login' })
+}
+</script>

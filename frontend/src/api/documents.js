@@ -122,6 +122,11 @@ export function backendParaFrontend(doc) {
     bca_referencia: doc.bcaReferencia ?? null,
     data_portaria_referencia: parseDtCriacao(doc.dtPortariaReferencia),
     data_bca_referencia:      parseDtCriacao(doc.dtBcaReferencia),
+    versao: doc.versao ?? null,
+    autor_id: doc.autorId != null ? String(doc.autorId) : null,
+    autor_nome: doc.autorNome ?? null,
+    om_id: doc.omId != null ? String(doc.omId) : null,
+    om_nome: doc.omNome ?? null,
     versoes: [],
     secoes,
   }
@@ -187,12 +192,13 @@ export async function changeDocumentoStatus(id, novoStatus, refs) {
 
 // ── Emenda de elementos ───────────────────────────────────────────────────────
 
-export async function emendar(docId, secao, elementoId, acao, novoConteudo, novoTitulo, justificativa) {
+export async function emendar(docId, secao, elementoId, acao, novoConteudo, novoTitulo, justificativa, versaoEsperada) {
   return http.patch(`/documentos/${docId}/emendar/${secao}/${elementoId}`, {
     acao,
     novoConteudo: novoConteudo ?? null,
     novoTitulo: novoTitulo ?? null,
     justificativa: justificativa ?? null,
+    versaoEsperada: versaoEsperada ?? null,
   })
 }
 
@@ -200,7 +206,7 @@ export async function reordenarElementoEmenda(docId, secao, elementoId, direcao)
   return http.patch(`/documentos/${docId}/emendar/${secao}/${elementoId}/reordenar?direcao=${direcao}`, {})
 }
 
-export async function incluirElementoEmenda(docId, secao, tipo, titulo, conteudo, parentId, elementOrder, justificativa) {
+export async function incluirElementoEmenda(docId, secao, tipo, titulo, conteudo, parentId, elementOrder, justificativa, versaoEsperada) {
   return http.post(`/documentos/${docId}/emendar/${secao}`, {
     tipo,
     titulo: titulo ?? null,
@@ -208,10 +214,11 @@ export async function incluirElementoEmenda(docId, secao, tipo, titulo, conteudo
     parentId: parentId ?? null,
     elementOrder: elementOrder ?? null,
     justificativa,
+    versaoEsperada: versaoEsperada ?? null,
   })
 }
 
-export async function saveSecoes(id, secoes) {
+export async function saveSecoes(id, secoes, versaoEsperada) {
   if (!secoes?.length) return null
   const itens = []
   for (const secao of secoes) {
@@ -222,7 +229,7 @@ export async function saveSecoes(id, secoes) {
       itens.push(converterElemento(elementos[i], secaoEnum, i + 1))
     }
   }
-  return http.put(`/documentos/${id}/secoes`, { itens })
+  return http.put(`/documentos/${id}/secoes`, { itens, versaoEsperada: versaoEsperada ?? null })
 }
 
 export async function deleteDocumento(id) {
@@ -239,6 +246,28 @@ export async function listHistorico(documentoId) {
 
 export async function listMapaAlteracao(documentoId) {
   return http.get(`/documentos/${documentoId}/mapa-alteracao`)
+}
+
+// ── Presença de edição (aviso de edição concorrente) ────────────────────────────
+// Não impede colisão por si só (ver DocumentoConcorrenciaService/versaoEsperada
+// acima) -- só avisa "fulano também está editando agora".
+
+export async function registrarPresenca(documentoId) {
+  return http.post(`/documentos/${documentoId}/presenca`)
+}
+
+// ── Compartilhamento (coautoria) ─────────────────────────────────────────────
+
+export async function listCompartilhamentos(documentoId) {
+  return http.get(`/documentos/${documentoId}/compartilhamentos`)
+}
+
+export async function compartilharDocumento(documentoId, cpf) {
+  return http.post(`/documentos/${documentoId}/compartilhamentos`, { cpf })
+}
+
+export async function removerCompartilhamento(documentoId, usuarioId) {
+  return http.del(`/documentos/${documentoId}/compartilhamentos/${usuarioId}`)
 }
 
 // ── Anexos ────────────────────────────────────────────────────────────────────

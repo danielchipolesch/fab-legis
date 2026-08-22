@@ -538,12 +538,14 @@ async function confirmar() {
       parentId.value,
       computedOrder.value,
       justificativa.value.trim(),
+      editorStore.documento?.versao,
     )
     editorStore.reload()
     emit('update:model-value', false)
     emit('confirmado')
     $q.notify({ type: 'positive', message: 'Elemento incluído com sucesso.' })
   } catch (e) {
+    if (e?.status === 409) editorStore.reload()
     $q.notify({ type: 'negative', message: `Erro ao incluir elemento: ${e?.message ?? 'erro desconhecido'}` })
   } finally {
     salvando.value = false

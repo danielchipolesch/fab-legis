@@ -203,12 +203,16 @@ async function confirmar() {
       props.acao === 'ALTERAR' && !isSuperTipo.value ? novoConteudo.value : null,
       props.acao === 'ALTERAR' && isSuperTipo.value  ? novoTitulo.value  : null,
       props.acao !== 'DESFAZER' && !isIncluido.value ? justificativa.value : null,
+      editorStore.documento?.versao,
     )
     editorStore.reload()
     emit('update:model-value', false)
     emit('confirmado')
     $q.notify({ type: 'positive', message: 'Emenda aplicada com sucesso.' })
   } catch (e) {
+    // 409: outra pessoa salvou primeiro -- recarrega para mostrar o estado
+    // real antes que o usuário tente de novo com dados desatualizados.
+    if (e?.status === 409) editorStore.reload()
     $q.notify({ type: 'negative', message: `Erro ao aplicar emenda: ${e?.message ?? 'erro desconhecido'}` })
   } finally {
     salvando.value = false

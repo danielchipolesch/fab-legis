@@ -1,6 +1,13 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import { useAuthStore } from '@/stores/auth.js'
 
 const routes = [
+  {
+    path: '/login',
+    name: 'login',
+    component: () => import('@/pages/LoginPage.vue'),
+    meta: { title: 'Entrar', public: true },
+  },
   {
     path: '/',
     name: 'home',
@@ -40,6 +47,14 @@ const router = createRouter({
 
 router.beforeEach((to) => {
   document.title = `${to.meta.title} — FAB Legis`
+
+  if (to.meta.public) return true
+
+  const auth = useAuthStore()
+  if (!auth.isAuthenticated) {
+    return { name: 'login', query: { redirect: to.fullPath } }
+  }
+  return true
 })
 
 export default router

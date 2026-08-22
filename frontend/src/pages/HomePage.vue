@@ -521,12 +521,14 @@
 import { ref, computed, reactive, onMounted } from 'vue'
 import { useQuasar } from 'quasar'
 import { useDocumentsStore } from '@/stores/documents.js'
+import { useAuthStore } from '@/stores/auth.js'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import NewDocumentDialog from '@/components/common/NewDocumentDialog.vue'
 import { gerarPdf } from '@/services/pdfService.js'
 
 const $q = useQuasar()
 const store = useDocumentsStore()
+const auth = useAuthStore()
 
 onMounted(() => store.fetchAll())
 
@@ -556,14 +558,15 @@ function formatarData(isoStr) {
   return `${d}/${m}/${y}`
 }
 
-// Documentos ainda não guardam autor nem OM (gestão de perfis e a feature de OMs
-// não existem no sistema ainda), então as três abas são idênticas por enquanto —
-// todas retornam true. Quando esses dados existirem, cada aba passa a comparar
-// doc.autorId/doc.omId contra o usuário logado.
+// A listagem em si já vem completa do backend para qualquer usuário
+// autenticado (visualizar é universal -- ver DocumentoAcessoService); estas
+// abas são só uma forma de navegar esse mesmo conjunto, não uma restrição de
+// acesso. A restrição de verdade (editar/excluir) é sempre checada no
+// backend, nunca aqui.
 const ABA_FILTROS = {
-  meus:       () => true,
-  minha_om:   () => true,
-  outras_oms: () => true,
+  meus:       (doc) => doc.autor_id === String(auth.usuario?.id),
+  minha_om:   (doc) => doc.om_id === String(auth.usuario?.omId) && doc.autor_id !== String(auth.usuario?.id),
+  outras_oms: (doc) => doc.om_id !== String(auth.usuario?.omId),
 }
 
 const documentosFiltrados = computed(() => {

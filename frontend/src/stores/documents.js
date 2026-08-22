@@ -201,16 +201,23 @@ export const useDocumentsStore = defineStore('documents', {
       return clone
     },
 
+    // Sequencial de propósito, não Promise.all: saveSecoes checa
+    // versaoEsperada contra o banco (DocumentoConcorrenciaService) e bumpa a
+    // versão; se updateDocumento rodasse em paralelo, os dois partiriam da
+    // mesma versão lida e um dos bumps "desapareceria" da resposta que o
+    // frontend vê. Rodando em sequência, updateDocumento sempre lê o estado
+    // já pós-saveSecoes, então atualizado.versao reflete a versão real final.
     async saveDocumento(documento) {
       const idx = this.documentos.findIndex(d => String(d.id) === String(documento.id))
       if (idx === -1) return
-      const [atualizado] = await Promise.all([
-        api.updateDocumento(documento.id, documento),
-        documento.secoes ? api.saveSecoes(documento.id, documento.secoes) : Promise.resolve(null),
-      ])
+      if (documento.secoes) {
+        await api.saveSecoes(documento.id, documento.secoes, documento.versao)
+      }
+      const atualizado = await api.updateDocumento(documento.id, documento)
       if (atualizado) {
         this.documentos[idx] = { ...this.documentos[idx], ...atualizado, secoes: documento.secoes }
       }
+      return atualizado
     },
 
     async updateMetadados(id, { titulo, numero_secundario }) {
@@ -231,13 +238,13 @@ export const useDocumentsStore = defineStore('documents', {
       }
     },
 
-    async emendar(docId, secao, elementoId, acao, novoConteudo, novoTitulo, justificativa) {
-      await api.emendar(docId, secao, elementoId, acao, novoConteudo, novoTitulo, justificativa)
+    async emendar(docId, secao, elementoId, acao, novoConteudo, novoTitulo, justificativa, versaoEsperada) {
+      await api.emendar(docId, secao, elementoId, acao, novoConteudo, novoTitulo, justificativa, versaoEsperada)
       return this.fetchDocumento(docId)
     },
 
-    async incluirElementoEmenda(docId, secao, tipo, titulo, conteudo, parentId, elementOrder, justificativa) {
-      await api.incluirElementoEmenda(docId, secao, tipo, titulo, conteudo, parentId, elementOrder, justificativa)
+    async incluirElementoEmenda(docId, secao, tipo, titulo, conteudo, parentId, elementOrder, justificativa, versaoEsperada) {
+      await api.incluirElementoEmenda(docId, secao, tipo, titulo, conteudo, parentId, elementOrder, justificativa, versaoEsperada)
       return this.fetchDocumento(docId)
     },
 

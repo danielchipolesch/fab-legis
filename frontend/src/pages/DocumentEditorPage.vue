@@ -48,6 +48,9 @@
     <!-- Dialog de referência: técnica legislativa (LC 95/1998) -->
     <Lc95HelpDialog v-model="lc95DialogOpen" />
 
+    <!-- Dialog de compartilhamento (coautoria) -->
+    <CompartilharDialog v-if="documentoId" v-model="compartilharDialogOpen" :documento-id="documentoId" />
+
     <!-- Coluna principal: topbar + área de edição -->
     <div class="editor-main column">
 
@@ -86,6 +89,12 @@
           <q-tooltip anchor="bottom middle" self="top middle">Técnica legislativa (LC 95/1998)</q-tooltip>
         </q-btn>
 
+        <q-btn round flat color="primary" @click="compartilharDialogOpen = true">
+          <q-icon name="mdi-account-multiple-plus-outline" size="22px" />
+          <q-badge v-if="presencaOutros.length" floating color="deep-orange" rounded />
+          <q-tooltip anchor="bottom middle" self="top middle">Compartilhar</q-tooltip>
+        </q-btn>
+
         <q-btn
           outline
           color="primary"
@@ -114,6 +123,18 @@
         <span class="text-caption text-deep-orange-9 text-weight-bold">
           MODO EM ALTERAÇÃO — Use os botões de emenda no painel lateral para alterar ou revogar elementos.
           Salvar automático está desativado.
+        </span>
+      </div>
+
+      <!-- Aviso de presença: alguém mais está editando este documento agora.
+           Só avisa -- não bloqueia nem resolve a colisão por si (ver
+           DocumentoConcorrenciaService no backend para a checagem que de fato
+           impede sobrescrever por cima). -->
+      <div v-if="presencaOutros.length" class="q-px-md q-py-xs row items-center" style="background:#FFF3E0;border-bottom:1px solid #FFCC80;gap:8px">
+        <q-icon name="mdi-account-alert-outline" color="deep-orange-8" size="16px" />
+        <span class="text-caption text-deep-orange-9 text-weight-bold">
+          {{ presencaOutros.map(p => p.nome).join(', ') }}
+          {{ presencaOutros.length === 1 ? 'também está editando' : 'também estão editando' }} este documento agora.
         </span>
       </div>
 
@@ -249,6 +270,8 @@ import DocumentPreview from '@/components/editor/DocumentPreview.vue'
 import EmendaDialog from '@/components/editor/EmendaDialog.vue'
 import IncluirElementoDialog from '@/components/editor/IncluirElementoDialog.vue'
 import Lc95HelpDialog from '@/components/editor/Lc95HelpDialog.vue'
+import CompartilharDialog from '@/components/editor/CompartilharDialog.vue'
+import * as documentsApi from '@/api/documents.js'
 
 const route = useRoute()
 const router = useRouter()
@@ -259,6 +282,32 @@ const docStore = useDocumentsStore()
 const previewMounted = ref(false)
 const pdfLoading    = ref(false)
 const lc95DialogOpen = ref(false)
+const compartilharDialogOpen = ref(false)
+
+// ── Presença de edição (aviso de colisão, não trava nada) ───────────────────────
+const presencaOutros = ref([])
+let presencaTimer = null
+
+async function heartbeatPresenca() {
+  if (!documentoId.value) return
+  try {
+    presencaOutros.value = await documentsApi.registrarPresenca(documentoId.value)
+  } catch {
+    // Falha no heartbeat não deve interromper a edição -- só deixa de
+    // atualizar o aviso até a próxima tentativa.
+  }
+}
+
+function iniciarPresenca() {
+  heartbeatPresenca()
+  presencaTimer = setInterval(heartbeatPresenca, 15000)
+}
+
+function pararPresenca() {
+  clearInterval(presencaTimer)
+  presencaTimer = null
+  presencaOutros.value = []
+}
 
 // ── Auto-save ────────────────────────────────────────────────────────────────
 const saveStatus = ref('idle')   // 'idle' | 'saving' | 'error'
@@ -283,12 +332,24 @@ async function autoSave() {
   } catch (e) {
     console.error('[AutoSave]', e)
     saveStatus.value = 'error'
+    if (e?.status === 409) {
+      // Outra pessoa (ou outra aba) salvou primeiro -- não insiste
+      // sobrescrevendo por cima; recarrega e avisa, igual ao design doc previu
+      // para o cenário de colisão de edição concorrente.
+      editorStore.reload()
+      $q.notify({
+        type: 'warning',
+        message: 'Este documento foi alterado por outra pessoa. A tela foi recarregada com a versão mais recente.',
+        timeout: 8000,
+      })
+    }
   }
 }
 
 onUnmounted(() => {
   clearTimeout(autoSaveTimer)
   if (editorStore.isDirty) editorStore.save()
+  pararPresenca()
 })
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -449,6 +510,8 @@ onMounted(async () => {
     const prelim = loadedDoc?.secoes?.find(s => s.tipo === 'parte_preliminar')
     const primeiro = prelim?.elementos?.[0]
     if (primeiro) editorStore.selectElement(primeiro.id)
+
+    iniciarPresenca()
   } else {
     editorStore.loadNew()
   }
