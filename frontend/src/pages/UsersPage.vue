@@ -271,8 +271,10 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import { useQuasar } from 'quasar'
 import * as usuariosApi from '@/api/usuarios.js'
 import { validarCpf, mascaraCpf, formatarCpf, onlyDigits } from '@/utils/cpf.js'
+import { useAuthStore } from '@/stores/auth.js'
 
 const $q = useQuasar()
+const auth = useAuthStore()
 
 const usuarios  = ref([])
 const oms       = ref([])
@@ -387,7 +389,7 @@ async function salvar() {
   salvando.value = true
   try {
     if (editando.value) {
-      await usuariosApi.updateUsuario(editando.value.id, {
+      const usuarioAtualizado = await usuariosApi.updateUsuario(editando.value.id, {
         nome: form.nome,
         nomeGuerra: form.nomeGuerra,
         email: form.email,
@@ -396,6 +398,11 @@ async function salvar() {
         ativo: form.ativo,
         papeis: papeisSelecionados(),
       })
+      // Se o admin editou o próprio usuário, atualiza o topbar na hora --
+      // sem isso, o nome/posto exibido ficaria desatualizado até um novo login.
+      if (auth.usuario && editando.value.id === auth.usuario.id) {
+        auth.atualizarPerfil(usuarioAtualizado)
+      }
       $q.notify({ type: 'positive', message: 'Usuário atualizado.' })
     } else {
       await usuariosApi.createUsuario({

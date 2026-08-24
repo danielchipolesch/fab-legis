@@ -99,6 +99,36 @@ export const useAuthStore = defineStore('auth', {
       }
     },
 
+    // Atualiza os dados de identificação do usuário logado em memória e no
+    // localStorage sem precisar de um novo login -- chamado pela tela de
+    // usuários quando o admin edita o próprio perfil, para que o topbar
+    // reflita a mudança na hora (reatividade do Pinia) em vez de exigir
+    // recarregar a página.
+    atualizarPerfil(dados) {
+      if (!this.usuario) return
+      this.usuario = {
+        ...this.usuario,
+        nome: dados.nome ?? this.usuario.nome,
+        nomeGuerra: dados.nomeGuerra ?? null,
+        postoGraduacaoBigrama: dados.postoGraduacaoBigrama ?? null,
+        omId: dados.omId ?? this.usuario.omId,
+        omNome: dados.omNome ?? this.usuario.omNome,
+        papeis: dados.papeis ? Array.from(new Set(['REDATOR', ...dados.papeis])) : this.usuario.papeis,
+      }
+      const salvo = lerArmazenado()
+      if (salvo) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({
+          ...salvo,
+          nome: this.usuario.nome,
+          nomeGuerra: this.usuario.nomeGuerra,
+          postoGraduacaoBigrama: this.usuario.postoGraduacaoBigrama,
+          omId: this.usuario.omId,
+          omNome: this.usuario.omNome,
+          papeis: this.usuario.papeis,
+        }))
+      }
+    },
+
     async logout() {
       const refreshToken = this.refreshToken
       this.token = null
