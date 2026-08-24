@@ -8,6 +8,7 @@
 
 ![Java](https://img.shields.io/badge/Java-25-orange)
 ![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.5.0-6DB33F)
+![Spring Security](https://img.shields.io/badge/Spring%20Security-JWT-6DB33F)
 ![Vue](https://img.shields.io/badge/Vue-3.5-42b883)
 ![Quasar](https://img.shields.io/badge/Quasar-2.17-1976D2)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-336791)
@@ -22,6 +23,7 @@
 
 - [O que é o FAB Legis](#-o-que-é-o-fab-legis)
 - [Principais funcionalidades](#-principais-funcionalidades)
+- [Autenticação, papéis e colaboração](#-autenticação-papéis-e-colaboração)
 - [Tecnologias](#-tecnologias)
 - [Arquitetura do sistema](#-arquitetura-do-sistema)
 - [Modelo de domínio](#-modelo-de-domínio)
@@ -56,7 +58,8 @@ o sistema consegue:
 - 👁️ **mostrar o documento final em tempo real**, lado a lado com o editor;
 - 📤 **exportar o mesmo conteúdo** em PDF, DOCX e HTML sem reformatar nada;
 - 🔍 **comparar versões** e mostrar exatamente o que mudou entre elas;
-- 🚦 **controlar o ciclo de vida** (Rascunho → Minuta → Aprovado → Publicado…) com transições validadas no servidor.
+- 🚦 **controlar o ciclo de vida** (Rascunho → Minuta → Aprovado → Publicado…) com transições validadas no servidor **e autorizadas por papel**;
+- 👥 **coordenar edição concorrente** — login por CPF, papéis (Redator/Aprovador/Auditor/Admin), coautoria, aviso de presença e notificações em tempo real.
 
 > **Público-alvo:** seções de legislação, assessorias jurídicas e órgãos centrais
 > de sistema responsáveis pela elaboração de ICA, NSCA, MCA, RCA, DCA, PCA, OCA,
@@ -162,14 +165,92 @@ navegar para a comparação de versões.
 
 ### 🚦 Gestão do acervo
 
-A `HomePage` oferece visão em tabela (ordenada por data de criação
-decrescente por padrão) ou cards, filtros por espécie, situação e busca
-textual, resumo quantitativo por situação e ações contextuais — editar
-(Rascunho/Minuta/Em Alteração), clonar, comparar (habilitado só quando o
-documento tem emendas registradas), exportar em PDF e transicionar de
-situação. **Excluir** só aparece no menu de ações para documentos em
-Rascunho ou Minuta — outras situações já são bloqueadas no backend
-(`DocumentoService.delete()`), e a opção nem é oferecida na interface.
+A `HomePage` organiza o acervo em três abas — **Meus Documentos**, **Documentos
+da Minha OM** e **Documentos de Outras OMs** — cada uma com paginação e busca
+próprias e um contador de quantos documentos ela contém; a visualização em si
+é universal (qualquer usuário autenticado vê e baixa qualquer documento,
+independente de autoria, OM ou situação — ver seção seguinte), as abas são só
+uma forma de navegar esse mesmo conjunto. Dentro de cada aba: visão em tabela
+(ordenada por data de criação decrescente por padrão) ou cards, filtros por
+espécie, situação e busca textual, resumo quantitativo por situação e ações
+contextuais — editar (Rascunho/Minuta/Em Alteração), clonar, comparar
+(habilitado só quando o documento tem emendas registradas), exportar em PDF e
+transicionar de situação (algumas transições exigem o papel Aprovador — ver
+seção seguinte). **Excluir** só aparece no menu de ações para documentos
+próprios (ou compartilhados) em Rascunho ou Minuta — outras combinações já são
+bloqueadas no backend (`DocumentoAcessoService.podeExcluir()`), e a opção nem
+é oferecida na interface.
+
+---
+
+## 🔐 Autenticação, papéis e colaboração
+
+Fase 0 de um plano de autenticação que evolui depois para SSO institucional
+(Keycloak) — as *claims* do JWT já são nomeadas como o Keycloak nomeia as
+suas (`sub`, `preferred_username`, `realm_access.roles`) de propósito, para
+que a migração troque só o emissor do token, não a lógica de autorização.
+
+### Login e sessão
+
+- Login por **CPF + senha** (`POST /v1/auth/login`), validado com o algoritmo
+  oficial de dígito verificador tanto no frontend (feedback imediato) quanto,
+  de forma autoritativa, no backend (`CpfValidator`/`@CpfValido`).
+- **Access token JWT de vida curta** (15 min) + **refresh token opaco**
+  (hash SHA-256 armazenado, nunca o valor em si) de vida longa (7 dias),
+  **rotacionado a cada uso** — um valor vazado só é reaproveitável uma vez
+  antes de invalidar dos dois lados (`RefreshTokenService`). O `client.js` do
+  frontend intercepta qualquer 401 e tenta renovar uma vez antes de deslogar,
+  de forma transparente para quem está usando o sistema.
+- Usuário administrador padrão criado automaticamente no primeiro boot
+  (`DataSeeder`) — ver credenciais em [Como executar](#-como-executar).
+
+### Papéis e posse de documento
+
+Todo usuário autenticado já é, implicitamente, **Redator**: cria documentos,
+edita e exclui (em Rascunho/Minuta) os que autorou ou dos quais é coautor, e
+**visualiza/baixa qualquer documento do acervo**, de qualquer OM, em qualquer
+situação. Por cima disso, papéis adicionais (atribuídos na tela **Gestão de
+Usuários**, restrita a Admin) concedem mais:
+
+| Papel | Concede |
+|---|---|
+| **Aprovador** | Aprova, publica e demais transições sensíveis (ver tabela abaixo) — só de documentos da própria OM |
+| **Admin** | Aprova/publica em qualquer OM, gerencia usuários e organizações militares |
+| **Auditor** | Acesso de leitura à trilha de auditoria completa (tela **Auditoria**) |
+
+**Coautoria:** o autor de um documento pode adicionar outros CPFs como
+coautores (`DocumentoCompartilhamentoService`) — um coautor ganha os mesmos
+direitos de edição/exclusão do autor sobre aquele documento específico, mas
+só o autor pode gerenciar a lista de coautores.
+
+### Edição concorrente
+
+Duas peças deliberadamente separadas, uma para *avisar*, outra para
+*impedir* colisão real:
+
+- **Presença ao vivo** — enquanto o editor está aberto, uma conexão
+  **SSE** (`GET /{id}/presenca/stream`) informa em tempo real quem mais
+  está editando o mesmo documento (banner + toast); "quem está editando"
+  é literalmente "quem tem essa conexão aberta agora" — sem heartbeat,
+  sem polling, sem tabela própria no banco.
+- **Bloqueio otimista por versão** — cada documento carrega um número de
+  versão (`nr_versao`); todo salvamento envia a versão que tinha em mãos, e
+  o backend rejeita com `409` se ela não bater com a atual
+  (`DocumentoConcorrenciaService`), evitando que uma edição sobrescreva
+  silenciosamente outra. Ao colidir, o editor recarrega a versão real do
+  servidor e avisa, sem perder o próprio trabalho não salvo.
+
+### Notificações e auditoria
+
+- **Notificações em tempo real** (sino no topbar, via SSE) — gravadas na
+  mesma transação da ação que as gera e entregues ao vivo a quem estiver
+  conectado: documento compartilhado com você, ou documento da sua OM
+  entrando em situação que aguarda aprovação.
+- **Trilha de auditoria** (`LogAuditoria`) — quem visualizou, criou, editou,
+  excluiu, clonou, mudou situação ou (des)compartilhou cada documento, e
+  quando; consultável e filtrável por quem tem o papel Auditor (ou Admin) na
+  tela **Auditoria**. O registro sobrevive à exclusão do documento (guarda um
+  retrato do código/descrição no momento da ação, não uma referência viva).
 
 ---
 
@@ -182,14 +263,15 @@ Rascunho ou Minuta — outras situações já são bloqueadas no backend
 | **Java** | 25 | Linguagem |
 | **Spring Boot** | 3.5.0 | Framework de aplicação |
 | **Spring Data JPA / Hibernate** | — | Persistência e mapeamento objeto-relacional |
-| **Spring Web (MVC)** | — | API REST |
+| **Spring Web (MVC)** | — | API REST, incluindo *streams* SSE (notificações e presença) |
 | **Spring HATEOAS** | — | Links de navegação nos recursos |
+| **Spring Security** | 6.5 | Autenticação stateless via JWT, autorização por método (`@PreAuthorize`) |
+| **jjwt** | 0.12.6 | Emissão e validação do access token JWT |
 | **PostgreSQL** | 16 | Banco de dados relacional |
 | **MinIO SDK** | 8.5.12 | Armazenamento de objetos (imagens e PDFs) on-premise |
 | **Apache FOP** | 2.10 | Geração de PDF server-side via XSL-FO |
 | **Flyway** | — | Migrações de banco versionadas e auditáveis |
-| **ModelMapper** | 3.2.0 | Conversão entidade ⇄ DTO |
-| **Lombok** | 1.18.38 | Redução de boilerplate |
+| **Lombok** | 1.18.38 | Redução de boilerplate nas *entities* (os DTOs de `application/dtos/**` são **records** Java, imutáveis, sem Lombok) |
 | **SpringDoc OpenAPI** | 2.6.0 | Documentação Swagger |
 | **Maven** | Wrapper | Build |
 
@@ -251,18 +333,27 @@ apontando para dentro (`infrastructure → application → domain`):
 br.com.danielchipolesch
 │
 ├── application/           ← Camada de aplicação (entrada/saída)
-│   ├── controllers/       ← REST: Documento, EspecieNormativa, AssuntoBasico, Imagem
-│   ├── dtos/              ← Contratos de request/response por agregado
+│   ├── controllers/       ← REST: Documento, Emenda, Anexo, EspecieNormativa,
+│   │                        AssuntoBasico, Imagem, Auth, Usuario,
+│   │                        OrganizacaoMilitar, Auditoria, Notificacao
+│   ├── dtos/              ← Contratos de request/response por agregado — records Java
+│   ├── validation/        ← @CpfValido (Bean Validation customizada)
 │   └── helpers/           ← Montagem de EntityModel + links HATEOAS
 │
 ├── domain/                ← Núcleo de negócio (sem dependência de framework web)
 │   ├── entities/
 │   │   ├── estruturaDocumento/   ← Documento, ItemPartePreliminar,
 │   │   │                            ItemAnexoParteNormativa, ItemParteFinal,
-│   │   │                            Anexo, EmendaHistorico + enums
-│   │   └── numeracaoDocumento/   ← EspecieNormativa, AssuntoBasico
+│   │   │                            Anexo, EmendaHistorico, DocumentoCompartilhamento + enums
+│   │   ├── numeracaoDocumento/   ← EspecieNormativa, AssuntoBasico
+│   │   ├── usuario/              ← Usuario, OrganizacaoMilitar, RefreshToken, PapelEnum
+│   │   ├── auditoria/             ← LogAuditoria, AcaoAuditoriaEnum
+│   │   └── notificacao/           ← Notificacao, TipoNotificacaoEnum
 │   ├── services/          ← Regras de negócio (DocumentoService, DocumentoStatusService,
-│   │                        DocumentoParteNormativaService, EmendaService,
+│   │                        DocumentoAcessoService, DocumentoConcorrenciaService,
+│   │                        DocumentoParteNormativaService, EmendaService, UsuarioService,
+│   │                        AuthService, RefreshTokenService, LogAuditoriaService,
+│   │                        NotificacaoService, DocumentoPresencaService,
 │   │                        ImagemService, MapaAlteracaoPdfService…)
 │   ├── builders/          ← DocumentoBuilder (construção fluente)
 │   ├── util/tiptap/       ← TipTapNode + XslFoContentRenderer (JSON TipTap → XSL-FO)
@@ -271,7 +362,10 @@ br.com.danielchipolesch
 │
 └── infrastructure/        ← Detalhes técnicos
     ├── repositories/      ← Spring Data JPA
-    ├── configurations/    ← Cors, Swagger, ModelMapper, Minio
+    ├── security/          ← JwtService, JwtAuthenticationFilter, UsuarioPrincipal,
+    │                        AutenticacaoUtil, DataSeeder (usuário admin padrão)
+    ├── notificacao/       ← NotificacaoEmitterRegistry, DocumentoPresencaEmitterRegistry (SSE)
+    ├── configurations/    ← Cors, Swagger, Security, Minio
     ├── enums/             ← Catálogos oficiais (espécies, assuntos, cabeçalho)
     └── runners/           ← Carga inicial das tabelas de referência
 ```
@@ -279,8 +373,12 @@ br.com.danielchipolesch
 **Tratamento de erros centralizado:** um `GlobalExceptionHandler` converte
 exceções de domínio (`ResourceNotFoundException`,
 `StatusCannotBeUpdatedException`, `ResourceAlreadyExistsException`,
-`InvalidInputException`, `ResourceCannotBeUpdatedException`) em respostas
-padronizadas (`ExceptionDto`), com mensagens vindas de *enums* por agregado.
+`InvalidInputException`, `ResourceCannotBeUpdatedException`,
+`CredenciaisInvalidasException`, `ConflitoEdicaoException`,
+`AccessDeniedException` do Spring Security) em respostas JSON padronizadas —
+com `Content-Type` sempre explícito, mesmo quando a requisição original era
+um *stream* SSE, para nunca cair na negociação de conteúdo automática do
+Spring.
 
 **Seed automático:** os `runners` (`EspecieNormativaRunner`,
 `AssuntoBasicoRunner`) populam na inicialização as espécies normativas e os
@@ -292,34 +390,50 @@ completa — o catálogo já nasce pronto para uso.
 ```
 frontend/src
 │
-├── pages/          ← HomePage · DocumentEditorPage · DocumentViewerPage · ComparisonPage
+├── pages/          ← LoginPage · HomePage · DocumentEditorPage · DocumentViewerPage ·
+│                      ComparisonPage · UsersPage · AuditoriaPage
 ├── components/
 │   ├── editor/     ← WysiwygEditor, EditorSidebar (com dialog de metadados),
-│   │                 DocumentPreview, NormTreeItem, FigureView
+│   │                 DocumentPreview, NormTreeItem, FigureView,
+│   │                 CompartilharDialog, Lc95HelpDialog
 │   ├── comparison/ ← DiffViewer
-│   └── common/     ← AppTopBar, StatusBadge, NewDocumentDialog
-├── stores/         ← Pinia: documents (acervo) · editor (documento em edição)
-├── api/            ← client (fetch tipado) + módulos por recurso
+│   └── common/     ← AppTopBar (menu de usuário, sino de notificações),
+│                      StatusBadge, NewDocumentDialog
+├── stores/         ← Pinia: auth (sessão) · documents (acervo) · editor (documento em edição)
+├── api/            ← client (fetch tipado, com renovação automática de token) +
+│                      módulos por recurso (documents, auth, usuarios, auditoria,
+│                      notificacoes, referencias, portarias…)
 ├── extensions/     ← Figure (nó customizado do TipTap)
-├── utils/          ← numbering (regras legislativas)
+├── utils/          ← numbering (regras legislativas), cpf (validação/máscara)
 ├── services/       ← pdfService (geração e download de PDF server-side)
-└── router/         ← Rotas SPA
+└── router/         ← Rotas SPA, com guarda de autenticação e de papel (admin/auditor)
 ```
 
-**Estado com Pinia — dois stores complementares:**
+**Estado com Pinia — três stores complementares:**
 
+- **`auth`** — sessão. Guarda o access token e o usuário logado (persistidos em
+  `localStorage`), expõe getters de papel (`isAdmin`/`isAprovador`/`isAuditor`)
+  e o fluxo de renovação via refresh token, chamado automaticamente pelo
+  `client.js` num 401.
 - **`documents`** — o acervo. Busca, cria, clona, salva e transiciona documentos;
   gera o *template* inicial de seções ao criar um novo ato.
 - **`editor`** — o documento aberto. Mantém uma cópia profunda para edição
   isolada, controla o elemento selecionado, o flag `isDirty` (salvamento
-  automático) e todas as operações de árvore, disparando a renumeração após cada
-  mutação.
+  automático), a versão esperada para o bloqueio otimista e todas as operações
+  de árvore, disparando a renumeração após cada mutação. `reload()` sempre
+  busca a versão real no servidor (nunca do cache local) — importante após um
+  `409` de conflito de edição.
 
 **Camada de API desacoplada:** o `client.js` encapsula `fetch` com verbos
-tipados (`get`/`post`/`put`/`patch`/`del`); os módulos por recurso fazem a
-**tradução entre a nomenclatura do backend e a do frontend** (`SECAO` ⇄
-`secao_normativa`, `PARAGRAFO_NUMERADO` ⇄ `paragrafo`, `ITEM` ⇄ `sub_alinea`),
-de modo que uma mudança no contrato REST não vaza para os componentes.
+tipados (`get`/`post`/`put`/`patch`/`del`), injeta o header `Authorization`
+via um *getter* plugado pelo `auth` store (evita import circular) e tenta
+renovar o token automaticamente uma vez antes de repassar um `401`; os
+módulos por recurso fazem a **tradução entre a nomenclatura do backend e a do
+frontend** (`SECAO` ⇄ `secao_normativa`, `PARAGRAFO_NUMERADO` ⇄ `paragrafo`,
+`ITEM` ⇄ `sub_alinea`), de modo que uma mudança no contrato REST não vaza para
+os componentes. Conexões SSE (notificações, presença) não passam pelo
+`client.js` — são `EventSource` nativas, com o token na *query string* (única
+forma de autenticar um `EventSource`, que não permite headers customizados).
 
 **Build otimizado:** o Vite separa *chunks* por vendor (`vendor-vue`,
 `vendor-quasar`, `vendor-tiptap`, `vendor-utils`, `vendor-dnd`) para maximizar o
@@ -403,6 +517,17 @@ stateDiagram-v2
     ARQUIVADO --> [*]
     REVOGADO --> [*]
 ```
+
+**Quem pode disparar cada transição:** enviar para `MINUTA` ou `CANCELADO` é
+prerrogativa de quem já pode editar o documento (autor ou coautor — o próprio
+redator conduz o rascunho até pedir aprovação). As demais transições —
+`APROVADO`, `PUBLICADO`, `ALTERADO`, `EM_ALTERACAO`, `ARQUIVADO`, `REVOGADO` —
+exigem o papel **Aprovador** da mesma OM do documento, ou **Admin** (que
+aprova em qualquer OM). A checagem é centralizada em
+`DocumentoAcessoService.podeMudarStatus()`; tentativas sem o papel adequado
+retornam `403`, e o documento entrando em `MINUTA`/`EM_ALTERACAO` **notifica
+automaticamente todos os Aprovadores da OM** (ver [Autenticação, papéis e
+colaboração](#-autenticação-papéis-e-colaboração)).
 
 **Regra de imutabilidade:** o conteúdo textual só pode ser alterado enquanto o
 documento estiver em `RASCUNHO`, `MINUTA` ou `EM_ALTERACAO`. A partir de
@@ -492,6 +617,12 @@ docker compose logs -f backend frontend
 | 🗄️ PostgreSQL | `localhost:5432` | `postgres` / `123456` |
 | 🪣 MinIO (console) | http://localhost:9001 | `minioadmin` / `minioadmin123` |
 
+**Usuário administrador padrão** — criado automaticamente pelo `DataSeeder`
+no primeiro boot, só se nenhum usuário real ainda existir. CPF
+`111.444.777-35` (dígitos: `11144477735`), senha `Admin@123`. Troque a senha
+(ou os valores de `APP_ADMIN_CPF`/`APP_ADMIN_SENHA` antes do primeiro boot)
+assim que possível em qualquer ambiente que não seja local.
+
 **Perfil de produção** (frontend compilado e servido por Nginx na porta 80):
 
 ```bash
@@ -546,6 +677,10 @@ Scripts disponíveis:
 | `MINIO_ACCESS_KEY` / `MINIO_SECRET_KEY` | `minioadmin` / `minioadmin123` | Credenciais do MinIO |
 | `MINIO_BUCKET` | `fab-legis-imagens` | Bucket das imagens |
 | `MINIO_PUBLIC_URL` | `http://localhost:9000` | URL pública para servir as imagens |
+| `JWT_SECRET` | *(dev, troque em produção)* | Segredo de assinatura do access token JWT |
+| `JWT_EXPIRATION_MS` | `900000` (15 min) | Validade do access token |
+| `JWT_REFRESH_EXPIRATION_MS` | `604800000` (7 dias) | Validade do refresh token |
+| `APP_ADMIN_CPF` / `APP_ADMIN_SENHA` / `APP_ADMIN_NOME` | ver acima | Usuário administrador padrão, criado só no primeiro boot |
 
 **Frontend**
 
@@ -561,7 +696,18 @@ Scripts disponíveis:
 
 ## 🔌 API REST
 
-Documentação interativa completa em **`/swagger-ui.html`**. Resumo dos endpoints:
+Documentação interativa completa em **`/swagger-ui.html`**. Todas as rotas
+abaixo (exceto `/v1/auth/**`) exigem `Authorization: Bearer <token>`; as que
+alteram posse/situação também passam por `@PreAuthorize` (ver [Autenticação,
+papéis e colaboração](#-autenticação-papéis-e-colaboração)). Resumo dos endpoints:
+
+### Autenticação — `/v1/auth` *(público)*
+
+| Método | Rota | Descrição |
+|---|---|---|
+| `POST` | `/login` | Autentica por CPF + senha, devolve access token + refresh token |
+| `POST` | `/refresh` | Troca um refresh token válido por um novo par (rotação) |
+| `POST` | `/logout` | Revoga um refresh token |
 
 ### Documentos — `/v1/documentos`
 
@@ -572,12 +718,16 @@ Documentação interativa completa em **`/swagger-ui.html`**. Resumo dos endpoin
 | `GET` | `/{id}` | Obtém documento com anexo textual + links HATEOAS |
 | `GET` | `/obter-todos` | Lista paginada (DTO enxuto, sem os itens da árvore) |
 | `GET` | `/filtrar` | Filtra por espécie normativa e assunto básico |
-| `PUT` | `/{id}` | Atualiza metadados (somente Rascunho/Minuta) |
-| `PATCH` | `/{id}/status` | Transição de status validada (aprovação, publicação, republicação com Portaria/BCA…) |
-| `PUT` | `/{id}/secoes` | Salva a árvore completa de seções |
+| `PUT` | `/{id}` | Atualiza metadados (somente Rascunho/Minuta, autor/coautor) |
+| `PATCH` | `/{id}/status` | Transição de status validada e autorizada por papel |
+| `PUT` | `/{id}/secoes` | Salva a árvore completa de seções (checagem de versão) |
 | `PUT` | `/{idDocumento}/adicionar-item-anexo-parte-textual` | Adiciona item à parte normativa |
+| `GET` | `/{id}/numeracao` | Numeração calculada da parte normativa |
 | `GET` | `/{id}/pdf` | Gera o PDF oficial do documento sob demanda (Apache FOP) |
-| `DELETE` | `/{id}` | Remove o documento e seus itens em cascata (somente Rascunho/Minuta) |
+| `DELETE` | `/{id}` | Remove o documento e seus itens em cascata (somente Rascunho/Minuta, autor/coautor) |
+| `GET`/`POST` | `/{id}/compartilhamentos` | Lista ou adiciona um coautor (só o autor) |
+| `DELETE` | `/{id}/compartilhamentos/{usuarioId}` | Remove um coautor (só o autor) |
+| `GET` | `/{id}/presenca/stream` | Conexão SSE: quem mais está editando este documento agora |
 
 ### Emendas — `/v1/documentos` (ciclo de alteração)
 
@@ -617,6 +767,34 @@ O `ImagemService` cria o bucket sob demanda na primeira execução e aplica
 automaticamente a política de leitura pública, de modo que as URLs retornadas
 possam ser referenciadas diretamente no HTML do documento.
 
+### Usuários — `/v1/usuarios` *(Admin)*
+
+| Método | Rota | Descrição |
+|---|---|---|
+| `GET` | `/` · `/{id}` | Lista ou obtém um usuário |
+| `POST` | `/` | Cria usuário (CPF, senha, OM, papéis) |
+| `PUT` | `/{id}` | Atualiza nome, OM, papéis e situação (ativo/inativo) |
+| `PATCH` | `/{id}/senha` | Redefine a senha de um usuário |
+
+Sem exclusão definitiva — usuários são autores de documento (FK sem
+`ON DELETE`), então o ciclo de vida é ativar/desativar, nunca apagar.
+
+### Organizações militares — `/v1/organizacoes-militares`
+
+`GET /` — lista simples, usada para popular o seletor de OM na tela de usuários.
+
+### Auditoria — `/v1/auditoria` *(Auditor ou Admin)*
+
+`GET /` — trilha paginada e filtrável por documento, usuário, ação e período.
+
+### Notificações — `/v1/notificacoes`
+
+| Método | Rota | Descrição |
+|---|---|---|
+| `GET` | `/stream` | Conexão SSE: notificações ao vivo do usuário autenticado |
+| `GET` | `/nao-lidas` · `/` | Notificações não lidas, ou histórico completo paginado |
+| `PATCH` | `/{id}/lida` · `/lidas` | Marca uma notificação, ou todas, como lida |
+
 ---
 
 ## 📁 Estrutura de pastas
@@ -653,21 +831,21 @@ organizadas por horizonte e refletem o que a arquitetura atual já prepara.
 
 ### 🎯 Curto prazo — consolidar o núcleo
 
-- **Autenticação e autorização** — integração com o diretório institucional
-  (LDAP/Active Directory) via Spring Security, com perfis distintos para
-  **Redator**, **Revisor**, **Aprovador** e **Publicador**, amarrando cada
-  transição de status a uma competência real.
+- **Migração para Keycloak/SSO** — a fase 0 (login próprio + JWT, ver
+  [Autenticação, papéis e colaboração](#-autenticação-papéis-e-colaboração))
+  foi desenhada para essa troca ser só de emissor de token: as *claims* já
+  espelham as do Keycloak, e `DocumentoAcessoService` não referencia nada do
+  mecanismo de autenticação em si.
 - **Versionamento por snapshot** — `EmendaHistorico` já registra o quê mudou em
   cada ciclo de emenda (texto anterior/novo, justificativa, ciclo de
   publicação), mas não guarda uma foto completa da árvore do documento em cada
   publicação; um snapshot imutável por ciclo daria ao `DiffViewer` comparações
   de estrutura inteira, não só por elemento.
-- **Trilha de auditoria com identidade** — `EmendaHistorico` já registra o quê
-  e quando; falta o **quem**, que depende da autenticação acima.
 - **Flyway ativo** — migrações versionadas em `resources/db/migration` já em
-  uso (atualmente em V8), com histórico rastreável de mudanças de esquema —
+  uso (atualmente em V13), com histórico rastreável de mudanças de esquema —
   da remoção de `FUNDAMENTACAO` (V1) ao rastreio de ciclo de emenda por
-  publicação (V7/V8).
+  publicação (V7/V8), passando pela introdução de usuários/OM/papéis (V9),
+  refresh token (V10), auditoria (V11) e notificações (V12).
 - **Cobertura de testes** — testes unitários dos serviços de domínio (com
   destaque para a numeração e as transições de status) e testes de integração
   dos controllers com Testcontainers.
@@ -691,8 +869,11 @@ organizadas por horizonte e refletem o que a arquitetura atual já prepara.
   em plataforma de processo.
 - **Assinatura digital ICP-Brasil** — assinatura do PDF final com carimbo de
   tempo, conferindo validade jurídica ao documento publicado.
-- **Edição colaborativa em tempo real** — o ProseMirror, base do TipTap, suporta
-  nativamente CRDT/Y.js; múltiplos redatores no mesmo ato é uma evolução natural.
+- **Edição colaborativa caractere a caractere** — hoje a colaboração é por
+  *presença* (avisa quem mais está editando, via SSE) e **bloqueio otimista**
+  (rejeita com `409` quem salva por cima de uma versão desatualizada); o
+  ProseMirror, base do TipTap, suporta nativamente CRDT/Y.js, o que permitiria
+  dois redatores editando o mesmo parágrafo ao mesmo tempo sem colisão.
 - **Busca full-text no acervo** — indexação do conteúdo dos artigos com
   PostgreSQL `tsvector` ou Elasticsearch, permitindo localizar dispositivos por
   texto e não apenas por metadados.
@@ -713,9 +894,12 @@ organizadas por horizonte e refletem o que a arquitetura atual já prepara.
   aplicação sucessiva de todas as suas alterações.
 - **API pública e interoperabilidade** — adoção do padrão **LexML/Akoma Ntoso**
   para intercâmbio de atos normativos com outros órgãos da Administração.
-- **Assistência por IA** — sugestão de redação conforme a técnica legislativa,
-  detecção de ambiguidades e contradições, verificação de conformidade com a LC
-  95/1998 e o Decreto 12.002/2024, e resumo automático de ementas.
+- **Assistente de escrita por IA, on-premise** — modelo de linguagem hospedado
+  na própria infraestrutura do COMAER (sem enviar texto normativo a serviços
+  externos), integrado ao editor para sugestão de redação conforme a técnica
+  legislativa, detecção de ambiguidades e contradições, verificação de
+  conformidade com a LC 95/1998 e o Decreto 12.002/2024, e resumo automático
+  de ementas.
 - **Aplicativo móvel e modo offline** — consulta ao acervo publicado em campo,
   sem conectividade.
 - **Painel analítico** — indicadores de tempo médio de tramitação, gargalos por

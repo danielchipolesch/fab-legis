@@ -6,12 +6,14 @@ import br.com.danielchipolesch.application.dtos.usuarioDtos.UsuarioResponseDto;
 import br.com.danielchipolesch.application.dtos.usuarioDtos.UsuarioUpdateRequestDto;
 import br.com.danielchipolesch.domain.entities.usuario.OrganizacaoMilitar;
 import br.com.danielchipolesch.domain.entities.usuario.PapelEnum;
+import br.com.danielchipolesch.domain.entities.usuario.PostoGraduacao;
 import br.com.danielchipolesch.domain.entities.usuario.Usuario;
 import br.com.danielchipolesch.domain.handlers.exceptions.ResourceAlreadyExistsException;
 import br.com.danielchipolesch.domain.handlers.exceptions.ResourceCannotBeUpdatedException;
 import br.com.danielchipolesch.domain.handlers.exceptions.ResourceNotFoundException;
 import br.com.danielchipolesch.domain.util.CpfValidator;
 import br.com.danielchipolesch.infrastructure.repositories.OrganizacaoMilitarRepository;
+import br.com.danielchipolesch.infrastructure.repositories.PostoGraduacaoRepository;
 import br.com.danielchipolesch.infrastructure.repositories.UsuarioRepository;
 import br.com.danielchipolesch.infrastructure.security.AutenticacaoUtil;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -34,6 +36,9 @@ public class UsuarioService {
 
     @Autowired
     private OrganizacaoMilitarRepository organizacaoMilitarRepository;
+
+    @Autowired
+    private PostoGraduacaoRepository postoGraduacaoRepository;
 
     @Autowired
     private PasswordEncoder passwordEncoder;
@@ -60,7 +65,10 @@ public class UsuarioService {
 
         var usuario = new Usuario();
         usuario.setNome(request.nome());
+        usuario.setNomeGuerra(vazioComoNulo(request.nomeGuerra()));
         usuario.setCpf(cpf);
+        usuario.setEmail(vazioComoNulo(request.email()));
+        usuario.setPostoGraduacao(buscarPostoGraduacaoOpcional(request.postoGraduacaoId()));
         usuario.setSenhaHash(passwordEncoder.encode(request.senha()));
         usuario.setOm(om);
         usuario.setAtivo(true);
@@ -85,6 +93,9 @@ public class UsuarioService {
         OrganizacaoMilitar om = buscarOm(request.omId());
 
         usuario.setNome(request.nome());
+        usuario.setNomeGuerra(vazioComoNulo(request.nomeGuerra()));
+        usuario.setEmail(vazioComoNulo(request.email()));
+        usuario.setPostoGraduacao(buscarPostoGraduacaoOpcional(request.postoGraduacaoId()));
         usuario.setOm(om);
         usuario.setAtivo(request.ativo());
         usuario.setPapeis(papeisComo(request.papeis()));
@@ -111,6 +122,18 @@ public class UsuarioService {
     private OrganizacaoMilitar buscarOm(Long omId) {
         return organizacaoMilitarRepository.findById(omId)
                 .orElseThrow(() -> new ResourceNotFoundException("Organização militar não encontrada."));
+    }
+
+    // Nulo é válido (usuário não-militar, ex.: servidor civil) -- só busca
+    // quando um id foi de fato informado.
+    private PostoGraduacao buscarPostoGraduacaoOpcional(Long postoGraduacaoId) {
+        if (postoGraduacaoId == null) return null;
+        return postoGraduacaoRepository.findById(postoGraduacaoId)
+                .orElseThrow(() -> new ResourceNotFoundException("Posto/graduação não encontrado."));
+    }
+
+    private String vazioComoNulo(String valor) {
+        return (valor == null || valor.isBlank()) ? null : valor.trim();
     }
 
     private EnumSet<PapelEnum> papeisComo(java.util.Set<PapelEnum> papeis) {

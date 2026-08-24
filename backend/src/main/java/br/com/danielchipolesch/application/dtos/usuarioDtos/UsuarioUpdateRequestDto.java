@@ -1,6 +1,7 @@
 package br.com.danielchipolesch.application.dtos.usuarioDtos;
 
 import br.com.danielchipolesch.domain.entities.usuario.PapelEnum;
+import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
@@ -10,6 +11,13 @@ public record UsuarioUpdateRequestDto(
 
         @NotBlank
         String nome,
+
+        String nomeGuerra,
+
+        @Email(message = "E-mail inválido")
+        String email,
+
+        Long postoGraduacaoId,
 
         @NotNull
         Long omId,

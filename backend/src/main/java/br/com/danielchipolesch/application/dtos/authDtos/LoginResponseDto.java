@@ -11,6 +11,8 @@ public record LoginResponseDto(
         String cpf,
         Long omId,
         String omNome,
+        String nomeGuerra,
+        String postoGraduacaoBigrama,
         List<String> papeis
 ) {
 }

@@ -80,6 +80,8 @@ public class AuthService {
                 usuario.getCpf(),
                 usuario.getOm().getId(),
                 usuario.getOm().getNome(),
+                usuario.getNomeGuerra(),
+                usuario.getPostoGraduacao() != null ? usuario.getPostoGraduacao().getBigrama() : null,
                 papeis
         );
     }

@@ -10,7 +10,12 @@ public record UsuarioResponseDto(
 
         Long id,
         String nome,
+        String nomeGuerra,
         String cpf,
+        String email,
+        Long postoGraduacaoId,
+        String postoGraduacaoNome,
+        String postoGraduacaoBigrama,
         Long omId,
         String omNome,
         boolean ativo,
@@ -20,10 +25,16 @@ public record UsuarioResponseDto(
         Timestamp dtCriacao
 ) {
     public static UsuarioResponseDto from(Usuario usuario) {
+        var posto = usuario.getPostoGraduacao();
         return new UsuarioResponseDto(
                 usuario.getId(),
                 usuario.getNome(),
+                usuario.getNomeGuerra(),
                 usuario.getCpf(),
+                usuario.getEmail(),
+                posto != null ? posto.getId() : null,
+                posto != null ? posto.getNome() : null,
+                posto != null ? posto.getBigrama() : null,
                 usuario.getOm().getId(),
                 usuario.getOm().getNome(),
                 usuario.isAtivo(),

@@ -37,6 +37,18 @@ public class Usuario {
     @JoinColumn(name = "om_id", nullable = false)
     private OrganizacaoMilitar om;
 
+    // Nulo para usuários não-militares (ex.: servidor civil) -- por isso não
+    // é NOT NULL, diferente de OM.
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "posto_graduacao_id")
+    private PostoGraduacao postoGraduacao;
+
+    @Column(name = "tx_nome_guerra")
+    private String nomeGuerra;
+
+    @Column(name = "tx_email")
+    private String email;
+
     @Column(name = "fl_ativo", nullable = false)
     private boolean ativo = true;
 
