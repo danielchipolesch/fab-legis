@@ -24,13 +24,6 @@
         :pagination="{ rowsPerPage: 15, sortBy: 'nome' }"
         flat
       >
-        <template #body-cell-nome="props">
-          <q-td :props="props">
-            <div>{{ props.row.nome }}</div>
-            <div v-if="props.row.nomeGuerra" class="text-caption text-grey-7">{{ props.row.nomeGuerra }}</div>
-          </q-td>
-        </template>
-
         <template #body-cell-posto="props">
           <q-td :props="props">
             <q-chip v-if="props.row.postoGraduacaoBigrama" dense square size="sm" color="blue-grey-2" text-color="blue-grey-10">
@@ -38,6 +31,12 @@
               <q-tooltip>{{ props.row.postoGraduacaoNome }}</q-tooltip>
             </q-chip>
             <span v-else class="text-grey-5 text-caption">—</span>
+          </q-td>
+        </template>
+
+        <template #body-cell-nomeGuerra="props">
+          <q-td :props="props">
+            {{ props.row.nomeGuerra || '—' }}
           </q-td>
         </template>
 
@@ -282,8 +281,9 @@ const postos    = ref([])
 const carregando = ref(false)
 
 const columns = [
-  { name: 'nome',   label: 'Nome',    field: 'nome',   align: 'left',   sortable: true },
+  { name: 'nome',   label: 'Nome Completo', field: 'nome', align: 'left', sortable: true },
   { name: 'posto',  label: 'Posto/Grad.', field: 'postoGraduacaoBigrama', align: 'center', sortable: true, style: 'width:100px' },
+  { name: 'nomeGuerra', label: 'Nome de Guerra', field: 'nomeGuerra', align: 'left', sortable: true },
   { name: 'cpf',    label: 'CPF',     field: 'cpf',    align: 'center', sortable: true, style: 'width:160px' },
   { name: 'om',     label: 'OM',      field: 'omNome', align: 'center', sortable: true },
   { name: 'papeis', label: 'Papéis',  field: 'papeis', align: 'center' },
