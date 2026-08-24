@@ -38,6 +38,18 @@ const routes = [
     component: () => import('@/pages/ComparisonPage.vue'),
     meta: { title: 'Comparar Versões' },
   },
+  {
+    path: '/usuarios',
+    name: 'usuarios',
+    component: () => import('@/pages/UsersPage.vue'),
+    meta: { title: 'Gestão de Usuários', requiresAdmin: true },
+  },
+  {
+    path: '/auditoria',
+    name: 'auditoria',
+    component: () => import('@/pages/AuditoriaPage.vue'),
+    meta: { title: 'Auditoria', requiresAuditor: true },
+  },
 ]
 
 const router = createRouter({
@@ -53,6 +65,12 @@ router.beforeEach((to) => {
   const auth = useAuthStore()
   if (!auth.isAuthenticated) {
     return { name: 'login', query: { redirect: to.fullPath } }
+  }
+  if (to.meta.requiresAdmin && !auth.isAdmin) {
+    return { name: 'home' }
+  }
+  if (to.meta.requiresAuditor && !auth.isAuditor) {
+    return { name: 'home' }
   }
   return true
 })

@@ -40,10 +40,18 @@ export const useEditorStore = defineStore('editor', {
       return true
     },
 
-    reload() {
+    // Busca o documento de novo NO SERVIDOR (nunca do cache local) -- é chamado
+    // sobretudo após um 409 de conflito de edição (ver DocumentEditorPage.vue),
+    // e nesse caso o cache do documents store ainda reflete a versão antiga que
+    // causou o conflito. Reler do cache ali reintroduziria a mesma versão
+    // desatualizada, fazendo o próximo salvamento colidir de novo -- e de novo --
+    // até um reload de página inteira (que força um fetch de verdade). await
+    // aqui garante que isDirty só volta a false depois que a versão atual
+    // realmente chegou.
+    async reload() {
       if (!this.documentoId) return
       const store = useDocumentsStore()
-      const doc = store.getById(this.documentoId)
+      const doc = await store.fetchDocumento(this.documentoId)
       if (!doc) return
       const prevSelectedId = this.selectedElementId
       this.documento = JSON.parse(JSON.stringify(doc))

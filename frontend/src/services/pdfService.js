@@ -1,4 +1,14 @@
+import { useAuthStore } from '@/stores/auth.js'
+
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? ''
+
+// Este serviço faz fetch() cru (não via api/client.js, pois a resposta é um blob
+// binário, não JSON) -- precisa montar o header de autenticação manualmente, ou
+// toda chamada cai no .anyRequest().authenticated() do backend como 401/403.
+function authHeaders() {
+  const token = useAuthStore().token
+  return token ? { Authorization: `Bearer ${token}` } : {}
+}
 
 function sanitize(str) {
   // Remove apenas caracteres proibidos em nomes de arquivo (Windows + Linux)
@@ -43,7 +53,7 @@ async function baixarPdf(response, filename) {
 }
 
 export async function gerarPdf(documento) {
-  const response = await fetch(pdfUrl(documento.id), { method: 'GET' })
+  const response = await fetch(pdfUrl(documento.id), { method: 'GET', headers: authHeaders() })
   await baixarPdf(response, buildFilename(documento))
 }
 
@@ -53,7 +63,7 @@ export async function gerarMapaAlteracaoPdf(documentoId, payload, filenameHint) 
   const novaAba = window.open('', '_blank')
   const response = await fetch(`${API_BASE}/documentos/${documentoId}/mapa-alteracao/pdf`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify(payload),
   })
   if (!response.ok) {

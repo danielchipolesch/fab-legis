@@ -33,9 +33,24 @@
       indicator-color="primary"
       class="text-grey-7 q-mb-md"
     >
-      <q-tab name="meus" icon="mdi-account-outline" label="Meus Documentos" />
-      <q-tab name="minha_om" icon="mdi-office-building-outline" label="Documentos da Minha OM" />
-      <q-tab name="outras_oms" icon="mdi-domain" label="Documentos de Outras OMs" />
+      <q-tab name="meus" icon="mdi-account-outline">
+        <div class="row items-center no-wrap" style="gap:6px">
+          <span>Meus Documentos</span>
+          <q-badge rounded color="primary">{{ contagemAbas.meus }}</q-badge>
+        </div>
+      </q-tab>
+      <q-tab name="minha_om" icon="mdi-office-building-outline">
+        <div class="row items-center no-wrap" style="gap:6px">
+          <span>Documentos da Minha OM</span>
+          <q-badge rounded color="primary">{{ contagemAbas.minha_om }}</q-badge>
+        </div>
+      </q-tab>
+      <q-tab name="outras_oms" icon="mdi-domain">
+        <div class="row items-center no-wrap" style="gap:6px">
+          <span>Documentos de Outras OMs</span>
+          <q-badge rounded color="primary">{{ contagemAbas.outras_oms }}</q-badge>
+        </div>
+      </q-tab>
     </q-tabs>
     <q-separator class="q-mb-lg" />
 
@@ -125,7 +140,7 @@
           :columns="columns"
           row-key="id"
           :rows-per-page-options="[15, 25, 50]"
-          :pagination="{ rowsPerPage: 15, sortBy: 'data_criacao', descending: true }"
+          v-model:pagination="tablePagination"
           flat
           class="legis-table"
         >
@@ -518,7 +533,7 @@
 </template>
 
 <script setup>
-import { ref, computed, reactive, onMounted } from 'vue'
+import { ref, computed, reactive, onMounted, watch } from 'vue'
 import { useQuasar } from 'quasar'
 import { useDocumentsStore } from '@/stores/documents.js'
 import { useAuthStore } from '@/stores/auth.js'
@@ -585,6 +600,21 @@ const documentosFiltrados = computed(() => {
     return true
   })
 })
+
+// Indicador de quantidade por aba -- conta o total de documentos de cada aba
+// (sem aplicar busca/espécie/status, que são filtros sobre a aba já ativa),
+// para servir como referência estável mesmo enquanto o usuário está filtrando.
+const contagemAbas = computed(() => ({
+  meus:        store.documentos.filter(ABA_FILTROS.meus).length,
+  minha_om:    store.documentos.filter(ABA_FILTROS.minha_om).length,
+  outras_oms:  store.documentos.filter(ABA_FILTROS.outras_oms).length,
+}))
+
+// A tabela pagina/busca dentro do conjunto já restrito à aba ativa
+// (documentosFiltrados) -- ao trocar de aba ou de filtro, volta pra página 1
+// pra não ficar numa página que não existe mais no novo conjunto.
+const tablePagination = ref({ page: 1, rowsPerPage: 15, sortBy: 'data_criacao', descending: true })
+watch([abaAtiva, filtros], () => { tablePagination.value.page = 1 }, { deep: true })
 
 const STATUS_CFG = {
   RASCUNHO:     { bg: 'grey-3',        fg: 'grey-9',          label: 'Rascunho'     },

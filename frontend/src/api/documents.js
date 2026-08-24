@@ -248,12 +248,15 @@ export async function listMapaAlteracao(documentoId) {
   return http.get(`/documentos/${documentoId}/mapa-alteracao`)
 }
 
-// ── Presença de edição (aviso de edição concorrente) ────────────────────────────
+// ── Presença de edição (aviso de edição concorrente, via SSE) ───────────────────
 // Não impede colisão por si só (ver DocumentoConcorrenciaService/versaoEsperada
-// acima) -- só avisa "fulano também está editando agora".
+// acima) -- só avisa "fulano também está editando agora". "Quem está editando"
+// é literalmente "quem tem esta conexão aberta agora" (ver
+// DocumentoPresencaEmitterRegistry no backend), por isso é uma URL de stream,
+// não uma chamada avulsa.
 
-export async function registrarPresenca(documentoId) {
-  return http.post(`/documentos/${documentoId}/presenca`)
+export function presencaStreamUrl(documentoId, token) {
+  return `${http.BASE_URL}/documentos/${documentoId}/presenca/stream?token=${encodeURIComponent(token)}`
 }
 
 // ── Compartilhamento (coautoria) ─────────────────────────────────────────────

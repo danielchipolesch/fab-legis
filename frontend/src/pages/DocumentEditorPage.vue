@@ -262,6 +262,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { useEditorStore } from '@/stores/editor.js'
 import { useDocumentsStore } from '@/stores/documents.js'
+import { useAuthStore } from '@/stores/auth.js'
 import { formatLabel, elementIcon, renumberElements } from '@/utils/numbering.js'
 import { gerarPdf } from '@/services/pdfService.js'
 import EditorSidebar from '@/components/editor/EditorSidebar.vue'
@@ -278,6 +279,7 @@ const router = useRouter()
 const $q = useQuasar()
 const editorStore = useEditorStore()
 const docStore = useDocumentsStore()
+const auth = useAuthStore()
 
 const previewMounted = ref(false)
 const pdfLoading    = ref(false)
@@ -285,27 +287,41 @@ const lc95DialogOpen = ref(false)
 const compartilharDialogOpen = ref(false)
 
 // ── Presença de edição (aviso de colisão, não trava nada) ───────────────────────
+// "Quem está editando agora" é literalmente "quem tem esta conexão SSE
+// aberta" (ver DocumentoPresencaEmitterRegistry no backend) -- sem polling,
+// sem heartbeat: a lista chega pronta a cada mudança (alguém entrou ou
+// saiu), incluindo o próprio usuário, que é filtrado aqui antes de exibir.
 const presencaOutros = ref([])
-let presencaTimer = null
-
-async function heartbeatPresenca() {
-  if (!documentoId.value) return
-  try {
-    presencaOutros.value = await documentsApi.registrarPresenca(documentoId.value)
-  } catch {
-    // Falha no heartbeat não deve interromper a edição -- só deixa de
-    // atualizar o aviso até a próxima tentativa.
-  }
-}
+let presencaEventSource = null
 
 function iniciarPresenca() {
-  heartbeatPresenca()
-  presencaTimer = setInterval(heartbeatPresenca, 15000)
+  if (presencaEventSource || !documentoId.value || !auth.token) return
+
+  presencaEventSource = new EventSource(documentsApi.presencaStreamUrl(documentoId.value, auth.token))
+  presencaEventSource.addEventListener('presenca', (event) => {
+    const todos = JSON.parse(event.data)
+    const antes = new Set(presencaOutros.value.map(p => p.usuarioId))
+    const outros = todos.filter(p => p.usuarioId !== auth.usuario?.id)
+
+    // Toast só na TRANSIÇÃO (alguém que não estava editando começou a editar
+    // agora), não a cada evento -- o banner permanente (ver template) já
+    // cobre o estado contínuo.
+    for (const p of outros) {
+      if (!antes.has(p.usuarioId)) {
+        $q.notify({ type: 'info', icon: 'mdi-account-multiple-outline', position: 'top-right',
+          message: `${p.nome} começou a editar este documento agora.` })
+      }
+    }
+
+    presencaOutros.value = outros
+  })
+  // onerror não precisa de tratamento manual: o browser reconecta o
+  // EventSource sozinho enquanto o editor continuar aberto.
 }
 
 function pararPresenca() {
-  clearInterval(presencaTimer)
-  presencaTimer = null
+  presencaEventSource?.close()
+  presencaEventSource = null
   presencaOutros.value = []
 }
 
@@ -331,17 +347,22 @@ async function autoSave() {
     saveStatus.value = 'idle'
   } catch (e) {
     console.error('[AutoSave]', e)
-    saveStatus.value = 'error'
     if (e?.status === 409) {
       // Outra pessoa (ou outra aba) salvou primeiro -- não insiste
-      // sobrescrevendo por cima; recarrega e avisa, igual ao design doc previu
-      // para o cenário de colisão de edição concorrente.
-      editorStore.reload()
+      // sobrescrevendo por cima; recarrega (busca a versão real no servidor,
+      // não do cache -- ver editorStore.reload) e avisa, igual ao design doc
+      // previu para o cenário de colisão de edição concorrente. saveStatus só
+      // volta a 'idle' depois que a versão atual chegou, senão o próximo
+      // autosave repetiria a mesma versão desatualizada e colidiria de novo.
+      await editorStore.reload()
+      saveStatus.value = 'idle'
       $q.notify({
         type: 'warning',
         message: 'Este documento foi alterado por outra pessoa. A tela foi recarregada com a versão mais recente.',
         timeout: 8000,
       })
+    } else {
+      saveStatus.value = 'error'
     }
   }
 }
