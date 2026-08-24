@@ -6,7 +6,7 @@ const routes = [
     path: '/login',
     name: 'login',
     component: () => import('@/pages/LoginPage.vue'),
-    meta: { title: 'Entrar', public: true },
+    meta: { title: 'Entrar', public: true, paginaAvulsa: true },
   },
   {
     path: '/',

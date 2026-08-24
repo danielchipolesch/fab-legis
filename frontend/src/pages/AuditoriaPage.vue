@@ -5,7 +5,7 @@
       <div>
         <h1 class="text-h5 text-weight-bold text-primary q-my-none">Auditoria</h1>
         <p class="text-body2 text-grey-7 q-mb-none">
-          Log de acesso e ações sobre documentos — quem viu, quem editou, quando
+          Registro histórico de acesso e das ações realizadas sobre os documentos do acervo
         </p>
       </div>
     </div>

@@ -5,7 +5,7 @@
       <div>
         <h1 class="text-h5 text-weight-bold text-primary q-my-none">Gestão de Usuários</h1>
         <p class="text-body2 text-grey-7 q-mb-none">
-          Cadastre e administre os usuários com acesso ao sistema
+          Cadastro e administração dos usuários com acesso autorizado ao sistema
         </p>
       </div>
       <q-btn color="primary" unelevated size="lg" @click="abrirCriacao">
@@ -24,6 +24,23 @@
         :pagination="{ rowsPerPage: 15, sortBy: 'nome' }"
         flat
       >
+        <template #body-cell-nome="props">
+          <q-td :props="props">
+            <div>{{ props.row.nome }}</div>
+            <div v-if="props.row.nomeGuerra" class="text-caption text-grey-7">{{ props.row.nomeGuerra }}</div>
+          </q-td>
+        </template>
+
+        <template #body-cell-posto="props">
+          <q-td :props="props">
+            <q-chip v-if="props.row.postoGraduacaoBigrama" dense square size="sm" color="blue-grey-2" text-color="blue-grey-10">
+              {{ props.row.postoGraduacaoBigrama }}
+              <q-tooltip>{{ props.row.postoGraduacaoNome }}</q-tooltip>
+            </q-chip>
+            <span v-else class="text-grey-5 text-caption">—</span>
+          </q-td>
+        </template>
+
         <template #body-cell-cpf="props">
           <q-td :props="props">{{ formatarCpf(props.row.cpf) }}</q-td>
         </template>
@@ -93,11 +110,34 @@
 
         <q-card-section class="q-pa-lg">
           <q-form ref="formRef" class="column q-gutter-md" @submit.prevent="salvar">
+            <div class="row q-col-gutter-sm">
+              <q-select
+                class="col-5"
+                v-model="form.postoGraduacaoId"
+                :options="postoOptions"
+                option-label="label"
+                option-value="value"
+                emit-value
+                map-options
+                clearable
+                label="Posto/Grad."
+                outlined dense
+                :disable="salvando"
+              />
+              <q-input
+                class="col-7"
+                v-model="form.nome"
+                label="Nome completo *"
+                outlined dense
+                :rules="[obrigatorio]"
+                :disable="salvando"
+              />
+            </div>
+
             <q-input
-              v-model="form.nome"
-              label="Nome completo *"
+              v-model="form.nomeGuerra"
+              label="Nome de guerra"
               outlined dense
-              :rules="[obrigatorio]"
               :disable="salvando"
             />
 
@@ -109,6 +149,15 @@
               maxlength="14"
               :disable="salvando || editando"
               :rules="[cpfValidoRule]"
+            />
+
+            <q-input
+              v-model="form.email"
+              label="E-mail"
+              type="email"
+              outlined dense
+              :rules="[emailValidoRule]"
+              :disable="salvando"
             />
 
             <q-input
@@ -227,10 +276,12 @@ const $q = useQuasar()
 
 const usuarios  = ref([])
 const oms       = ref([])
+const postos    = ref([])
 const carregando = ref(false)
 
 const columns = [
   { name: 'nome',   label: 'Nome',    field: 'nome',   align: 'left',   sortable: true },
+  { name: 'posto',  label: 'Posto/Grad.', field: 'postoGraduacaoBigrama', align: 'center', sortable: true, style: 'width:100px' },
   { name: 'cpf',    label: 'CPF',     field: 'cpf',    align: 'center', sortable: true, style: 'width:160px' },
   { name: 'om',     label: 'OM',      field: 'omNome', align: 'center', sortable: true },
   { name: 'papeis', label: 'Papéis',  field: 'papeis', align: 'center' },
@@ -239,6 +290,9 @@ const columns = [
 ]
 
 const omOptions = computed(() => oms.value.map(om => ({ label: `${om.nome} (${om.sigla})`, value: om.id })))
+// postos já vem ordenado pela hierarquia militar (ver PostoGraduacaoRepository), não
+// alfabeticamente -- mantém essa mesma ordem no seletor.
+const postoOptions = computed(() => postos.value.map(p => ({ label: `${p.bigrama} — ${p.nome}`, value: p.id })))
 
 const PAPEL_CHIP = {
   ADMIN:     { label: 'Admin',     color: 'deep-orange-2', textColor: 'deep-orange-10' },
@@ -249,12 +303,14 @@ const PAPEL_CHIP = {
 async function carregar() {
   carregando.value = true
   try {
-    const [listaUsuarios, listaOms] = await Promise.all([
+    const [listaUsuarios, listaOms, listaPostos] = await Promise.all([
       usuariosApi.listUsuarios(),
       usuariosApi.listOrganizacoesMilitares(),
+      usuariosApi.listPostosGraduacoes(),
     ])
     usuarios.value = listaUsuarios
     oms.value = listaOms
+    postos.value = listaPostos
   } catch (e) {
     $q.notify({ type: 'negative', message: `Erro ao carregar usuários: ${e?.message ?? 'erro desconhecido'}` })
   } finally {
@@ -267,6 +323,8 @@ onMounted(carregar)
 const obrigatorio = (v) => (v != null && String(v).trim() !== '') || 'Campo obrigatório'
 const senhaMinLen = (v) => (String(v ?? '').length >= 8) || 'Mínimo de 8 caracteres'
 const cpfValidoRule = (v) => validarCpf(v) || 'CPF inválido'
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const emailValidoRule = (v) => !v || EMAIL_RE.test(v) || 'E-mail inválido'
 
 // ── Criar / Editar ───────────────────────────────────────────────────────
 
@@ -277,12 +335,15 @@ const editando    = ref(null) // Usuario sendo editado, ou null (criação)
 const mostrarSenha = ref(false)
 
 const form = reactive({
-  nome: '', cpf: '', senha: '',
+  nome: '', nomeGuerra: '', cpf: '', email: '', postoGraduacaoId: null, senha: '',
   omId: null, aprovador: false, admin: false, auditor: false, ativo: true,
 })
 
 function resetForm() {
-  Object.assign(form, { nome: '', cpf: '', senha: '', omId: null, aprovador: false, admin: false, auditor: false, ativo: true })
+  Object.assign(form, {
+    nome: '', nomeGuerra: '', cpf: '', email: '', postoGraduacaoId: null, senha: '',
+    omId: null, aprovador: false, admin: false, auditor: false, ativo: true,
+  })
   formRef.value?.resetValidation()
 }
 
@@ -296,7 +357,10 @@ function abrirEdicao(usuario) {
   editando.value = usuario
   Object.assign(form, {
     nome: usuario.nome,
+    nomeGuerra: usuario.nomeGuerra ?? '',
     cpf: formatarCpf(usuario.cpf),
+    email: usuario.email ?? '',
+    postoGraduacaoId: usuario.postoGraduacaoId ?? null,
     senha: '',
     omId: usuario.omId,
     aprovador: usuario.papeis.includes('APROVADOR'),
@@ -325,6 +389,9 @@ async function salvar() {
     if (editando.value) {
       await usuariosApi.updateUsuario(editando.value.id, {
         nome: form.nome,
+        nomeGuerra: form.nomeGuerra,
+        email: form.email,
+        postoGraduacaoId: form.postoGraduacaoId,
         omId: form.omId,
         ativo: form.ativo,
         papeis: papeisSelecionados(),
@@ -333,7 +400,10 @@ async function salvar() {
     } else {
       await usuariosApi.createUsuario({
         nome: form.nome,
+        nomeGuerra: form.nomeGuerra,
         cpf: onlyDigits(form.cpf),
+        email: form.email,
+        postoGraduacaoId: form.postoGraduacaoId,
         senha: form.senha,
         omId: form.omId,
         papeis: papeisSelecionados(),

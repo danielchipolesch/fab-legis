@@ -25,6 +25,8 @@ export const useAuthStore = defineStore('auth', {
         cpf: salvo.cpf,
         omId: salvo.omId,
         omNome: salvo.omNome,
+        nomeGuerra: salvo.nomeGuerra,
+        postoGraduacaoBigrama: salvo.postoGraduacaoBigrama,
         papeis: salvo.papeis ?? [],
       } : null,
       loading: false,
@@ -59,6 +61,8 @@ export const useAuthStore = defineStore('auth', {
         cpf: resp.cpf,
         omId: resp.omId,
         omNome: resp.omNome,
+        nomeGuerra: resp.nomeGuerra,
+        postoGraduacaoBigrama: resp.postoGraduacaoBigrama,
         papeis: resp.papeis ?? [],
       }
       localStorage.setItem(STORAGE_KEY, JSON.stringify(resp))

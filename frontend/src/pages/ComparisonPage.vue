@@ -15,6 +15,12 @@
             :to="{ name: 'documento-visualizar', params: { id: route.params.id } }"
           />
           <q-breadcrumbs-el label="Comparar Versões" />
+          <q-breadcrumbs-el
+            v-if="podeEditar"
+            label="Editar"
+            icon="mdi-pencil-outline"
+            :to="{ name: 'documento-editar', params: { id: route.params.id } }"
+          />
         </q-breadcrumbs>
         <h1 class="text-h5 text-weight-bold text-primary q-my-none q-mt-xs">Comparação de Versões</h1>
       </div>
@@ -242,6 +248,11 @@ const docLabel = computed(() => {
   if (!d) return ''
   return docId.value + (d.assunto_basico ? ` — ${d.assunto_basico}` : '')
 })
+
+// Só Rascunho/Minuta oferecem o atalho de voltar para o editor pelo
+// breadcrumb -- as demais situações não têm edição direta de conteúdo (ver
+// "Regra de imutabilidade" no README).
+const podeEditar = computed(() => ['RASCUNHO', 'MINUTA'].includes(documento.value?.status))
 
 // Ciclos disponíveis: agrupamento de cicloReferencia (a lista já vem ordenada por
 // dtEmenda desc do backend, então o primeiro id visto de cada ciclo já é o mais

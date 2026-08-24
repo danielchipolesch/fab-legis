@@ -6,7 +6,7 @@
       <div>
         <h1 class="text-h5 text-weight-bold text-primary q-my-none">Gestão de Legislação</h1>
         <p class="text-body2 text-grey-7 q-mb-none">
-          Gerencie os atos normativos do Comando da Aeronáutica
+          Gestão e acompanhamento dos atos normativos do Comando da Aeronáutica
         </p>
       </div>
       <q-btn
@@ -22,46 +22,61 @@
 
     <NewDocumentDialog v-model="dialogNovoDoc" />
 
-    <!-- Abas: hoje idênticas (sem gestão de perfis/OM ainda), ver ABA_FILTROS -->
-    <q-tabs
-      v-model="abaAtiva"
-      dense
-      no-caps
-      inline-label
-      align="left"
-      active-color="primary"
-      indicator-color="primary"
-      class="text-grey-7 q-mb-md"
-    >
-      <q-tab name="meus" icon="mdi-account-outline">
-        <div class="row items-center no-wrap" style="gap:6px">
-          <span>Meus Documentos</span>
-          <q-badge rounded color="primary">{{ contagemAbas.meus }}</q-badge>
-        </div>
-      </q-tab>
-      <q-tab name="minha_om" icon="mdi-office-building-outline">
-        <div class="row items-center no-wrap" style="gap:6px">
-          <span>Documentos da Minha OM</span>
-          <q-badge rounded color="primary">{{ contagemAbas.minha_om }}</q-badge>
-        </div>
-      </q-tab>
-      <q-tab name="outras_oms" icon="mdi-domain">
-        <div class="row items-center no-wrap" style="gap:6px">
-          <span>Documentos de Outras OMs</span>
-          <q-badge rounded color="primary">{{ contagemAbas.outras_oms }}</q-badge>
-        </div>
-      </q-tab>
-    </q-tabs>
-    <q-separator class="q-mb-lg" />
-
-    <!-- Filters -->
+    <!-- Abas (ownership) + filtros/resumo — tudo dentro do MESMO card de propósito:
+         os filtros e as chips abaixo operam só sobre a aba selecionada acima, nunca
+         sobre o acervo inteiro, e agrupar visualmente sem nenhum espaço/separador
+         entre as duas coisas deixa essa relação óbvia (ver ABA_FILTROS/documentosDaAba). -->
     <q-card flat bordered class="q-mb-lg">
+      <q-tabs
+        v-model="abaAtiva"
+        dense
+        no-caps
+        inline-label
+        align="left"
+        active-color="primary"
+        indicator-color="primary"
+        class="text-grey-7"
+      >
+        <q-tab name="meus" icon="mdi-account-outline">
+          <div class="row items-center no-wrap" style="gap:6px">
+            <span>Meus Documentos</span>
+            <q-badge rounded color="primary">{{ contagemAbas.meus }}</q-badge>
+          </div>
+        </q-tab>
+        <q-tab name="minha_om" icon="mdi-office-building-outline">
+          <div class="row items-center no-wrap" style="gap:6px">
+            <span>Documentos da Minha OM</span>
+            <q-badge rounded color="primary">{{ contagemAbas.minha_om }}</q-badge>
+          </div>
+        </q-tab>
+        <q-tab name="outras_oms" icon="mdi-domain">
+          <div class="row items-center no-wrap" style="gap:6px">
+            <span>Documentos de Outras OMs</span>
+            <q-badge rounded color="primary">{{ contagemAbas.outras_oms }}</q-badge>
+          </div>
+        </q-tab>
+        <q-tab name="revogados" icon="mdi-file-remove-outline">
+          <div class="row items-center no-wrap" style="gap:6px">
+            <span>Documentos Revogados</span>
+            <q-badge rounded color="primary">{{ contagemAbas.revogados }}</q-badge>
+          </div>
+        </q-tab>
+      </q-tabs>
+
+      <q-separator />
+
+      <!-- Filters -->
       <q-card-section class="q-pa-md">
+        <div class="text-caption text-grey-6 q-mb-sm">
+          <q-icon name="mdi-information-outline" size="14px" class="q-mr-xs" />
+          Busca, filtros e resumo abaixo consideram apenas a aba
+          <strong>{{ abaAtivaLabel }}</strong>, selecionada acima.
+        </div>
         <div class="row q-col-gutter-sm items-center">
           <div class="col-12 col-md-4">
             <q-input
               v-model="filtros.busca"
-              label="Buscar por assunto ou número"
+              label="Buscar nesta aba, por assunto ou número"
               outlined
               dense
               clearable
@@ -113,24 +128,24 @@
             />
           </div>
         </div>
+
+        <!-- Summary chips -->
+        <div class="row q-gutter-sm q-mt-md">
+          <q-chip
+            v-for="s in statusSummary"
+            :key="s.status"
+            clickable
+            :color="s.bg"
+            :text-color="s.fg"
+            size="sm"
+            square
+            @click="filtros.status = filtros.status === s.status ? null : s.status"
+          >
+            {{ s.label }}: <strong class="q-ml-xs">{{ s.count }}</strong>
+          </q-chip>
+        </div>
       </q-card-section>
     </q-card>
-
-    <!-- Summary chips -->
-    <div class="row q-gutter-sm q-mb-lg">
-      <q-chip
-        v-for="s in statusSummary"
-        :key="s.status"
-        clickable
-        :color="s.bg"
-        :text-color="s.fg"
-        size="sm"
-        square
-        @click="filtros.status = filtros.status === s.status ? null : s.status"
-      >
-        {{ s.label }}: <strong class="q-ml-xs">{{ s.count }}</strong>
-      </q-chip>
-    </div>
 
     <!-- TABLE VIEW -->
     <template v-if="viewMode === 'tabela'">
@@ -582,14 +597,31 @@ const ABA_FILTROS = {
   meus:       (doc) => doc.autor_id === String(auth.usuario?.id),
   minha_om:   (doc) => doc.om_id === String(auth.usuario?.omId) && doc.autor_id !== String(auth.usuario?.id),
   outras_oms: (doc) => doc.om_id !== String(auth.usuario?.omId),
+  // Cruza a divisão por posse das outras 3 abas -- mostra os revogados de
+  // qualquer OM/autor, já que a visualização já é universal. Um documento
+  // revogado que você mesmo autorou aparece tanto aqui quanto em "Meus
+  // Documentos": as abas não são uma partição estrita, cada uma é só um
+  // recorte útil sobre o mesmo acervo.
+  revogados:  (doc) => doc.status === 'REVOGADO',
 }
 
-const documentosFiltrados = computed(() => {
+const ABA_LABELS = {
+  meus: 'Meus Documentos',
+  minha_om: 'Documentos da Minha OM',
+  outras_oms: 'Documentos de Outras OMs',
+  revogados: 'Documentos Revogados',
+}
+const abaAtivaLabel = computed(() => ABA_LABELS[abaAtiva.value])
+
+// Documentos da aba ativa, já com busca/espécie aplicados mas SEM o filtro de
+// situação -- serve de base tanto para a tabela (que aplica a situação por
+// cima) quanto para o resumo por chip (que precisa contar cada situação
+// possível dentro da aba, não só a que estiver selecionada no momento).
+const documentosDaAbaFiltrados = computed(() => {
   const passaAba = ABA_FILTROS[abaAtiva.value] ?? (() => true)
   return store.documentos.filter(doc => {
     if (!passaAba(doc)) return false
     if (filtros.especie && doc.especie !== filtros.especie) return false
-    if (filtros.status && doc.status !== filtros.status) return false
     if (filtros.busca) {
       const q = filtros.busca.toLowerCase()
       const match = doc.assunto_basico?.toLowerCase().includes(q)
@@ -601,6 +633,10 @@ const documentosFiltrados = computed(() => {
   })
 })
 
+const documentosFiltrados = computed(() =>
+  documentosDaAbaFiltrados.value.filter(doc => !filtros.status || doc.status === filtros.status)
+)
+
 // Indicador de quantidade por aba -- conta o total de documentos de cada aba
 // (sem aplicar busca/espécie/status, que são filtros sobre a aba já ativa),
 // para servir como referência estável mesmo enquanto o usuário está filtrando.
@@ -608,6 +644,7 @@ const contagemAbas = computed(() => ({
   meus:        store.documentos.filter(ABA_FILTROS.meus).length,
   minha_om:    store.documentos.filter(ABA_FILTROS.minha_om).length,
   outras_oms:  store.documentos.filter(ABA_FILTROS.outras_oms).length,
+  revogados:   store.documentos.filter(ABA_FILTROS.revogados).length,
 }))
 
 // A tabela pagina/busca dentro do conjunto já restrito à aba ativa
@@ -628,13 +665,16 @@ const STATUS_CFG = {
   REVOGADO:     { bg: 'brown-2',       fg: 'brown-10',        label: 'Revogado'     },
 }
 
+// Contado sobre documentosDaAbaFiltrados (aba ativa + busca/espécie), não
+// sobre o acervo inteiro -- é o que estava confundindo: o número no chip
+// precisa bater com o que aparece na tabela ao clicar nele.
 const statusSummary = computed(() =>
   Object.entries(STATUS_CFG).map(([status, cfg]) => ({
     status,
     label: cfg.label,
     bg: cfg.bg,
     fg: cfg.fg,
-    count: store.documentos.filter(d => d.status === status).length,
+    count: documentosDaAbaFiltrados.value.filter(d => d.status === status).length,
   })).filter(s => s.count > 0)
 )
 

@@ -13,40 +13,6 @@
         </div>
       </q-toolbar-title>
 
-      <q-btn
-        :to="{ name: 'home' }"
-        flat
-        color="white"
-        class="q-mr-xs"
-      >
-        <q-icon left name="mdi-home-outline" />
-        Início
-      </q-btn>
-
-      <q-btn
-        v-if="auth.isAdmin"
-        :to="{ name: 'usuarios' }"
-        flat
-        color="white"
-        class="q-mr-xs"
-      >
-        <q-icon left name="mdi-account-multiple-outline" />
-        Usuários
-      </q-btn>
-
-      <q-btn
-        v-if="auth.isAuditor"
-        :to="{ name: 'auditoria' }"
-        flat
-        color="white"
-        class="q-mr-xs"
-      >
-        <q-icon left name="mdi-text-box-search-outline" />
-        Auditoria
-      </q-btn>
-
-      <q-separator vertical class="q-mx-sm" style="opacity:.4" color="white" />
-
       <q-btn v-if="auth.usuario" icon="mdi-bell-outline" flat round color="white">
         <q-badge v-if="naoLidas.length" floating rounded color="negative">{{ naoLidas.length }}</q-badge>
         <q-tooltip anchor="bottom middle" self="top middle">Notificações</q-tooltip>
@@ -95,28 +61,55 @@
         <q-avatar size="26px" color="secondary" text-color="white" class="q-mr-sm">
           <q-icon name="mdi-account" size="16px" />
         </q-avatar>
-        <span class="text-body2 text-white">{{ auth.usuario.nome }}</span>
+        <span class="text-body2 text-white">{{ nomeExibicao }}</span>
         <q-icon right name="mdi-chevron-down" color="white" />
-        <q-menu anchor="bottom right" self="top right" class="q-mt-sm">
-          <q-list dense style="min-width:240px">
-            <q-item>
+        <q-menu anchor="bottom right" self="top right" class="q-mt-sm menu-principal">
+          <q-list style="min-width:260px">
+            <!-- Cabeçalho com identidade do usuário, em destaque -->
+            <q-item class="menu-principal__header q-py-md">
               <q-item-section avatar>
-                <q-avatar size="34px" color="secondary" text-color="white">
-                  <q-icon name="mdi-account" size="18px" />
+                <q-avatar size="42px" color="white" text-color="primary">
+                  <q-icon name="mdi-account" size="24px" />
                 </q-avatar>
               </q-item-section>
               <q-item-section>
-                <q-item-label class="text-weight-medium">{{ auth.usuario.nome }}</q-item-label>
-                <q-item-label caption>{{ formatarCpf(auth.usuario.cpf) }}</q-item-label>
-                <q-item-label caption>{{ auth.usuario.omNome }}</q-item-label>
+                <q-item-label class="text-weight-bold text-white">{{ auth.usuario.nome }}</q-item-label>
+                <q-item-label caption class="text-white" style="opacity:.85">{{ formatarCpf(auth.usuario.cpf) }}</q-item-label>
+                <q-item-label caption class="text-white" style="opacity:.85">{{ auth.usuario.omNome }}</q-item-label>
               </q-item-section>
             </q-item>
-            <q-separator />
+
+            <!-- Navegação: só Início é sempre visível -- Usuários/Auditoria
+                 exigem o papel correspondente (ver stores/auth.js). -->
+            <q-item-label header class="text-caption text-weight-medium text-grey-7 q-pb-none">
+              Navegação
+            </q-item-label>
+            <q-item clickable v-close-popup :to="{ name: 'home' }">
+              <q-item-section avatar>
+                <q-icon name="mdi-home-outline" color="primary" />
+              </q-item-section>
+              <q-item-section>Início</q-item-section>
+            </q-item>
+            <q-item v-if="auth.isAdmin" clickable v-close-popup :to="{ name: 'usuarios' }">
+              <q-item-section avatar>
+                <q-icon name="mdi-account-multiple-outline" color="primary" />
+              </q-item-section>
+              <q-item-section>Gestão de Usuários</q-item-section>
+            </q-item>
+            <q-item v-if="auth.isAuditor" clickable v-close-popup :to="{ name: 'auditoria' }">
+              <q-item-section avatar>
+                <q-icon name="mdi-text-box-search-outline" color="primary" />
+              </q-item-section>
+              <q-item-section>Auditoria</q-item-section>
+            </q-item>
+
+            <q-separator class="q-my-xs" />
+
             <q-item clickable v-close-popup @click="sair">
               <q-item-section avatar>
-                <q-icon name="mdi-logout" />
+                <q-icon name="mdi-logout" color="negative" />
               </q-item-section>
-              <q-item-section>Sair</q-item-section>
+              <q-item-section class="text-negative">Sair</q-item-section>
             </q-item>
           </q-list>
         </q-menu>
@@ -126,7 +119,7 @@
 </template>
 
 <script setup>
-import { ref, watch, onUnmounted } from 'vue'
+import { ref, computed, watch, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { useAuthStore } from '@/stores/auth.js'
@@ -136,6 +129,17 @@ import * as notificacoesApi from '@/api/notificacoes.js'
 const router = useRouter()
 const $q = useQuasar()
 const auth = useAuthStore()
+
+// Servidores civis podem não ter posto/graduação nem nome de guerra
+// cadastrados (ver Usuario.java) -- nesse caso cai para o nome completo.
+const nomeExibicao = computed(() => {
+  const usuario = auth.usuario
+  if (!usuario) return ''
+  if (usuario.postoGraduacaoBigrama && usuario.nomeGuerra) {
+    return `${usuario.postoGraduacaoBigrama} ${usuario.nomeGuerra}`
+  }
+  return usuario.nome
+})
 
 function sair() {
   auth.logout()
@@ -232,3 +236,17 @@ async function abrirNotificacao(notificacao) {
   router.push({ name: 'documento-visualizar', params: { id: notificacao.documentoId } })
 }
 </script>
+
+<style scoped>
+.menu-principal :deep(.q-item) {
+  border-radius: 6px;
+  margin: 2px 6px;
+  width: calc(100% - 12px);
+}
+.menu-principal__header {
+  background: var(--q-primary);
+  border-radius: 0;
+  margin: 0 0 4px;
+  width: 100%;
+}
+</style>

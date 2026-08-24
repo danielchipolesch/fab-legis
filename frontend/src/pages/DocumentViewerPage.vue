@@ -11,6 +11,12 @@
           <q-breadcrumbs-el :to="{ name: 'home' }" icon="mdi-home" />
           <q-breadcrumbs-el label="Documentos" />
           <q-breadcrumbs-el :label="docLabel" />
+          <q-breadcrumbs-el
+            v-if="podeEditar"
+            label="Editar"
+            icon="mdi-pencil-outline"
+            :to="{ name: 'documento-editar', params: { id: documentoId } }"
+          />
         </q-breadcrumbs>
         <div v-if="documento?.titulo" class="text-body2 text-grey-7 q-mt-xs">{{ documento.titulo }}</div>
       </div>
@@ -264,6 +270,11 @@ const docLabel = computed(() => {
   const num = [d.numero_basico, d.numero_secundario].filter(Boolean).join('-')
   return [d.especie, num].filter(Boolean).join(' ') || 'Documento'
 })
+
+// Só Rascunho/Minuta oferecem o atalho de voltar para o editor pelo
+// breadcrumb -- as demais situações não têm edição direta de conteúdo (ver
+// "Regra de imutabilidade" no README).
+const podeEditar = computed(() => ['RASCUNHO', 'MINUTA'].includes(documento.value?.status))
 
 // Metadados visuais por status — os ciclos EM_ALTERACAO <-> ALTERADO podem se repetir
 // várias vezes até a republicação, então o histórico vem do log de transições

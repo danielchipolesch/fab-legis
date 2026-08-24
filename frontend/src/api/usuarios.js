@@ -12,7 +12,10 @@ export async function getUsuario(id) {
 export async function createUsuario(payload) {
   return http.post('/usuarios', {
     nome: payload.nome,
+    nomeGuerra: payload.nomeGuerra || null,
     cpf: onlyDigits(payload.cpf),
+    email: payload.email || null,
+    postoGraduacaoId: payload.postoGraduacaoId ?? null,
     senha: payload.senha,
     omId: payload.omId,
     papeis: payload.papeis ?? [],
@@ -22,6 +25,9 @@ export async function createUsuario(payload) {
 export async function updateUsuario(id, payload) {
   return http.put(`/usuarios/${id}`, {
     nome: payload.nome,
+    nomeGuerra: payload.nomeGuerra || null,
+    email: payload.email || null,
+    postoGraduacaoId: payload.postoGraduacaoId ?? null,
     omId: payload.omId,
     ativo: payload.ativo,
     papeis: payload.papeis ?? [],
@@ -34,4 +40,8 @@ export async function redefinirSenha(id, novaSenha) {
 
 export async function listOrganizacoesMilitares() {
   return http.get('/organizacoes-militares')
+}
+
+export async function listPostosGraduacoes() {
+  return http.get('/postos-graduacoes')
 }
