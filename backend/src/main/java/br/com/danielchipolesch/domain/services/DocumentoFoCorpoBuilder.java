@@ -64,22 +64,22 @@ final class DocumentoFoCorpoBuilder {
     // GET /v1/documentos/{id}/numeracao) — aqui só resta acesso de conveniência.
 
     private String capLabel(ItemAnexoParteNormativaResponseDto item, Map<Long, NumeracaoService.ElementoNumeracao> num) {
-        var en = num.get(item.getId());
+        var en = num.get(item.id());
         return en != null ? en.label() : "";
     }
 
     private String secLabel(ItemAnexoParteNormativaResponseDto item, Map<Long, NumeracaoService.ElementoNumeracao> num) {
-        var en = num.get(item.getId());
+        var en = num.get(item.id());
         return en != null ? en.label() : "";
     }
 
     private String subLabel(ItemAnexoParteNormativaResponseDto item, Map<Long, NumeracaoService.ElementoNumeracao> num) {
-        var en = num.get(item.getId());
+        var en = num.get(item.id());
         return en != null ? en.label() : "";
     }
 
     private String artLabel(ItemAnexoParteNormativaResponseDto item, Map<Long, NumeracaoService.ElementoNumeracao> num) {
-        var en = num.get(item.getId());
+        var en = num.get(item.id());
         return en != null ? en.label() : "";
     }
 
@@ -128,11 +128,11 @@ final class DocumentoFoCorpoBuilder {
     // Título vigente para o sumário: se ALTERADO por emenda, usa o novo título
     // (o original tachado só faz sentido no corpo, não numa linha de sumário).
     private String effectiveTitle(ItemAnexoParteNormativaResponseDto item) {
-        if (item.getEmendaStatus() == ElementoEmendaStatusEnum.ALTERADO
-                && item.getTituloEmenda() != null && !item.getTituloEmenda().isBlank()) {
-            return item.getTituloEmenda();
+        if (item.emendaStatus() == ElementoEmendaStatusEnum.ALTERADO
+                && item.tituloEmenda() != null && !item.tituloEmenda().isBlank()) {
+            return item.tituloEmenda();
         }
-        return item.getElementTitle();
+        return item.elementTitle();
     }
 
     private void walkToc(List<ItemAnexoParteNormativaResponseDto> items, List<TocEntry> entries, Map<Long, NumeracaoService.ElementoNumeracao> num) {
@@ -140,24 +140,24 @@ final class DocumentoFoCorpoBuilder {
         for (int i = 0; i < items.size(); i++) {
             var item = items.get(i);
             String titulo = effectiveTitle(item);
-            switch (item.getElementType()) {
+            switch (item.elementType()) {
                 case CAPITULO -> {
                     String t = titulo != null ? " - " + titulo.toUpperCase() : "";
                     entries.add(new TocEntry("CAPÍTULO " + capLabel(item, num) + t, true, false, false,
-                            "norm-" + item.getId(), numeracaoService.intervaloArtigos(item, items, i, num)));
-                    walkToc(item.getChildren(), entries, num);
+                            "norm-" + item.id(), numeracaoService.intervaloArtigos(item, items, i, num)));
+                    walkToc(item.children(), entries, num);
                 }
                 case SECAO_NORMATIVA -> {
                     String t = titulo != null ? " - " + titulo : "";
                     entries.add(new TocEntry("Seção " + secLabel(item, num) + t, false, true, false,
-                            "norm-" + item.getId(), numeracaoService.intervaloArtigos(item, items, i, num)));
-                    walkToc(item.getChildren(), entries, num);
+                            "norm-" + item.id(), numeracaoService.intervaloArtigos(item, items, i, num)));
+                    walkToc(item.children(), entries, num);
                 }
                 case SUBSECAO_NORMATIVA -> {
                     String t = titulo != null ? " - " + titulo : "";
                     entries.add(new TocEntry("Subseção " + subLabel(item, num) + t, false, true, true,
-                            "norm-" + item.getId(), numeracaoService.intervaloArtigos(item, items, i, num)));
-                    walkToc(item.getChildren(), entries, num);
+                            "norm-" + item.id(), numeracaoService.intervaloArtigos(item, items, i, num)));
+                    walkToc(item.children(), entries, num);
                 }
                 default -> {}
             }
@@ -167,12 +167,12 @@ final class DocumentoFoCorpoBuilder {
     private void collectArtToc(List<ItemAnexoParteNormativaResponseDto> items,
                                List<TocEntry> entries, Map<Long, NumeracaoService.ElementoNumeracao> num) {
         for (var item : items) {
-            if (item.getElementType() == ItemAnexoParteNormativaTipoEnum.ARTIGO) {
-                var en = num.get(item.getId());
+            if (item.elementType() == ItemAnexoParteNormativaTipoEnum.ARTIGO) {
+                var en = num.get(item.id());
                 int n = en != null ? en.numero() : 0;
                 String pg = n > 0 ? NumeracaoService.fmtNum(n) : "";
                 entries.add(new TocEntry("Art. " + (n > 0 ? artLabel(item, num) : "?"), false, true, false,
-                        "norm-" + item.getId(), pg));
+                        "norm-" + item.id(), pg));
             }
         }
     }
@@ -242,62 +242,62 @@ final class DocumentoFoCorpoBuilder {
     }
 
     private void renderNormItem(ItemAnexoParteNormativaResponseDto item, StringBuilder sb, Map<Long, NumeracaoService.ElementoNumeracao> num) {
-        String anc = "norm-" + item.getId();
-        switch (item.getElementType()) {
+        String anc = "norm-" + item.id();
+        switch (item.elementType()) {
             case CAPITULO -> {
                 renderGroupingHeading(sb, anc, "CAPÍTULO " + capLabel(item, num), "15pt",
-                        item.getElementTitle(), item.getTituloEmenda(), item.getEmendaStatus(), true,
-                        item.getClausulaEmenda(), item.getClausulaEmendaAnterior());
-                renderNormItems(item.getChildren(), sb, num);
+                        item.elementTitle(), item.tituloEmenda(), item.emendaStatus(), true,
+                        item.clausulaEmenda(), item.clausulaEmendaAnterior());
+                renderNormItems(item.children(), sb, num);
             }
             case SECAO_NORMATIVA -> {
                 renderGroupingHeading(sb, anc, "Seção " + secLabel(item, num), "10pt",
-                        item.getElementTitle(), item.getTituloEmenda(), item.getEmendaStatus(), false,
-                        item.getClausulaEmenda(), item.getClausulaEmendaAnterior());
-                renderNormItems(item.getChildren(), sb, num);
+                        item.elementTitle(), item.tituloEmenda(), item.emendaStatus(), false,
+                        item.clausulaEmenda(), item.clausulaEmendaAnterior());
+                renderNormItems(item.children(), sb, num);
             }
             case SUBSECAO_NORMATIVA -> {
                 renderGroupingHeading(sb, anc, "Subseção " + subLabel(item, num), "8pt",
-                        item.getElementTitle(), item.getTituloEmenda(), item.getEmendaStatus(), false,
-                        item.getClausulaEmenda(), item.getClausulaEmendaAnterior());
-                renderNormItems(item.getChildren(), sb, num);
+                        item.elementTitle(), item.tituloEmenda(), item.emendaStatus(), false,
+                        item.clausulaEmenda(), item.clausulaEmendaAnterior());
+                renderNormItems(item.children(), sb, num);
             }
             case ARTIGO -> {
                 renderBodyEl(sb, anc, "Art. " + artLabel(item, num) + "  ", true,
-                        item.getElementContent(), item.getEmendaStatus(), item.getConteudoEmenda(),
-                        item.getClausulaEmenda(), item.getClausulaEmendaAnterior());
-                renderArtigoFilhos(item.getChildren(), sb);
+                        item.elementContent(), item.emendaStatus(), item.conteudoEmenda(),
+                        item.clausulaEmenda(), item.clausulaEmendaAnterior());
+                renderArtigoFilhos(item.children(), sb);
             }
-            default -> renderBodyEl(sb, null, "", false, item.getElementContent(),
-                    item.getEmendaStatus(), item.getConteudoEmenda(), item.getClausulaEmenda(),
-                    item.getClausulaEmendaAnterior());
+            default -> renderBodyEl(sb, null, "", false, item.elementContent(),
+                    item.emendaStatus(), item.conteudoEmenda(), item.clausulaEmenda(),
+                    item.clausulaEmendaAnterior());
         }
     }
 
     private void renderArtigoFilhos(List<ItemAnexoParteNormativaResponseDto> filhos, StringBuilder sb) {
         if (filhos == null) return;
         long parCount = filhos.stream()
-                .filter(c -> c.getElementType() == ItemAnexoParteNormativaTipoEnum.PARAGRAFO
-                          || c.getElementType() == ItemAnexoParteNormativaTipoEnum.PARAGRAFO_UNICO)
+                .filter(c -> c.elementType() == ItemAnexoParteNormativaTipoEnum.PARAGRAFO
+                          || c.elementType() == ItemAnexoParteNormativaTipoEnum.PARAGRAFO_UNICO)
                 .count();
         int parNum = 0, incisoNum = 0;
         for (var child : filhos) {
-            switch (child.getElementType()) {
+            switch (child.elementType()) {
                 case PARAGRAFO, PARAGRAFO_UNICO -> {
                     parNum++;
-                    boolean unico = parCount == 1 && child.getElementType() == ItemAnexoParteNormativaTipoEnum.PARAGRAFO_UNICO;
+                    boolean unico = parCount == 1 && child.elementType() == ItemAnexoParteNormativaTipoEnum.PARAGRAFO_UNICO;
                     renderBodyEl(sb, null, unico ? "Parágrafo único.  " : "§ " + NumeracaoService.ordinalOrCardinal(parNum) + "  ",
-                            false, child.getElementContent(), child.getEmendaStatus(), child.getConteudoEmenda(), child.getClausulaEmenda(), child.getClausulaEmendaAnterior());
-                    renderIncisoFilhos(child.getChildren(), sb);
+                            false, child.elementContent(), child.emendaStatus(), child.conteudoEmenda(), child.clausulaEmenda(), child.clausulaEmendaAnterior());
+                    renderIncisoFilhos(child.children(), sb);
                 }
                 case INCISO -> {
                     incisoNum++;
-                    renderBodyEl(sb, null, NumeracaoService.toRoman(incisoNum) + " - ", false, child.getElementContent(),
-                            child.getEmendaStatus(), child.getConteudoEmenda(), child.getClausulaEmenda(), child.getClausulaEmendaAnterior());
-                    renderAlineaFilhos(child.getChildren(), sb);
+                    renderBodyEl(sb, null, NumeracaoService.toRoman(incisoNum) + " - ", false, child.elementContent(),
+                            child.emendaStatus(), child.conteudoEmenda(), child.clausulaEmenda(), child.clausulaEmendaAnterior());
+                    renderAlineaFilhos(child.children(), sb);
                 }
-                default -> renderBodyEl(sb, null, "", false, child.getElementContent(),
-                        child.getEmendaStatus(), child.getConteudoEmenda(), child.getClausulaEmenda(), child.getClausulaEmendaAnterior());
+                default -> renderBodyEl(sb, null, "", false, child.elementContent(),
+                        child.emendaStatus(), child.conteudoEmenda(), child.clausulaEmenda(), child.clausulaEmendaAnterior());
             }
         }
     }
@@ -306,11 +306,11 @@ final class DocumentoFoCorpoBuilder {
         if (filhos == null) return;
         int n = 0;
         for (var child : filhos) {
-            if (child.getElementType() == ItemAnexoParteNormativaTipoEnum.INCISO) {
+            if (child.elementType() == ItemAnexoParteNormativaTipoEnum.INCISO) {
                 n++;
-                renderBodyEl(sb, null, NumeracaoService.toRoman(n) + " - ", false, child.getElementContent(),
-                        child.getEmendaStatus(), child.getConteudoEmenda(), child.getClausulaEmenda(), child.getClausulaEmendaAnterior());
-                renderAlineaFilhos(child.getChildren(), sb);
+                renderBodyEl(sb, null, NumeracaoService.toRoman(n) + " - ", false, child.elementContent(),
+                        child.emendaStatus(), child.conteudoEmenda(), child.clausulaEmenda(), child.clausulaEmendaAnterior());
+                renderAlineaFilhos(child.children(), sb);
             }
         }
     }
@@ -319,11 +319,11 @@ final class DocumentoFoCorpoBuilder {
         if (filhos == null) return;
         int n = 0;
         for (var child : filhos) {
-            if (child.getElementType() == ItemAnexoParteNormativaTipoEnum.ALINEA) {
+            if (child.elementType() == ItemAnexoParteNormativaTipoEnum.ALINEA) {
                 n++;
-                renderBodyEl(sb, null, NumeracaoService.toLetter(n) + ") ", false, child.getElementContent(),
-                        child.getEmendaStatus(), child.getConteudoEmenda(), child.getClausulaEmenda(), child.getClausulaEmendaAnterior());
-                renderSubAlineaFilhos(child.getChildren(), sb);
+                renderBodyEl(sb, null, NumeracaoService.toLetter(n) + ") ", false, child.elementContent(),
+                        child.emendaStatus(), child.conteudoEmenda(), child.clausulaEmenda(), child.clausulaEmendaAnterior());
+                renderSubAlineaFilhos(child.children(), sb);
             }
         }
     }
@@ -332,10 +332,10 @@ final class DocumentoFoCorpoBuilder {
         if (filhos == null) return;
         int n = 0;
         for (var child : filhos) {
-            if (child.getElementType() == ItemAnexoParteNormativaTipoEnum.SUB_ALINEA) {
+            if (child.elementType() == ItemAnexoParteNormativaTipoEnum.SUB_ALINEA) {
                 n++;
-                renderBodyEl(sb, null, n + ". ", false, child.getElementContent(),
-                        child.getEmendaStatus(), child.getConteudoEmenda(), child.getClausulaEmenda(), child.getClausulaEmendaAnterior());
+                renderBodyEl(sb, null, n + ". ", false, child.elementContent(),
+                        child.emendaStatus(), child.conteudoEmenda(), child.clausulaEmenda(), child.clausulaEmendaAnterior());
             }
         }
     }

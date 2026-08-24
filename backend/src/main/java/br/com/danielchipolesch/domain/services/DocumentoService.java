@@ -72,8 +72,8 @@ public class DocumentoService {
     @Transactional
     public DocumentoResponseSemAnexoTextualDto create(DocumentoRequestCreateDto request) throws RuntimeException {
 
-        EspecieNormativa especieNormativa = especieNormativaRepository.findById(request.getIdEspecieNormativa()).orElseThrow(() -> new ResourceNotFoundException(DocumentationTypeException.NOT_FOUND.getMessage()));
-        AssuntoBasico assuntoBasico = assuntoBasicoRepository.findById(request.getIdAssuntoBasico()).orElseThrow(() ->  new ResourceNotFoundException(BasicSubjectException.NOT_FOUND.getMessage()));
+        EspecieNormativa especieNormativa = especieNormativaRepository.findById(request.idEspecieNormativa()).orElseThrow(() -> new ResourceNotFoundException(DocumentationTypeException.NOT_FOUND.getMessage()));
+        AssuntoBasico assuntoBasico = assuntoBasicoRepository.findById(request.idAssuntoBasico()).orElseThrow(() ->  new ResourceNotFoundException(BasicSubjectException.NOT_FOUND.getMessage()));
 
         var secondaryNumber = this.calculateSecondaryNumber(especieNormativa, assuntoBasico);
         var usuarioAtual = AutenticacaoUtil.usuarioAtual();
@@ -82,7 +82,7 @@ public class DocumentoService {
                 .especieNormativa(especieNormativa)
                 .assuntoBasico(assuntoBasico)
                 .numeroSecundario(secondaryNumber)
-                .tituloDocumento(request.getTituloDocumento())
+                .tituloDocumento(request.tituloDocumento())
                 .documentoStatus(DocumentoStatusEnum.RASCUNHO)
                 .autor(usuarioAtual)
                 .om(usuarioAtual.getOm())
@@ -129,12 +129,19 @@ public class DocumentoService {
             throw new StatusCannotBeUpdatedException(DocumentException.CANNOT_BE_UPDATED.getMessage());
         }
 
-        boolean tituloAlterado = !document.getTituloDocumento().equals(request.getTituloDocumento());
-        document.setTituloDocumento(request.getTituloDocumento());
-        if (request.getNumeroSecundario() != null) {
-            document.setNumeroSecundario(request.getNumeroSecundario());
+        boolean tituloAlterado = !document.getTituloDocumento().equals(request.tituloDocumento());
+        document.setTituloDocumento(request.tituloDocumento());
+        if (request.numeroSecundario() != null) {
+            document.setNumeroSecundario(request.numeroSecundario());
         }
-        Documento atualizado = documentoRepository.save(document);
+        // saveAndFlush, não save: o @Version só é incrementado no INSTANTE do
+        // flush, que por padrão só aconteceria no commit da transação -- DEPOIS
+        // deste método já ter retornado. Sem o flush explícito aqui, quando o
+        // título/número realmente muda, o DTO de resposta carrega a versão
+        // ANTIGA (pré-bump), e o próximo salvamento do editor usa essa versão
+        // desatualizada como versaoEsperada -- gerando um 409 de "editado por
+        // outra pessoa" mesmo sendo o mesmo usuário. Ver DocumentoConcorrenciaService.
+        Documento atualizado = documentoRepository.saveAndFlush(document);
         if (tituloAlterado) {
             documentoHistoricoService.registrar(atualizado, TipoAlteracaoEnum.ALTERACAO_METADADOS,
                     "Título atualizado", null, null);

@@ -35,6 +35,7 @@ public class DocumentoStatusService {
     @Autowired ItemPartePreliminarRepository preliminarRepository;
     @Autowired ItemParteFinalRepository finalRepository;
     @Autowired EmendaService emendaService;
+    @Autowired NotificacaoService notificacaoService;
 
     // Atômico de propósito: a mudança de status envolve várias tabelas (documento,
     // respaçamento de nr_ordem, histórico) e não pode ficar parcialmente aplicada se
@@ -46,7 +47,7 @@ public class DocumentoStatusService {
         Documento document = documentoRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException(DocumentException.NOT_FOUND.getMessage()));
 
-        DocumentoStatusEnum novoStatus = request.getStatus();
+        DocumentoStatusEnum novoStatus = request.status();
         DocumentoStatusEnum current = document.getDocumentoStatus();
 
         boolean transicaoValida = switch (novoStatus) {
@@ -75,12 +76,12 @@ public class DocumentoStatusService {
         // além da confirmação de status.
         boolean publicacao = novoStatus == DocumentoStatusEnum.PUBLICADO;
         if (publicacao) {
-            String orgaoPortaria = request.getOrgaoPortaria();
-            String setorPortaria = request.getSetorPortaria();
-            String numeroPortaria = request.getNumeroPortaria();
-            LocalDate dataPortaria = request.getDataPortaria();
-            Integer numeroBca = request.getNumeroBca();
-            LocalDate dataBca = request.getDataBca();
+            String orgaoPortaria = request.orgaoPortaria();
+            String setorPortaria = request.setorPortaria();
+            String numeroPortaria = request.numeroPortaria();
+            LocalDate dataPortaria = request.dataPortaria();
+            Integer numeroBca = request.numeroBca();
+            LocalDate dataBca = request.dataBca();
 
             if (orgaoPortaria == null || orgaoPortaria.isBlank()
                     || setorPortaria == null || setorPortaria.isBlank()
@@ -136,7 +137,15 @@ public class DocumentoStatusService {
         }
 
         document.setDocumentoStatus(novoStatus);
-        documentoRepository.save(document);
+        // saveAndFlush, não save: o @Version só incrementa no flush, que por
+        // padrão só aconteceria no commit -- depois deste método já ter
+        // retornado o DTO. Sem o flush explícito, o DTO de resposta carrega a
+        // versão ANTIGA, e o próximo salvamento do editor usa essa versão
+        // desatualizada como versaoEsperada, gerando um 409 mesmo sendo o
+        // mesmo usuário -- ver DocumentoConcorrenciaService. Isso é
+        // especialmente comum aqui: RASCUNHO->MINUTA dispara em toda primeira
+        // edição de um documento novo (ver editor.js save()).
+        documentoRepository.saveAndFlush(document);
 
         // Ao entrar em EM_ALTERACAO, espaça os elementOrder (×100) para que novos
         // elementos incluídos por emenda possam ser inseridos em posições intermediárias.
@@ -158,7 +167,7 @@ public class DocumentoStatusService {
             try {
                 String urlPdf = documentoPdfService.gerarEArmazenarPdf(document);
                 document.setUrlPdf(urlPdf);
-                documentoRepository.save(document);
+                documentoRepository.saveAndFlush(document);
             } catch (Exception e) {
                 // Não-fatal: a mudança de status não pode falhar por causa do PDF —
                 // streamPdf cai de volta para renderização ao vivo quando urlPdf
@@ -171,6 +180,21 @@ public class DocumentoStatusService {
 
         documentoHistoricoService.registrar(document, TipoAlteracaoEnum.ALTERACAO_STATUS,
                 current.name() + " → " + novoStatus.name(), current, novoStatus);
+
+        // MINUTA e EM_ALTERACAO são as únicas situações que aguardam uma ação de
+        // aprovador (ver DocumentoAcessoService.podeAprovarNaOm/STATUS_REQUER_APROVADOR)
+        // -- as demais transições são só do próprio redator/autor, ninguém mais precisa
+        // ser avisado.
+        if (novoStatus == DocumentoStatusEnum.MINUTA || novoStatus == DocumentoStatusEnum.EM_ALTERACAO) {
+            String descricao = String.format("%s %s-%d",
+                    document.getEspecieNormativa().getSigla(),
+                    document.getAssuntoBasico().getCodigo(),
+                    document.getNumeroSecundario());
+            String acao = novoStatus == DocumentoStatusEnum.MINUTA ? "aguarda aprovação" : "aguarda aprovação da alteração";
+            notificacaoService.notificarAprovadoresPendencia(document.getOm().getId(), document.getId(), descricao,
+                    "O documento " + descricao + " " + acao + ".");
+        }
+
         return DocumentoMapper.documentoToDocumentoSemAnexoTextualResponseDto(document);
     }
 

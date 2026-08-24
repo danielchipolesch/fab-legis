@@ -36,14 +36,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             @NonNull HttpServletResponse response,
             @NonNull FilterChain filterChain) throws ServletException, IOException {
 
-        String header = request.getHeader("Authorization");
-        if (header == null || !header.startsWith("Bearer ")) {
+        String token = extrairToken(request);
+        if (token == null) {
             filterChain.doFilter(request, response);
             return;
         }
 
         try {
-            String token = header.substring(7);
             var claims = jwtService.validarEExtrairClaims(token);
             Long usuarioId = Long.valueOf(claims.getSubject());
 
@@ -61,5 +60,27 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         filterChain.doFilter(request, response);
+    }
+
+    // EventSource (API nativa do browser para SSE, usada pelos endpoints de
+    // notificação e de presença de edição) não permite setar headers
+    // customizados -- só cookie ou query param. Como este sistema não usa
+    // cookie de sessão (JWT stateless via header em todo o resto da API),
+    // o token chega por query param só nesses dois endpoints. Token em URL
+    // normalmente vaza em log de acesso, então a exceção fica restrita a
+    // esses paths específicos (regex evita casar qualquer outra rota).
+    private static final java.util.regex.Pattern PATH_PRESENCA_STREAM =
+            java.util.regex.Pattern.compile("^/v1/documentos/\\d+/presenca/stream$");
+
+    private String extrairToken(HttpServletRequest request) {
+        String header = request.getHeader("Authorization");
+        if (header != null && header.startsWith("Bearer ")) {
+            return header.substring(7);
+        }
+        String uri = request.getRequestURI();
+        if (uri.endsWith("/v1/notificacoes/stream") || PATH_PRESENCA_STREAM.matcher(uri).matches()) {
+            return request.getParameter("token");
+        }
+        return null;
     }
 }

@@ -344,9 +344,9 @@ public class DocumentoHtmlService {
         private String buildToc() {
             List<TocEntry> entries = new ArrayList<>();
             boolean temAgrupamento = normativos.stream().anyMatch(el ->
-                    el.getElementType() == ItemAnexoParteNormativaTipoEnum.CAPITULO
-                    || el.getElementType() == ItemAnexoParteNormativaTipoEnum.SECAO_NORMATIVA
-                    || el.getElementType() == ItemAnexoParteNormativaTipoEnum.SUBSECAO_NORMATIVA);
+                    el.elementType() == ItemAnexoParteNormativaTipoEnum.CAPITULO
+                    || el.elementType() == ItemAnexoParteNormativaTipoEnum.SECAO_NORMATIVA
+                    || el.elementType() == ItemAnexoParteNormativaTipoEnum.SUBSECAO_NORMATIVA);
 
             Map<Long, Integer> artNumMap = new java.util.HashMap<>();
             assignArtNums(normativos, new int[]{0}, artNumMap);
@@ -376,38 +376,38 @@ public class DocumentoHtmlService {
         private void assignArtNums(List<ItemAnexoParteNormativaResponseDto> items,
                                    int[] counter, Map<Long, Integer> out) {
             for (var item : items) {
-                if (item.getElementType() == ItemAnexoParteNormativaTipoEnum.ARTIGO) {
+                if (item.elementType() == ItemAnexoParteNormativaTipoEnum.ARTIGO) {
                     counter[0]++;
-                    out.put(item.getId(), counter[0]);
+                    out.put(item.id(), counter[0]);
                 }
-                if (item.getChildren() != null) assignArtNums(item.getChildren(), counter, out);
+                if (item.children() != null) assignArtNums(item.children(), counter, out);
             }
         }
 
         private void walkToc(List<ItemAnexoParteNormativaResponseDto> items, List<TocEntry> entries,
                              Map<Long, Integer> artNums, int[] cap, int[] sec, int[] sub) {
             for (var item : items) {
-                switch (item.getElementType()) {
+                switch (item.elementType()) {
                     case CAPITULO -> {
                         cap[0]++; sec[0] = 0; sub[0] = 0;
-                        String t = item.getElementTitle() != null ? " - " + item.getElementTitle().toUpperCase() : "";
+                        String t = item.elementTitle() != null ? " - " + item.elementTitle().toUpperCase() : "";
                         entries.add(new TocEntry("CAPÍTULO " + toRoman(cap[0]) + t,
-                                "toc-capitulo", artRange(item.getChildren(), artNums)));
-                        if (item.getChildren() != null) walkToc(item.getChildren(), entries, artNums, cap, sec, sub);
+                                "toc-capitulo", artRange(item.children(), artNums)));
+                        if (item.children() != null) walkToc(item.children(), entries, artNums, cap, sec, sub);
                     }
                     case SECAO_NORMATIVA -> {
                         sec[0]++; sub[0] = 0;
-                        String t = item.getElementTitle() != null ? " - " + item.getElementTitle() : "";
+                        String t = item.elementTitle() != null ? " - " + item.elementTitle() : "";
                         entries.add(new TocEntry("Seção " + toRoman(sec[0]) + t,
-                                "toc-secao", artRange(item.getChildren(), artNums)));
-                        if (item.getChildren() != null) walkToc(item.getChildren(), entries, artNums, cap, sec, sub);
+                                "toc-secao", artRange(item.children(), artNums)));
+                        if (item.children() != null) walkToc(item.children(), entries, artNums, cap, sec, sub);
                     }
                     case SUBSECAO_NORMATIVA -> {
                         sub[0]++;
-                        String t = item.getElementTitle() != null ? " - " + item.getElementTitle() : "";
+                        String t = item.elementTitle() != null ? " - " + item.elementTitle() : "";
                         entries.add(new TocEntry("Subseção " + toRoman(sub[0]) + t,
-                                "toc-subsecao", artRange(item.getChildren(), artNums)));
-                        if (item.getChildren() != null) walkToc(item.getChildren(), entries, artNums, cap, sec, sub);
+                                "toc-subsecao", artRange(item.children(), artNums)));
+                        if (item.children() != null) walkToc(item.children(), entries, artNums, cap, sec, sub);
                     }
                     default -> {}
                 }
@@ -417,7 +417,7 @@ public class DocumentoHtmlService {
         private void collectArticleToc(List<ItemAnexoParteNormativaResponseDto> items,
                                        List<TocEntry> entries, int[] idx) {
             for (var item : items) {
-                if (item.getElementType() == ItemAnexoParteNormativaTipoEnum.ARTIGO) {
+                if (item.elementType() == ItemAnexoParteNormativaTipoEnum.ARTIGO) {
                     idx[0]++;
                     entries.add(new TocEntry("Art. " + ordinalOrCardinal(idx[0]), "toc-artigo", fmtNum(idx[0])));
                 }
@@ -428,7 +428,7 @@ public class DocumentoHtmlService {
             if (children == null || children.isEmpty()) return "";
             int first = -1, last = -1;
             for (var item : collectAllArt(children)) {
-                int n = artNums.getOrDefault(item.getId(), -1);
+                int n = artNums.getOrDefault(item.id(), -1);
                 if (n < 0) continue;
                 if (first < 0) first = n;
                 last = n;
@@ -441,8 +441,8 @@ public class DocumentoHtmlService {
             var result = new ArrayList<ItemAnexoParteNormativaResponseDto>();
             if (items == null) return result;
             for (var item : items) {
-                if (item.getElementType() == ItemAnexoParteNormativaTipoEnum.ARTIGO) result.add(item);
-                result.addAll(collectAllArt(item.getChildren()));
+                if (item.elementType() == ItemAnexoParteNormativaTipoEnum.ARTIGO) result.add(item);
+                result.addAll(collectAllArt(item.children()));
             }
             return result;
         }
@@ -468,71 +468,71 @@ public class DocumentoHtmlService {
 
         private void renderNormItem(ItemAnexoParteNormativaResponseDto item,
                                     StringBuilder sb, int[] capNum, int[] secNum, int[] subSecNum) {
-            switch (item.getElementType()) {
+            switch (item.elementType()) {
                 case CAPITULO -> {
                     capNum[0]++; secNum[0] = 0; subSecNum[0] = 0;
                     sb.append("<div class=\"capitulo-heading\">");
                     sb.append("<p class=\"cap-numero\">CAPÍTULO ").append(toRoman(capNum[0])).append("</p>");
-                    if (item.getElementTitle() != null && !item.getElementTitle().isBlank())
-                        sb.append("<p class=\"cap-titulo\">").append(esc(item.getElementTitle().toUpperCase())).append("</p>");
+                    if (item.elementTitle() != null && !item.elementTitle().isBlank())
+                        sb.append("<p class=\"cap-titulo\">").append(esc(item.elementTitle().toUpperCase())).append("</p>");
                     sb.append("</div>\n");
-                    renderNormItems(item.getChildren(), sb, capNum, secNum, subSecNum);
+                    renderNormItems(item.children(), sb, capNum, secNum, subSecNum);
                 }
                 case SECAO_NORMATIVA -> {
                     secNum[0]++; subSecNum[0] = 0;
                     sb.append("<div class=\"secao-heading\">");
                     sb.append("<p class=\"sec-numero\"><strong>Seção ").append(toRoman(secNum[0])).append("</strong></p>");
-                    if (item.getElementTitle() != null && !item.getElementTitle().isBlank())
-                        sb.append("<p class=\"sec-titulo\"><strong>").append(esc(item.getElementTitle())).append("</strong></p>");
+                    if (item.elementTitle() != null && !item.elementTitle().isBlank())
+                        sb.append("<p class=\"sec-titulo\"><strong>").append(esc(item.elementTitle())).append("</strong></p>");
                     sb.append("</div>\n");
-                    renderNormItems(item.getChildren(), sb, capNum, secNum, subSecNum);
+                    renderNormItems(item.children(), sb, capNum, secNum, subSecNum);
                 }
                 case SUBSECAO_NORMATIVA -> {
                     subSecNum[0]++;
                     sb.append("<div class=\"secao-heading\">");
                     sb.append("<p class=\"sec-numero\"><strong>Subseção ").append(toRoman(subSecNum[0])).append("</strong></p>");
-                    if (item.getElementTitle() != null && !item.getElementTitle().isBlank())
-                        sb.append("<p class=\"sec-titulo\"><strong>").append(esc(item.getElementTitle())).append("</strong></p>");
+                    if (item.elementTitle() != null && !item.elementTitle().isBlank())
+                        sb.append("<p class=\"sec-titulo\"><strong>").append(esc(item.elementTitle())).append("</strong></p>");
                     sb.append("</div>\n");
-                    renderNormItems(item.getChildren(), sb, capNum, secNum, subSecNum);
+                    renderNormItems(item.children(), sb, capNum, secNum, subSecNum);
                 }
                 case ARTIGO -> {
                     artCount++;
                     renderBodyEl(sb, "Art. " + ordinalOrCardinal(artCount) + S2, true,
-                            item.getElementContent(), item.getEmendaStatus(), item.getConteudoEmenda());
-                    renderArtigoChildren(item.getChildren(), sb);
+                            item.elementContent(), item.emendaStatus(), item.conteudoEmenda());
+                    renderArtigoChildren(item.children(), sb);
                 }
-                default -> renderBodyEl(sb, "", false, item.getElementContent(),
-                        item.getEmendaStatus(), item.getConteudoEmenda());
+                default -> renderBodyEl(sb, "", false, item.elementContent(),
+                        item.emendaStatus(), item.conteudoEmenda());
             }
         }
 
         private void renderArtigoChildren(List<ItemAnexoParteNormativaResponseDto> children, StringBuilder sb) {
             if (children == null) return;
             long parCount = children.stream()
-                    .filter(c -> c.getElementType() == ItemAnexoParteNormativaTipoEnum.PARAGRAFO
-                              || c.getElementType() == ItemAnexoParteNormativaTipoEnum.PARAGRAFO_UNICO)
+                    .filter(c -> c.elementType() == ItemAnexoParteNormativaTipoEnum.PARAGRAFO
+                              || c.elementType() == ItemAnexoParteNormativaTipoEnum.PARAGRAFO_UNICO)
                     .count();
             int parNum = 0, incisoNum = 0;
             for (var child : children) {
-                switch (child.getElementType()) {
+                switch (child.elementType()) {
                     case PARAGRAFO, PARAGRAFO_UNICO -> {
                         parNum++;
-                        boolean unico = parCount == 1 && child.getElementType() == ItemAnexoParteNormativaTipoEnum.PARAGRAFO_UNICO;
+                        boolean unico = parCount == 1 && child.elementType() == ItemAnexoParteNormativaTipoEnum.PARAGRAFO_UNICO;
                         String parLabel = unico ? "Parágrafo único." + S2 : "§ " + ordinalOrCardinal(parNum) + S2;
-                        renderBodyEl(sb, parLabel, false, child.getElementContent(),
-                                child.getEmendaStatus(), child.getConteudoEmenda());
-                        renderIncisoChildren(child.getChildren(), sb);
+                        renderBodyEl(sb, parLabel, false, child.elementContent(),
+                                child.emendaStatus(), child.conteudoEmenda());
+                        renderIncisoChildren(child.children(), sb);
                     }
                     case INCISO -> {
                         incisoNum++;
                         String incLabel = toRoman(incisoNum) + S1 + "-" + S1;
-                        renderBodyEl(sb, incLabel, false, child.getElementContent(),
-                                child.getEmendaStatus(), child.getConteudoEmenda());
-                        renderAlineaChildren(child.getChildren(), sb);
+                        renderBodyEl(sb, incLabel, false, child.elementContent(),
+                                child.emendaStatus(), child.conteudoEmenda());
+                        renderAlineaChildren(child.children(), sb);
                     }
-                    default -> renderBodyEl(sb, "", false, child.getElementContent(),
-                            child.getEmendaStatus(), child.getConteudoEmenda());
+                    default -> renderBodyEl(sb, "", false, child.elementContent(),
+                            child.emendaStatus(), child.conteudoEmenda());
                 }
             }
         }
@@ -541,11 +541,11 @@ public class DocumentoHtmlService {
             if (children == null) return;
             int n = 0;
             for (var child : children) {
-                if (child.getElementType() == ItemAnexoParteNormativaTipoEnum.INCISO) {
+                if (child.elementType() == ItemAnexoParteNormativaTipoEnum.INCISO) {
                     n++;
-                    renderBodyEl(sb, toRoman(n) + S1 + "-" + S1, false, child.getElementContent(),
-                            child.getEmendaStatus(), child.getConteudoEmenda());
-                    renderAlineaChildren(child.getChildren(), sb);
+                    renderBodyEl(sb, toRoman(n) + S1 + "-" + S1, false, child.elementContent(),
+                            child.emendaStatus(), child.conteudoEmenda());
+                    renderAlineaChildren(child.children(), sb);
                 }
             }
         }
@@ -554,11 +554,11 @@ public class DocumentoHtmlService {
             if (children == null) return;
             int n = 0;
             for (var child : children) {
-                if (child.getElementType() == ItemAnexoParteNormativaTipoEnum.ALINEA) {
+                if (child.elementType() == ItemAnexoParteNormativaTipoEnum.ALINEA) {
                     n++;
-                    renderBodyEl(sb, toLetter(n) + ")" + S1, false, child.getElementContent(),
-                            child.getEmendaStatus(), child.getConteudoEmenda());
-                    renderSubAlineaChildren(child.getChildren(), sb);
+                    renderBodyEl(sb, toLetter(n) + ")" + S1, false, child.elementContent(),
+                            child.emendaStatus(), child.conteudoEmenda());
+                    renderSubAlineaChildren(child.children(), sb);
                 }
             }
         }
@@ -567,10 +567,10 @@ public class DocumentoHtmlService {
             if (children == null) return;
             int n = 0;
             for (var child : children) {
-                if (child.getElementType() == ItemAnexoParteNormativaTipoEnum.SUB_ALINEA) {
+                if (child.elementType() == ItemAnexoParteNormativaTipoEnum.SUB_ALINEA) {
                     n++;
-                    renderBodyEl(sb, n + "." + S1, false, child.getElementContent(),
-                            child.getEmendaStatus(), child.getConteudoEmenda());
+                    renderBodyEl(sb, n + "." + S1, false, child.elementContent(),
+                            child.emendaStatus(), child.conteudoEmenda());
                 }
             }
         }
@@ -711,13 +711,13 @@ public class DocumentoHtmlService {
 
         private ItemPartePreliminarResponseDto findPreli(ItemAnexoParteNormativaTipoEnum tipo) {
             return preliminares.stream()
-                    .filter(p -> p.getElementType() == tipo)
+                    .filter(p -> p.elementType() == tipo)
                     .findFirst().orElse(null);
         }
 
         private String conteudoOuNull(ItemPartePreliminarResponseDto item) {
             if (item == null) return null;
-            String c = item.getElementContent();
+            String c = item.elementContent();
             if (c == null || c.isBlank()) return null;
             String html = processContent(c);
             // Check if there's actual text after stripping HTML

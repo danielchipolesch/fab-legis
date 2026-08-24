@@ -4,6 +4,7 @@ import br.com.danielchipolesch.application.dtos.usuarioDtos.CompartilharDocument
 import br.com.danielchipolesch.application.dtos.usuarioDtos.CompartilhamentoResponseDto;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.Documento;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.DocumentoCompartilhamento;
+import br.com.danielchipolesch.domain.entities.notificacao.TipoNotificacaoEnum;
 import br.com.danielchipolesch.domain.entities.usuario.Usuario;
 import br.com.danielchipolesch.domain.handlers.exceptions.ResourceAlreadyExistsException;
 import br.com.danielchipolesch.domain.handlers.exceptions.ResourceNotFoundException;
@@ -23,6 +24,7 @@ public class DocumentoCompartilhamentoService {
     @Autowired private DocumentoRepository documentoRepository;
     @Autowired private UsuarioRepository usuarioRepository;
     @Autowired private DocumentoCompartilhamentoRepository compartilhamentoRepository;
+    @Autowired private NotificacaoService notificacaoService;
 
     public List<CompartilhamentoResponseDto> listar(Long documentoId) {
         return compartilhamentoRepository.findByDocumentoId(documentoId).stream()
@@ -35,7 +37,7 @@ public class DocumentoCompartilhamentoService {
         Documento documento = documentoRepository.findById(documentoId)
                 .orElseThrow(() -> new ResourceNotFoundException("Documento não encontrado."));
 
-        String cpf = CpfValidator.onlyDigits(request.getCpf());
+        String cpf = CpfValidator.onlyDigits(request.cpf());
         Usuario usuario = usuarioRepository.findByCpf(cpf)
                 .orElseThrow(() -> new ResourceNotFoundException("Nenhum usuário cadastrado com esse CPF."));
 
@@ -53,6 +55,15 @@ public class DocumentoCompartilhamentoService {
         compartilhamento.setDocumento(documento);
         compartilhamento.setUsuario(usuario);
         var salvo = compartilhamentoRepository.save(compartilhamento);
+
+        String descricao = String.format("%s %s-%d",
+                documento.getEspecieNormativa().getSigla(),
+                documento.getAssuntoBasico().getCodigo(),
+                documento.getNumeroSecundario());
+        notificacaoService.criar(usuario, TipoNotificacaoEnum.DOCUMENTO_COMPARTILHADO,
+                documento.getAutor().getNome() + " compartilhou o documento " + descricao + " com você.",
+                documento.getId(), descricao);
+
         return CompartilhamentoResponseDto.from(salvo);
     }
 

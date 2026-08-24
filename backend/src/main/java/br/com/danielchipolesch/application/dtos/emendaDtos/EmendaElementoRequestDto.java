@@ -1,23 +1,20 @@
 package br.com.danielchipolesch.application.dtos.emendaDtos;
 
 import jakarta.validation.constraints.NotNull;
-import lombok.Data;
-import lombok.NoArgsConstructor;
 
-@Data
-@NoArgsConstructor
-public class EmendaElementoRequestDto {
+public record EmendaElementoRequestDto(
 
-    @NotNull
-    private EmendaAcaoEnum acao;
+        @NotNull
+        EmendaAcaoEnum acao,
 
-    private String novoConteudo;
+        String novoConteudo,
 
-    private String novoTitulo;
+        String novoTitulo,
 
-    // Obrigatória para ALTERAR e REVOGAR; ignorada em DESFAZER
-    private String justificativa;
+        // Obrigatória para ALTERAR e REVOGAR; ignorada em DESFAZER
+        String justificativa,
 
-    // Ver SecoesSaveRequestDto.versaoEsperada / DocumentoConcorrenciaService.
-    private Integer versaoEsperada;
+        // Ver SecoesSaveRequestDto.versaoEsperada / DocumentoConcorrenciaService.
+        Integer versaoEsperada
+) {
 }

@@ -90,7 +90,7 @@ public class MapaAlteracaoPdfService {
 
         sb.append("<fo:static-content flow-name=\"xsl-region-before\">\n")
           .append("  <fo:block font-size=\"9pt\" text-align=\"right\" color=\"#666666\">")
-          .append(foEsc(req.getDocId())).append("</fo:block>\n")
+          .append(foEsc(req.docId())).append("</fo:block>\n")
           .append("</fo:static-content>\n");
 
         sb.append("<fo:static-content flow-name=\"xsl-region-after\">\n")
@@ -122,13 +122,13 @@ public class MapaAlteracaoPdfService {
         sb.append("  </fo:table-header>\n");
 
         sb.append("  <fo:table-body>\n");
-        var itens = req.getItens() != null ? req.getItens() : java.util.List.<MapaAlteracaoPdfRequestDto.Item>of();
+        var itens = req.itens() != null ? req.itens() : java.util.List.<MapaAlteracaoPdfRequestDto.Item>of();
         for (var item : itens) {
             sb.append("    <fo:table-row>\n");
             sb.append(cell(referenciaCelula(item)));
-            sb.append(cell(conteudoCelula(renderer, item.getTextoAnterior(), "INCLUIR".equals(item.getAcao()), "(novo)", COR_EXCLUIDO)));
-            sb.append(cell(conteudoCelula(renderer, item.getTextoNovo(), "REVOGAR".equals(item.getAcao()), "(revogado)", COR_INSERIDO)));
-            sb.append(cell("<fo:block font-size=\"9pt\">" + foEsc(nvl(item.getJustificativa(), "—")) + "</fo:block>"));
+            sb.append(cell(conteudoCelula(renderer, item.textoAnterior(), "INCLUIR".equals(item.acao()), "(novo)", COR_EXCLUIDO)));
+            sb.append(cell(conteudoCelula(renderer, item.textoNovo(), "REVOGAR".equals(item.acao()), "(revogado)", COR_INSERIDO)));
+            sb.append(cell("<fo:block font-size=\"9pt\">" + foEsc(nvl(item.justificativa(), "—")) + "</fo:block>"));
             sb.append("    </fo:table-row>\n");
         }
         if (itens.isEmpty()) {
@@ -140,9 +140,9 @@ public class MapaAlteracaoPdfService {
         sb.append("  </fo:table-body>\n");
         sb.append("</fo:table>\n");
 
-        if (req.getCiclo() != null && !req.getCiclo().isBlank()) {
+        if (req.ciclo() != null && !req.ciclo().isBlank()) {
             sb.append("<fo:block font-size=\"9pt\" text-align=\"center\" color=\"#666666\" space-before=\"10pt\">")
-              .append("Versão base atual comparada: ").append(foEsc(req.getCiclo())).append("</fo:block>\n");
+              .append("Versão base atual comparada: ").append(foEsc(req.ciclo())).append("</fo:block>\n");
         }
 
         sb.append("</fo:flow>\n");
@@ -155,13 +155,13 @@ public class MapaAlteracaoPdfService {
     // espelha o mesmo tratamento visual da coluna Referência na tela (ComparisonPage.vue).
     private String referenciaCelula(MapaAlteracaoPdfRequestDto.Item item) {
         var sb = new StringBuilder("<fo:block font-size=\"9pt\">");
-        String ancestrais = item.getReferenciaAncestrais();
+        String ancestrais = item.referenciaAncestrais();
         if (ancestrais != null && !ancestrais.isBlank()) {
             sb.append("<fo:inline color=\"").append(COR_ANCESTRAL).append("\">")
               .append(foEsc(ancestrais)).append(", </fo:inline>");
         }
         sb.append("<fo:inline font-weight=\"bold\" color=\"").append(COR_REFERENCIA_ATUAL).append("\">")
-          .append(foEsc(item.getReferenciaAtual())).append("</fo:inline>");
+          .append(foEsc(item.referenciaAtual())).append("</fo:inline>");
         sb.append("</fo:block>");
         return sb.toString();
     }

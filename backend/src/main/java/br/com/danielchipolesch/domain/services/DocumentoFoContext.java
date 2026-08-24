@@ -160,9 +160,9 @@ final class DocumentoFoContext {
     }
 
     String inlineTextFrom(ItemPartePreliminarResponseDto item) {
-        if (item == null || item.getElementContent() == null) return "";
+        if (item == null || item.elementContent() == null) return "";
         try {
-            TipTapNode doc = objectMapper.readValue(item.getElementContent(), TipTapNode.class);
+            TipTapNode doc = objectMapper.readValue(item.elementContent(), TipTapNode.class);
             return extractPlainText(doc);
         } catch (Exception ignored) {
             return "";
@@ -180,7 +180,7 @@ final class DocumentoFoContext {
 
     ItemPartePreliminarResponseDto findPreli(ItemAnexoParteNormativaTipoEnum tipo) {
         return preliminares.stream()
-                .filter(p -> p.getElementType() == tipo)
+                .filter(p -> p.elementType() == tipo)
                 .findFirst().orElse(null);
     }
 

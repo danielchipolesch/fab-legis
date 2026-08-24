@@ -6,5 +6,6 @@ package br.com.danielchipolesch.domain.entities.usuario;
 // depende de nenhum papel aqui, é o que "estar logado" já garante).
 public enum PapelEnum {
     APROVADOR, // aprova/publica documentos da própria OM
-    ADMIN      // gestão de usuários/papéis, sem escopo por OM
+    ADMIN,     // gestão de usuários/papéis, sem escopo por OM
+    AUDITOR    // acesso de leitura à trilha de auditoria (ver LogAuditoria), sem escopo por OM
 }

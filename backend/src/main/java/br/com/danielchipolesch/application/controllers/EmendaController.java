@@ -2,7 +2,11 @@ package br.com.danielchipolesch.application.controllers;
 
 import br.com.danielchipolesch.application.dtos.emendaDtos.EmendaElementoRequestDto;
 import br.com.danielchipolesch.application.dtos.emendaDtos.EmendaIncluirRequestDto;
+import br.com.danielchipolesch.domain.entities.auditoria.AcaoAuditoriaEnum;
+import br.com.danielchipolesch.domain.mappers.DocumentoMapper;
+import br.com.danielchipolesch.domain.services.DocumentoService;
 import br.com.danielchipolesch.domain.services.EmendaService;
+import br.com.danielchipolesch.domain.services.LogAuditoriaService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,6 +23,17 @@ public class EmendaController {
     @Autowired
     private EmendaService emendaService;
 
+    @Autowired
+    private DocumentoService documentoService;
+
+    @Autowired
+    private LogAuditoriaService logAuditoriaService;
+
+    private void registrarEdicao(Long docId, String detalhe) {
+        var dto = DocumentoMapper.documentoToDocumentoSemAnexoTextualResponseDto(documentoService.getById(docId));
+        logAuditoriaService.registrar(dto.idDocumento(), dto.codigoDocumento(), AcaoAuditoriaEnum.EDITOU, detalhe);
+    }
+
     /**
      * Altera, revoga ou desfaz emenda de um elemento existente.
      * secao: PARTE_PRELIMINAR | PARTE_NORMATIVA | PARTE_FINAL
@@ -31,6 +46,7 @@ public class EmendaController {
             @PathVariable Long elementoId,
             @RequestBody @Valid EmendaElementoRequestDto request) {
         emendaService.emendar(docId, secao, elementoId, request);
+        registrarEdicao(docId, "Emenda (" + request.acao() + ") em " + secao);
         return ResponseEntity.noContent().build();
     }
 
@@ -45,6 +61,7 @@ public class EmendaController {
             @PathVariable String secao,
             @RequestBody @Valid EmendaIncluirRequestDto request) {
         emendaService.incluir(docId, secao, request);
+        registrarEdicao(docId, "Inclusão de elemento em " + secao);
         return ResponseEntity.noContent().build();
     }
 

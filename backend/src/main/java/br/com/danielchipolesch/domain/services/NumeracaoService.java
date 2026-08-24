@@ -52,7 +52,7 @@ public class NumeracaoService {
 
     // Ponto de referência de um artigo para intervalos de sumário (ex.: "13-A").
     public String pontoFinalArtigo(ItemAnexoParteNormativaResponseDto item, Map<Long, ElementoNumeracao> numeracao) {
-        var en = numeracao.get(item.getId());
+        var en = numeracao.get(item.id());
         if (en == null || en.semNumero()) return "";
         String base = fmtNum(en.numero());
         return en.letra() != null ? base + "-" + en.letra() : base;
@@ -66,12 +66,12 @@ public class NumeracaoService {
                                     List<ItemAnexoParteNormativaResponseDto> siblings,
                                     int idx,
                                     Map<Long, ElementoNumeracao> numeracao) {
-        var first = primeiroArtigo(item.getChildren(), numeracao);
-        var last  = ultimoArtigo(item.getChildren(), numeracao);
+        var first = primeiroArtigo(item.children(), numeracao);
+        var last  = ultimoArtigo(item.children(), numeracao);
         for (int j = idx + 1; j < siblings.size(); j++) {
             var sib = siblings.get(j);
-            if (TIPOS_AGRUPAMENTO.contains(sib.getElementType())) break;
-            if (sib.getElementType() == ARTIGO) {
+            if (TIPOS_AGRUPAMENTO.contains(sib.elementType())) break;
+            if (sib.elementType() == ARTIGO) {
                 int n = numeroDe(sib, numeracao);
                 if (n > 0) {
                     if (first == null || n < numeroDe(first, numeracao)) first = sib;
@@ -87,7 +87,7 @@ public class NumeracaoService {
     }
 
     public boolean temAgrupamento(List<ItemAnexoParteNormativaResponseDto> normativos) {
-        return normativos != null && normativos.stream().anyMatch(el -> TIPOS_AGRUPAMENTO.contains(el.getElementType()));
+        return normativos != null && normativos.stream().anyMatch(el -> TIPOS_AGRUPAMENTO.contains(el.elementType()));
     }
 
     // ─── Formatação numérica (Decreto 12.002/2024 art. 9º) ─────────────────────────
@@ -117,8 +117,8 @@ public class NumeracaoService {
                                      List<ItemAnexoParteNormativaResponseDto> out) {
         if (items == null) return;
         for (var item : items) {
-            if (item.getElementType() == ARTIGO) out.add(item);
-            collectArtigosFlat(item.getChildren(), out);
+            if (item.elementType() == ARTIGO) out.add(item);
+            collectArtigosFlat(item.children(), out);
         }
     }
 
@@ -127,7 +127,7 @@ public class NumeracaoService {
         int idx = flatArtigos.indexOf(item);
         for (int i = idx + 1; i < flatArtigos.size(); i++) {
             var s = flatArtigos.get(i);
-            if (!s.isIncluidoPorEmenda()) return true;
+            if (!s.incluidoPorEmenda()) return true;
         }
         return false;
     }
@@ -136,7 +136,7 @@ public class NumeracaoService {
                                                  ItemAnexoParteNormativaTipoEnum tipo) {
         for (int i = idx + 1; i < siblings.size(); i++) {
             var s = siblings.get(i);
-            if (s.getElementType() == tipo && !s.isIncluidoPorEmenda()) return true;
+            if (s.elementType() == tipo && !s.incluidoPorEmenda()) return true;
         }
         return false;
     }
@@ -154,31 +154,31 @@ public class NumeracaoService {
             // mantém seu sufixo de letra mesmo depois de ser alterado ou revogado —
             // só assim emendaStatus fica livre para evoluir sem deslocar a numeração
             // sequencial dos artigos seguintes (vedado pela LC 95/1998).
-            boolean isIncluido = item.isIncluidoPorEmenda();
-            switch (item.getElementType()) {
+            boolean isIncluido = item.incluidoPorEmenda();
+            switch (item.elementType()) {
                 case CAPITULO -> {
                     boolean atEnd = isIncluido && !hasNonIncludedSameTypeAfter(items, i, CAPITULO);
                     int n; String letra = null;
                     if (!isIncluido || atEnd) { n = ++cap; capLetterIdx = 0; }
                     else { n = cap; letra = letterFor(capLetterIdx++); }
-                    out.put(item.getId(), new ElementoNumeracao(n, letra, agrupamentoLabel(n, letra)));
-                    assignNumbering(item.getChildren(), out, flatArtigos, artCounter);
+                    out.put(item.id(), new ElementoNumeracao(n, letra, agrupamentoLabel(n, letra)));
+                    assignNumbering(item.children(), out, flatArtigos, artCounter);
                 }
                 case SECAO_NORMATIVA -> {
                     boolean atEnd = isIncluido && !hasNonIncludedSameTypeAfter(items, i, SECAO_NORMATIVA);
                     int n; String letra = null;
                     if (!isIncluido || atEnd) { n = ++sec; secLetterIdx = 0; }
                     else { n = sec; letra = letterFor(secLetterIdx++); }
-                    out.put(item.getId(), new ElementoNumeracao(n, letra, agrupamentoLabel(n, letra)));
-                    assignNumbering(item.getChildren(), out, flatArtigos, artCounter);
+                    out.put(item.id(), new ElementoNumeracao(n, letra, agrupamentoLabel(n, letra)));
+                    assignNumbering(item.children(), out, flatArtigos, artCounter);
                 }
                 case SUBSECAO_NORMATIVA -> {
                     boolean atEnd = isIncluido && !hasNonIncludedSameTypeAfter(items, i, SUBSECAO_NORMATIVA);
                     int n; String letra = null;
                     if (!isIncluido || atEnd) { n = ++sub; subLetterIdx = 0; }
                     else { n = sub; letra = letterFor(subLetterIdx++); }
-                    out.put(item.getId(), new ElementoNumeracao(n, letra, agrupamentoLabel(n, letra)));
-                    assignNumbering(item.getChildren(), out, flatArtigos, artCounter);
+                    out.put(item.id(), new ElementoNumeracao(n, letra, agrupamentoLabel(n, letra)));
+                    assignNumbering(item.children(), out, flatArtigos, artCounter);
                 }
                 case ARTIGO -> {
                     int n; String letra = null;
@@ -190,8 +190,8 @@ public class NumeracaoService {
                         if (atEnd) { n = ++artCounter[0]; artLetterIdx = 0; }
                         else { n = artCounter[0]; letra = letterFor(artLetterIdx++); }
                     }
-                    out.put(item.getId(), new ElementoNumeracao(n, letra, artigoLabel(n, letra)));
-                    assignNumbering(item.getChildren(), out, flatArtigos, artCounter);
+                    out.put(item.id(), new ElementoNumeracao(n, letra, artigoLabel(n, letra)));
+                    assignNumbering(item.children(), out, flatArtigos, artCounter);
                 }
                 default -> { }
             }
@@ -214,7 +214,7 @@ public class NumeracaoService {
     }
 
     private int numeroDe(ItemAnexoParteNormativaResponseDto item, Map<Long, ElementoNumeracao> numeracao) {
-        var en = numeracao.get(item.getId());
+        var en = numeracao.get(item.id());
         return en != null ? en.numero() : -1;
     }
 
@@ -222,8 +222,8 @@ public class NumeracaoService {
                                                                 Map<Long, ElementoNumeracao> numeracao) {
         if (items == null) return null;
         for (var item : items) {
-            if (item.getElementType() == ARTIGO && numeroDe(item, numeracao) > 0) return item;
-            var found = primeiroArtigo(item.getChildren(), numeracao);
+            if (item.elementType() == ARTIGO && numeroDe(item, numeracao) > 0) return item;
+            var found = primeiroArtigo(item.children(), numeracao);
             if (found != null) return found;
         }
         return null;
@@ -234,8 +234,8 @@ public class NumeracaoService {
         if (items == null) return null;
         ItemAnexoParteNormativaResponseDto last = null;
         for (var item : items) {
-            if (item.getElementType() == ARTIGO && numeroDe(item, numeracao) > 0) last = item;
-            var childLast = ultimoArtigo(item.getChildren(), numeracao);
+            if (item.elementType() == ARTIGO && numeroDe(item, numeracao) > 0) last = item;
+            var childLast = ultimoArtigo(item.children(), numeracao);
             if (childLast != null) last = childLast;
         }
         return last;

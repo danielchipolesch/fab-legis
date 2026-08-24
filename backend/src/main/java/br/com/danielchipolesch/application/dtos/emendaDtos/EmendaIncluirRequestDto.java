@@ -2,28 +2,25 @@ package br.com.danielchipolesch.application.dtos.emendaDtos;
 
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.ItemAnexoParteNormativaTipoEnum;
 import jakarta.validation.constraints.NotNull;
-import lombok.Data;
-import lombok.NoArgsConstructor;
 
-@Data
-@NoArgsConstructor
-public class EmendaIncluirRequestDto {
+public record EmendaIncluirRequestDto(
 
-    @NotNull
-    private ItemAnexoParteNormativaTipoEnum tipo;
+        @NotNull
+        ItemAnexoParteNormativaTipoEnum tipo,
 
-    private String titulo;
+        String titulo,
 
-    private String conteudo;
+        String conteudo,
 
-    // Apenas para PARTE_NORMATIVA: id do elemento pai (null = raiz)
-    private Long parentId;
+        // Apenas para PARTE_NORMATIVA: id do elemento pai (null = raiz)
+        Long parentId,
 
-    private Integer elementOrder;
+        Integer elementOrder,
 
-    @NotNull
-    private String justificativa;
+        @NotNull
+        String justificativa,
 
-    // Ver SecoesSaveRequestDto.versaoEsperada / DocumentoConcorrenciaService.
-    private Integer versaoEsperada;
+        // Ver SecoesSaveRequestDto.versaoEsperada / DocumentoConcorrenciaService.
+        Integer versaoEsperada
+) {
 }

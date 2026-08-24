@@ -2,15 +2,14 @@ package br.com.danielchipolesch.application.dtos.authDtos;
 
 import br.com.danielchipolesch.application.validation.CpfValido;
 import jakarta.validation.constraints.NotBlank;
-import lombok.Data;
 
-@Data
-public class LoginRequestDto {
+public record LoginRequestDto(
 
-    @NotBlank
-    @CpfValido
-    private String cpf;
+        @NotBlank
+        @CpfValido
+        String cpf,
 
-    @NotBlank
-    private String senha;
+        @NotBlank
+        String senha
+) {
 }

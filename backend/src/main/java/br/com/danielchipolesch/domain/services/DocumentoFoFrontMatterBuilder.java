@@ -78,7 +78,7 @@ final class DocumentoFoFrontMatterBuilder {
 
         // Ementa (right side, 9cm wide: start-indent = 17cm - 9cm = 8cm)
         var ementa = ctx.findPreli(ItemAnexoParteNormativaTipoEnum.EMENTA);
-        String ementaInline = ctx.inlineFromConteudo(ementa != null ? ementa.getElementContent() : null);
+        String ementaInline = ctx.inlineFromConteudo(ementa != null ? ementa.elementContent() : null);
         String ementaDefault = "Aprova a " + ctx.especieCompleta()
                 + " que dispõe sobre " + foEsc(ctx.doc.getAssuntoBasico().getNome()) + ".";
         sb.append("<fo:block start-indent=\"8cm\" text-align=\"justify\" space-after=\"8pt\" font-size=\"12pt\">")
@@ -87,8 +87,8 @@ final class DocumentoFoFrontMatterBuilder {
 
         // Preâmbulo (multi-parágrafo, cada um com recuo de 2,5 cm)
         var preambulo = ctx.findPreli(ItemAnexoParteNormativaTipoEnum.PREAMBULO);
-        if (preambulo != null && preambulo.getElementContent() != null) {
-            sb.append(ctx.renderParasBlock(preambulo.getElementContent(), "2.5cm", "justify", null));
+        if (preambulo != null && preambulo.elementContent() != null) {
+            sb.append(ctx.renderParasBlock(preambulo.elementContent(), "2.5cm", "justify", null));
         } else {
             sb.append("<fo:block text-indent=\"2.5cm\" text-align=\"justify\" space-after=\"5pt\">")
               .append("<fo:inline font-weight=\"bold\">O COMANDANTE DA AERONÁUTICA</fo:inline>")
@@ -98,8 +98,8 @@ final class DocumentoFoFrontMatterBuilder {
 
         // Fecho (alinhado à esquerda)
         var fecho = ctx.findPreli(ItemAnexoParteNormativaTipoEnum.FECHO);
-        if (fecho != null && fecho.getElementContent() != null) {
-            sb.append(ctx.renderParasBlock(fecho.getElementContent(), null, "right", "20pt"));
+        if (fecho != null && fecho.elementContent() != null) {
+            sb.append(ctx.renderParasBlock(fecho.elementContent(), null, "right", "20pt"));
         } else {
             sb.append("<fo:block text-align=\"right\" space-before=\"20pt\" space-after=\"5pt\">")
               .append("Brasília, ").append(DocumentoFoContext.formatarDataBR(ctx.doc.getDtCriacao())).append("</fo:block>\n");
@@ -107,8 +107,8 @@ final class DocumentoFoFrontMatterBuilder {
 
         // Assinatura (centralizada)
         var assinatura = ctx.findPreli(ItemAnexoParteNormativaTipoEnum.ASSINATURA);
-        if (assinatura != null && assinatura.getElementContent() != null) {
-            sb.append(ctx.renderParasBlock(assinatura.getElementContent(), null, "center", "36pt"));
+        if (assinatura != null && assinatura.elementContent() != null) {
+            sb.append(ctx.renderParasBlock(assinatura.elementContent(), null, "center", "36pt"));
         } else {
             sb.append(block("Comandante da Aeronáutica", "center", "12pt", "normal", "36pt", "0"));
         }
@@ -197,13 +197,13 @@ final class DocumentoFoFrontMatterBuilder {
         sb.append(ctx.buildStaticContentWatermark());
         sb.append("<fo:flow flow-name=\"xsl-region-body\">\n");
 
-        String numRomano = NumeracaoService.toRoman(anexo.getOrdem() + 1);
+        String numRomano = NumeracaoService.toRoman(anexo.ordem() + 1);
         sb.append(block("ANEXO " + numRomano, "center", "12pt", "bold", "0", "4pt"));
-        sb.append(block(foEsc(anexo.getTitulo().toUpperCase()), "center", "12pt", "bold", "0", "12pt"));
+        sb.append(block(foEsc(anexo.titulo().toUpperCase()), "center", "12pt", "bold", "0", "12pt"));
 
-        if (imagemService != null && anexo.getUrlImagem() != null && !anexo.getUrlImagem().isBlank()) {
+        if (imagemService != null && anexo.urlImagem() != null && !anexo.urlImagem().isBlank()) {
             try {
-                String dataUri = imagemService.getImageAsDataUri(anexo.getUrlImagem());
+                String dataUri = imagemService.getImageAsDataUri(anexo.urlImagem());
                 if (dataUri != null && !dataUri.isBlank()) {
                     sb.append("<fo:block text-align=\"center\">");
                     sb.append("<fo:external-graphic src=\"url('").append(dataUri).append("')\"");

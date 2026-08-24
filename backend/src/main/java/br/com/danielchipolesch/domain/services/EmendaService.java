@@ -41,7 +41,7 @@ public class EmendaService {
     @Transactional
     public void emendar(Long docId, String secao, Long elementoId, EmendaElementoRequestDto req) {
         Documento documento = carregarEmAlteracao(docId);
-        concorrenciaService.checarEAtualizarVersao(documento, req.getVersaoEsperada());
+        concorrenciaService.checarEAtualizarVersao(documento, req.versaoEsperada());
         SecaoDocumentoEnum secaoEnum = SecaoDocumentoEnum.valueOf(secao.toUpperCase());
 
         switch (secaoEnum) {
@@ -62,7 +62,7 @@ public class EmendaService {
 
     private void emendar(Long docId, SecaoDocumentoEnum secao, Long elementoId,
                           EmendaElementoRequestDto req, ItemPartePreliminar item) {
-        EmendaAcaoEnum acao = req.getAcao();
+        EmendaAcaoEnum acao = req.acao();
 
         // Revogação consolidada numa publicação anterior é permanente — a legislação
         // não retrocede, nenhuma ação (nem desfazer, nem alterar, nem revogar de novo)
@@ -100,8 +100,8 @@ public class EmendaService {
         // como uma alteração comum, pois "o ciclo se repete" também para inclusões.
         if (acao == EmendaAcaoEnum.ALTERAR && item.getEmendaStatus() == ElementoEmendaStatusEnum.INCLUIDO
                 && item.getClausulaEmenda() == null) {
-            if (req.getNovoConteudo() != null) item.setConteudo(req.getNovoConteudo());
-            if (req.getNovoTitulo()   != null) item.setTitulo(req.getNovoTitulo());
+            if (req.novoConteudo() != null) item.setConteudo(req.novoConteudo());
+            if (req.novoTitulo()   != null) item.setTitulo(req.novoTitulo());
             preliminarRepository.save(item);
             return;
         }
@@ -115,7 +115,7 @@ public class EmendaService {
                     "Elemento incluído por emenda ainda não publicado não pode ser revogado. Use a opção de excluir.");
         }
 
-        validarJustificativa(req.getJustificativa());
+        validarJustificativa(req.justificativa());
 
         // Elemento com emenda já publicada antes (ALTERADO ou INCLUIDO — REVOGADO é
         // permanente e nem chega aqui, ver guarda acima): uma nova emenda sobre ele
@@ -139,23 +139,23 @@ public class EmendaService {
 
         if (acao == EmendaAcaoEnum.ALTERAR) {
             registrarHistorico(docId, secao, elementoId, EmendaAcaoEnum.ALTERAR,
-                    item.getConteudo(), req.getNovoConteudo(),
-                    item.getTitulo(), req.getNovoTitulo(), req.getJustificativa());
-            item.setConteudoEmenda(req.getNovoConteudo());
-            if (req.getNovoTitulo() != null) item.setTituloEmenda(req.getNovoTitulo());
+                    item.getConteudo(), req.novoConteudo(),
+                    item.getTitulo(), req.novoTitulo(), req.justificativa());
+            item.setConteudoEmenda(req.novoConteudo());
+            if (req.novoTitulo() != null) item.setTituloEmenda(req.novoTitulo());
             item.setEmendaStatus(ElementoEmendaStatusEnum.ALTERADO);
         } else {
             registrarHistorico(docId, secao, elementoId, EmendaAcaoEnum.REVOGAR,
-                    item.getConteudo(), null, item.getTitulo(), null, req.getJustificativa());
+                    item.getConteudo(), null, item.getTitulo(), null, req.justificativa());
             item.setEmendaStatus(ElementoEmendaStatusEnum.REVOGADO);
         }
-        item.setJustificativaEmenda(req.getJustificativa());
+        item.setJustificativaEmenda(req.justificativa());
         preliminarRepository.save(item);
     }
 
     private void emendar(Long docId, SecaoDocumentoEnum secao, Long elementoId,
                           EmendaElementoRequestDto req, ItemAnexoParteNormativa item) {
-        EmendaAcaoEnum acao = req.getAcao();
+        EmendaAcaoEnum acao = req.acao();
 
         // Revogação consolidada numa publicação anterior é permanente — a legislação
         // não retrocede, nenhuma ação (nem desfazer, nem alterar, nem revogar de novo)
@@ -193,8 +193,8 @@ public class EmendaService {
         // como uma alteração comum, pois "o ciclo se repete" também para inclusões.
         if (acao == EmendaAcaoEnum.ALTERAR && item.getEmendaStatus() == ElementoEmendaStatusEnum.INCLUIDO
                 && item.getClausulaEmenda() == null) {
-            if (req.getNovoConteudo() != null) item.setConteudo(req.getNovoConteudo());
-            if (req.getNovoTitulo()   != null) item.setTitulo(req.getNovoTitulo());
+            if (req.novoConteudo() != null) item.setConteudo(req.novoConteudo());
+            if (req.novoTitulo()   != null) item.setTitulo(req.novoTitulo());
             normativaRepository.save(item);
             return;
         }
@@ -208,7 +208,7 @@ public class EmendaService {
                     "Elemento incluído por emenda ainda não publicado não pode ser revogado. Use a opção de excluir.");
         }
 
-        validarJustificativa(req.getJustificativa());
+        validarJustificativa(req.justificativa());
 
         // Elemento com emenda já publicada antes (ALTERADO ou INCLUIDO — REVOGADO é
         // permanente e nem chega aqui, ver guarda acima): uma nova emenda sobre ele
@@ -232,23 +232,23 @@ public class EmendaService {
 
         if (acao == EmendaAcaoEnum.ALTERAR) {
             registrarHistorico(docId, secao, elementoId, EmendaAcaoEnum.ALTERAR,
-                    item.getConteudo(), req.getNovoConteudo(),
-                    item.getTitulo(), req.getNovoTitulo(), req.getJustificativa());
-            item.setConteudoEmenda(req.getNovoConteudo());
-            if (req.getNovoTitulo() != null) item.setTituloEmenda(req.getNovoTitulo());
+                    item.getConteudo(), req.novoConteudo(),
+                    item.getTitulo(), req.novoTitulo(), req.justificativa());
+            item.setConteudoEmenda(req.novoConteudo());
+            if (req.novoTitulo() != null) item.setTituloEmenda(req.novoTitulo());
             item.setEmendaStatus(ElementoEmendaStatusEnum.ALTERADO);
         } else {
             registrarHistorico(docId, secao, elementoId, EmendaAcaoEnum.REVOGAR,
-                    item.getConteudo(), null, item.getTitulo(), null, req.getJustificativa());
+                    item.getConteudo(), null, item.getTitulo(), null, req.justificativa());
             item.setEmendaStatus(ElementoEmendaStatusEnum.REVOGADO);
         }
-        item.setJustificativaEmenda(req.getJustificativa());
+        item.setJustificativaEmenda(req.justificativa());
         normativaRepository.save(item);
     }
 
     private void emendar(Long docId, SecaoDocumentoEnum secao, Long elementoId,
                           EmendaElementoRequestDto req, ItemParteFinal item) {
-        EmendaAcaoEnum acao = req.getAcao();
+        EmendaAcaoEnum acao = req.acao();
 
         // Revogação consolidada numa publicação anterior é permanente — a legislação
         // não retrocede, nenhuma ação (nem desfazer, nem alterar, nem revogar de novo)
@@ -286,8 +286,8 @@ public class EmendaService {
         // como uma alteração comum, pois "o ciclo se repete" também para inclusões.
         if (acao == EmendaAcaoEnum.ALTERAR && item.getEmendaStatus() == ElementoEmendaStatusEnum.INCLUIDO
                 && item.getClausulaEmenda() == null) {
-            if (req.getNovoConteudo() != null) item.setConteudo(req.getNovoConteudo());
-            if (req.getNovoTitulo()   != null) item.setTitulo(req.getNovoTitulo());
+            if (req.novoConteudo() != null) item.setConteudo(req.novoConteudo());
+            if (req.novoTitulo()   != null) item.setTitulo(req.novoTitulo());
             finalRepository.save(item);
             return;
         }
@@ -301,7 +301,7 @@ public class EmendaService {
                     "Elemento incluído por emenda ainda não publicado não pode ser revogado. Use a opção de excluir.");
         }
 
-        validarJustificativa(req.getJustificativa());
+        validarJustificativa(req.justificativa());
 
         // Elemento com emenda já publicada antes (ALTERADO ou INCLUIDO — REVOGADO é
         // permanente e nem chega aqui, ver guarda acima): uma nova emenda sobre ele
@@ -325,17 +325,17 @@ public class EmendaService {
 
         if (acao == EmendaAcaoEnum.ALTERAR) {
             registrarHistorico(docId, secao, elementoId, EmendaAcaoEnum.ALTERAR,
-                    item.getConteudo(), req.getNovoConteudo(),
-                    item.getTitulo(), req.getNovoTitulo(), req.getJustificativa());
-            item.setConteudoEmenda(req.getNovoConteudo());
-            if (req.getNovoTitulo() != null) item.setTituloEmenda(req.getNovoTitulo());
+                    item.getConteudo(), req.novoConteudo(),
+                    item.getTitulo(), req.novoTitulo(), req.justificativa());
+            item.setConteudoEmenda(req.novoConteudo());
+            if (req.novoTitulo() != null) item.setTituloEmenda(req.novoTitulo());
             item.setEmendaStatus(ElementoEmendaStatusEnum.ALTERADO);
         } else {
             registrarHistorico(docId, secao, elementoId, EmendaAcaoEnum.REVOGAR,
-                    item.getConteudo(), null, item.getTitulo(), null, req.getJustificativa());
+                    item.getConteudo(), null, item.getTitulo(), null, req.justificativa());
             item.setEmendaStatus(ElementoEmendaStatusEnum.REVOGADO);
         }
-        item.setJustificativaEmenda(req.getJustificativa());
+        item.setJustificativaEmenda(req.justificativa());
         finalRepository.save(item);
     }
 
@@ -402,8 +402,8 @@ public class EmendaService {
     @Transactional
     public void incluir(Long docId, String secao, EmendaIncluirRequestDto req) {
         Documento documento = carregarEmAlteracao(docId);
-        concorrenciaService.checarEAtualizarVersao(documento, req.getVersaoEsperada());
-        if (req.getJustificativa() == null || req.getJustificativa().isBlank()) {
+        concorrenciaService.checarEAtualizarVersao(documento, req.versaoEsperada());
+        if (req.justificativa() == null || req.justificativa().isBlank()) {
             throw new IllegalArgumentException(JUSTIFICATIVA_REQUERIDA);
         }
 
@@ -418,50 +418,50 @@ public class EmendaService {
     private void incluirPreliminar(Long docId, SecaoDocumentoEnum secao, EmendaIncluirRequestDto req) {
         ItemPartePreliminar item = new ItemPartePreliminar();
         item.setDocumento(documentoRepository.getReferenceById(docId));
-        item.setTipo(req.getTipo());
-        item.setTitulo(req.getTitulo());
-        item.setConteudo(req.getConteudo());
-        item.setElementOrder(req.getElementOrder());
+        item.setTipo(req.tipo());
+        item.setTitulo(req.titulo());
+        item.setConteudo(req.conteudo());
+        item.setElementOrder(req.elementOrder());
         item.setEmendaStatus(ElementoEmendaStatusEnum.INCLUIDO);
-        item.setJustificativaEmenda(req.getJustificativa());
+        item.setJustificativaEmenda(req.justificativa());
         ItemPartePreliminar saved = preliminarRepository.save(item);
         registrarHistorico(docId, secao, saved.getId(), EmendaAcaoEnum.INCLUIR,
-                null, req.getConteudo(), null, req.getTitulo(), req.getJustificativa());
+                null, req.conteudo(), null, req.titulo(), req.justificativa());
     }
 
     private void incluirNormativo(Long docId, SecaoDocumentoEnum secao, EmendaIncluirRequestDto req) {
         ItemAnexoParteNormativa item = new ItemAnexoParteNormativa();
         item.setDocumento(documentoRepository.getReferenceById(docId));
-        item.setTipo(req.getTipo());
-        item.setTitulo(req.getTitulo());
-        item.setConteudo(req.getConteudo());
-        item.setElementOrder(req.getElementOrder());
+        item.setTipo(req.tipo());
+        item.setTitulo(req.titulo());
+        item.setConteudo(req.conteudo());
+        item.setElementOrder(req.elementOrder());
         item.setEmendaStatus(ElementoEmendaStatusEnum.INCLUIDO);
         item.setIncluidoPorEmenda(true);
-        item.setJustificativaEmenda(req.getJustificativa());
-        if (req.getParentId() != null) {
-            ItemAnexoParteNormativa parent = normativaRepository.findById(req.getParentId())
+        item.setJustificativaEmenda(req.justificativa());
+        if (req.parentId() != null) {
+            ItemAnexoParteNormativa parent = normativaRepository.findById(req.parentId())
                     .filter(p -> p.getDocumento().getId().equals(docId))
                     .orElseThrow(() -> new RuntimeException("Elemento pai não encontrado"));
             item.setParent(parent);
         }
         ItemAnexoParteNormativa saved = normativaRepository.save(item);
         registrarHistorico(docId, secao, saved.getId(), EmendaAcaoEnum.INCLUIR,
-                null, req.getConteudo(), null, req.getTitulo(), req.getJustificativa());
+                null, req.conteudo(), null, req.titulo(), req.justificativa());
     }
 
     private void incluirFinal(Long docId, SecaoDocumentoEnum secao, EmendaIncluirRequestDto req) {
         ItemParteFinal item = new ItemParteFinal();
         item.setDocumento(documentoRepository.getReferenceById(docId));
-        item.setTipo(req.getTipo());
-        item.setTitulo(req.getTitulo());
-        item.setConteudo(req.getConteudo());
-        item.setElementOrder(req.getElementOrder());
+        item.setTipo(req.tipo());
+        item.setTitulo(req.titulo());
+        item.setConteudo(req.conteudo());
+        item.setElementOrder(req.elementOrder());
         item.setEmendaStatus(ElementoEmendaStatusEnum.INCLUIDO);
-        item.setJustificativaEmenda(req.getJustificativa());
+        item.setJustificativaEmenda(req.justificativa());
         ItemParteFinal saved = finalRepository.save(item);
         registrarHistorico(docId, secao, saved.getId(), EmendaAcaoEnum.INCLUIR,
-                null, req.getConteudo(), null, req.getTitulo(), req.getJustificativa());
+                null, req.conteudo(), null, req.titulo(), req.justificativa());
     }
 
     // ─── Consolidação na (re)publicação ────────────────────────────────────────────
@@ -603,19 +603,19 @@ public class EmendaService {
             String titulo, String tituloEmenda, String justificativa, LocalDateTime dtAtualizacao) {
         boolean incluido = status == ElementoEmendaStatusEnum.INCLUIDO;
         boolean revogado = status == ElementoEmendaStatusEnum.REVOGADO;
-        MapaAlteracaoItemResponseDto dto = new MapaAlteracaoItemResponseDto();
-        dto.setId(elementoId);
-        dto.setSecao(secao);
-        dto.setElementoId(elementoId);
-        dto.setAcao(incluido ? EmendaAcaoEnum.INCLUIR : revogado ? EmendaAcaoEnum.REVOGAR : EmendaAcaoEnum.ALTERAR);
-        dto.setTextoAnterior(incluido ? null : conteudo);
-        dto.setTextoNovo(revogado ? null : incluido ? conteudo : conteudoEmenda);
-        dto.setTituloAnterior(incluido ? null : titulo);
-        dto.setTituloNovo(revogado ? null : incluido ? titulo : tituloEmenda);
-        dto.setJustificativa(justificativa);
-        dto.setDtEmenda(dtAtualizacao);
-        dto.setCicloReferencia(null);
-        return dto;
+        return new MapaAlteracaoItemResponseDto(
+                elementoId,
+                secao,
+                elementoId,
+                incluido ? EmendaAcaoEnum.INCLUIR : revogado ? EmendaAcaoEnum.REVOGAR : EmendaAcaoEnum.ALTERAR,
+                incluido ? null : conteudo,
+                revogado ? null : incluido ? conteudo : conteudoEmenda,
+                incluido ? null : titulo,
+                revogado ? null : incluido ? titulo : tituloEmenda,
+                justificativa,
+                dtAtualizacao,
+                null
+        );
     }
 
     // ─── Utilitários ──────────────────────────────────────────────────────────────
