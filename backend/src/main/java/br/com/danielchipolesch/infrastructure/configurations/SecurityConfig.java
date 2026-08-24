@@ -1,10 +1,12 @@
 package br.com.danielchipolesch.infrastructure.configurations;
 
 import br.com.danielchipolesch.infrastructure.security.JwtAuthenticationFilter;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.MediaType;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -68,6 +70,19 @@ public class SecurityConfig {
                 .requestMatchers("/v1/fab-legis-api/**", "/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**").permitAll()
                 .anyRequest().authenticated()
             )
+            // Sem isso, o Spring Security cai no Http403ForbiddenEntryPoint
+            // padrão (não há httpBasic/formLogin configurado) e responde 403
+            // a qualquer requisição sem token válido -- o frontend só trata
+            // 401 como "sessão inválida" (ver client.js), então esse 403
+            // indevido passava batido, sem deslogar nem redirecionar para o
+            // login. AccessDeniedException (autenticado mas sem o papel
+            // exigido) continua caindo no AccessDeniedHandler padrão, que
+            // responde 403 normalmente -- só a falta de autenticação muda.
+            .exceptionHandling(ex -> ex.authenticationEntryPoint((request, response, authException) -> {
+                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+                response.getWriter().write("{\"message\":\"Não autenticado.\"}");
+            }))
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }
