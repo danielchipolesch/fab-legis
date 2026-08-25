@@ -94,7 +94,7 @@
               <q-item-section avatar>
                 <q-icon name="mdi-account-multiple-outline" color="primary" />
               </q-item-section>
-              <q-item-section>Gestão de Usuários</q-item-section>
+              <q-item-section>Manter Usuários</q-item-section>
             </q-item>
             <q-item v-if="auth.isAuditor" clickable v-close-popup :to="{ name: 'auditoria' }">
               <q-item-section avatar>
