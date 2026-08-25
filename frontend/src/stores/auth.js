@@ -38,9 +38,9 @@ export const useAuthStore = defineStore('auth', {
     isAuthenticated: (state) => !!state.token,
     isAdmin: (state) => state.usuario?.papeis?.includes('ADMIN') ?? false,
     isAprovador: (state) => state.usuario?.papeis?.includes('APROVADOR') ?? false,
-    // Espelha o backend (hasAnyRole('AUDITOR','ADMIN') -- ver AuditoriaController):
-    // ADMIN também enxerga a auditoria, não só quem tem o papel AUDITOR.
-    isAuditor: (state) => (state.usuario?.papeis?.includes('AUDITOR') || state.usuario?.papeis?.includes('ADMIN')) ?? false,
+    // Espelha o backend (hasRole('AUDITOR') -- ver AuditoriaController): papel
+    // independente de ADMIN, precisa estar marcado no próprio cadastro.
+    isAuditor: (state) => state.usuario?.papeis?.includes('AUDITOR') ?? false,
   },
 
   actions: {
