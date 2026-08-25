@@ -425,7 +425,7 @@
 
         <div v-if="!metaEditavel" class="text-caption text-amber-9 bg-amber-1 q-pa-sm rounded-borders q-mb-md">
           <q-icon name="mdi-lock-outline" size="14px" class="q-mr-xs" />
-          Metadados não podem ser alterados durante uma alteração (EM_ALTERACAO).
+          Metadados não podem ser alterados para um documento já publicado.
         </div>
 
         <!-- Identificação -->
