@@ -70,6 +70,7 @@ export const useDocumentsStore = defineStore('documents', {
     documentos: [],
     loading: false,
     anexosPorDocumento: {},
+    portariasPorDocumento: {},
     historicoPorDocumento: {},
     mapaAlteracaoPorDocumento: {},
     documentosComHistorico: [],
@@ -196,6 +197,12 @@ export const useDocumentsStore = defineStore('documents', {
     async fetchAnexos(documentoId) {
       const lista = await api.listAnexos(documentoId)
       this.anexosPorDocumento[String(documentoId)] = lista ?? []
+      return lista
+    },
+
+    async fetchPortarias(documentoId) {
+      const lista = await api.listPortarias(documentoId)
+      this.portariasPorDocumento[String(documentoId)] = lista ?? []
       return lista
     },
 

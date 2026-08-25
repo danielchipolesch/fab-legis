@@ -286,6 +286,12 @@ export async function listAnexos(documentoId) {
   return http.get(`/documentos/${documentoId}/anexos`)
 }
 
+// ── Portarias (edição, alterações e revogação do documento) ────────────────────
+
+export async function listPortarias(documentoId) {
+  return http.get(`/documentos/${documentoId}/portarias`)
+}
+
 export async function deleteAnexo(documentoId, anexoId) {
   return http.del(`/documentos/${documentoId}/anexos/${anexoId}`)
 }

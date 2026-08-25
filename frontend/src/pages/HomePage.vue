@@ -438,7 +438,9 @@
           <q-separator />
           <q-card-section class="q-pt-md q-pb-sm column q-gutter-y-md">
             <div class="text-caption text-grey-7">
-              Informe os dados da Portaria e do BCA que registram esta alteração:
+              {{ dialog.statusOpt?.isRevogacao
+                ? 'Informe os dados da Portaria e do BCA que revogam este documento:'
+                : 'Informe os dados da Portaria e do BCA que registram esta alteração:' }}
             </div>
             <div class="row q-col-gutter-md">
               <q-input
@@ -516,61 +518,63 @@
             </template>
 
             <!-- Parte preliminar do documento -- só existe de fato a partir da
-                 publicação (ver plano desta mudança), então é coletada aqui, não
-                 durante a edição. -->
-            <q-separator />
-            <div class="text-caption text-grey-7">
-              Parte preliminar do documento publicado:
-            </div>
-            <q-input
-              v-model="dialog.epigrafe"
-              label="Epígrafe *"
-              outlined dense
-              placeholder="Ex: Portaria DIRAD/PP6 n° 1.731, de 24 de agosto de 2026"
-              lazy-rules
-              :rules="[v => !!v?.trim() || 'Informe a epígrafe']"
-              :disable="alterandoStatus"
-            />
-            <q-input
-              v-model="dialog.ementa"
-              type="textarea" autogrow
-              label="Ementa *"
-              outlined dense
-              lazy-rules
-              :rules="[v => !!v?.trim() || 'Informe a ementa']"
-              :disable="alterandoStatus"
-            />
-            <q-input
-              v-model="dialog.preambulo"
-              type="textarea" autogrow
-              label="Preâmbulo *"
-              outlined dense
-              lazy-rules
-              :rules="[v => !!v?.trim() || 'Informe o preâmbulo']"
-              :disable="alterandoStatus"
-            />
-            <q-input
-              v-model="dialog.fecho"
-              type="textarea" autogrow
-              label="Fecho *"
-              outlined dense
-              lazy-rules
-              :rules="[v => !!v?.trim() || 'Informe o fecho']"
-              :disable="alterandoStatus"
-            />
-            <q-input
-              v-model="dialog.assinatura"
-              type="textarea" autogrow
-              label="Assinatura *"
-              outlined dense
-              lazy-rules
-              :rules="[v => !!v?.trim() || 'Informe a assinatura']"
-              :disable="alterandoStatus"
-            />
+                 publicação, então é coletada aqui, não durante a edição. Não se
+                 aplica à revogação, que não republica o conteúdo do documento. -->
+            <template v-if="!dialog.statusOpt?.isRevogacao">
+              <q-separator />
+              <div class="text-caption text-grey-7">
+                Parte preliminar do documento publicado:
+              </div>
+              <q-input
+                v-model="dialog.epigrafe"
+                label="Epígrafe *"
+                outlined dense
+                placeholder="Ex: Portaria DIRAD/PP6 n° 1.731, de 24 de agosto de 2026"
+                lazy-rules
+                :rules="[v => !!v?.trim() || 'Informe a epígrafe']"
+                :disable="alterandoStatus"
+              />
+              <q-input
+                v-model="dialog.ementa"
+                type="textarea" autogrow
+                label="Ementa *"
+                outlined dense
+                lazy-rules
+                :rules="[v => !!v?.trim() || 'Informe a ementa']"
+                :disable="alterandoStatus"
+              />
+              <q-input
+                v-model="dialog.preambulo"
+                type="textarea" autogrow
+                label="Preâmbulo *"
+                outlined dense
+                lazy-rules
+                :rules="[v => !!v?.trim() || 'Informe o preâmbulo']"
+                :disable="alterandoStatus"
+              />
+              <q-input
+                v-model="dialog.fecho"
+                type="textarea" autogrow
+                label="Fecho *"
+                outlined dense
+                lazy-rules
+                :rules="[v => !!v?.trim() || 'Informe o fecho']"
+                :disable="alterandoStatus"
+              />
+              <q-input
+                v-model="dialog.assinatura"
+                type="textarea" autogrow
+                label="Assinatura *"
+                outlined dense
+                lazy-rules
+                :rules="[v => !!v?.trim() || 'Informe a assinatura']"
+                :disable="alterandoStatus"
+              />
+            </template>
 
             <q-separator />
             <div class="text-caption text-grey-7">
-              PDF da portaria (será concatenado ao documento) *
+              PDF da portaria *
             </div>
             <q-uploader
               ref="portariaUploaderRef"
@@ -782,7 +786,7 @@ function statusActions(doc) {
                    { status: 'MINUTA',        label: 'Retornar p/ Minuta',   icon: 'mdi-undo' }],
     PUBLICADO:    [{ status: 'EM_ALTERACAO',  label: 'Iniciar Alteração',    icon: 'mdi-pencil-lock-outline' },
                    { status: 'ARQUIVADO',     label: 'Arquivar',             icon: 'mdi-archive-outline' },
-                   { status: 'REVOGADO',      label: 'Revogar',             icon: 'mdi-file-remove-outline' }],
+                   { status: 'REVOGADO',      label: 'Revogar',             icon: 'mdi-file-remove-outline', requiresRefs: true, isRevogacao: true }],
     EM_ALTERACAO: [{ status: 'ALTERADO', label: 'Aprovar Alteração', icon: 'mdi-check-circle-outline' }],
     ALTERADO:     [{ status: 'PUBLICADO',    label: 'Republicar',           icon: 'mdi-publish', requiresRefs: true, isRepublicacao: true },
                    { status: 'EM_ALTERACAO', label: 'Retornar p/ Alteração', icon: 'mdi-undo' }],
@@ -969,11 +973,14 @@ const errosRefs = computed(() => {
     errs.push('A data do BCA não pode ser anterior à da alteração anterior.')
   }
 
-  if (!dialog.epigrafe?.trim()) errs.push('Informe a epígrafe.')
-  if (!dialog.ementa?.trim()) errs.push('Informe a ementa.')
-  if (!dialog.preambulo?.trim()) errs.push('Informe o preâmbulo.')
-  if (!dialog.fecho?.trim()) errs.push('Informe o fecho.')
-  if (!dialog.assinatura?.trim()) errs.push('Informe a assinatura.')
+  // Revogar não republica o conteúdo do documento -- não exige a parte preliminar.
+  if (!dialog.statusOpt?.isRevogacao) {
+    if (!dialog.epigrafe?.trim()) errs.push('Informe a epígrafe.')
+    if (!dialog.ementa?.trim()) errs.push('Informe a ementa.')
+    if (!dialog.preambulo?.trim()) errs.push('Informe o preâmbulo.')
+    if (!dialog.fecho?.trim()) errs.push('Informe o fecho.')
+    if (!dialog.assinatura?.trim()) errs.push('Informe a assinatura.')
+  }
   if (!dialog.portariaPdfUrl) errs.push('Envie o PDF da portaria.')
 
   return errs

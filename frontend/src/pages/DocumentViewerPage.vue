@@ -143,7 +143,50 @@
           </q-expansion-item>
         </q-card>
 
-        <!-- 2. Visualização do documento (fechada por padrão) -->
+        <!-- 2. Portarias (edição, alterações e revogação -- fechada por padrão) -->
+        <q-card flat class="section-card">
+          <q-expansion-item
+            v-model="expanded.portarias"
+            icon="mdi-file-certificate-outline"
+            label="Portarias"
+            header-class="text-primary text-weight-medium"
+          >
+            <q-separator />
+            <q-card-section class="q-pa-lg">
+              <q-list v-if="portarias.length" separator bordered class="rounded-borders">
+                <q-item v-for="p in portarias" :key="p.id">
+                  <q-item-section avatar>
+                    <q-icon name="mdi-file-certificate-outline" color="primary" />
+                  </q-item-section>
+                  <q-item-section>
+                    <q-item-label class="text-weight-medium">{{ labelPortaria(p) }}</q-item-label>
+                    <q-item-label caption>
+                      {{ p.orgao }}<template v-if="p.setor">/{{ p.setor }}</template>
+                      n° {{ p.numeroPortaria }}, de {{ formatarDataSimples(p.dataPortaria) }}
+                      — BCA n° {{ p.numeroBca }}, de {{ formatarDataSimples(p.dataBca) }}
+                    </q-item-label>
+                  </q-item-section>
+                  <q-item-section side>
+                    <q-btn
+                      flat round dense
+                      icon="mdi-download-outline"
+                      color="primary"
+                      :href="p.urlPdf"
+                      target="_blank"
+                    >
+                      <q-tooltip anchor="top middle" self="bottom middle">Baixar PDF</q-tooltip>
+                    </q-btn>
+                  </q-item-section>
+                </q-item>
+              </q-list>
+              <div v-else class="text-grey-6 text-body2 text-center q-py-md">
+                Nenhuma portaria registrada.
+              </div>
+            </q-card-section>
+          </q-expansion-item>
+        </q-card>
+
+        <!-- 3. Visualização do documento (fechada por padrão) -->
         <q-card flat class="section-card">
           <q-expansion-item
             v-model="expanded.preview"
@@ -174,7 +217,7 @@
           </q-expansion-item>
         </q-card>
 
-        <!-- 3. Histórico de versões (fechada por padrão) -->
+        <!-- 4. Histórico de versões (fechada por padrão) -->
         <q-card flat class="section-card">
           <q-expansion-item
             v-model="expanded.versoes"
@@ -243,9 +286,10 @@ const pdfLoading = ref(false)
 
 // Só a primeira seção aberta por padrão
 const expanded = reactive({
-  info:    true,
-  preview: false,
-  versoes: false,
+  info:      true,
+  portarias: false,
+  preview:   false,
+  versoes:   false,
 })
 
 const STATUS_COM_PDF = new Set(['APROVADO', 'ALTERADO', 'PUBLICADO', 'ARQUIVADO', 'REVOGADO'])
@@ -292,6 +336,22 @@ const STATUS_META = {
 }
 
 const historico = computed(() => docStore.historicoPorDocumento[String(documentoId.value)] ?? [])
+const portarias = computed(() => docStore.portariasPorDocumento[String(documentoId.value)] ?? [])
+
+// EDICAO e REVOGACAO só ocorrem uma vez por documento, sem numeração; cada
+// ALTERACAO é numerada automaticamente pelo backend (numeroSequencial), mas
+// a primeira delas (1) some do rótulo -- só a 2ª em diante aparece numerada.
+function labelPortaria(p) {
+  if (p.tipo === 'EDICAO') return 'Portaria de Edição'
+  if (p.tipo === 'REVOGACAO') return 'Portaria de Revogação'
+  return p.numeroSequencial > 1 ? `${p.numeroSequencial}ª Portaria de Alteração` : 'Portaria de Alteração'
+}
+
+function formatarDataSimples(isoStr) {
+  if (!isoStr) return '—'
+  const [y, m, d] = String(isoStr).split('-')
+  return `${d}/${m}/${y}`
+}
 
 const timelineEventos = computed(() => {
   return historico.value
@@ -322,6 +382,7 @@ onMounted(async () => {
   try {
     await docStore.fetchDocumento(documentoId.value)
     await docStore.fetchHistorico(documentoId.value)
+    await docStore.fetchPortarias(documentoId.value)
   } catch (e) {
     console.error('[Viewer] Erro ao buscar documento:', e)
     $q.notify({ type: 'negative', message: 'Erro ao carregar documento.' })
