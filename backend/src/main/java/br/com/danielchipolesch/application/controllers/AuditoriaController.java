@@ -23,12 +23,12 @@ import java.time.LocalDateTime;
 
 // Trilha de auditoria (quem viu/editou/excluiu/mudou status de cada
 // documento, quando -- ver LogAuditoriaService) -- leitura exclusiva de
-// AUDITOR e ADMIN (o ADMIN também enxerga, já que é quem gerencia usuários
-// e pode precisar investigar um caso sem depender de outra pessoa).
+// AUDITOR. Papel independente de ADMIN: um admin só enxerga a auditoria
+// se também tiver o papel de auditor marcado no próprio cadastro.
 @RestController
 @RequestMapping(value = "/v1/auditoria", produces = MediaType.APPLICATION_JSON_VALUE)
 @Tag(name = "Auditoria", description = "Log de acesso/ações a nível de documento")
-@PreAuthorize("hasAnyRole('AUDITOR', 'ADMIN')")
+@PreAuthorize("hasRole('AUDITOR')")
 public class AuditoriaController {
 
     @Autowired
