@@ -8,6 +8,7 @@ import br.com.danielchipolesch.domain.entities.estruturaDocumento.DocumentoStatu
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.ItemAnexoParteNormativaTipoEnum;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.SecaoDocumentoEnum;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.TipoAlteracaoEnum;
+import br.com.danielchipolesch.domain.entities.estruturaDocumento.TipoPortariaPublicacaoEnum;
 import br.com.danielchipolesch.domain.handlers.exceptions.ResourceNotFoundException;
 import br.com.danielchipolesch.domain.handlers.exceptions.StatusCannotBeUpdatedException;
 import br.com.danielchipolesch.domain.handlers.exceptions.enums.DocumentException;
@@ -41,6 +42,7 @@ public class DocumentoStatusService {
     @Autowired EmendaService emendaService;
     @Autowired NotificacaoService notificacaoService;
     @Autowired DocumentoParteNormativaService documentoParteNormativaService;
+    @Autowired PortariaPublicacaoService portariaPublicacaoService;
 
     // Atômico de propósito: a mudança de status envolve várias tabelas (documento,
     // respaçamento de nr_ordem, histórico) e não pode ficar parcialmente aplicada se
@@ -75,12 +77,14 @@ public class DocumentoStatusService {
             throw new StatusCannotBeUpdatedException(DocumentException.CANNOT_BE_UPDATED.getMessage());
         }
 
-        // Toda publicação (primeira publicação a partir de APROVADO ou republicação a
-        // partir de ALTERADO) exige portaria e BCA de referência — o PDF os embute. A
-        // aprovação em si (MINUTA -> APROVADO, EM_ALTERACAO -> ALTERADO) não exige nada
-        // além da confirmação de status.
-        boolean publicacao = novoStatus == DocumentoStatusEnum.PUBLICADO;
-        if (publicacao) {
+        // Publicar (primeira publicação a partir de APROVADO ou republicação a partir de
+        // ALTERADO) e revogar exigem portaria e BCA de referência -- cada uma vira um
+        // registro próprio em PortariaPublicacao (ver abaixo), nunca mesclada com o PDF
+        // do documento (mesclar invalidaria uma eventual assinatura digital futura na
+        // portaria). A aprovação em si (MINUTA -> APROVADO, EM_ALTERACAO -> ALTERADO) não
+        // exige nada além da confirmação de status.
+        boolean requerPortaria = novoStatus == DocumentoStatusEnum.PUBLICADO || novoStatus == DocumentoStatusEnum.REVOGADO;
+        if (requerPortaria) {
             String orgaoPortaria = request.orgaoPortaria();
             String setorPortaria = request.setorPortaria();
             String numeroPortaria = request.numeroPortaria();
@@ -91,21 +95,20 @@ public class DocumentoStatusService {
             if (orgaoPortaria == null || orgaoPortaria.isBlank()
                     || setorPortaria == null || setorPortaria.isBlank()
                     || numeroPortaria == null || numeroPortaria.isBlank() || dataPortaria == null
-                    || numeroBca == null || dataBca == null) {
+                    || numeroBca == null || dataBca == null || isBlank(request.portariaPdfUrl())) {
                 throw new StatusCannotBeUpdatedException(
-                        "Para publicar um documento é obrigatório informar a portaria e o BCA de referência.");
+                        "É obrigatório informar a portaria, o BCA de referência e o PDF da portaria.");
             }
-            // A parte preliminar (epígrafe/ementa/preâmbulo/fecho/assinatura) só
-            // passa a existir de fato com a publicação -- por isso é coletada
-            // aqui, não durante a edição (ver Documento.java e o plano desta
-            // mudança). O PDF da portaria já foi enviado antes deste request via
-            // POST .../portaria-pdf; aqui só chega a URL resultante.
-            if (isBlank(request.epigrafe()) || isBlank(request.ementa()) || isBlank(request.preambulo())
-                    || isBlank(request.fecho()) || isBlank(request.assinatura())
-                    || isBlank(request.portariaPdfUrl())) {
+            // A parte preliminar (epígrafe/ementa/preâmbulo/fecho/assinatura) só passa a
+            // existir de fato com a publicação -- por isso é coletada aqui, não durante a
+            // edição (ver Documento.java). Revogar não republica o conteúdo do documento,
+            // então não exige esses campos.
+            boolean publicando = novoStatus == DocumentoStatusEnum.PUBLICADO;
+            if (publicando && (isBlank(request.epigrafe()) || isBlank(request.ementa()) || isBlank(request.preambulo())
+                    || isBlank(request.fecho()) || isBlank(request.assinatura()))) {
                 throw new StatusCannotBeUpdatedException(
                         "Para publicar um documento é obrigatório informar epígrafe, ementa, preâmbulo, "
-                        + "fecho, assinatura e o PDF da portaria.");
+                        + "fecho e assinatura.");
             }
             // O BCA é publicado apenas em dias úteis, então nunca passa de 366 (dias do ano).
             if (numeroBca < 1 || numeroBca > 366) {
@@ -131,25 +134,34 @@ public class DocumentoStatusService {
             document.setBcaReferencia("BCA n° " + numeroBca + ", de " + formatarDataPorExtenso(dataBca));
             document.setDtPortariaReferencia(Timestamp.valueOf(dataPortaria.atStartOfDay()));
             document.setDtBcaReferencia(Timestamp.valueOf(dataBca.atStartOfDay()));
-            document.setUrlPortariaPdf(request.portariaPdfUrl());
 
-            // Substitui a parte preliminar do documento pelo conteúdo informado
-            // nesta publicação (mesma lógica de "apaga tudo e recria" já usada
-            // por DocumentoParteNormativaService.salvarSecoes durante a edição,
-            // só que agora só roda aqui).
-            documentoParteNormativaService.salvarItensPreliminares(document, List.of(
-                    new SecaoItemRequestDto(SecaoDocumentoEnum.PARTE_PRELIMINAR, ItemAnexoParteNormativaTipoEnum.EPIGRAFE, 1, null, request.epigrafe(), null, null),
-                    new SecaoItemRequestDto(SecaoDocumentoEnum.PARTE_PRELIMINAR, ItemAnexoParteNormativaTipoEnum.EMENTA, 2, null, request.ementa(), null, null),
-                    new SecaoItemRequestDto(SecaoDocumentoEnum.PARTE_PRELIMINAR, ItemAnexoParteNormativaTipoEnum.PREAMBULO, 3, null, request.preambulo(), null, null),
-                    new SecaoItemRequestDto(SecaoDocumentoEnum.PARTE_PRELIMINAR, ItemAnexoParteNormativaTipoEnum.FECHO, 4, null, request.fecho(), null, null),
-                    new SecaoItemRequestDto(SecaoDocumentoEnum.PARTE_PRELIMINAR, ItemAnexoParteNormativaTipoEnum.ASSINATURA, 5, null, request.assinatura(), null, null)
-            ));
+            // Tipo da portaria: revogação é sempre REVOGACAO; publicar a partir de
+            // ALTERADO é uma alteração (numerada automaticamente); publicar a partir de
+            // APROVADO é a edição original do documento.
+            TipoPortariaPublicacaoEnum tipoPortaria = !publicando ? TipoPortariaPublicacaoEnum.REVOGACAO
+                    : (current == DocumentoStatusEnum.ALTERADO ? TipoPortariaPublicacaoEnum.ALTERACAO : TipoPortariaPublicacaoEnum.EDICAO);
+            portariaPublicacaoService.registrar(document, tipoPortaria, orgaoPortaria, setorPortaria,
+                    numeroPortaria, dataPortaria, numeroBca, dataBca, request.portariaPdfUrl());
 
-            // Só há emendas pendentes a consolidar quando vem de ALTERADO (ciclo de
-            // alteração concluído); a primeira publicação (a partir de APROVADO) nunca
-            // passou por EM_ALTERACAO, então não há nada para consolidar.
-            if (current == DocumentoStatusEnum.ALTERADO) {
-                emendaService.consolidarPublicacao(id, document.getPortariaReferencia(), document.getBcaReferencia());
+            if (publicando) {
+                // Substitui a parte preliminar do documento pelo conteúdo informado
+                // nesta publicação (mesma lógica de "apaga tudo e recria" já usada
+                // por DocumentoParteNormativaService.salvarSecoes durante a edição,
+                // só que agora só roda aqui).
+                documentoParteNormativaService.salvarItensPreliminares(document, List.of(
+                        new SecaoItemRequestDto(SecaoDocumentoEnum.PARTE_PRELIMINAR, ItemAnexoParteNormativaTipoEnum.EPIGRAFE, 1, null, request.epigrafe(), null, null),
+                        new SecaoItemRequestDto(SecaoDocumentoEnum.PARTE_PRELIMINAR, ItemAnexoParteNormativaTipoEnum.EMENTA, 2, null, request.ementa(), null, null),
+                        new SecaoItemRequestDto(SecaoDocumentoEnum.PARTE_PRELIMINAR, ItemAnexoParteNormativaTipoEnum.PREAMBULO, 3, null, request.preambulo(), null, null),
+                        new SecaoItemRequestDto(SecaoDocumentoEnum.PARTE_PRELIMINAR, ItemAnexoParteNormativaTipoEnum.FECHO, 4, null, request.fecho(), null, null),
+                        new SecaoItemRequestDto(SecaoDocumentoEnum.PARTE_PRELIMINAR, ItemAnexoParteNormativaTipoEnum.ASSINATURA, 5, null, request.assinatura(), null, null)
+                ));
+
+                // Só há emendas pendentes a consolidar quando vem de ALTERADO (ciclo de
+                // alteração concluído); a primeira publicação (a partir de APROVADO) nunca
+                // passou por EM_ALTERACAO, então não há nada para consolidar.
+                if (current == DocumentoStatusEnum.ALTERADO) {
+                    emendaService.consolidarPublicacao(id, document.getPortariaReferencia(), document.getBcaReferencia());
+                }
             }
         }
 

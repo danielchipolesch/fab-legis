@@ -7,6 +7,7 @@ import br.com.danielchipolesch.application.dtos.documentoDtos.DocumentoResponseC
 import br.com.danielchipolesch.application.dtos.documentoDtos.DocumentoResponseSemAnexoTextualDto;
 import br.com.danielchipolesch.application.dtos.documentoDtos.DocumentoStatusRequestDto;
 import br.com.danielchipolesch.application.dtos.documentoDtos.PortariaPdfResponseDto;
+import br.com.danielchipolesch.application.dtos.documentoDtos.PortariaPublicacaoResponseDto;
 import br.com.danielchipolesch.application.dtos.emendaDtos.MapaAlteracaoItemResponseDto;
 import br.com.danielchipolesch.application.dtos.emendaDtos.MapaAlteracaoPdfRequestDto;
 import br.com.danielchipolesch.application.dtos.itemAnexoParteNormativaDtos.ItemAnexoParteNormativaRequestDto;
@@ -27,6 +28,7 @@ import br.com.danielchipolesch.domain.services.EmendaService;
 import br.com.danielchipolesch.domain.services.ImagemService;
 import br.com.danielchipolesch.domain.services.LogAuditoriaService;
 import br.com.danielchipolesch.domain.services.MapaAlteracaoPdfService;
+import br.com.danielchipolesch.domain.services.PortariaPublicacaoService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -86,6 +88,9 @@ public class DocumentoController {
 
     @Autowired
     private ImagemService imagemService;
+
+    @Autowired
+    private PortariaPublicacaoService portariaPublicacaoService;
 
     private EntityModel<DocumentoResponseSemAnexoTextualDto> toModel(DocumentoResponseSemAnexoTextualDto dto) {
         Long id = dto.idDocumento();
@@ -175,6 +180,15 @@ public class DocumentoController {
         String url = imagemService.uploadPdf(arquivo.getBytes(),
                 "portaria-" + id + "-" + Instant.now().toEpochMilli() + ".pdf");
         return ResponseEntity.ok(new PortariaPdfResponseDto(url));
+    }
+
+    // Sem @PreAuthorize: visualizar é liberado para qualquer usuário
+    // autenticado, mesmo raciocínio de DocumentoAcessoService para o resto da
+    // tela de visualização.
+    @GetMapping("{id}/portarias")
+    public ResponseEntity<List<PortariaPublicacaoResponseDto>> listarPortarias(
+            @PathVariable(value = "id") Long id) {
+        return ResponseEntity.ok(portariaPublicacaoService.listar(id));
     }
 
     @PreAuthorize("@documentoAcessoService.podeEditar(#id, authentication)")
