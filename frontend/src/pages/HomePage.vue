@@ -514,6 +514,82 @@
               <div class="text-caption text-grey-7">Prévia da cláusula:</div>
               <div class="text-body2 text-italic">{{ previewClausula }}</div>
             </template>
+
+            <!-- Parte preliminar do documento -- só existe de fato a partir da
+                 publicação (ver plano desta mudança), então é coletada aqui, não
+                 durante a edição. -->
+            <q-separator />
+            <div class="text-caption text-grey-7">
+              Parte preliminar do documento publicado:
+            </div>
+            <q-input
+              v-model="dialog.epigrafe"
+              label="Epígrafe *"
+              outlined dense
+              placeholder="Ex: Portaria DIRAD/PP6 n° 1.731, de 24 de agosto de 2026"
+              lazy-rules
+              :rules="[v => !!v?.trim() || 'Informe a epígrafe']"
+              :disable="alterandoStatus"
+            />
+            <q-input
+              v-model="dialog.ementa"
+              type="textarea" autogrow
+              label="Ementa *"
+              outlined dense
+              lazy-rules
+              :rules="[v => !!v?.trim() || 'Informe a ementa']"
+              :disable="alterandoStatus"
+            />
+            <q-input
+              v-model="dialog.preambulo"
+              type="textarea" autogrow
+              label="Preâmbulo *"
+              outlined dense
+              lazy-rules
+              :rules="[v => !!v?.trim() || 'Informe o preâmbulo']"
+              :disable="alterandoStatus"
+            />
+            <q-input
+              v-model="dialog.fecho"
+              type="textarea" autogrow
+              label="Fecho *"
+              outlined dense
+              lazy-rules
+              :rules="[v => !!v?.trim() || 'Informe o fecho']"
+              :disable="alterandoStatus"
+            />
+            <q-input
+              v-model="dialog.assinatura"
+              type="textarea" autogrow
+              label="Assinatura *"
+              outlined dense
+              lazy-rules
+              :rules="[v => !!v?.trim() || 'Informe a assinatura']"
+              :disable="alterandoStatus"
+            />
+
+            <q-separator />
+            <div class="text-caption text-grey-7">
+              PDF da portaria (será concatenado ao documento) *
+            </div>
+            <q-uploader
+              ref="portariaUploaderRef"
+              :url="portariaUploadUrl"
+              :headers="portariaUploadHeaders"
+              field-name="arquivo"
+              label="Portaria (PDF)"
+              accept="application/pdf"
+              :multiple="false"
+              :max-files="1"
+              auto-upload
+              :disable="alterandoStatus"
+              flat bordered
+              style="max-height:200px;width:100%"
+              @uploading="portariaUploadando = true"
+              @uploaded="onPortariaPdfUploaded"
+              @failed="onPortariaPdfFailed"
+              @removed="dialog.portariaPdfUrl = ''"
+            />
           </q-card-section>
         </template>
         <q-card-actions align="right" class="q-pb-md q-px-md">
@@ -521,7 +597,7 @@
           <q-btn
             unelevated color="primary" label="Confirmar"
             :loading="alterandoStatus"
-            :disable="dialog.statusOpt?.requiresRefs && errosRefs.length > 0"
+            :disable="dialog.statusOpt?.requiresRefs && (errosRefs.length > 0 || portariaUploadando)"
             @click="executarMudancaStatus"
           />
         </q-card-actions>
@@ -550,11 +626,12 @@
 <script setup>
 import { ref, computed, reactive, onMounted, watch } from 'vue'
 import { useQuasar } from 'quasar'
-import { useDocumentsStore } from '@/stores/documents.js'
+import { useDocumentsStore, jDoc, jPara, jText } from '@/stores/documents.js'
 import { useAuthStore } from '@/stores/auth.js'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import NewDocumentDialog from '@/components/common/NewDocumentDialog.vue'
 import { gerarPdf } from '@/services/pdfService.js'
+import { BASE_URL } from '@/api/client.js'
 
 const $q = useQuasar()
 const store = useDocumentsStore()
@@ -739,6 +816,12 @@ async function executarMudancaStatus() {
     dataPortaria:   dialog.dataPortaria,
     numeroBca:      parseInt(dialog.numeroBca, 10),
     dataBca:        dialog.dataBca,
+    epigrafe:       jDoc(jPara(jText(dialog.epigrafe.trim()))),
+    ementa:         jDoc(jPara(jText(dialog.ementa.trim()))),
+    preambulo:      jDoc(jPara(jText(dialog.preambulo.trim()))),
+    fecho:          jDoc(jPara(jText(dialog.fecho.trim()))),
+    assinatura:     jDoc(jPara(jText(dialog.assinatura.trim()))),
+    portariaPdfUrl: dialog.portariaPdfUrl,
   } : undefined
   if (!alvo || !opt) return
 
@@ -754,6 +837,13 @@ async function executarMudancaStatus() {
     dialog.dataPortaria = ''
     dialog.numeroBca = ''
     dialog.dataBca = ''
+    dialog.epigrafe = ''
+    dialog.ementa = ''
+    dialog.preambulo = ''
+    dialog.fecho = ''
+    dialog.assinatura = ''
+    dialog.portariaPdfUrl = ''
+    portariaUploaderRef.value?.reset()
   } catch (e) {
     $q.notify({ type: 'negative', message: `Erro ao mudar situação: ${e?.message ?? 'erro desconhecido'}` })
   } finally {
@@ -795,7 +885,35 @@ const dialog = reactive({
   orgaoPortaria: '', setorPortaria: '',
   numeroPortaria: '', dataPortaria: '',
   numeroBca: '', dataBca: '',
+  // Parte preliminar do documento -- só coletada aqui, na publicação (ver
+  // plano desta mudança). portariaPdfUrl é preenchida pelo upload do
+  // q-uploader abaixo, antes do usuário confirmar a publicação.
+  epigrafe: '', ementa: '', preambulo: '', fecho: '', assinatura: '',
+  portariaPdfUrl: '',
 })
+
+const portariaUploaderRef = ref(null)
+const portariaUploadando = ref(false)
+const portariaUploadUrl = computed(() => `${BASE_URL}/documentos/${dialog.target?.id}/portaria-pdf`)
+// q-uploader não passa pelo client.js (http.js), então não herda a injeção
+// automática do Authorization -- precisa ser passado explicitamente aqui.
+const portariaUploadHeaders = computed(() => [{ name: 'Authorization', value: `Bearer ${auth.token}` }])
+
+function onPortariaPdfUploaded(info) {
+  portariaUploadando.value = false
+  try {
+    const resposta = JSON.parse(info.xhr.responseText)
+    dialog.portariaPdfUrl = resposta.url
+  } catch {
+    $q.notify({ type: 'negative', message: 'Erro ao processar a resposta do upload da portaria.' })
+  }
+}
+
+function onPortariaPdfFailed() {
+  portariaUploadando.value = false
+  dialog.portariaPdfUrl = ''
+  $q.notify({ type: 'negative', message: 'Erro ao enviar o PDF da portaria.' })
+}
 
 const MESES_EXTENSO = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
   'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro']
@@ -850,6 +968,13 @@ const errosRefs = computed(() => {
       && dialog.dataBca < dialog.target.data_bca_referencia) {
     errs.push('A data do BCA não pode ser anterior à da alteração anterior.')
   }
+
+  if (!dialog.epigrafe?.trim()) errs.push('Informe a epígrafe.')
+  if (!dialog.ementa?.trim()) errs.push('Informe a ementa.')
+  if (!dialog.preambulo?.trim()) errs.push('Informe o preâmbulo.')
+  if (!dialog.fecho?.trim()) errs.push('Informe o fecho.')
+  if (!dialog.assinatura?.trim()) errs.push('Informe a assinatura.')
+  if (!dialog.portariaPdfUrl) errs.push('Envie o PDF da portaria.')
 
   return errs
 })

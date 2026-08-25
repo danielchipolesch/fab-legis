@@ -528,8 +528,8 @@ onMounted(async () => {
     }
 
     const loadedDoc = editorStore.documento
-    const prelim = loadedDoc?.secoes?.find(s => s.tipo === 'parte_preliminar')
-    const primeiro = prelim?.elementos?.[0]
+    const normativa = loadedDoc?.secoes?.find(s => s.tipo === 'parte_normativa')
+    const primeiro = normativa?.elementos?.[0]
     if (primeiro) editorStore.selectElement(primeiro.id)
 
     iniciarPresenca()

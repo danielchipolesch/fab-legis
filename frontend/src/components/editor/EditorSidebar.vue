@@ -423,6 +423,11 @@
 
       <q-card-section class="q-pa-md scroll" style="max-height:70vh">
 
+        <div v-if="!metaEditavel" class="text-caption text-amber-9 bg-amber-1 q-pa-sm rounded-borders q-mb-md">
+          <q-icon name="mdi-lock-outline" size="14px" class="q-mr-xs" />
+          Metadados não podem ser alterados durante uma alteração (EM_ALTERACAO).
+        </div>
+
         <!-- Identificação -->
         <div class="text-caption text-weight-bold text-grey-6 text-uppercase q-mb-sm">Identificação</div>
         <div class="row q-col-gutter-sm q-mb-md">
@@ -438,6 +443,7 @@
               label="Número Secundário"
               outlined dense
               type="number"
+              :disable="!metaEditavel"
             />
           </div>
           <div class="col-12">
@@ -457,6 +463,7 @@
               label="Título"
               outlined dense
               autofocus
+              :disable="!metaEditavel"
             />
           </div>
         </div>
@@ -518,8 +525,9 @@
       <q-separator />
 
       <q-card-actions align="right" class="q-px-md q-py-sm">
-        <q-btn flat label="Cancelar" v-close-popup :disable="metaSalvando" />
+        <q-btn flat :label="metaEditavel ? 'Cancelar' : 'Fechar'" v-close-popup :disable="metaSalvando" />
         <q-btn
+          v-if="metaEditavel"
           unelevated
           color="primary"
           label="Salvar"
@@ -552,6 +560,7 @@
         <q-uploader
           ref="anexoUploaderRef"
           :url="anexoUploadUrl"
+          :headers="anexoUploadHeaders"
           field-name="arquivo"
           :form-fields="anexoFormFields"
           label="Imagem (PNG, JPEG)"
@@ -592,11 +601,13 @@ import StatusBadge from '@/components/common/StatusBadge.vue'
 import { formatLabel, elementIcon } from '@/utils/numbering.js'
 import { useEditorStore } from '@/stores/editor.js'
 import { useDocumentsStore } from '@/stores/documents.js'
+import { useAuthStore } from '@/stores/auth.js'
 import { BASE_URL } from '@/api/client.js'
 
 const $q = useQuasar()
 const editorStore = useEditorStore()
 const documentsStore = useDocumentsStore()
+const authStore = useAuthStore()
 
 const props = defineProps({
   documento:      { type: Object, default: null },
@@ -628,6 +639,11 @@ function formatarData(iso) {
 const metaDialogOpen = ref(false)
 const metaSalvando   = ref(false)
 const metaForm = reactive({ titulo: '', numero_secundario: '' })
+// Espelha a regra do backend (DocumentoService.update só aceita
+// RASCUNHO/MINUTA -- ver GlobalExceptionHandler, StatusCannotBeUpdatedException
+// mapeada para 403): dentro do editor, o único outro status possível é
+// EM_ALTERACAO, então basta essa checagem.
+const metaEditavel = computed(() => !props.isEmAlteracao)
 
 function abrirDialogMeta() {
   metaForm.titulo           = props.documento?.titulo ?? ''
@@ -722,7 +738,6 @@ const nodePreview = (node) => {
 
 // ── Estado das seções colapsadas ─────────────────────────────────────────────
 const secaoExpandida = reactive({
-  parte_preliminar: true,
   parte_normativa:  true,
   anexos:           false,
 })
@@ -781,6 +796,9 @@ const anexoUploaderRef = ref(null)
 
 const anexoUploadUrl = computed(() => `${BASE_URL}/documentos/${props.documento?.id}/anexos`)
 const anexoFormFields = computed(() => [{ name: 'titulo', value: anexoForm.titulo }])
+// q-uploader não passa pelo client.js (http.js), então não herda a injeção
+// automática do Authorization -- precisa ser passado explicitamente aqui.
+const anexoUploadHeaders = computed(() => [{ name: 'Authorization', value: `Bearer ${authStore.token}` }])
 
 function toRoman(n) {
   if (n <= 0) return ''
@@ -851,7 +869,6 @@ function emendaStatusLabel(status) {
 
 function secaoIcon(tipo) {
   const m = {
-    parte_preliminar: 'mdi-text-box-outline',
     parte_normativa:  'mdi-format-list-numbered',
     anexos:           'mdi-paperclip',
   }
@@ -860,7 +877,6 @@ function secaoIcon(tipo) {
 
 function secaoIconColor(tipo) {
   const m = {
-    parte_preliminar: 'teal-6',
     parte_normativa:  'primary',
     anexos:           'teal-6',
   }

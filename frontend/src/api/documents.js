@@ -1,12 +1,10 @@
 import * as http from './client.js'
 
 const SECAO_CONFIG = {
-  PARTE_PRELIMINAR: { tipo: 'parte_preliminar', titulo: 'Parte Preliminar', ordem: 1 },
-  PARTE_NORMATIVA:  { tipo: 'parte_normativa',  titulo: 'Parte Normativa',  ordem: 2 },
+  PARTE_NORMATIVA:  { tipo: 'parte_normativa',  titulo: 'Parte Normativa',  ordem: 1 },
 }
 
 const SECAO_ENUM_MAP = {
-  parte_preliminar: 'PARTE_PRELIMINAR',
   parte_normativa:  'PARTE_NORMATIVA',
 }
 
@@ -87,14 +85,17 @@ export function backendParaFrontend(doc) {
   const preliminarItens = doc.itensPreliminares ?? []
   const normativaItens  = doc.itensNormativos   ?? []
 
-  // Retorna null quando todas as seções estão vazias (documento novo, sem dados salvos)
-  // para que o store gere o template e salve no banco
+  // A parte preliminar (epígrafe/ementa/preâmbulo/fecho/assinatura) não é
+  // mais mostrada na edição -- só existe de fato a partir da publicação (ver
+  // formulário de publicação em HomePage.vue), então itensPreliminares nunca
+  // vira uma seção aqui, mesmo quando presente (documento já publicado).
+  // Ainda conta para "hasAnyData" para não re-templatizar um documento já
+  // publicado que, por algum motivo, não tenha itens de parte normativa.
   const hasAnyData = preliminarItens.length > 0 || normativaItens.length > 0
 
   const secoes = hasAnyData ? [
-    buildSecao('PARTE_PRELIMINAR', preliminarItens),
     buildSecao('PARTE_NORMATIVA',  normativaItens),
-    { tipo: 'anexos', titulo: 'Anexos', ordem: 3, id: crypto.randomUUID(), elementos: [] },
+    { tipo: 'anexos', titulo: 'Anexos', ordem: 2, id: crypto.randomUUID(), elementos: [] },
   ] : null
 
   return {
@@ -185,6 +186,12 @@ export async function changeDocumentoStatus(id, novoStatus, refs) {
     body.dataPortaria    = refs.dataPortaria ?? null
     body.numeroBca       = refs.numeroBca ?? null
     body.dataBca         = refs.dataBca ?? null
+    body.epigrafe        = refs.epigrafe ?? null
+    body.ementa          = refs.ementa ?? null
+    body.preambulo       = refs.preambulo ?? null
+    body.fecho           = refs.fecho ?? null
+    body.assinatura      = refs.assinatura ?? null
+    body.portariaPdfUrl  = refs.portariaPdfUrl ?? null
   }
   const result = await http.patch(`/documentos/${id}/status`, body)
   return backendParaFrontend(result)
