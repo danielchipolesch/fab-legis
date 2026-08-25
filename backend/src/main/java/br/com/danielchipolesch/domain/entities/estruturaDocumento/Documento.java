@@ -96,6 +96,12 @@ public class Documento extends RepresentationModel<Documento> {
     @Column(name = "dt_bca_referencia")
     private Timestamp dtBcaReferencia;
 
+    // PDF da portaria enviado no ato da publicação -- concatenado com o PDF
+    // gerado do documento (ver DocumentoPdfService.gerarEArmazenarPdf).
+    // Ausente em documentos que nunca foram publicados.
+    @Column(name = "tx_url_portaria_pdf")
+    private String urlPortariaPdf;
+
     @Column(name = "nr_versao", nullable = false)
     @Version
     private Integer versao;

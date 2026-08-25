@@ -12,6 +12,9 @@ import br.com.danielchipolesch.infrastructure.repositories.DocumentoRepository;
 import org.apache.fop.apps.Fop;
 import org.apache.fop.apps.FopFactory;
 import org.apache.fop.apps.MimeConstants;
+import org.apache.pdfbox.Loader;
+import org.apache.pdfbox.multipdf.PDFMergerUtility;
+import org.apache.pdfbox.pdmodel.PDDocument;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
@@ -107,10 +110,38 @@ public class DocumentoPdfService {
     public String gerarEArmazenarPdf(Documento documento) {
         try {
             byte[] pdfBytes = renderPdf(documento);
+            if (documento.getUrlPortariaPdf() != null) {
+                pdfBytes = concatenarComPortaria(pdfBytes, documento.getUrlPortariaPdf());
+            }
             String filename = "documento-" + documento.getId() + "-" + Instant.now().toEpochMilli() + ".pdf";
             return imagemService.uploadPdf(pdfBytes, filename);
         } catch (Exception e) {
             throw new RuntimeException("Erro ao gerar/armazenar PDF: " + e.getMessage(), e);
+        }
+    }
+
+    // A portaria só existe a partir da primeira publicação (ver
+    // DocumentoStatusService.changeStatus) -- documentos que só passaram por
+    // APROVADO/ALTERADO sem nunca terem sido publicados não chegam aqui.
+    // Portaria primeiro, documento gerado depois, na ordem que o PDF final
+    // deve ser lido.
+    private byte[] concatenarComPortaria(byte[] documentoPdf, String urlPortariaPdf) throws Exception {
+        byte[] portariaBytes;
+        try (InputStream portariaStream = imagemService.getObjectStream(urlPortariaPdf)) {
+            if (portariaStream == null) return documentoPdf;
+            portariaBytes = portariaStream.readAllBytes();
+        }
+
+        try (PDDocument portaria = Loader.loadPDF(portariaBytes);
+             PDDocument documento = Loader.loadPDF(documentoPdf);
+             PDDocument resultado = new PDDocument()) {
+            PDFMergerUtility merger = new PDFMergerUtility();
+            merger.appendDocument(resultado, portaria);
+            merger.appendDocument(resultado, documento);
+            try (var saida = new ByteArrayOutputStream()) {
+                resultado.save(saida);
+                return saida.toByteArray();
+            }
         }
     }
 

@@ -138,7 +138,10 @@ public class DocumentoParteNormativaService {
         if (!normativos.isEmpty()) salvarItensNormativos(documento, normativos);
     }
 
-    private void salvarItensPreliminares(Documento documento, List<SecaoItemRequestDto> dtos) {
+    // Pacote (não private): reutilizado por DocumentoStatusService para
+    // gravar a parte preliminar (epígrafe/ementa/preâmbulo/fecho/assinatura)
+    // no momento da publicação -- ver changeStatus().
+    void salvarItensPreliminares(Documento documento, List<SecaoItemRequestDto> dtos) {
         itemPartePreliminarRepository.deleteAllByDocumentoId(documento.getId());
         for (int i = 0; i < dtos.size(); i++) {
             SecaoItemRequestDto dto = dtos.get(i);

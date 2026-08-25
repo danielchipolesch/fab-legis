@@ -6,6 +6,7 @@ import br.com.danielchipolesch.application.dtos.documentoDtos.DocumentoRequestUp
 import br.com.danielchipolesch.application.dtos.documentoDtos.DocumentoResponseComAnexoTextualDto;
 import br.com.danielchipolesch.application.dtos.documentoDtos.DocumentoResponseSemAnexoTextualDto;
 import br.com.danielchipolesch.application.dtos.documentoDtos.DocumentoStatusRequestDto;
+import br.com.danielchipolesch.application.dtos.documentoDtos.PortariaPdfResponseDto;
 import br.com.danielchipolesch.application.dtos.emendaDtos.MapaAlteracaoItemResponseDto;
 import br.com.danielchipolesch.application.dtos.emendaDtos.MapaAlteracaoPdfRequestDto;
 import br.com.danielchipolesch.application.dtos.itemAnexoParteNormativaDtos.ItemAnexoParteNormativaRequestDto;
@@ -23,6 +24,7 @@ import br.com.danielchipolesch.domain.services.DocumentoPresencaService;
 import br.com.danielchipolesch.domain.services.DocumentoService;
 import br.com.danielchipolesch.domain.services.DocumentoStatusService;
 import br.com.danielchipolesch.domain.services.EmendaService;
+import br.com.danielchipolesch.domain.services.ImagemService;
 import br.com.danielchipolesch.domain.services.LogAuditoriaService;
 import br.com.danielchipolesch.domain.services.MapaAlteracaoPdfService;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -38,9 +40,11 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
+import java.time.Instant;
 import java.util.List;
 
 @RestController
@@ -79,6 +83,9 @@ public class DocumentoController {
 
     @Autowired
     private LogAuditoriaService logAuditoriaService;
+
+    @Autowired
+    private ImagemService imagemService;
 
     private EntityModel<DocumentoResponseSemAnexoTextualDto> toModel(DocumentoResponseSemAnexoTextualDto dto) {
         Long id = dto.idDocumento();
@@ -153,6 +160,21 @@ public class DocumentoController {
         logAuditoriaService.registrar(dto.idDocumento(), dto.codigoDocumento(), AcaoAuditoriaEnum.MUDOU_STATUS,
                 "Nova situação: " + request.status());
         return ResponseEntity.ok(toModel(dto));
+    }
+
+    // Upload do PDF da portaria de publicação -- separado do PATCH .../status
+    // porque acontece ANTES do usuário confirmar a publicação (ver
+    // HomePage.vue): só sobe o arquivo e devolve a URL, sem mudar status nem
+    // gravar nada no documento. A URL só é persistida quando o formulário de
+    // publicação é de fato enviado.
+    @PreAuthorize("@documentoAcessoService.podeEditar(#id, authentication)")
+    @PostMapping(value = "{id}/portaria-pdf", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<PortariaPdfResponseDto> uploadPortariaPdf(
+            @PathVariable(value = "id") Long id,
+            @RequestParam("arquivo") MultipartFile arquivo) throws Exception {
+        String url = imagemService.uploadPdf(arquivo.getBytes(),
+                "portaria-" + id + "-" + Instant.now().toEpochMilli() + ".pdf");
+        return ResponseEntity.ok(new PortariaPdfResponseDto(url));
     }
 
     @PreAuthorize("@documentoAcessoService.podeEditar(#id, authentication)")

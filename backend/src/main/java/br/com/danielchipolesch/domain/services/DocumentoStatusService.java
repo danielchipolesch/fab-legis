@@ -2,8 +2,11 @@ package br.com.danielchipolesch.domain.services;
 
 import br.com.danielchipolesch.application.dtos.documentoDtos.DocumentoResponseSemAnexoTextualDto;
 import br.com.danielchipolesch.application.dtos.documentoDtos.DocumentoStatusRequestDto;
+import br.com.danielchipolesch.application.dtos.itemAnexoParteNormativaDtos.SecaoItemRequestDto;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.Documento;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.DocumentoStatusEnum;
+import br.com.danielchipolesch.domain.entities.estruturaDocumento.ItemAnexoParteNormativaTipoEnum;
+import br.com.danielchipolesch.domain.entities.estruturaDocumento.SecaoDocumentoEnum;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.TipoAlteracaoEnum;
 import br.com.danielchipolesch.domain.handlers.exceptions.ResourceNotFoundException;
 import br.com.danielchipolesch.domain.handlers.exceptions.StatusCannotBeUpdatedException;
@@ -22,6 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.List;
 
 @Service
 public class DocumentoStatusService {
@@ -36,6 +40,7 @@ public class DocumentoStatusService {
     @Autowired ItemParteFinalRepository finalRepository;
     @Autowired EmendaService emendaService;
     @Autowired NotificacaoService notificacaoService;
+    @Autowired DocumentoParteNormativaService documentoParteNormativaService;
 
     // Atômico de propósito: a mudança de status envolve várias tabelas (documento,
     // respaçamento de nr_ordem, histórico) e não pode ficar parcialmente aplicada se
@@ -90,6 +95,18 @@ public class DocumentoStatusService {
                 throw new StatusCannotBeUpdatedException(
                         "Para publicar um documento é obrigatório informar a portaria e o BCA de referência.");
             }
+            // A parte preliminar (epígrafe/ementa/preâmbulo/fecho/assinatura) só
+            // passa a existir de fato com a publicação -- por isso é coletada
+            // aqui, não durante a edição (ver Documento.java e o plano desta
+            // mudança). O PDF da portaria já foi enviado antes deste request via
+            // POST .../portaria-pdf; aqui só chega a URL resultante.
+            if (isBlank(request.epigrafe()) || isBlank(request.ementa()) || isBlank(request.preambulo())
+                    || isBlank(request.fecho()) || isBlank(request.assinatura())
+                    || isBlank(request.portariaPdfUrl())) {
+                throw new StatusCannotBeUpdatedException(
+                        "Para publicar um documento é obrigatório informar epígrafe, ementa, preâmbulo, "
+                        + "fecho, assinatura e o PDF da portaria.");
+            }
             // O BCA é publicado apenas em dias úteis, então nunca passa de 366 (dias do ano).
             if (numeroBca < 1 || numeroBca > 366) {
                 throw new StatusCannotBeUpdatedException(
@@ -114,6 +131,19 @@ public class DocumentoStatusService {
             document.setBcaReferencia("BCA n° " + numeroBca + ", de " + formatarDataPorExtenso(dataBca));
             document.setDtPortariaReferencia(Timestamp.valueOf(dataPortaria.atStartOfDay()));
             document.setDtBcaReferencia(Timestamp.valueOf(dataBca.atStartOfDay()));
+            document.setUrlPortariaPdf(request.portariaPdfUrl());
+
+            // Substitui a parte preliminar do documento pelo conteúdo informado
+            // nesta publicação (mesma lógica de "apaga tudo e recria" já usada
+            // por DocumentoParteNormativaService.salvarSecoes durante a edição,
+            // só que agora só roda aqui).
+            documentoParteNormativaService.salvarItensPreliminares(document, List.of(
+                    new SecaoItemRequestDto(SecaoDocumentoEnum.PARTE_PRELIMINAR, ItemAnexoParteNormativaTipoEnum.EPIGRAFE, 1, null, request.epigrafe(), null, null),
+                    new SecaoItemRequestDto(SecaoDocumentoEnum.PARTE_PRELIMINAR, ItemAnexoParteNormativaTipoEnum.EMENTA, 2, null, request.ementa(), null, null),
+                    new SecaoItemRequestDto(SecaoDocumentoEnum.PARTE_PRELIMINAR, ItemAnexoParteNormativaTipoEnum.PREAMBULO, 3, null, request.preambulo(), null, null),
+                    new SecaoItemRequestDto(SecaoDocumentoEnum.PARTE_PRELIMINAR, ItemAnexoParteNormativaTipoEnum.FECHO, 4, null, request.fecho(), null, null),
+                    new SecaoItemRequestDto(SecaoDocumentoEnum.PARTE_PRELIMINAR, ItemAnexoParteNormativaTipoEnum.ASSINATURA, 5, null, request.assinatura(), null, null)
+            ));
 
             // Só há emendas pendentes a consolidar quando vem de ALTERADO (ciclo de
             // alteração concluído); a primeira publicação (a partir de APROVADO) nunca
@@ -205,5 +235,9 @@ public class DocumentoStatusService {
 
     private static String formatarDataPorExtenso(LocalDate data) {
         return data.getDayOfMonth() + " de " + MESES[data.getMonthValue() - 1] + " de " + data.getYear();
+    }
+
+    private static boolean isBlank(String valor) {
+        return valor == null || valor.isBlank();
     }
 }

@@ -16,6 +16,21 @@ public record DocumentoStatusRequestDto(
         String numeroPortaria,
         LocalDate dataPortaria,
         Integer numeroBca,
-        LocalDate dataBca
+        LocalDate dataBca,
+
+        // Também obrigatórios apenas ao publicar -- a parte preliminar do
+        // documento (epígrafe/ementa/preâmbulo/fecho/assinatura) só existe de
+        // fato a partir da publicação, então é coletada aqui, não durante a
+        // edição (ver DocumentoStatusService.changeStatus). Cada campo é uma
+        // string JSON no mesmo formato usado por "conteudo" em SecaoItemRequestDto.
+        String epigrafe,
+        String ementa,
+        String preambulo,
+        String fecho,
+        String assinatura,
+
+        // URL (MinIO) do PDF da portaria já enviado via POST .../portaria-pdf
+        // antes deste request -- concatenado ao PDF gerado do documento.
+        String portariaPdfUrl
 ) {
 }
