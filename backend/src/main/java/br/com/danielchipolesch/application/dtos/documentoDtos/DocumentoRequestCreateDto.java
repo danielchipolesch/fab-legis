@@ -2,21 +2,16 @@ package br.com.danielchipolesch.application.dtos.documentoDtos;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
 
-@Data
-@AllArgsConstructor
-@NoArgsConstructor
-public class DocumentoRequestCreateDto {
+public record DocumentoRequestCreateDto(
 
-    @NotNull
-    private Long IdEspecieNormativa;
+        @NotNull
+        Long idEspecieNormativa,
 
-    @NotNull
-    private Long IdAssuntoBasico;
+        @NotNull
+        Long idAssuntoBasico,
 
-    @NotBlank
-    private String tituloDocumento;
+        @NotBlank
+        String tituloDocumento
+) {
 }

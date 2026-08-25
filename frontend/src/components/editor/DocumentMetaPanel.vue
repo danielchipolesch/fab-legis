@@ -48,7 +48,7 @@
           <q-select
             v-model="local.status"
             :options="statusOptions"
-            label="Status"
+            label="Situação"
             outlined
             dense
             :readonly="isStatusReadonly"

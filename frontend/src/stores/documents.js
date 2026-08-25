@@ -1,11 +1,16 @@
 import { defineStore } from 'pinia'
 import { v4 as uuidv4 } from 'uuid'
-import { renumberElements } from '@/utils/numbering.js'
+import { renumberElements, renumberElementsEmAlteracao } from '@/utils/numbering.js'
 import * as api from '@/api/documents.js'
 
 function renumerarSecaoNormativa(doc) {
   const normativa = doc.secoes?.find(s => s.tipo === 'parte_normativa')
-  if (normativa?.elementos?.length) renumberElements(normativa.elementos)
+  if (!normativa?.elementos?.length) return
+  if (doc.status === 'EM_ALTERACAO' || doc.status === 'ALTERADO') {
+    renumberElementsEmAlteracao(normativa.elementos)
+  } else {
+    renumberElements(normativa.elementos)
+  }
 }
 
 function makeElement(tipo, numero, conteudo = '', filhos = []) {
@@ -23,107 +28,38 @@ const CAPITULOS_DEFAULT = [
   'DISPOSIÇÕES TRANSITÓRIAS',
 ]
 
-function jText(text, marks = []) {
+// Exportados para reuso no formulário de publicação (HomePage.vue) -- é o
+// mesmo envelope JSON (tipo ProseMirror/TipTap) que o WysiwygEditor e o
+// backend já esperam em "conteudo", então textos simples digitados ali
+// entram no mesmo contrato de dados sem precisar de um editor rico.
+export function jText(text, marks = []) {
   return { type: 'text', text, ...(marks.length ? { marks } : {}) }
 }
-function jBold(text) {
-  return jText(text, [{ type: 'bold' }])
-}
-function jRed(text) {
-  return jText(text, [{ type: 'textStyle', attrs: { color: '#CC0000' } }, { type: 'bold' }])
-}
-function jPara(...nodes) {
+export function jPara(...nodes) {
   return { type: 'paragraph', content: nodes }
 }
-function jDoc(...paragraphs) {
+export function jDoc(...paragraphs) {
   return JSON.stringify({ type: 'doc', content: paragraphs })
 }
 
-const ESPECIE_NOME = {
-  ICA:  'Instrução do Comando da Aeronáutica',
-  NSCA: 'Norma de Sistema do Comando da Aeronáutica',
-  MCA:  'Manual do Comando da Aeronáutica',
-  RCA:  'Regulamento do Comando da Aeronáutica',
-  DCA:  'Diretriz do Comando da Aeronáutica',
-  PCA:  'Portaria do Comando da Aeronáutica',
-  OCA:  'Ordem do Comando da Aeronáutica',
-  TCA:  'Técnica do Comando da Aeronáutica',
-}
-
+// A parte preliminar (epígrafe/ementa/preâmbulo/fecho/assinatura) não faz
+// mais parte da edição -- só existe de fato a partir da publicação em BCA,
+// então passou a ser coletada no próprio formulário de publicação
+// (HomePage.vue), não como uma seção editável aqui.
 function gerarSecoesTemplate(doc) {
-  const especie   = doc.especie       ?? ''
-  const numBasico = doc.numero_basico ?? ''
-  const numSec    = doc.numero_secundario != null ? doc.numero_secundario : '?'
-  const sigla     = `${especie} ${numBasico}-${numSec}`.trim()
-
   return [
-    {
-      id: uuidv4(),
-      tipo: 'parte_preliminar',
-      titulo: 'Parte Preliminar',
-      ordem: 1,
-      elementos: [
-        makeElement('epigrafe', null, jDoc(
-          jPara(jRed('Portaria ÓRGÃO/SETOR n° XYZ, de DD de MÊS de AAAA'))
-        )),
-        makeElement('ementa', null, jDoc(
-          jPara(
-            jText('Dispõe sobre '),
-            jRed('[descrição resumida do assunto]'),
-            jText(' e dá outras providências.')
-          )
-        )),
-        makeElement('preambulo', null, jDoc(
-          jPara(
-            jText('O '),
-            jBold('COMANDANTE DA AERONÁUTICA'),
-            jText(', no uso das atribuições que lhe confere o art. 12 da Lei Complementar nº 97, de 9 de junho de 1999, tendo em vista o que consta do Processo nº '),
-            jRed('[NÚMERO DO PROCESSO]'),
-            jText(', resolve:')
-          ),
-          jPara(
-            jBold('Art. 1°'),
-            jText('  Aprovar a '),
-            jBold(sigla),
-            jText(' "'),
-            jRed('[TÍTULO DA NORMA]'),
-            jText('",')
-          ),
-          jPara(
-            jBold('Art. 2°'),
-            jText('  Revogar a Portaria '),
-            jRed('[XYZ]'),
-            jText(', de '),
-            jRed('[DD de mês de AAAA]'),
-            jText('.')
-          ),
-          jPara(
-            jBold('Art. 3°'),
-            jText('  Esta Portaria entra em vigor na data de sua publicação.')
-          )
-        )),
-        makeElement('fecho', null, jDoc(
-          jPara(jText('Brasília, '), jRed('[DD de mês de AAAA]'), jText('.'))
-        )),
-        makeElement('assinatura', null, jDoc(
-          jPara(jRed('[NOME DO COMANDANTE DA AERONÁUTICA]')),
-          jPara(jText('Tenente-Brigadeiro do Ar')),
-          jPara(jText('Comandante da Aeronáutica'))
-        )),
-      ],
-    },
     {
       id: uuidv4(),
       tipo: 'parte_normativa',
       titulo: 'Parte Normativa',
-      ordem: 2,
+      ordem: 1,
       elementos: CAPITULOS_DEFAULT.map((titulo, i) => makeCapitulo(i + 1, titulo)),
     },
     {
       id: uuidv4(),
       tipo: 'anexos',
       titulo: 'Anexos',
-      ordem: 3,
+      ordem: 2,
       elementos: [],
     },
   ]
@@ -134,10 +70,14 @@ export const useDocumentsStore = defineStore('documents', {
     documentos: [],
     loading: false,
     anexosPorDocumento: {},
+    historicoPorDocumento: {},
+    mapaAlteracaoPorDocumento: {},
+    documentosComHistorico: [],
   }),
 
   getters: {
     getById: (state) => (id) => state.documentos.find(d => String(d.id) === String(id)) ?? null,
+    temVersoesComparaveis: (state) => (id) => state.documentosComHistorico.includes(String(id)),
   },
 
   actions: {
@@ -145,8 +85,12 @@ export const useDocumentsStore = defineStore('documents', {
       if (this.loading) return
       this.loading = true
       try {
-        const docs = await api.listDocumentos()
+        const [docs, comHistorico] = await Promise.all([
+          api.listDocumentos(),
+          api.listDocumentosComHistoricoEmenda(),
+        ])
         this.documentos = docs.map(d => ({ ...d }))
+        this.documentosComHistorico = comHistorico
       } finally {
         this.loading = false
       }
@@ -188,16 +132,23 @@ export const useDocumentsStore = defineStore('documents', {
       return clone
     },
 
+    // Sequencial de propósito, não Promise.all: saveSecoes checa
+    // versaoEsperada contra o banco (DocumentoConcorrenciaService) e bumpa a
+    // versão; se updateDocumento rodasse em paralelo, os dois partiriam da
+    // mesma versão lida e um dos bumps "desapareceria" da resposta que o
+    // frontend vê. Rodando em sequência, updateDocumento sempre lê o estado
+    // já pós-saveSecoes, então atualizado.versao reflete a versão real final.
     async saveDocumento(documento) {
       const idx = this.documentos.findIndex(d => String(d.id) === String(documento.id))
       if (idx === -1) return
-      const [atualizado] = await Promise.all([
-        api.updateDocumento(documento.id, documento),
-        documento.secoes ? api.saveSecoes(documento.id, documento.secoes) : Promise.resolve(null),
-      ])
+      if (documento.secoes) {
+        await api.saveSecoes(documento.id, documento.secoes, documento.versao)
+      }
+      const atualizado = await api.updateDocumento(documento.id, documento)
       if (atualizado) {
         this.documentos[idx] = { ...this.documentos[idx], ...atualizado, secoes: documento.secoes }
       }
+      return atualizado
     },
 
     async updateMetadados(id, { titulo, numero_secundario }) {
@@ -210,18 +161,33 @@ export const useDocumentsStore = defineStore('documents', {
       return atualizado
     },
 
-    async changeStatus(id, novoStatus) {
-      const atualizado = await api.changeDocumentoStatus(id, novoStatus)
+    async changeStatus(id, novoStatus, refs) {
+      const atualizado = await api.changeDocumentoStatus(id, novoStatus, refs)
       if (atualizado) {
         const idx = this.documentos.findIndex(d => String(d.id) === String(id))
         if (idx !== -1) this.documentos[idx] = { ...this.documentos[idx], ...atualizado }
       }
     },
 
+    async emendar(docId, secao, elementoId, acao, novoConteudo, novoTitulo, justificativa, versaoEsperada) {
+      await api.emendar(docId, secao, elementoId, acao, novoConteudo, novoTitulo, justificativa, versaoEsperada)
+      return this.fetchDocumento(docId)
+    },
+
+    async incluirElementoEmenda(docId, secao, tipo, titulo, conteudo, parentId, elementOrder, justificativa, versaoEsperada) {
+      await api.incluirElementoEmenda(docId, secao, tipo, titulo, conteudo, parentId, elementOrder, justificativa, versaoEsperada)
+      return this.fetchDocumento(docId)
+    },
+
+    async reordenarElementoEmenda(docId, secao, elementoId, direcao) {
+      await api.reordenarElementoEmenda(docId, secao, elementoId, direcao)
+      return this.fetchDocumento(docId)
+    },
+
     async deleteDocumento(id) {
       const doc = this.documentos.find(d => String(d.id) === String(id))
       if (doc && !['RASCUNHO', 'MINUTA'].includes(doc.status)) {
-        throw new Error(`Não é possível excluir um documento com status "${doc.status}". Somente documentos em RASCUNHO ou MINUTA podem ser excluídos.`)
+        throw new Error(`Não é possível excluir um documento com situação "${doc.status}". Somente documentos em RASCUNHO ou MINUTA podem ser excluídos.`)
       }
       await api.deleteDocumento(id)
       this.documentos = this.documentos.filter(d => String(d.id) !== String(id))
@@ -233,12 +199,16 @@ export const useDocumentsStore = defineStore('documents', {
       return lista
     },
 
-    async addAnexo(documentoId, titulo, arquivo) {
-      const novo = await api.uploadAnexo(documentoId, titulo, arquivo)
-      const key = String(documentoId)
-      if (!this.anexosPorDocumento[key]) this.anexosPorDocumento[key] = []
-      this.anexosPorDocumento[key].push(novo)
-      return novo
+    async fetchHistorico(documentoId) {
+      const lista = await api.listHistorico(documentoId)
+      this.historicoPorDocumento[String(documentoId)] = lista ?? []
+      return lista
+    },
+
+    async fetchMapaAlteracao(documentoId) {
+      const lista = await api.listMapaAlteracao(documentoId)
+      this.mapaAlteracaoPorDocumento[String(documentoId)] = lista ?? []
+      return lista
     },
 
     async removeAnexo(documentoId, anexoId) {

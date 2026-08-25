@@ -3,11 +3,13 @@ package br.com.danielchipolesch.domain.services;
 import br.com.danielchipolesch.application.dtos.documentoDtos.DocumentoResponseComAnexoTextualDto;
 import br.com.danielchipolesch.application.dtos.itemAnexoParteNormativaDtos.ItemAnexoParteNormativaRequestDto;
 import br.com.danielchipolesch.application.dtos.itemAnexoParteNormativaDtos.ItemAnexoParteNormativaResponseDto;
+import br.com.danielchipolesch.application.dtos.itemAnexoParteNormativaDtos.NumeracaoElementoResponseDto;
 import br.com.danielchipolesch.application.dtos.itemAnexoParteNormativaDtos.SecaoItemRequestDto;
 import br.com.danielchipolesch.application.dtos.itemAnexoParteNormativaDtos.SecoesSaveRequestDto;
 import br.com.danielchipolesch.application.dtos.itemParteFinalDtos.ItemParteFinalResponseDto;
 import br.com.danielchipolesch.application.dtos.itemPartePreliminarDtos.ItemPartePreliminarResponseDto;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.*;
+import br.com.danielchipolesch.domain.entities.estruturaDocumento.DocumentoStatusEnum;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.TipoAlteracaoEnum;
 import br.com.danielchipolesch.domain.mappers.DocumentoMapper;
 import br.com.danielchipolesch.infrastructure.repositories.DocumentoRepository;
@@ -38,6 +40,12 @@ public class DocumentoParteNormativaService {
     @Autowired
     DocumentoHistoricoService documentoHistoricoService;
 
+    @Autowired
+    NumeracaoService numeracaoService;
+
+    @Autowired
+    DocumentoConcorrenciaService concorrenciaService;
+
     // ─── Carregamento ────────────────────────────────────────────────────────────
 
     public List<ItemPartePreliminar> getItensPreliminaresByDocumento(Long documentoId) {
@@ -54,10 +62,30 @@ public class DocumentoParteNormativaService {
         return itemParteFinalRepository.findByDocumentoIdOrderByElementOrderAsc(documentoId);
     }
 
+    // NUNCA usar item.setChildren(novaLista) aqui: children é
+    // @OneToMany(orphanRemoval=true), então substituir a coleção gerenciada
+    // do Hibernate por uma lista nova e desconectada faz o flush seguinte
+    // (disparado por QUALQUER escrita na mesma sessão -- ver open-in-view)
+    // falhar com "A collection with orphan deletion was no longer
+    // referenced by the owning entity instance". clear()+addAll() atualiza
+    // o conteúdo mantendo a mesma instância de coleção que o Hibernate
+    // já está rastreando.
     private void carregarChildrenRecursivamente(ItemAnexoParteNormativa item) {
         List<ItemAnexoParteNormativa> children = itemAnexoParteNormativaRepository.findByParentOrderByElementOrderAsc(item);
-        item.setChildren(children);
+        item.getChildren().clear();
+        item.getChildren().addAll(children);
         children.forEach(this::carregarChildrenRecursivamente);
+    }
+
+    // Numeração calculada da parte normativa (capítulo/seção/subseção/artigo) —
+    // mesmo cálculo usado no PDF oficial (ver NumeracaoService), exposto para
+    // qualquer consumidor via API.
+    public List<NumeracaoElementoResponseDto> listarNumeracao(Long documentoId) {
+        List<ItemAnexoParteNormativaResponseDto> normativos = getItensNormativosByDocumento(documentoId)
+                .stream().map(ItemAnexoParteNormativaResponseDto::from).toList();
+        return numeracaoService.calcular(normativos).entrySet().stream()
+                .map(e -> NumeracaoElementoResponseDto.from(e.getKey(), e.getValue()))
+                .toList();
     }
 
     // ─── Consulta completa ────────────────────────────────────────────────────────
@@ -85,33 +113,45 @@ public class DocumentoParteNormativaService {
         Documento documento = documentoRepository.findById(documentoId)
                 .orElseThrow(() -> new RuntimeException("Documento não encontrado"));
 
-        if (request.getItens() == null) return;
+        if (documento.getDocumentoStatus() == DocumentoStatusEnum.EM_ALTERACAO
+                || documento.getDocumentoStatus() == DocumentoStatusEnum.ALTERADO) {
+            throw new IllegalStateException(
+                    "Documento em alteração (ou aguardando republicação): utilize os endpoints de emenda "
+                    + "para modificar elementos individualmente, nunca o salvamento em massa.");
+        }
+
+        if (request.itens() == null) return;
+
+        concorrenciaService.checarEAtualizarVersao(documento, request.versaoEsperada());
 
         documentoHistoricoService.registrar(documento, TipoAlteracaoEnum.ALTERACAO_CONTEUDO,
                 "Conteúdo do documento salvo", null, null);
 
-        List<SecaoItemRequestDto> preliminares = request.getItens().stream()
-                .filter(i -> i.getSecao() == SecaoDocumentoEnum.PARTE_PRELIMINAR)
+        List<SecaoItemRequestDto> preliminares = request.itens().stream()
+                .filter(i -> i.secao() == SecaoDocumentoEnum.PARTE_PRELIMINAR)
                 .toList();
-        List<SecaoItemRequestDto> normativos = request.getItens().stream()
-                .filter(i -> i.getSecao() == SecaoDocumentoEnum.PARTE_NORMATIVA)
+        List<SecaoItemRequestDto> normativos = request.itens().stream()
+                .filter(i -> i.secao() == SecaoDocumentoEnum.PARTE_NORMATIVA)
                 .toList();
 
         if (!preliminares.isEmpty()) salvarItensPreliminares(documento, preliminares);
         if (!normativos.isEmpty()) salvarItensNormativos(documento, normativos);
     }
 
-    private void salvarItensPreliminares(Documento documento, List<SecaoItemRequestDto> dtos) {
+    // Pacote (não private): reutilizado por DocumentoStatusService para
+    // gravar a parte preliminar (epígrafe/ementa/preâmbulo/fecho/assinatura)
+    // no momento da publicação -- ver changeStatus().
+    void salvarItensPreliminares(Documento documento, List<SecaoItemRequestDto> dtos) {
         itemPartePreliminarRepository.deleteAllByDocumentoId(documento.getId());
         for (int i = 0; i < dtos.size(); i++) {
             SecaoItemRequestDto dto = dtos.get(i);
             ItemPartePreliminar item = new ItemPartePreliminar();
             item.setDocumento(documento);
-            item.setTipo(dto.getTipo());
-            item.setElementOrder(dto.getElementOrder() != null ? dto.getElementOrder() : i + 1);
-            item.setTitulo(dto.getTitulo());
-            item.setConteudo(dto.getConteudo());
-            item.setFullTextContent(gerarFullTextContent(dto.getTitulo(), dto.getConteudo(), dto.getFullTextContent()));
+            item.setTipo(dto.tipo());
+            item.setElementOrder(dto.elementOrder() != null ? dto.elementOrder() : i + 1);
+            item.setTitulo(dto.titulo());
+            item.setConteudo(dto.conteudo());
+            item.setFullTextContent(gerarFullTextContent(dto.titulo(), dto.conteudo(), dto.fullTextContent()));
             itemPartePreliminarRepository.save(item);
         }
     }
@@ -121,28 +161,28 @@ public class DocumentoParteNormativaService {
         itemAnexoParteNormativaRepository.deleteAllByDocumentoId(documento.getId());
         for (int i = 0; i < dtos.size(); i++) {
             SecaoItemRequestDto dto = dtos.get(i);
-            if (dto.getElementOrder() == null) dto.setElementOrder(i + 1);
-            salvarItemNormativoRecursivo(documento, dto, null);
+            int elementOrder = dto.elementOrder() != null ? dto.elementOrder() : i + 1;
+            salvarItemNormativoRecursivo(documento, dto, elementOrder, null);
         }
     }
 
-    private void salvarItemNormativoRecursivo(Documento documento, SecaoItemRequestDto dto, ItemAnexoParteNormativa parent) {
+    private void salvarItemNormativoRecursivo(Documento documento, SecaoItemRequestDto dto, int elementOrder, ItemAnexoParteNormativa parent) {
         ItemAnexoParteNormativa item = new ItemAnexoParteNormativa();
         item.setDocumento(documento);
-        item.setTipo(dto.getTipo());
-        item.setElementOrder(dto.getElementOrder());
-        item.setTitulo(dto.getTitulo());
-        item.setConteudo(dto.getConteudo());
-        item.setFullTextContent(gerarFullTextContent(dto.getTitulo(), dto.getConteudo(), dto.getFullTextContent()));
+        item.setTipo(dto.tipo());
+        item.setElementOrder(elementOrder);
+        item.setTitulo(dto.titulo());
+        item.setConteudo(dto.conteudo());
+        item.setFullTextContent(gerarFullTextContent(dto.titulo(), dto.conteudo(), dto.fullTextContent()));
         item.setParent(parent);
         itemAnexoParteNormativaRepository.save(item);
 
-        List<SecaoItemRequestDto> filhos = dto.getFilhos();
+        List<SecaoItemRequestDto> filhos = dto.filhos();
         if (filhos != null) {
             for (int i = 0; i < filhos.size(); i++) {
                 SecaoItemRequestDto filho = filhos.get(i);
-                if (filho.getElementOrder() == null) filho.setElementOrder(i + 1);
-                salvarItemNormativoRecursivo(documento, filho, item);
+                int filhoOrder = filho.elementOrder() != null ? filho.elementOrder() : i + 1;
+                salvarItemNormativoRecursivo(documento, filho, filhoOrder, item);
             }
         }
     }
@@ -153,11 +193,11 @@ public class DocumentoParteNormativaService {
             SecaoItemRequestDto dto = dtos.get(i);
             ItemParteFinal item = new ItemParteFinal();
             item.setDocumento(documento);
-            item.setTipo(dto.getTipo());
-            item.setElementOrder(dto.getElementOrder() != null ? dto.getElementOrder() : i + 1);
-            item.setTitulo(dto.getTitulo());
-            item.setConteudo(dto.getConteudo());
-            item.setFullTextContent(gerarFullTextContent(dto.getTitulo(), dto.getConteudo(), dto.getFullTextContent()));
+            item.setTipo(dto.tipo());
+            item.setElementOrder(dto.elementOrder() != null ? dto.elementOrder() : i + 1);
+            item.setTitulo(dto.titulo());
+            item.setConteudo(dto.conteudo());
+            item.setFullTextContent(gerarFullTextContent(dto.titulo(), dto.conteudo(), dto.fullTextContent()));
             itemParteFinalRepository.save(item);
         }
     }
@@ -170,12 +210,12 @@ public class DocumentoParteNormativaService {
 
         ItemAnexoParteNormativa novoItem = new ItemAnexoParteNormativa();
         novoItem.setDocumento(documento);
-        novoItem.setTipo(dto.getTipo());
-        novoItem.setTitulo(dto.getTitulo());
-        novoItem.setConteudo(dto.getConteudo());
+        novoItem.setTipo(dto.tipo());
+        novoItem.setTitulo(dto.titulo());
+        novoItem.setConteudo(dto.conteudo());
 
-        if (dto.getParentId() != null) {
-            ItemAnexoParteNormativa parent = itemAnexoParteNormativaRepository.findById(dto.getParentId())
+        if (dto.parentId() != null) {
+            ItemAnexoParteNormativa parent = itemAnexoParteNormativaRepository.findById(dto.parentId())
                     .orElseThrow(() -> new RuntimeException("Item pai não encontrado"));
             if (!parent.getDocumento().getId().equals(documento.getId())) {
                 throw new RuntimeException("O item pai não pertence ao mesmo documento!");

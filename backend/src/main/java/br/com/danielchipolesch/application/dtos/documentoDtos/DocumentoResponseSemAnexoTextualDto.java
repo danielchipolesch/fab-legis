@@ -2,49 +2,68 @@ package br.com.danielchipolesch.application.dtos.documentoDtos;
 
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.DocumentoStatusEnum;
 import com.fasterxml.jackson.annotation.JsonFormat;
-import lombok.AllArgsConstructor;
-import lombok.Data;
 
 import java.sql.Timestamp;
 
-@Data
-@AllArgsConstructor
-public class DocumentoResponseSemAnexoTextualDto {
+public record DocumentoResponseSemAnexoTextualDto(
 
-    private Long idDocumento;
-    private String siglaEspecieNormativa;
-    private String codigoAssuntoBasico;
-    private String nomeAssuntoBasico;
-    private Integer numeroSecundario;
-    private String codigoDocumento;
-    private String tituloDocumento;
-    private DocumentoStatusEnum statusDocumento;
+        Long idDocumento,
+        String siglaEspecieNormativa,
+        String codigoAssuntoBasico,
+        String nomeAssuntoBasico,
+        Integer numeroSecundario,
+        String codigoDocumento,
+        String tituloDocumento,
+        DocumentoStatusEnum statusDocumento,
 
-    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd", timezone = "America/Sao_Paulo")
-    private Timestamp dtCriacao;
+        @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss", timezone = "America/Sao_Paulo")
+        Timestamp dtCriacao,
 
-    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd", timezone = "America/Sao_Paulo")
-    private Timestamp dtAlteracao;
+        @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss", timezone = "America/Sao_Paulo")
+        Timestamp dtAlteracao,
 
-    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd", timezone = "America/Sao_Paulo")
-    private Timestamp dtMinuta;
+        @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss", timezone = "America/Sao_Paulo")
+        Timestamp dtMinuta,
 
-    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd", timezone = "America/Sao_Paulo")
-    private Timestamp dtAprovacao;
+        @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss", timezone = "America/Sao_Paulo")
+        Timestamp dtAprovacao,
 
-    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd", timezone = "America/Sao_Paulo")
-    private Timestamp dtPublicacao;
+        @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss", timezone = "America/Sao_Paulo")
+        Timestamp dtPublicacao,
 
-    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd", timezone = "America/Sao_Paulo")
-    private Timestamp dtArquivamento;
+        @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss", timezone = "America/Sao_Paulo")
+        Timestamp dtArquivamento,
 
-    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd", timezone = "America/Sao_Paulo")
-    private Timestamp dtRevogacao;
+        @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss", timezone = "America/Sao_Paulo")
+        Timestamp dtRevogacao,
 
-    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd", timezone = "America/Sao_Paulo")
-    private Timestamp dtCancelamento;
+        @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss", timezone = "America/Sao_Paulo")
+        Timestamp dtCancelamento,
 
-    private String urlPdf;
+        String urlPdf,
 
-    private int qtdReplicas;
+        int qtdReplicas,
+
+        @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss", timezone = "America/Sao_Paulo")
+        Timestamp dtEmAlteracao,
+
+        @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss", timezone = "America/Sao_Paulo")
+        Timestamp dtAlterado,
+
+        String portariaReferencia,
+
+        String bcaReferencia,
+
+        @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd", timezone = "America/Sao_Paulo")
+        Timestamp dtPortariaReferencia,
+
+        @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd", timezone = "America/Sao_Paulo")
+        Timestamp dtBcaReferencia,
+
+        Integer versao,
+        Long autorId,
+        String autorNome,
+        Long omId,
+        String omNome
+) {
 }

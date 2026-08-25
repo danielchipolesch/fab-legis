@@ -4,6 +4,7 @@ import br.com.danielchipolesch.application.dtos.anexoDtos.AnexoResponseDto;
 import br.com.danielchipolesch.application.dtos.itemAnexoParteNormativaDtos.ItemAnexoParteNormativaResponseDto;
 import br.com.danielchipolesch.application.dtos.itemPartePreliminarDtos.ItemPartePreliminarResponseDto;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.Documento;
+import br.com.danielchipolesch.domain.entities.estruturaDocumento.DocumentoStatusEnum;
 import br.com.danielchipolesch.domain.handlers.exceptions.ResourceNotFoundException;
 import br.com.danielchipolesch.domain.handlers.exceptions.enums.DocumentException;
 import br.com.danielchipolesch.infrastructure.repositories.AnexoRepository;
@@ -11,10 +12,14 @@ import br.com.danielchipolesch.infrastructure.repositories.DocumentoRepository;
 import org.apache.fop.apps.Fop;
 import org.apache.fop.apps.FopFactory;
 import org.apache.fop.apps.MimeConstants;
+import org.apache.pdfbox.Loader;
+import org.apache.pdfbox.multipdf.PDFMergerUtility;
+import org.apache.pdfbox.pdmodel.PDDocument;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
 import org.xml.sax.InputSource;
 import org.xml.sax.XMLReader;
@@ -22,11 +27,23 @@ import org.xml.sax.XMLReader;
 import javax.xml.parsers.SAXParserFactory;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.InputStream;
 import java.io.StringReader;
+import java.time.Instant;
+import java.util.EnumSet;
 import java.util.List;
+import java.util.Set;
 
 @Service
 public class DocumentoPdfService {
+
+    // Situações em que o documento tem redação estável e já possui PDF salvo no
+    // MinIO (gerado por DocumentoStatusService nas transições correspondentes) —
+    // nesses casos o PDF é sempre servido do MinIO, nunca renderizado de novo,
+    // independente da tela/botão que disparou a exportação (PUBLICADO cobre tanto
+    // a primeira publicação quanto qualquer republicação).
+    private static final Set<DocumentoStatusEnum> STATUS_COM_PDF_ARMAZENADO = EnumSet.of(
+            DocumentoStatusEnum.APROVADO, DocumentoStatusEnum.ALTERADO, DocumentoStatusEnum.PUBLICADO);
 
     private static final FopFactory FOP_FACTORY;
 
@@ -53,20 +70,78 @@ public class DocumentoPdfService {
     @Autowired
     private AnexoRepository anexoRepository;
 
-    public byte[] gerarPdfBytes(Long documentoId) {
+    // Cópia armazenada: transmite os bytes do MinIO direto para a resposta HTTP à
+    // medida que chegam (StreamingResponseBody), sem materializar o PDF inteiro em
+    // memória no backend — o antigo getObjectBytes() lia tudo com readAllBytes()
+    // antes de responder, dobrando a latência (espera MinIO->backend, só então
+    // começa backend->navegador) e retendo o arquivo inteiro no heap por requisição.
+    // Renderização ao vivo (fallback): permanece como estava — o Apache FOP monta o
+    // PDF inteiro em memória antes de haver qualquer byte pronto, então não há como
+    // transmitir em stream nesse caminho sem reescrever a geração do FO.
+    public StreamingResponseBody streamPdf(Long documentoId) {
         Documento doc = documentoRepository.findById(documentoId)
                 .orElseThrow(() -> new ResourceNotFoundException(DocumentException.NOT_FOUND.getMessage()));
-        return renderPdf(doc);
+
+        if (STATUS_COM_PDF_ARMAZENADO.contains(doc.getDocumentoStatus()) && doc.getUrlPdf() != null) {
+            InputStream armazenado = imagemService.getObjectStream(doc.getUrlPdf());
+            if (armazenado != null) {
+                return outputStream -> {
+                    try (armazenado) {
+                        armazenado.transferTo(outputStream);
+                    }
+                };
+            }
+            // urlPdf presente mas não recuperável (objeto removido/inconsistência): recai
+            // na renderização ao vivo em vez de falhar a exportação.
+        }
+        byte[] renderizado = renderPdf(doc);
+        return outputStream -> outputStream.write(renderizado);
     }
 
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    // readOnly=true é essencial aqui, não só um detalhe de estilo: sem ele, o Hibernate
+    // faz auto-flush antes de cada query emitida durante a travessia recursiva da
+    // árvore de itens normativos (getItensNormativosByDocumento), e como
+    // carregarChildrenRecursivamente substitui a coleção `children` (orphanRemoval=true)
+    // gerenciada pelo Hibernate por uma List avulsa a cada nível, esse auto-flush no
+    // meio da travessia lança "A collection with orphan deletion was no longer
+    // referenced" para documentos com mais de um nível de aninhamento. readOnly=true
+    // desativa o auto-flush (FlushMode.MANUAL) nesta transação somente-leitura.
+    @Transactional(propagation = Propagation.REQUIRES_NEW, readOnly = true)
     public String gerarEArmazenarPdf(Documento documento) {
         try {
             byte[] pdfBytes = renderPdf(documento);
-            String filename = "documento-" + documento.getId() + ".pdf";
+            if (documento.getUrlPortariaPdf() != null) {
+                pdfBytes = concatenarComPortaria(pdfBytes, documento.getUrlPortariaPdf());
+            }
+            String filename = "documento-" + documento.getId() + "-" + Instant.now().toEpochMilli() + ".pdf";
             return imagemService.uploadPdf(pdfBytes, filename);
         } catch (Exception e) {
             throw new RuntimeException("Erro ao gerar/armazenar PDF: " + e.getMessage(), e);
+        }
+    }
+
+    // A portaria só existe a partir da primeira publicação (ver
+    // DocumentoStatusService.changeStatus) -- documentos que só passaram por
+    // APROVADO/ALTERADO sem nunca terem sido publicados não chegam aqui.
+    // Portaria primeiro, documento gerado depois, na ordem que o PDF final
+    // deve ser lido.
+    private byte[] concatenarComPortaria(byte[] documentoPdf, String urlPortariaPdf) throws Exception {
+        byte[] portariaBytes;
+        try (InputStream portariaStream = imagemService.getObjectStream(urlPortariaPdf)) {
+            if (portariaStream == null) return documentoPdf;
+            portariaBytes = portariaStream.readAllBytes();
+        }
+
+        try (PDDocument portaria = Loader.loadPDF(portariaBytes);
+             PDDocument documento = Loader.loadPDF(documentoPdf);
+             PDDocument resultado = new PDDocument()) {
+            PDFMergerUtility merger = new PDFMergerUtility();
+            merger.appendDocument(resultado, portaria);
+            merger.appendDocument(resultado, documento);
+            try (var saida = new ByteArrayOutputStream()) {
+                resultado.save(saida);
+                return saida.toByteArray();
+            }
         }
     }
 

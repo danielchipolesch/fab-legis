@@ -8,7 +8,6 @@ import br.com.danielchipolesch.application.dtos.especieNormativaDtos.Documentati
 import br.com.danielchipolesch.application.dtos.especieNormativaDtos.DocumentationTypeRequestUpdateDto;
 import br.com.danielchipolesch.domain.entities.numeracaoDocumento.EspecieNormativa;
 import br.com.danielchipolesch.infrastructure.repositories.EspecieNormativaRepository;
-import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -22,18 +21,18 @@ public class EspecieNormativaService {
     @Autowired
     EspecieNormativaRepository especieNormativaRepository;
 
-    @Autowired
-    ModelMapper modelMapper;
-
     public DocumentationTypeResponseDto create(DocumentationTypeRequestCreateDto request) throws Exception {
 
         if(especieNormativaRepository.existsBySigla(request.getAcronym())){
             throw new ResourceAlreadyExistsException(DocumentationTypeException.ALREADY_EXISTS.getMessage());
         }
 
-        EspecieNormativa especieNormativa = modelMapper.map(request, EspecieNormativa.class);
+        EspecieNormativa especieNormativa = new EspecieNormativa();
+        especieNormativa.setSigla(request.getAcronym());
+        especieNormativa.setNome(request.getName());
+        especieNormativa.setDescricao(request.getDescription());
         especieNormativaRepository.save(especieNormativa);
-        return modelMapper.map(especieNormativa, DocumentationTypeResponseDto.class);
+        return toDto(especieNormativa);
     }
 
 
@@ -47,7 +46,7 @@ public class EspecieNormativaService {
 
         especieNormativaRepository.save(especieNormativa);
 
-        return modelMapper.map(especieNormativa, DocumentationTypeResponseDto.class);
+        return toDto(especieNormativa);
     }
 
     public DocumentationTypeResponseDto delete(Long id) throws Exception {
@@ -56,7 +55,7 @@ public class EspecieNormativaService {
 
         especieNormativaRepository.delete(especieNormativa);
 
-        return modelMapper.map(especieNormativa, DocumentationTypeResponseDto.class);
+        return toDto(especieNormativa);
     }
 
     public DocumentationTypeResponseDto getById(Long id) throws Exception {
@@ -71,11 +70,6 @@ public class EspecieNormativaService {
     }
 
     private DocumentationTypeResponseDto toDto(EspecieNormativa e) {
-        DocumentationTypeResponseDto dto = new DocumentationTypeResponseDto();
-        dto.setId(e.getId());
-        dto.setAcronym(e.getSigla());
-        dto.setName(e.getNome());
-        dto.setDescription(e.getDescricao());
-        return dto;
+        return new DocumentationTypeResponseDto(e.getId(), e.getSigla(), e.getNome(), e.getDescricao());
     }
 }

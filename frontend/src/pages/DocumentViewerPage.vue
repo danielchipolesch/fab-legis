@@ -11,6 +11,12 @@
           <q-breadcrumbs-el :to="{ name: 'home' }" icon="mdi-home" />
           <q-breadcrumbs-el label="Documentos" />
           <q-breadcrumbs-el :label="docLabel" />
+          <q-breadcrumbs-el
+            v-if="podeEditar"
+            label="Editar"
+            icon="mdi-pencil-outline"
+            :to="{ name: 'documento-editar', params: { id: documentoId } }"
+          />
         </q-breadcrumbs>
         <div v-if="documento?.titulo" class="text-body2 text-grey-7 q-mt-xs">{{ documento.titulo }}</div>
       </div>
@@ -51,12 +57,12 @@
             header-class="text-primary text-weight-medium"
           >
             <q-separator />
-            <q-card-section class="q-pa-lg">
-              <div v-if="documento" class="row q-col-gutter-xl">
+            <q-card-section v-if="documento" class="q-pa-lg">
+              <div class="row items-stretch q-col-gutter-y-lg">
 
                 <!-- Metadados principais -->
-                <div class="col-12 col-md-6">
-                  <div class="row q-col-gutter-md">
+                <div class="col-12 col-md" style="min-width: 0">
+                  <div class="row q-col-gutter-md q-pr-lg">
                     <div class="col-6">
                       <div class="info-label">Espécie</div>
                       <div class="info-value">{{ documento.especie || '—' }}</div>
@@ -76,7 +82,7 @@
                       <div class="info-value">{{ documento.assunto_basico || '—' }}</div>
                     </div>
                     <div class="col-6">
-                      <div class="info-label">Status atual</div>
+                      <div class="info-label">Situação atual</div>
                       <StatusBadge :status="documento.status" class="q-mt-xs" />
                     </div>
                     <div class="col-6">
@@ -86,27 +92,54 @@
                   </div>
                 </div>
 
-                <!-- Timeline de datas -->
-                <div class="col-12 col-md-6">
-                  <div class="info-label q-mb-sm">Histórico de Status</div>
-                  <q-timeline color="primary" layout="dense">
-                    <q-timeline-entry
-                      v-for="evento in timelineEventos"
-                      :key="evento.status"
-                      :title="evento.titulo"
-                      :subtitle="evento.data"
-                      :icon="evento.icon"
-                      :color="evento.color"
-                    />
-                  </q-timeline>
+                <!-- Divisor semântico: histórico é a única parte que rola, os
+                     metadados à esquerda permanecem com altura fixa. A row usa
+                     q-col-gutter-y-lg (só espaçamento vertical, para o empilhamento
+                     em telas estreitas) em vez de q-col-gutter-xl -- um gutter
+                     horizontal aplicaria padding-left só no lado esquerdo de cada
+                     filho, o que descentralizaria esse separador de 1px dentro do
+                     próprio col-auto. Para o separador ficar de fato centralizado no
+                     card, os dois lados (col-12 col-md) precisam ter exatamente o
+                     mesmo peso de flex — por isso o espaçamento assimétrico
+                     (q-pr-lg / 200px) fica num wrapper INTERNO de cada lado, nunca
+                     como padding do próprio flex item: padding no item vira parte da
+                     largura mínima de conteúdo dele e quebra a divisão 50/50, mesmo
+                     com min-width:0. -->
+                <div class="col-auto flex items-stretch gt-sm">
+                  <q-separator vertical inset />
+                </div>
+
+                <!-- Histórico de situação -->
+                <div class="col-12 col-md" style="min-width: 0">
+                  <div class="historico-indent">
+                    <div class="info-label q-mb-sm">Histórico de Situação</div>
+                    <q-scroll-area v-if="timelineEventos.length" style="height: 320px" class="timeline-area">
+                      <!-- q-pl-sm: os ícones do q-timeline (layout dense) sangram um
+                           pouco à esquerda da própria caixa; sem essa folga, a borda
+                           do q-scroll-area corta a lateral esquerda dos ícones. -->
+                      <q-timeline color="primary" layout="dense" class="q-pl-sm">
+                        <q-timeline-entry
+                          v-for="evento in timelineEventos"
+                          :key="evento.key"
+                          :title="evento.titulo"
+                          :subtitle="evento.data"
+                          :icon="evento.icon"
+                          :color="evento.color"
+                        />
+                      </q-timeline>
+                    </q-scroll-area>
+                    <div v-else class="text-grey-6 text-body2 text-center q-py-md">
+                      Nenhum registro de histórico.
+                    </div>
+                  </div>
                 </div>
 
               </div>
-              <div v-else class="text-grey-6 text-body2 text-center q-py-md">
-                <q-spinner size="24px" class="q-mr-sm" />
-                Carregando informações...
-              </div>
             </q-card-section>
+            <div v-else class="text-grey-6 text-body2 text-center q-py-md">
+              <q-spinner size="24px" class="q-mr-sm" />
+              Carregando informações...
+            </div>
           </q-expansion-item>
         </q-card>
 
@@ -215,7 +248,7 @@ const expanded = reactive({
   versoes: false,
 })
 
-const STATUS_COM_PDF = new Set(['APROVADO', 'PUBLICADO', 'ARQUIVADO', 'REVOGADO'])
+const STATUS_COM_PDF = new Set(['APROVADO', 'ALTERADO', 'PUBLICADO', 'ARQUIVADO', 'REVOGADO'])
 
 const documentoId = computed(() => route.params.id)
 const documento   = computed(() => docStore.getById(documentoId.value))
@@ -238,31 +271,47 @@ const docLabel = computed(() => {
   return [d.especie, num].filter(Boolean).join(' ') || 'Documento'
 })
 
-const STATUS_TIMELINE = [
-  { campo: 'data_criacao',      titulo: 'Criado',     icon: 'mdi-file-plus-outline',    color: 'grey'       },
-  { campo: 'data_minuta',       titulo: 'Minuta',     icon: 'mdi-file-edit-outline',    color: 'orange'     },
-  { campo: 'data_aprovacao',    titulo: 'Aprovado',   icon: 'mdi-check-circle-outline', color: 'green'      },
-  { campo: 'data_publicacao',   titulo: 'Publicado',  icon: 'mdi-publish',              color: 'primary'    },
-  { campo: 'data_arquivamento', titulo: 'Arquivado',  icon: 'mdi-archive-outline',      color: 'blue-grey'  },
-  { campo: 'data_revogacao',    titulo: 'Revogado',   icon: 'mdi-file-remove-outline',  color: 'brown'      },
-  { campo: 'data_cancelamento', titulo: 'Cancelado',  icon: 'mdi-close-circle-outline', color: 'negative'   },
-]
+// Só Rascunho/Minuta oferecem o atalho de voltar para o editor pelo
+// breadcrumb -- as demais situações não têm edição direta de conteúdo (ver
+// "Regra de imutabilidade" no README).
+const podeEditar = computed(() => ['RASCUNHO', 'MINUTA'].includes(documento.value?.status))
+
+// Metadados visuais por status — os ciclos EM_ALTERACAO <-> ALTERADO podem se repetir
+// várias vezes até a republicação, então o histórico vem do log de transições
+// (t_historico_documento), não de um timestamp único por status.
+const STATUS_META = {
+  RASCUNHO:     { titulo: 'Rascunho',     icon: 'mdi-pencil-outline',       color: 'grey'        },
+  MINUTA:       { titulo: 'Minuta',       icon: 'mdi-file-edit-outline',    color: 'orange'      },
+  APROVADO:     { titulo: 'Aprovado',     icon: 'mdi-check-circle-outline', color: 'green'       },
+  PUBLICADO:    { titulo: 'Publicado',    icon: 'mdi-publish',              color: 'primary'     },
+  EM_ALTERACAO: { titulo: 'Em Alteração', icon: 'mdi-pencil-lock-outline',  color: 'deep-orange' },
+  ALTERADO:     { titulo: 'Alterado',     icon: 'mdi-check-circle-outline', color: 'teal'        },
+  ARQUIVADO:    { titulo: 'Arquivado',    icon: 'mdi-archive-outline',      color: 'blue-grey'   },
+  REVOGADO:     { titulo: 'Revogado',     icon: 'mdi-file-remove-outline',  color: 'brown'       },
+  CANCELADO:    { titulo: 'Cancelado',    icon: 'mdi-close-circle-outline', color: 'negative'    },
+}
+
+const historico = computed(() => docStore.historicoPorDocumento[String(documentoId.value)] ?? [])
 
 const timelineEventos = computed(() => {
-  const d = documento.value
-  if (!d) return []
-  return STATUS_TIMELINE
-    .filter(ev => d[ev.campo])
-    .map(ev => ({
-      ...ev,
-      data: formatarData(d[ev.campo]),
+  return historico.value
+    .filter(h => h.statusNovo)
+    .slice()
+    .sort((a, b) => String(a.dtRegistro).localeCompare(String(b.dtRegistro)))
+    .map(h => ({
+      key: h.id,
+      ...(STATUS_META[h.statusNovo] ?? { titulo: h.statusNovo, icon: 'mdi-help', color: 'grey' }),
+      data: formatarData(h.dtRegistro),
     }))
 })
 
 function formatarData(isoStr) {
   if (!isoStr) return '—'
-  const [y, m, d] = String(isoStr).slice(0, 10).split('-')
-  return `${d}/${m}/${y}`
+  const [dataParte, horaParte] = String(isoStr).split('T')
+  const [y, m, d] = dataParte.split('-')
+  const dataFormatada = `${d}/${m}/${y}`
+  if (!horaParte) return dataFormatada
+  return `${dataFormatada} às ${horaParte.slice(0, 5)}h`
 }
 
 onMounted(async () => {
@@ -272,6 +321,7 @@ onMounted(async () => {
   }
   try {
     await docStore.fetchDocumento(documentoId.value)
+    await docStore.fetchHistorico(documentoId.value)
   } catch (e) {
     console.error('[Viewer] Erro ao buscar documento:', e)
     $q.notify({ type: 'negative', message: 'Erro ao carregar documento.' })
@@ -346,6 +396,23 @@ function executarClone() {
   height: 80vh;
   border: none;
   display: block;
+}
+
+:deep(.q-timeline__subtitle) {
+  text-transform: none;
+}
+
+/* Afastamento do histórico em relação ao separador central -- só a partir do
+   breakpoint md (1024px, mesmo ponto do utilitário "gt-sm" no separador), já
+   que abaixo disso as colunas empilham em largura cheia e esse recuo apertaria
+   o conteúdo contra a borda da tela. */
+.historico-indent {
+  padding-left: 0;
+}
+@media (min-width: 1024px) {
+  .historico-indent {
+    padding-left: 200px;
+  }
 }
 
 .info-label {

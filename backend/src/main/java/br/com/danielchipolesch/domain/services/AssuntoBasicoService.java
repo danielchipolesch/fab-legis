@@ -8,7 +8,6 @@ import br.com.danielchipolesch.domain.handlers.exceptions.ResourceAlreadyExistsE
 import br.com.danielchipolesch.domain.handlers.exceptions.ResourceNotFoundException;
 import br.com.danielchipolesch.domain.handlers.exceptions.enums.BasicSubjectException;
 import br.com.danielchipolesch.infrastructure.repositories.AssuntoBasicoRepository;
-import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -22,17 +21,17 @@ public class AssuntoBasicoService {
     @Autowired
     private AssuntoBasicoRepository assuntoBasicoRepository;
 
-    @Autowired
-    private ModelMapper modelMapper;
-
     public AssuntoBasicoResponseDto create(AssuntoBasicoRequestCreateDto request) throws Exception {
-        if(assuntoBasicoRepository.existsByCodigo(request.getCodigo())){
+        if(assuntoBasicoRepository.existsByCodigo(request.codigo())){
             throw new ResourceAlreadyExistsException(BasicSubjectException.ALREADY_EXISTS.getMessage());
         }
 
-        AssuntoBasico assuntoBasico = modelMapper.map(request, AssuntoBasico.class);
+        AssuntoBasico assuntoBasico = new AssuntoBasico();
+        assuntoBasico.setCodigo(request.codigo());
+        assuntoBasico.setNome(request.nome());
+        assuntoBasico.setDescricao(request.descricao());
         assuntoBasicoRepository.save(assuntoBasico);
-        return modelMapper.map(assuntoBasico, AssuntoBasicoResponseDto.class);
+        return toDto(assuntoBasico);
     }
 
 
@@ -40,13 +39,13 @@ public class AssuntoBasicoService {
 
         AssuntoBasico assuntoBasico = assuntoBasicoRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException(BasicSubjectException.NOT_FOUND.getMessage()));
 
-        assuntoBasico.setCodigo(request.getCodigo().isBlank() ? assuntoBasico.getCodigo() : request.getCodigo());
-        assuntoBasico.setNome(request.getNome().isBlank() ? assuntoBasico.getNome() : request.getNome());
-        assuntoBasico.setDescricao(request.getDescricao().isBlank() ? assuntoBasico.getDescricao() : request.getDescricao());
+        assuntoBasico.setCodigo(request.codigo().isBlank() ? assuntoBasico.getCodigo() : request.codigo());
+        assuntoBasico.setNome(request.nome().isBlank() ? assuntoBasico.getNome() : request.nome());
+        assuntoBasico.setDescricao(request.descricao().isBlank() ? assuntoBasico.getDescricao() : request.descricao());
 
         assuntoBasicoRepository.save(assuntoBasico);
 
-        return modelMapper.map(assuntoBasico, AssuntoBasicoResponseDto.class);
+        return toDto(assuntoBasico);
     }
 
     public AssuntoBasicoResponseDto delete(Long id) throws Exception {
@@ -55,7 +54,7 @@ public class AssuntoBasicoService {
 
         assuntoBasicoRepository.delete(assuntoBasico);
 
-        return modelMapper.map(assuntoBasico, AssuntoBasicoResponseDto.class);
+        return toDto(assuntoBasico);
     }
 
     public AssuntoBasicoResponseDto getById(Long id) throws Exception {
@@ -75,11 +74,6 @@ public class AssuntoBasicoService {
     }
 
     private AssuntoBasicoResponseDto toDto(AssuntoBasico a) {
-        AssuntoBasicoResponseDto dto = new AssuntoBasicoResponseDto();
-        dto.setIdAssuntoBasico(a.getId());
-        dto.setCodigo(a.getCodigo());
-        dto.setNome(a.getNome());
-        dto.setDescricao(a.getDescricao());
-        return dto;
+        return new AssuntoBasicoResponseDto(a.getId(), a.getCodigo(), a.getNome(), a.getDescricao());
     }
 }

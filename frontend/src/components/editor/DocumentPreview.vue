@@ -166,21 +166,60 @@
         <!-- Parte Normativa — capítulos, seções, artigos, parágrafos, incisos, alíneas -->
         <template v-for="item in normativaFlat" :key="item.el.id">
 
-          <div v-if="item.el.tipo === 'capitulo'" :id="'prev-' + item.el.id" class="capitulo-heading">
-            <p class="cap-numero">CAPÍTULO {{ toRomanStr(item.el.numero) }}</p>
-            <p v-if="item.el.titulo" class="cap-titulo">{{ item.el.titulo.toUpperCase() }}</p>
+          <div v-if="isGrouping(item.el.tipo)" :id="'prev-' + item.el.id" :class="groupingHeadingClass(item.el.tipo)">
+            <p :class="groupingNumeroClass(item.el.tipo)">{{ groupingLabel(item.el) }}</p>
+            <!-- REVOGADO: título original tachado (+ cláusula anterior tachada, se
+                 esta redação já havia sido publicada com sua própria emenda) + referência -->
+            <template v-if="item.el.emendaStatus === 'REVOGADO'">
+              <p v-if="item.el.titulo" :class="[groupingTituloClass(item.el.tipo), 'emenda-strikethrough']">
+                {{ groupingTituloTexto(item.el.tipo, item.el.titulo) }}<span v-if="item.el.clausulaEmendaAnterior" class="emenda-ref emenda-strikethrough"> {{ item.el.clausulaEmendaAnterior }}</span>
+              </p>
+              <p class="emenda-ref">{{ emendaRef(item.el) }}</p>
+            </template>
+            <!-- ALTERADO: título original tachado (+ cláusula anterior tachada) + novo título + referência -->
+            <template v-else-if="item.el.emendaStatus === 'ALTERADO'">
+              <p v-if="item.el.titulo" :class="[groupingTituloClass(item.el.tipo), 'emenda-strikethrough']">
+                {{ groupingTituloTexto(item.el.tipo, item.el.titulo) }}<span v-if="item.el.clausulaEmendaAnterior" class="emenda-ref emenda-strikethrough"> {{ item.el.clausulaEmendaAnterior }}</span>
+              </p>
+              <p v-if="item.el.tituloEmenda" :class="groupingTituloClass(item.el.tipo)">{{ groupingTituloTexto(item.el.tipo, item.el.tituloEmenda) }}</p>
+              <p class="emenda-ref">{{ emendaRef(item.el) }}</p>
+            </template>
+            <!-- INCLUIDO: título + referência -->
+            <template v-else-if="item.el.emendaStatus === 'INCLUIDO'">
+              <p v-if="item.el.titulo" :class="groupingTituloClass(item.el.tipo)">{{ groupingTituloTexto(item.el.tipo, item.el.titulo) }}</p>
+              <p class="emenda-ref">{{ emendaRef(item.el) }}</p>
+            </template>
+            <!-- INALTERADO: elementos com emenda nunca voltam a este estado (ver
+                 consolidarPublicacao no backend), então não há cláusula a mostrar aqui -->
+            <p v-else-if="item.el.titulo" :class="groupingTituloClass(item.el.tipo)">{{ groupingTituloTexto(item.el.tipo, item.el.titulo) }}</p>
           </div>
 
-          <div v-else-if="item.el.tipo === 'secao_normativa'" :id="'prev-' + item.el.id" class="secao-heading">
-            <p class="sec-numero"><strong>Seção {{ toRomanStr(item.el.numero) }}</strong></p>
-            <p v-if="item.el.titulo" class="sec-titulo"><strong>{{ item.el.titulo }}</strong></p>
+          <!-- REVOGADO: conteúdo tachado (+ cláusula anterior tachada, se esta redação
+               já havia sido publicada com sua própria emenda) + referência inline -->
+          <div v-else-if="item.el.emendaStatus === 'REVOGADO'" :id="'prev-' + item.el.id" class="body-el norm-el">
+            <span class="norm-lbl emenda-strikethrough" :class="{ 'norm-lbl-bold': item.el.tipo === 'artigo' }">{{ item.label }}</span>
+            <div class="norm-content-block emenda-strikethrough" v-html="conteudoToHtml(item.el.conteudo)"></div><span v-if="item.el.clausulaEmendaAnterior" class="emenda-ref emenda-strikethrough"> {{ item.el.clausulaEmendaAnterior }}</span><span class="emenda-ref"> {{ emendaRef(item.el) }}</span>
           </div>
 
-          <div v-else-if="item.el.tipo === 'subsecao_normativa'" :id="'prev-' + item.el.id" class="subsecao-heading">
-            <p class="subsec-numero"><strong>Subseção {{ toRomanStr(item.el.numero) }}</strong></p>
-            <p v-if="item.el.titulo" class="subsec-titulo"><strong>{{ item.el.titulo }}</strong></p>
+          <!-- ALTERADO: original tachado (+ cláusula anterior tachada) + nova redação + referência inline -->
+          <template v-else-if="item.el.emendaStatus === 'ALTERADO'">
+            <div :id="'prev-' + item.el.id" class="body-el norm-el">
+              <span class="norm-lbl emenda-strikethrough" :class="{ 'norm-lbl-bold': item.el.tipo === 'artigo' }">{{ item.label }}</span>
+              <div class="norm-content-block emenda-strikethrough" v-html="conteudoToHtml(item.el.conteudo)"></div><span v-if="item.el.clausulaEmendaAnterior" class="emenda-ref emenda-strikethrough"> {{ item.el.clausulaEmendaAnterior }}</span>
+            </div>
+            <div class="body-el norm-el emenda-incluido">
+              <span class="norm-lbl" :class="{ 'norm-lbl-bold': item.el.tipo === 'artigo' }">{{ item.label }}</span>
+              <div class="norm-content-block" v-html="conteudoToHtml(item.el.conteudoEmenda)"></div><span class="emenda-ref"> {{ emendaRef(item.el) }}</span>
+            </div>
+          </template>
+
+          <!-- INCLUIDO: conteúdo em verde + referência inline -->
+          <div v-else-if="item.el.emendaStatus === 'INCLUIDO'" :id="'prev-' + item.el.id" class="body-el norm-el">
+            <span class="norm-lbl emenda-incluido" :class="{ 'norm-lbl-bold': item.el.tipo === 'artigo' }">{{ item.label }}</span>
+            <div class="norm-content-block emenda-incluido" v-html="conteudoToHtml(item.el.conteudo)"></div><span class="emenda-ref"> {{ emendaRef(item.el) }}</span>
           </div>
 
+          <!-- INALTERADO: comportamento padrão -->
           <div v-else-if="hasBlockContent(conteudoToHtml(item.el.conteudo))" :id="'prev-' + item.el.id" class="body-el norm-el">
             <span class="norm-lbl" :class="{ 'norm-lbl-bold': item.el.tipo === 'artigo' }">{{ item.label }}</span>
             <div class="norm-content-block" v-html="conteudoToHtml(item.el.conteudo)"></div>
@@ -295,19 +334,58 @@ function stripHtml(html) {
   return (d.textContent || '').trim()
 }
 
+// Cláusula ao vivo para emenda ainda pendente (não publicada nesta alteração): sempre
+// o placeholder XYZ/ABC, nunca documento.portaria_referencia/bca_referencia — esses
+// campos guardam a portaria/BCA da ÚLTIMA publicação (que pode já existir mesmo numa
+// primeira alteração após a publicação inicial) e não têm relação com a emenda em
+// curso, cuja portaria/BCA só existem quando ELA for republicada. Uma vez publicada,
+// a cláusula fica congelada em el.clausulaEmenda e este cálculo deixa de ser usado
+// para aquele elemento (ver os v-if de clausulaEmenda no template).
+function emendaRef(el) {
+  if (el.clausulaEmenda) return ` ${el.clausulaEmenda}`
+  const acao = { ALTERADO: 'alterado', REVOGADO: 'revogado', INCLUIDO: 'incluído' }[el.emendaStatus] ?? 'modificado'
+  return ` (${acao} pela Portaria DIRAD n° XYZ, de DD de MÊS de AAAA, publicada no BCA n° ABC, de DD de mês de AAAA)`
+}
+
 function hasBlockContent(html) {
   return /<(table|ul|ol|blockquote|h[1-6]|figure)/i.test(html ?? '')
 }
 
 function formatarDataBR(iso) {
   if (!iso) return '___________'
-  const [y, m, d] = iso.split('-')
+  const [y, m, d] = String(iso).slice(0, 10).split('-')
   const meses = ['janeiro','fevereiro','março','abril','maio','junho',
                  'julho','agosto','setembro','outubro','novembro','dezembro']
   return `${+d} de ${meses[+m - 1]} de ${y}`
 }
 
 const GROUPING_TIPOS = new Set(['capitulo', 'secao_normativa', 'subsecao_normativa'])
+
+function isGrouping(tipo) {
+  return GROUPING_TIPOS.has(tipo)
+}
+
+const GROUPING_HEADING_CLASS = { capitulo: 'capitulo-heading', secao_normativa: 'secao-heading', subsecao_normativa: 'subsecao-heading' }
+const GROUPING_NUMERO_CLASS  = { capitulo: 'cap-numero',       secao_normativa: 'sec-numero',     subsecao_normativa: 'subsec-numero' }
+const GROUPING_TITULO_CLASS  = { capitulo: 'cap-titulo',       secao_normativa: 'sec-titulo',     subsecao_normativa: 'subsec-titulo' }
+
+function groupingHeadingClass(tipo) { return GROUPING_HEADING_CLASS[tipo] }
+function groupingNumeroClass(tipo)  { return GROUPING_NUMERO_CLASS[tipo] }
+function groupingTituloClass(tipo)  { return GROUPING_TITULO_CLASS[tipo] }
+
+function groupingLabel(el) {
+  const roman = toRomanStr(el.numero)
+  switch (el.tipo) {
+    case 'capitulo':           return `CAPÍTULO ${roman}`
+    case 'secao_normativa':    return `Seção ${roman}`
+    case 'subsecao_normativa': return `Subseção ${roman}`
+    default: return ''
+  }
+}
+
+function groupingTituloTexto(tipo, titulo) {
+  return tipo === 'capitulo' ? (titulo ?? '').toUpperCase() : titulo
+}
 
 /**
  * Achata os elementos normativos preservando os agrupamentos (capítulo, seção, subseção)
@@ -412,51 +490,85 @@ const tocItems = computed(() => {
   const items = []
   const elementos = secaoNormativa.value?.elementos ?? []
 
-  function firstArtigoNum(lista) {
+  function firstArtigoEl(lista) {
     for (const el of lista ?? []) {
-      if (el.tipo === 'artigo') return el.numero
-      if (el.filhos?.length) { const f = firstArtigoNum(el.filhos); if (f != null) return f }
+      if (el.tipo === 'artigo') return el
+      if (el.filhos?.length) { const f = firstArtigoEl(el.filhos); if (f) return f }
     }
     return null
   }
 
-  function lastArtigoNum(lista) {
+  function lastArtigoEl(lista) {
     let last = null
     for (const el of lista ?? []) {
-      if (el.tipo === 'artigo') last = el.numero
-      if (el.filhos?.length) { const l = lastArtigoNum(el.filhos); if (l != null) last = l }
+      if (el.tipo === 'artigo') last = el
+      if (el.filhos?.length) { const l = lastArtigoEl(el.filhos); if (l) last = l }
     }
     return last
   }
 
-  // Formato: ordinal (°) até 9, cardinal (sem sufixo) a partir de 10 — Decreto 12.002 Art. 9
-  function fmtNum(n) { return n <= 9 ? `${n}°` : `${n}` }
+  // Formato: ordinal (°) até 9, cardinal (sem sufixo) a partir de 10 — Decreto 12.002 Art. 9.
+  // Mesma convenção de fmtNum, mas inclui o sufixo de letra (ex.: "13-A") quando presente,
+  // para que artigos incluídos por emenda apareçam refletidos no intervalo do sumário.
+  function fmtNum(n) { return n <= 9 ? `${n}°` : n.toLocaleString('pt-BR') }
+  function fmtArtEndpoint(el) {
+    const base = fmtNum(el.numero ?? 0)
+    return el._emendaLetra ? `${base}-${el._emendaLetra}` : base
+  }
 
-  function fmtRange(lista) {
-    const first = firstArtigoNum(lista)
-    if (first == null) return ''
-    const last = lastArtigoNum(lista)
-    return first === last ? fmtNum(first) : `${fmtNum(first)}/${fmtNum(last)}`
+  const GROUPING_TIPOS = new Set(['capitulo', 'secao_normativa', 'subsecao_normativa'])
+
+  // Intervalo de artigos deste agrupamento: olha os filhos (estrutura em árvore) E os
+  // irmãos seguintes até o próximo agrupamento (estrutura "achatada", onde artigos são
+  // irmãos da seção em vez de filhos dela — ex.: seção sem filhos diretos, artigos logo
+  // após ela sob o mesmo capítulo). Espelha artRangeFor() em DocumentoFoBuilder.java.
+  function artRangeFor(el, siblings, idx) {
+    let first = firstArtigoEl(el.filhos)
+    let last = lastArtigoEl(el.filhos)
+    for (let j = idx + 1; j < siblings.length; j++) {
+      const sib = siblings[j]
+      if (GROUPING_TIPOS.has(sib.tipo)) break
+      if (sib.tipo === 'artigo') {
+        if (!first) first = sib
+        last = sib
+      }
+    }
+    if (!first) return ''
+    if (!last) last = first
+    const a = fmtArtEndpoint(first)
+    const b = fmtArtEndpoint(last)
+    return a === b ? a : `${a}/${b}`
   }
 
   const temAgrupamento = elementos.some(el =>
     el.tipo === 'capitulo' || el.tipo === 'secao_normativa' || el.tipo === 'subsecao_normativa'
   )
 
+  // Título vigente para o sumário: se ALTERADO por emenda, usa o novo título.
+  function effectiveTitulo(el) {
+    if (el.emendaStatus === 'ALTERADO' && el.tituloEmenda) return el.tituloEmenda
+    return el.titulo
+  }
+
   if (temAgrupamento) {
     function walk(lista) {
-      for (const el of lista ?? []) {
+      const arr = lista ?? []
+      for (let i = 0; i < arr.length; i++) {
+        const el = arr[i]
         if (el.tipo === 'capitulo') {
-          const titulo = el.titulo ? ` - ${el.titulo.toUpperCase()}` : ''
-          items.push({ id: el.id, label: `CAPÍTULO ${toRomanStr(el.numero)}${titulo}`, kind: 'toc-capitulo', pg: fmtRange(el.filhos) })
+          const t = effectiveTitulo(el)
+          const titulo = t ? ` - ${t.toUpperCase()}` : ''
+          items.push({ id: el.id, label: `CAPÍTULO ${toRomanStr(el.numero)}${titulo}`, kind: 'toc-capitulo', pg: artRangeFor(el, arr, i) })
           walk(el.filhos)
         } else if (el.tipo === 'secao_normativa') {
-          const titulo = el.titulo ? ` - ${el.titulo}` : ''
-          items.push({ id: el.id, label: `Seção ${toRomanStr(el.numero)}${titulo}`, kind: 'toc-secao', pg: fmtRange(el.filhos) })
+          const t = effectiveTitulo(el)
+          const titulo = t ? ` - ${t}` : ''
+          items.push({ id: el.id, label: `Seção ${toRomanStr(el.numero)}${titulo}`, kind: 'toc-secao', pg: artRangeFor(el, arr, i) })
           walk(el.filhos)
         } else if (el.tipo === 'subsecao_normativa') {
-          const titulo = el.titulo ? ` - ${el.titulo}` : ''
-          items.push({ id: el.id, label: `Subseção ${toRomanStr(el.numero)}${titulo}`, kind: 'toc-subsecao', pg: fmtRange(el.filhos) })
+          const t = effectiveTitulo(el)
+          const titulo = t ? ` - ${t}` : ''
+          items.push({ id: el.id, label: `Subseção ${toRomanStr(el.numero)}${titulo}`, kind: 'toc-subsecao', pg: artRangeFor(el, arr, i) })
           walk(el.filhos)
         }
       }
@@ -597,7 +709,7 @@ const anexosDocumento = computed(() =>
 
 /* Gládio Alado — grande, proporcional ao documento real */
 .capa-simbolo { }
-.capa-brasao-img { width: 320px; height: 320px; object-fit: contain; }
+.capa-brasao-img { width: 380px; height: 380px; object-fit: contain; }
 .capa-gladio { display: flex; justify-content: center; }
 .gladio-ring {
   width: 220px; height: 220px;
@@ -764,11 +876,13 @@ const anexosDocumento = computed(() =>
   text-indent:   0;
 }
 .sec-numero, .subsec-numero {
+  font-weight: bold;
   font-size: 16px;
   margin: 0;
   text-indent: 0;
 }
 .sec-titulo, .subsec-titulo {
+  font-weight: bold;
   font-size: 16px;
   margin: 0 0 6px;
   text-indent: 0;
@@ -945,6 +1059,25 @@ const anexosDocumento = computed(() =>
   text-indent: 0;
   text-align: center;
 }
+
+/* ─── Emenda ──────────────────────────────────────────────── */
+/* Todo o conteúdo (inserido, excluído ou alterado) permanece em preto — só a
+   nota de referência da emenda (cláusula de revogação/inclusão/alteração) fica
+   azul. Cores de diff (verde/vermelho) ficam restritas à comparação de versões. */
+/* text-decoration: line-through não permite controlar espessura/posição de forma
+   confiável entre navegadores — usamos um "risco" via gradiente de fundo, que
+   funciona corretamente mesmo com o texto quebrando em várias linhas. */
+.emenda-strikethrough {
+  text-decoration: none;
+  background-image: linear-gradient(currentColor, currentColor);
+  background-repeat: repeat-x;
+  background-size: 100% 2px;
+  background-position: 0 54%;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+.emenda-incluido { }
+.emenda-ref { font-size: 14px; font-style: italic; color: #0000FF; }
 
 /* ═══════════════════════════════════════════════════════════
    PÁGINAS DE ANEXOS (imagem)

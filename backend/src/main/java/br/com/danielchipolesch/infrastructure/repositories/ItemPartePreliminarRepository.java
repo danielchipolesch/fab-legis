@@ -20,4 +20,20 @@ public interface ItemPartePreliminarRepository extends JpaRepository<ItemPartePr
     @Transactional
     @Query("DELETE FROM ItemPartePreliminar i WHERE i.documento.id = :documentoId")
     void deleteAllByDocumentoId(@Param("documentoId") Long documentoId);
+
+    // Renumera pelo RANK relativo (não multiplica o valor armazenado) para que ciclos
+    // repetidos de EM_ALTERACAO não acumulem fatores de 100 e estourem o INTEGER.
+    @Modifying
+    @Transactional
+    @Query(value = """
+            UPDATE t_portaria t
+            SET nr_ordem = ranked.rn * 100
+            FROM (
+                SELECT id_portaria, ROW_NUMBER() OVER (ORDER BY nr_ordem) AS rn
+                FROM t_portaria
+                WHERE documento_id = :documentoId AND nr_ordem IS NOT NULL
+            ) ranked
+            WHERE t.id_portaria = ranked.id_portaria
+            """, nativeQuery = true)
+    void respacarElementOrders(@Param("documentoId") Long documentoId);
 }

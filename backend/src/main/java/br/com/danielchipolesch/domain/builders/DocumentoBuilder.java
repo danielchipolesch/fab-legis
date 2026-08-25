@@ -4,6 +4,8 @@ import br.com.danielchipolesch.domain.entities.estruturaDocumento.Documento;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.DocumentoStatusEnum;
 import br.com.danielchipolesch.domain.entities.numeracaoDocumento.AssuntoBasico;
 import br.com.danielchipolesch.domain.entities.numeracaoDocumento.EspecieNormativa;
+import br.com.danielchipolesch.domain.entities.usuario.OrganizacaoMilitar;
+import br.com.danielchipolesch.domain.entities.usuario.Usuario;
 
 public class DocumentoBuilder {
 
@@ -12,6 +14,8 @@ public class DocumentoBuilder {
     private Integer numeroSecundario;
     private String tituloDocumento;
     private DocumentoStatusEnum documentoStatusEnum;
+    private Usuario autor;
+    private OrganizacaoMilitar om;
 
     public DocumentoBuilder especieNormativa(EspecieNormativa especieNormativa) {
         this.especieNormativa = especieNormativa;
@@ -38,6 +42,16 @@ public class DocumentoBuilder {
         return this;
     }
 
+    public DocumentoBuilder autor(Usuario autor) {
+        this.autor = autor;
+        return this;
+    }
+
+    public DocumentoBuilder om(OrganizacaoMilitar om) {
+        this.om = om;
+        return this;
+    }
+
     public Documento build() {
         Documento documento = new Documento();
         documento.setEspecieNormativa(this.especieNormativa);
@@ -45,6 +59,8 @@ public class DocumentoBuilder {
         documento.setNumeroSecundario(this.numeroSecundario);
         documento.setTituloDocumento(this.tituloDocumento);
         documento.setDocumentoStatus(this.documentoStatusEnum);
+        documento.setAutor(this.autor);
+        documento.setOm(this.om);
         return documento;
     }
 }

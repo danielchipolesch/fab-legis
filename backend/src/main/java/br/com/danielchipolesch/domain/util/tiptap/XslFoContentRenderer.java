@@ -86,6 +86,30 @@ public class XslFoContentRenderer {
         return false;
     }
 
+    /**
+     * Returns true if the first child of the doc is a paragraph node.
+     * Used to decide whether the label and first paragraph can share the same fo:block.
+     */
+    public boolean startsWithParagraph(TipTapNode doc) {
+        if (doc == null) return false;
+        var ch = children(doc);
+        return !ch.isEmpty() && "paragraph".equals(ch.get(0).getType());
+    }
+
+    /**
+     * Renders all children of the doc as blocks, skipping the first one if it is a paragraph.
+     * Used after the first paragraph has been rendered inline together with the element label.
+     */
+    public String renderSkippingFirstParagraph(TipTapNode doc) {
+        if (doc == null) return "";
+        var ch = children(doc);
+        if (ch.isEmpty()) return "";
+        var sb = new StringBuilder();
+        int start = "paragraph".equals(ch.get(0).getType()) ? 1 : 0;
+        for (int i = start; i < ch.size(); i++) renderBlock(ch.get(i), sb);
+        return sb.toString();
+    }
+
     // ─── Block rendering ──────────────────────────────────────────────────────
 
     private void renderBlock(TipTapNode node, StringBuilder sb) {

@@ -33,7 +33,10 @@
       <q-btn flat round dense size="sm" color="grey-7" icon="mdi-file-document-edit-outline" @click="abrirDialogMeta">
         <q-tooltip anchor="top middle" self="bottom middle">Metadados</q-tooltip>
       </q-btn>
-      <q-btn flat round dense size="sm" color="grey-7" icon="mdi-source-branch">
+      <q-btn
+        flat round dense size="sm" color="grey-7" icon="mdi-source-branch"
+        :to="{ name: 'documento-comparar', params: { id: props.documento?.id } }"
+      >
         <q-tooltip anchor="top middle" self="bottom middle">Comparar versões</q-tooltip>
       </q-btn>
       <q-btn flat round dense size="sm" color="grey-7" icon="mdi-download-outline">
@@ -111,7 +114,7 @@
                   >{{ nodePreview(node) }}</span>
                   <!-- Indicador de vazio -->
                   <q-icon
-                    v-if="!isGroupingType(node.tipo) && !isNodeFilled(node)"
+                    v-if="!isNodeFilled(node)"
                     name="mdi-alert-circle"
                     color="amber-7"
                     size="12px"
@@ -122,18 +125,41 @@
                       Vazio — necessário para aprovação
                     </q-tooltip>
                   </q-icon>
-                  <!-- Ações (visíveis ao passar o mouse) -->
-                  <div class="norm-actions row items-center q-ml-xs" style="gap:2px;flex-shrink:0">
-                    <q-btn round size="xs" flat dense color="grey" @click.stop="$emit('move-up', node.id)">
+                  <!-- Indicador de emenda (quando EM_ALTERACAO). Cadeado = já publicado em
+                       ciclo anterior (permanente, ver clausulaEmenda) — distingue de uma
+                       emenda feita agora mesmo, ainda pendente nesta alteração. -->
+                  <q-chip
+                    v-if="isEmAlteracao && node.emendaStatus && node.emendaStatus !== 'INALTERADO'"
+                    :color="emendaStatusColor(node.emendaStatus)"
+                    text-color="white"
+                    dense
+                    size="xs"
+                    class="q-ml-xs"
+                    style="flex-shrink:0;font-size:9px;height:14px;padding:0 4px"
+                  >
+                    <q-icon v-if="node.clausulaEmenda" name="mdi-lock-outline" size="9px" class="q-mr-xs" />{{ emendaStatusLabel(node.emendaStatus) }}
+                    <q-tooltip v-if="node.clausulaEmenda" anchor="top middle" self="bottom middle">
+                      Já publicado numa alteração anterior — use os botões para uma nova emenda
+                    </q-tooltip>
+                  </q-chip>
+                  <!-- Ações normais (visíveis ao passar o mouse, ocultas quando EM_ALTERACAO) -->
+                  <div v-if="!isEmAlteracao" class="norm-actions row items-center q-ml-xs" style="gap:2px;flex-shrink:0">
+                    <q-btn
+                      v-if="editorStore.canMoveUp(node.id)"
+                      round size="xs" flat dense color="grey" @click.stop="$emit('move-up', node.id)"
+                    >
                       <q-icon size="11px" name="mdi-arrow-up" />
                       <q-tooltip anchor="center right" self="center left">Mover acima</q-tooltip>
                     </q-btn>
-                    <q-btn round size="xs" flat dense color="grey" @click.stop="$emit('move-down', node.id)">
+                    <q-btn
+                      v-if="editorStore.canMoveDown(node.id)"
+                      round size="xs" flat dense color="grey" @click.stop="$emit('move-down', node.id)"
+                    >
                       <q-icon size="11px" name="mdi-arrow-down" />
                       <q-tooltip anchor="center right" self="center left">Mover abaixo</q-tooltip>
                     </q-btn>
                     <q-btn
-                      v-if="childOptions(node).length || canPromoteNode(node)"
+                      v-if="childOptions(node).length || canDemoteNode(node) || canMoveNode(node)"
                       round size="xs" flat dense color="grey"
                       @click.stop
                     >
@@ -155,9 +181,9 @@
                             </q-item>
                             <q-separator />
                           </template>
-                          <template v-if="canPromoteNode(node)">
+                          <template v-if="canDemoteNode(node)">
                             <q-item-label header>Reorganizar</q-item-label>
-                            <q-item clickable v-close-popup @click="$emit('promote', node.id)">
+                            <q-item v-if="canPromoteNode(node)" clickable v-close-popup @click="$emit('promote', node.id)">
                               <q-item-section avatar>
                                 <q-icon name="mdi-arrow-collapse-up" />
                               </q-item-section>
@@ -168,6 +194,21 @@
                                 <q-icon name="mdi-arrow-expand-down" />
                               </q-item-section>
                               <q-item-section>Rebaixar nível</q-item-section>
+                            </q-item>
+                            <q-separator />
+                          </template>
+                          <template v-if="canMoveNode(node)">
+                            <q-item-label header>Mover para</q-item-label>
+                            <q-item
+                              v-for="target in moveTargets(node)"
+                              :key="target.id ?? 'root'"
+                              clickable v-close-popup
+                              @click="$emit('move-to-parent', node.id, target.id)"
+                            >
+                              <q-item-section avatar>
+                                <q-icon :name="target.id === null ? 'mdi-arrow-collapse-up' : 'mdi-folder-move-outline'" />
+                              </q-item-section>
+                              <q-item-section>{{ target.label }}</q-item-section>
                             </q-item>
                             <q-separator />
                           </template>
@@ -185,12 +226,70 @@
                       <q-tooltip anchor="center right" self="center left">Remover</q-tooltip>
                     </q-btn>
                   </div>
+                  <!-- Ações de emenda (visíveis ao passar o mouse, quando EM_ALTERACAO) -->
+                  <div v-else class="norm-actions row items-center q-ml-xs" style="gap:2px;flex-shrink:0">
+                    <!-- Elemento sem emenda pendente — original INALTERADO, ou ALTERADO/
+                         INCLUIDO já publicado num ciclo anterior (permanente): uma nova
+                         emenda aqui é tratada como alterar/revogar de novo, exatamente como
+                         um original, não como "desfazer"/"excluir" a emenda anterior —
+                         é assim que o ciclo se repete também para inclusões -->
+                    <template v-if="node.emendaStatus === 'INALTERADO' || ((node.emendaStatus === 'ALTERADO' || node.emendaStatus === 'INCLUIDO') && node.clausulaEmenda)">
+                      <q-btn round size="xs" flat dense color="primary" @click.stop="$emit('emenda-alterar', node.id, 'PARTE_NORMATIVA')">
+                        <q-icon size="11px" name="mdi-pencil-outline" />
+                        <q-tooltip anchor="center right" self="center left">Alterar texto</q-tooltip>
+                      </q-btn>
+                      <q-btn round size="xs" flat dense color="negative" @click.stop="$emit('emenda-revogar', node.id, 'PARTE_NORMATIVA')">
+                        <q-icon size="11px" name="mdi-delete-outline" />
+                        <q-tooltip anchor="center right" self="center left">Revogar</q-tooltip>
+                      </q-btn>
+                    </template>
+                    <!-- Emenda pendente nesta alteração (ainda não publicada): pode desfazer -->
+                    <template v-else-if="(node.emendaStatus === 'ALTERADO' || node.emendaStatus === 'REVOGADO') && !node.clausulaEmenda">
+                      <q-btn round size="xs" flat dense color="warning" @click.stop="$emit('emenda-desfazer', node.id, 'PARTE_NORMATIVA')">
+                        <q-icon size="11px" name="mdi-undo-variant" />
+                        <q-tooltip anchor="center right" self="center left">Desfazer emenda</q-tooltip>
+                      </q-btn>
+                    </template>
+                    <!-- REVOGADO consolidado numa publicação anterior: permanente, sem ações -->
+                    <template v-else-if="node.emendaStatus === 'REVOGADO' && node.clausulaEmenda">
+                      <q-icon size="14px" name="mdi-lock-outline" color="grey-6">
+                        <q-tooltip anchor="center right" self="center left">Revogado permanentemente por publicação anterior</q-tooltip>
+                      </q-icon>
+                    </template>
+                    <!-- Elemento inserido por emenda ainda não publicado (INCLUIDO pendente):
+                         edição livre, reordenação entre incluídos (única exceção à vedação
+                         de renumeração) ou exclusão direta -->
+                    <template v-else-if="node.emendaStatus === 'INCLUIDO'">
+                      <q-btn
+                        v-if="editorStore.canReorderIncluido(node.id, -1)"
+                        round size="xs" flat dense color="grey" @click.stop="$emit('reordenar-incluido', node.id, 'CIMA')"
+                      >
+                        <q-icon size="11px" name="mdi-arrow-up" />
+                        <q-tooltip anchor="center right" self="center left">Mover acima (entre incluídos)</q-tooltip>
+                      </q-btn>
+                      <q-btn
+                        v-if="editorStore.canReorderIncluido(node.id, 1)"
+                        round size="xs" flat dense color="grey" @click.stop="$emit('reordenar-incluido', node.id, 'BAIXO')"
+                      >
+                        <q-icon size="11px" name="mdi-arrow-down" />
+                        <q-tooltip anchor="center right" self="center left">Mover abaixo (entre incluídos)</q-tooltip>
+                      </q-btn>
+                      <q-btn round size="xs" flat dense color="primary" @click.stop="$emit('emenda-alterar', node.id, 'PARTE_NORMATIVA')">
+                        <q-icon size="11px" name="mdi-pencil-outline" />
+                        <q-tooltip anchor="center right" self="center left">Editar conteúdo</q-tooltip>
+                      </q-btn>
+                      <q-btn round size="xs" flat dense color="negative" @click.stop="$emit('emenda-desfazer', node.id, 'PARTE_NORMATIVA')">
+                        <q-icon size="11px" name="mdi-delete-outline" />
+                        <q-tooltip anchor="center right" self="center left">Excluir elemento</q-tooltip>
+                      </q-btn>
+                    </template>
+                  </div>
                 </div>
               </template>
             </q-tree>
 
             <div class="q-mt-sm column q-px-xs" style="gap:4px">
-              <div>
+              <div v-if="!isEmAlteracao">
                 <q-btn
                   outline
                   color="primary"
@@ -226,6 +325,19 @@
                       </q-item>
                     </q-list>
                   </q-menu>
+                </q-btn>
+              </div>
+
+              <div v-if="isEmAlteracao">
+                <q-btn
+                  outline
+                  color="green-8"
+                  size="sm"
+                  class="full-width"
+                  @click="$emit('emenda-incluir', 'PARTE_NORMATIVA', normativaElementos)"
+                >
+                  <q-icon left name="mdi-plus-circle-outline" />
+                  Incluir novo elemento
                 </q-btn>
               </div>
 
@@ -311,6 +423,11 @@
 
       <q-card-section class="q-pa-md scroll" style="max-height:70vh">
 
+        <div v-if="!metaEditavel" class="text-caption text-amber-9 bg-amber-1 q-pa-sm rounded-borders q-mb-md">
+          <q-icon name="mdi-lock-outline" size="14px" class="q-mr-xs" />
+          Metadados não podem ser alterados para um documento já publicado.
+        </div>
+
         <!-- Identificação -->
         <div class="text-caption text-weight-bold text-grey-6 text-uppercase q-mb-sm">Identificação</div>
         <div class="row q-col-gutter-sm q-mb-md">
@@ -326,6 +443,7 @@
               label="Número Secundário"
               outlined dense
               type="number"
+              :disable="!metaEditavel"
             />
           </div>
           <div class="col-12">
@@ -345,15 +463,16 @@
               label="Título"
               outlined dense
               autofocus
+              :disable="!metaEditavel"
             />
           </div>
         </div>
 
-        <!-- Status -->
-        <div class="text-caption text-weight-bold text-grey-6 text-uppercase q-mb-sm">Status</div>
+        <!-- Situação -->
+        <div class="text-caption text-weight-bold text-grey-6 text-uppercase q-mb-sm">Situação</div>
         <div class="row q-col-gutter-sm q-mb-md">
           <div class="col-8">
-            <q-input :model-value="props.documento?.status" label="Status" outlined dense disable />
+            <q-input :model-value="props.documento?.status" label="Situação" outlined dense disable />
           </div>
           <div class="col-4">
             <q-input :model-value="props.documento?.qtd_replicas" label="Réplicas" outlined dense disable />
@@ -406,8 +525,9 @@
       <q-separator />
 
       <q-card-actions align="right" class="q-px-md q-py-sm">
-        <q-btn flat label="Cancelar" v-close-popup :disable="metaSalvando" />
+        <q-btn flat :label="metaEditavel ? 'Cancelar' : 'Fechar'" v-close-popup :disable="metaSalvando" />
         <q-btn
+          v-if="metaEditavel"
           unelevated
           color="primary"
           label="Salvar"
@@ -430,24 +550,33 @@
 
       <q-separator class="q-mt-sm" />
 
-      <q-card-section class="q-pa-md column q-gutter-sm">
+      <q-card-section class="q-pa-md column" style="gap:12px">
         <q-input
           v-model="anexoForm.titulo"
           label="Título do anexo"
           outlined dense autofocus
           :disable="anexoUploadando"
         />
-        <q-file
-          v-model="anexoForm.arquivo"
+        <q-uploader
+          ref="anexoUploaderRef"
+          :url="anexoUploadUrl"
+          :headers="anexoUploadHeaders"
+          field-name="arquivo"
+          :form-fields="anexoFormFields"
           label="Imagem (PNG, JPEG)"
-          outlined dense
           accept="image/png,image/jpeg,image/jpg"
-          :disable="anexoUploadando"
-        >
-          <template v-slot:prepend>
-            <q-icon name="mdi-image-outline" />
-          </template>
-        </q-file>
+          :multiple="false"
+          :max-files="1"
+          :auto-upload="false"
+          :disable="!anexoForm.titulo || anexoUploadando"
+          flat bordered
+          style="max-height:200px;width:100%"
+          @added="anexoFileQueued = true"
+          @removed="anexoFileQueued = false"
+          @uploading="anexoUploadando = true"
+          @uploaded="onAnexoUploaded"
+          @failed="onAnexoFailed"
+        />
       </q-card-section>
 
       <q-separator />
@@ -457,8 +586,8 @@
         <q-btn
           unelevated color="primary" label="Enviar"
           :loading="anexoUploadando"
-          :disable="!anexoForm.titulo || !anexoForm.arquivo"
-          @click="enviarAnexo"
+          :disable="!anexoForm.titulo || !anexoFileQueued"
+          @click="iniciarUploadAnexo"
         />
       </q-card-actions>
     </q-card>
@@ -472,16 +601,20 @@ import StatusBadge from '@/components/common/StatusBadge.vue'
 import { formatLabel, elementIcon } from '@/utils/numbering.js'
 import { useEditorStore } from '@/stores/editor.js'
 import { useDocumentsStore } from '@/stores/documents.js'
+import { useAuthStore } from '@/stores/auth.js'
+import { BASE_URL } from '@/api/client.js'
 
 const $q = useQuasar()
 const editorStore = useEditorStore()
 const documentsStore = useDocumentsStore()
+const authStore = useAuthStore()
 
 const props = defineProps({
-  documento:  { type: Object, default: null },
-  docLabel:   { type: String, default: '' },
-  secoes:     { type: Array, default: () => [] },
-  selectedId: { type: String, default: null },
+  documento:      { type: Object, default: null },
+  docLabel:       { type: String, default: '' },
+  secoes:         { type: Array, default: () => [] },
+  selectedId:     { type: String, default: null },
+  isEmAlteracao:  { type: Boolean, default: false },
 })
 
 const emit = defineEmits([
@@ -489,13 +622,16 @@ const emit = defineEmits([
   'move-up', 'move-down',
   'add-child', 'add-artigo', 'add-capitulo',
   'promote', 'demote', 'remove',
+  'move-to-parent',
   'reorder-normativa',
+  'emenda-alterar', 'emenda-revogar', 'emenda-desfazer', 'emenda-incluir',
+  'reordenar-incluido',
 ])
 
 // ── Dialog de metadados ──────────────────────────────────────────────────────
 function formatarData(iso) {
   if (!iso) return '—'
-  const [y, m, d] = iso.split('-')
+  const [y, m, d] = String(iso).slice(0, 10).split('-')
   const meses = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez']
   return `${+d} ${meses[+m - 1]} ${y}`
 }
@@ -503,6 +639,11 @@ function formatarData(iso) {
 const metaDialogOpen = ref(false)
 const metaSalvando   = ref(false)
 const metaForm = reactive({ titulo: '', numero_secundario: '' })
+// Espelha a regra do backend (DocumentoService.update só aceita
+// RASCUNHO/MINUTA -- ver GlobalExceptionHandler, StatusCannotBeUpdatedException
+// mapeada para 403): dentro do editor, o único outro status possível é
+// EM_ALTERACAO, então basta essa checagem.
+const metaEditavel = computed(() => !props.isEmAlteracao)
 
 function abrirDialogMeta() {
   metaForm.titulo           = props.documento?.titulo ?? ''
@@ -562,8 +703,16 @@ const CHILD_MAP = {
 
 // ── Helpers p/ q-tree ────────────────────────────────────────────────────────
 const isGroupingType = (tipo) => GROUPING_TIPOS.has(tipo)
-const canPromoteNode = (node) => ARTIGO_TIPOS.has(node.tipo)
+const canPromoteNode = (node) => ARTIGO_TIPOS.has(node.tipo) && node.tipo !== 'artigo'
+const canDemoteNode  = (node) => ARTIGO_TIPOS.has(node.tipo)
 const childOptions   = (node) => CHILD_MAP[node.tipo] ?? []
+
+// ── "Mover para" (reparenteamento sem alterar tipo) ─────────────────────────
+// A lista de destinos válidos (incluindo "Nível superior", quando aplicável) é
+// inteiramente decidida pela store, que é a única fonte de verdade sobre a
+// hierarquia — evita que a UI ofereça um destino que viole o agrupamento.
+const moveTargets = (node) => editorStore.getMoveTargets(node.id)
+const canMoveNode = (node) => moveTargets(node).length > 0
 
 function extractText(conteudo) {
   if (!conteudo) return ''
@@ -578,7 +727,9 @@ function extractText(conteudo) {
   } catch { return '' }
 }
 
-const isNodeFilled = (node) => extractText(node?.conteudo).length > 0
+const isNodeFilled = (node) => isGroupingType(node?.tipo)
+  ? (node?.titulo ?? '').trim().length > 0
+  : extractText(node?.conteudo).length > 0
 
 const nodePreview = (node) => {
   const text = extractText(node?.conteudo)
@@ -587,7 +738,6 @@ const nodePreview = (node) => {
 
 // ── Estado das seções colapsadas ─────────────────────────────────────────────
 const secaoExpandida = reactive({
-  parte_preliminar: true,
   parte_normativa:  true,
   anexos:           false,
 })
@@ -640,7 +790,15 @@ const anexos = computed(() => documentsStore.anexosPorDocumento[String(props.doc
 
 const anexoDialogOpen = ref(false)
 const anexoUploadando = ref(false)
-const anexoForm = reactive({ titulo: '', arquivo: null })
+const anexoFileQueued = ref(false)
+const anexoForm = reactive({ titulo: '' })
+const anexoUploaderRef = ref(null)
+
+const anexoUploadUrl = computed(() => `${BASE_URL}/documentos/${props.documento?.id}/anexos`)
+const anexoFormFields = computed(() => [{ name: 'titulo', value: anexoForm.titulo }])
+// q-uploader não passa pelo client.js (http.js), então não herda a injeção
+// automática do Authorization -- precisa ser passado explicitamente aqui.
+const anexoUploadHeaders = computed(() => [{ name: 'Authorization', value: `Bearer ${authStore.token}` }])
 
 function toRoman(n) {
   if (n <= 0) return ''
@@ -653,23 +811,27 @@ function toRoman(n) {
 }
 
 function abrirDialogAnexo() {
-  anexoForm.titulo  = ''
-  anexoForm.arquivo = null
+  anexoForm.titulo = ''
+  anexoFileQueued.value = false
+  anexoUploadando.value = false
+  anexoUploaderRef.value?.reset()
   anexoDialogOpen.value = true
 }
 
-async function enviarAnexo() {
-  if (!props.documento?.id || !anexoForm.titulo || !anexoForm.arquivo) return
-  anexoUploadando.value = true
-  try {
-    await documentsStore.addAnexo(props.documento.id, anexoForm.titulo, anexoForm.arquivo)
-    anexoDialogOpen.value = false
-    $q.notify({ type: 'positive', message: 'Anexo adicionado com sucesso.' })
-  } catch (e) {
-    $q.notify({ type: 'negative', message: 'Erro ao enviar anexo.' })
-  } finally {
-    anexoUploadando.value = false
-  }
+function iniciarUploadAnexo() {
+  anexoUploaderRef.value?.upload()
+}
+
+async function onAnexoUploaded() {
+  anexoUploadando.value = false
+  anexoDialogOpen.value = false
+  if (props.documento?.id) await documentsStore.fetchAnexos(props.documento.id)
+  $q.notify({ type: 'positive', message: 'Anexo adicionado com sucesso.' })
+}
+
+function onAnexoFailed() {
+  anexoUploadando.value = false
+  $q.notify({ type: 'negative', message: 'Erro ao enviar anexo.' })
 }
 
 function removerAnexo(anexoId) {
@@ -697,9 +859,16 @@ watch(() => props.documento?.id, (id) => {
 // ── Helpers p/ itens fixos ───────────────────────────────────────────────────
 const isElFilled = (el) => extractText(el?.conteudo).length > 0
 
+// ── Helpers de emenda ────────────────────────────────────────────────────────
+function emendaStatusColor(status) {
+  return { ALTERADO: 'blue-7', REVOGADO: 'negative', INCLUIDO: 'green-8' }[status] ?? 'grey'
+}
+function emendaStatusLabel(status) {
+  return { ALTERADO: 'ALT', REVOGADO: 'REV', INCLUIDO: 'INC' }[status] ?? status
+}
+
 function secaoIcon(tipo) {
   const m = {
-    parte_preliminar: 'mdi-text-box-outline',
     parte_normativa:  'mdi-format-list-numbered',
     anexos:           'mdi-paperclip',
   }
@@ -708,7 +877,6 @@ function secaoIcon(tipo) {
 
 function secaoIconColor(tipo) {
   const m = {
-    parte_preliminar: 'teal-6',
     parte_normativa:  'primary',
     anexos:           'teal-6',
   }

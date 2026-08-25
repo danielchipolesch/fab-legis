@@ -43,6 +43,25 @@ public class ItemParteFinal {
     @Column(name = "tx_conteudo_completo", columnDefinition = "TEXT")
     private String fullTextContent;
 
+    @Column(name = "st_emenda", length = 20)
+    @Enumerated(EnumType.STRING)
+    private ElementoEmendaStatusEnum emendaStatus = ElementoEmendaStatusEnum.INALTERADO;
+
+    @Column(name = "tx_conteudo_emenda", columnDefinition = "TEXT")
+    private String conteudoEmenda;
+
+    @Column(name = "tx_titulo_emenda", columnDefinition = "TEXT")
+    private String tituloEmenda;
+
+    @Column(name = "tx_justificativa_emenda", columnDefinition = "TEXT")
+    private String justificativaEmenda;
+
+    @Column(name = "tx_clausula_emenda", columnDefinition = "TEXT")
+    private String clausulaEmenda;
+
+    @Column(name = "tx_clausula_emenda_anterior", columnDefinition = "TEXT")
+    private String clausulaEmendaAnterior;
+
     @CreationTimestamp
     @Column(name = "dt_criacao", updatable = false)
     private LocalDateTime createdAt;

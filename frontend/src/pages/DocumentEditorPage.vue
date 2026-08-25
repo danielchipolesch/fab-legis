@@ -7,6 +7,7 @@
       :doc-label="docLabel"
       :secoes="documento?.secoes ?? []"
       :selected-id="editorStore.selectedElementId"
+      :is-em-alteracao="isEmAlteracao"
       @select="editorStore.selectElement($event)"
       @move-up="onMoveUp"
       @move-down="onMoveDown"
@@ -16,8 +17,39 @@
       @promote="onPromote"
       @demote="handleDemote"
       @remove="onRemove"
+      @move-to-parent="onMoveToParent"
       @reorder-normativa="onReorderNormativa"
+      @emenda-alterar="(id, secao) => abrirEmendaDialog(id, secao, 'ALTERAR')"
+      @emenda-revogar="(id, secao) => abrirEmendaDialog(id, secao, 'REVOGAR')"
+      @emenda-desfazer="(id, secao) => abrirEmendaDialog(id, secao, 'DESFAZER')"
+      @emenda-incluir="(secao, elementos) => abrirIncluirDialog(secao, elementos)"
+      @reordenar-incluido="onReordenarIncluido"
     />
+
+    <!-- Dialog de emenda (alterar / revogar / desfazer) -->
+    <EmendaDialog
+      v-if="isEmAlteracao"
+      v-model="emendaDialogOpen"
+      :acao="emendaAcao"
+      :elemento="emendaElemento"
+      :secao="emendaSecao"
+      :documento-id="documentoId"
+    />
+
+    <!-- Dialog de inclusão de novo elemento por emenda -->
+    <IncluirElementoDialog
+      v-if="isEmAlteracao"
+      v-model="incluirDialogOpen"
+      :secao="incluirSecao"
+      :documento-id="documentoId"
+      :elementos="incluirElementos"
+    />
+
+    <!-- Dialog de referência: técnica legislativa (LC 95/1998) -->
+    <Lc95HelpDialog v-model="lc95DialogOpen" />
+
+    <!-- Dialog de compartilhamento (coautoria) -->
+    <CompartilharDialog v-if="documentoId" v-model="compartilharDialogOpen" :documento-id="documentoId" />
 
     <!-- Coluna principal: topbar + área de edição -->
     <div class="editor-main column">
@@ -52,6 +84,17 @@
 
         <q-space />
 
+        <q-btn round flat color="primary" @click="lc95DialogOpen = true">
+          <q-icon name="mdi-help-circle-outline" size="22px" />
+          <q-tooltip anchor="bottom middle" self="top middle">Técnica legislativa (LC 95/1998)</q-tooltip>
+        </q-btn>
+
+        <q-btn round flat color="primary" @click="compartilharDialogOpen = true">
+          <q-icon name="mdi-account-multiple-plus-outline" size="22px" />
+          <q-badge v-if="presencaOutros.length" floating color="deep-orange" rounded />
+          <q-tooltip anchor="bottom middle" self="top middle">Compartilhar</q-tooltip>
+        </q-btn>
+
         <q-btn
           outline
           color="primary"
@@ -73,6 +116,27 @@
       </div>
 
       <q-separator />
+
+      <!-- Banner de modo EM ALTERAÇÃO -->
+      <div v-if="isEmAlteracao" class="q-px-md q-py-xs row items-center" style="background:#FFF3E0;border-bottom:1px solid #FFCC80;gap:8px">
+        <q-icon name="mdi-pencil-lock-outline" color="deep-orange-8" size="16px" />
+        <span class="text-caption text-deep-orange-9 text-weight-bold">
+          MODO EM ALTERAÇÃO — Use os botões de emenda no painel lateral para alterar ou revogar elementos.
+          Salvar automático está desativado.
+        </span>
+      </div>
+
+      <!-- Aviso de presença: alguém mais está editando este documento agora.
+           Só avisa -- não bloqueia nem resolve a colisão por si (ver
+           DocumentoConcorrenciaService no backend para a checagem que de fato
+           impede sobrescrever por cima). -->
+      <div v-if="presencaOutros.length" class="q-px-md q-py-xs row items-center" style="background:#FFF3E0;border-bottom:1px solid #FFCC80;gap:8px">
+        <q-icon name="mdi-account-alert-outline" color="deep-orange-8" size="16px" />
+        <span class="text-caption text-deep-orange-9 text-weight-bold">
+          {{ presencaOutros.map(p => p.nome).join(', ') }}
+          {{ presencaOutros.length === 1 ? 'também está editando' : 'também estão editando' }} este documento agora.
+        </span>
+      </div>
 
       <!-- Área principal: editor + preview -->
       <div class="editor-body row col" style="overflow:hidden">
@@ -102,26 +166,7 @@
                 </div>
                 <div class="row">
                   <q-btn
-                    v-if="!isGroupingEl && hasChildren(selectedElement)"
-                    size="sm"
-                    outline
-                    class="q-ml-sm"
-                    @click="handleDemote(selectedElement.id)"
-                  >
-                    <q-icon left name="mdi-arrow-expand-down" />
-                    Rebaixar
-                  </q-btn>
-                  <q-btn
-                    v-if="!isGroupingEl"
-                    size="sm"
-                    outline
-                    class="q-ml-sm"
-                    @click="editorStore.promote(selectedElement.id)"
-                  >
-                    <q-icon left name="mdi-arrow-collapse-up" />
-                    Promover
-                  </q-btn>
-                  <q-btn
+                    v-if="!isEmAlteracao"
                     size="sm"
                     outline
                     color="negative"
@@ -154,7 +199,7 @@
             <WysiwygEditor
               v-else
               :key="selectedElement.id"
-              :model-value="selectedElement.conteudo"
+              :model-value="wysiwygConteudo"
               :readonly="isReadonly"
               @update:model-value="onContentUpdate"
             />
@@ -217,46 +262,115 @@ import { useRoute, useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { useEditorStore } from '@/stores/editor.js'
 import { useDocumentsStore } from '@/stores/documents.js'
+import { useAuthStore } from '@/stores/auth.js'
 import { formatLabel, elementIcon, renumberElements } from '@/utils/numbering.js'
 import { gerarPdf } from '@/services/pdfService.js'
 import EditorSidebar from '@/components/editor/EditorSidebar.vue'
 import WysiwygEditor from '@/components/editor/WysiwygEditor.vue'
 import DocumentPreview from '@/components/editor/DocumentPreview.vue'
+import EmendaDialog from '@/components/editor/EmendaDialog.vue'
+import IncluirElementoDialog from '@/components/editor/IncluirElementoDialog.vue'
+import Lc95HelpDialog from '@/components/editor/Lc95HelpDialog.vue'
+import CompartilharDialog from '@/components/editor/CompartilharDialog.vue'
+import * as documentsApi from '@/api/documents.js'
 
 const route = useRoute()
 const router = useRouter()
 const $q = useQuasar()
 const editorStore = useEditorStore()
 const docStore = useDocumentsStore()
+const auth = useAuthStore()
 
 const previewMounted = ref(false)
 const pdfLoading    = ref(false)
+const lc95DialogOpen = ref(false)
+const compartilharDialogOpen = ref(false)
+
+// ── Presença de edição (aviso de colisão, não trava nada) ───────────────────────
+// "Quem está editando agora" é literalmente "quem tem esta conexão SSE
+// aberta" (ver DocumentoPresencaEmitterRegistry no backend) -- sem polling,
+// sem heartbeat: a lista chega pronta a cada mudança (alguém entrou ou
+// saiu), incluindo o próprio usuário, que é filtrado aqui antes de exibir.
+const presencaOutros = ref([])
+let presencaEventSource = null
+
+function iniciarPresenca() {
+  if (presencaEventSource || !documentoId.value || !auth.token) return
+
+  presencaEventSource = new EventSource(documentsApi.presencaStreamUrl(documentoId.value, auth.token))
+  presencaEventSource.addEventListener('presenca', (event) => {
+    const todos = JSON.parse(event.data)
+    const antes = new Set(presencaOutros.value.map(p => p.usuarioId))
+    const outros = todos.filter(p => p.usuarioId !== auth.usuario?.id)
+
+    // Toast só na TRANSIÇÃO (alguém que não estava editando começou a editar
+    // agora), não a cada evento -- o banner permanente (ver template) já
+    // cobre o estado contínuo.
+    for (const p of outros) {
+      if (!antes.has(p.usuarioId)) {
+        $q.notify({ type: 'info', icon: 'mdi-account-multiple-outline', position: 'top-right',
+          message: `${p.nome} começou a editar este documento agora.` })
+      }
+    }
+
+    presencaOutros.value = outros
+  })
+  // onerror não precisa de tratamento manual: o browser reconecta o
+  // EventSource sozinho enquanto o editor continuar aberto.
+}
+
+function pararPresenca() {
+  presencaEventSource?.close()
+  presencaEventSource = null
+  presencaOutros.value = []
+}
 
 // ── Auto-save ────────────────────────────────────────────────────────────────
 const saveStatus = ref('idle')   // 'idle' | 'saving' | 'error'
 let autoSaveTimer = null
 
 function scheduleAutoSave() {
+  if (isEmAlteracao.value) return
   saveStatus.value = 'saving'
   clearTimeout(autoSaveTimer)
   autoSaveTimer = setTimeout(autoSave, 2000)
 }
 
 async function autoSave() {
-  if (!editorStore.isDirty) return
+  if (!editorStore.isDirty) {
+    saveStatus.value = 'idle'
+    return
+  }
   saveStatus.value = 'saving'
   try {
     await editorStore.save()
     saveStatus.value = 'idle'
   } catch (e) {
     console.error('[AutoSave]', e)
-    saveStatus.value = 'error'
+    if (e?.status === 409) {
+      // Outra pessoa (ou outra aba) salvou primeiro -- não insiste
+      // sobrescrevendo por cima; recarrega (busca a versão real no servidor,
+      // não do cache -- ver editorStore.reload) e avisa, igual ao design doc
+      // previu para o cenário de colisão de edição concorrente. saveStatus só
+      // volta a 'idle' depois que a versão atual chegou, senão o próximo
+      // autosave repetiria a mesma versão desatualizada e colidiria de novo.
+      await editorStore.reload()
+      saveStatus.value = 'idle'
+      $q.notify({
+        type: 'warning',
+        message: 'Este documento foi alterado por outra pessoa. A tela foi recarregada com a versão mais recente.',
+        timeout: 8000,
+      })
+    } else {
+      saveStatus.value = 'error'
+    }
   }
 }
 
 onUnmounted(() => {
   clearTimeout(autoSaveTimer)
   if (editorStore.isDirty) editorStore.save()
+  pararPresenca()
 })
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -270,9 +384,60 @@ const documentoId    = computed(() => route.params.id)
 const documento      = computed(() => editorStore.documento)
 const selectedElement = computed(() => editorStore.selectedElement)
 
+const isEmAlteracao = computed(() => documento.value?.status === 'EM_ALTERACAO')
+
 const isReadonly = computed(() =>
-  ['PUBLICADO', 'ARQUIVADO', 'CANCELADO', 'REVOGADO'].includes(documento.value?.status)
+  ['PUBLICADO', 'EM_ALTERACAO', 'ALTERADO', 'ARQUIVADO', 'CANCELADO', 'REVOGADO'].includes(documento.value?.status)
 )
+
+// Elemento ALTERADO por emenda: o texto vigente fica em conteudoEmenda, não em
+// conteudo (que preserva o original para o tachado no preview). Demais status
+// (INALTERADO, INCLUIDO, REVOGADO) usam conteudo normalmente.
+const wysiwygConteudo = computed(() => {
+  const el = selectedElement.value
+  if (!el) return ''
+  return el.emendaStatus === 'ALTERADO' ? el.conteudoEmenda : el.conteudo
+})
+
+// ── Emenda dialog state ───────────────────────────────────────────────────────
+const emendaDialogOpen  = ref(false)
+const emendaAcao        = ref('ALTERAR')
+const emendaElemento    = ref(null)
+const emendaSecao       = ref('PARTE_NORMATIVA')
+
+function abrirEmendaDialog(elementoId, secao, acao) {
+  const el = editorStore.findElement(elementoId)
+  if (!el) return
+  emendaElemento.value   = el
+  emendaSecao.value      = secao
+  emendaAcao.value       = acao
+  emendaDialogOpen.value = true
+}
+
+// ── Incluir elemento dialog state ────────────────────────────────────────────
+const incluirDialogOpen = ref(false)
+const incluirSecao      = ref('PARTE_NORMATIVA')
+const incluirElementos  = ref([])
+
+function abrirIncluirDialog(secao, elementos = []) {
+  incluirSecao.value      = secao
+  incluirElementos.value  = elementos
+  incluirDialogOpen.value = true
+}
+
+async function onReordenarIncluido(elementoId, direcao) {
+  try {
+    await docStore.reordenarElementoEmenda(documentoId.value, 'PARTE_NORMATIVA', parseInt(elementoId, 10), direcao)
+    editorStore.reload()
+  } catch (e) {
+    $q.notify({
+      type: 'negative',
+      message: `Erro ao reordenar: ${e?.message ?? 'erro desconhecido'}`,
+      position: 'bottom-right',
+      timeout: 4000,
+    })
+  }
+}
 
 const docLabel = computed(() => {
   const d = documento.value
@@ -329,10 +494,6 @@ const childOptions = computed(() => {
   return el ? (CHILD_OPTIONS[el.tipo] ?? []) : []
 })
 
-function hasChildren(el) {
-  return el?.filhos?.length > 0
-}
-
 onMounted(async () => {
   if (documentoId.value) {
     // Tenta buscar do backend; se falhar, cai para versão em memória (recém-criada)
@@ -355,7 +516,7 @@ onMounted(async () => {
       return
     }
 
-    if (!['RASCUNHO', 'MINUTA'].includes(doc.status)) {
+    if (!['RASCUNHO', 'MINUTA', 'EM_ALTERACAO'].includes(doc.status)) {
       router.replace({ name: 'documento-visualizar', params: { id: documentoId.value } })
       return
     }
@@ -367,9 +528,11 @@ onMounted(async () => {
     }
 
     const loadedDoc = editorStore.documento
-    const prelim = loadedDoc?.secoes?.find(s => s.tipo === 'parte_preliminar')
-    const primeiro = prelim?.elementos?.[0]
+    const normativa = loadedDoc?.secoes?.find(s => s.tipo === 'parte_normativa')
+    const primeiro = normativa?.elementos?.[0]
     if (primeiro) editorStore.selectElement(primeiro.id)
+
+    iniciarPresenca()
   } else {
     editorStore.loadNew()
   }
@@ -381,6 +544,10 @@ async function baixarPdf() {
   if (!documento.value) return
   pdfLoading.value = true
   try {
+    if (editorStore.isDirty) {
+      clearTimeout(autoSaveTimer)
+      await autoSave()
+    }
     await gerarPdf(documento.value)
   } catch (e) {
     console.error('[PDF]', e)
@@ -419,20 +586,63 @@ function onReorderNormativa() {
   }
 }
 
-function onMoveUp(id)            { editorStore.moveUp(id);        scheduleAutoSave() }
-function onMoveDown(id)          { editorStore.moveDown(id);      scheduleAutoSave() }
+function onMoveUp(id)   { if (editorStore.moveUp(id).ok)   scheduleAutoSave() }
+function onMoveDown(id) { if (editorStore.moveDown(id).ok) scheduleAutoSave() }
 function onAddChild(parentId, tipo) { editorStore.addFilho(parentId, tipo); scheduleAutoSave() }
-function onPromote(id)           { editorStore.promote(id);       scheduleAutoSave() }
 function onRemove(id)            { editorStore.removeElement(id); scheduleAutoSave() }
 
-function handleDemote(id) {
-  const result = editorStore.demote(id)
-  if (result && !result.ok && result.reason === 'at-bottom') {
+function onPromote(id) {
+  const result = editorStore.promote(id)
+  if (result && !result.ok) {
+    const messages = {
+      ceiling: 'Promoção bloqueada: o elemento está diretamente sob um artigo e promovê-lo o tornaria filho direto de um agrupamento (capítulo/seção/subseção), o que não é permitido.',
+      'no-parent': 'Promoção bloqueada: o elemento já está no nível mais alto possível.',
+    }
     $q.notify({
       type: 'warning',
       icon: 'mdi-alert-circle-outline',
-      message: 'Rebaixamento bloqueado: um subelemento já está no nível mais baixo (sub-alínea).',
-      position: 'top',
+      message: messages[result.reason] ?? 'Não foi possível promover o elemento.',
+      position: 'bottom-right',
+      timeout: 4000,
+    })
+  } else {
+    scheduleAutoSave()
+  }
+}
+
+function handleDemote(id) {
+  const result = editorStore.demote(id)
+  if (result && !result.ok) {
+    const messages = {
+      'at-bottom': 'Rebaixamento bloqueado: um subelemento já está no nível mais baixo (sub-alínea).',
+      'invalid-sibling': 'Rebaixamento bloqueado: o elemento anterior é um agrupamento (capítulo/seção/subseção) e não pode receber subelementos.',
+      'no-prev': 'Rebaixamento bloqueado: não há elemento anterior no mesmo nível para se tornar o novo pai.',
+    }
+    $q.notify({
+      type: 'warning',
+      icon: 'mdi-alert-circle-outline',
+      message: messages[result.reason] ?? 'Não foi possível rebaixar o elemento.',
+      position: 'bottom-right',
+      timeout: 4000,
+    })
+  } else {
+    scheduleAutoSave()
+  }
+}
+
+function onMoveToParent(id, newParentId) {
+  const result = editorStore.moveToParent(id, newParentId)
+  if (result && !result.ok) {
+    const messages = {
+      cycle: 'Não é possível mover um elemento para dentro dele mesmo.',
+      'invalid-parent': 'Destino inválido para este elemento.',
+      'not-movable': 'Este elemento não pode ser movido.',
+    }
+    $q.notify({
+      type: 'warning',
+      icon: 'mdi-alert-circle-outline',
+      message: messages[result.reason] ?? 'Não foi possível mover o elemento.',
+      position: 'bottom-right',
       timeout: 4000,
     })
   } else {

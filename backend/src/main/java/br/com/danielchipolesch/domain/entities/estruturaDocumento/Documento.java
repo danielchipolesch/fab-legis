@@ -2,6 +2,8 @@ package br.com.danielchipolesch.domain.entities.estruturaDocumento;
 
 import br.com.danielchipolesch.domain.entities.numeracaoDocumento.AssuntoBasico;
 import br.com.danielchipolesch.domain.entities.numeracaoDocumento.EspecieNormativa;
+import br.com.danielchipolesch.domain.entities.usuario.OrganizacaoMilitar;
+import br.com.danielchipolesch.domain.entities.usuario.Usuario;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -38,7 +40,7 @@ public class Documento extends RepresentationModel<Documento> {
     @Column(name = "nm_titulo_documento", nullable = false)
     private String tituloDocumento;
 
-    @Column(name = "st_documento", nullable = false)
+    @Column(name = "st_documento", nullable = false, columnDefinition = "VARCHAR(30)")
     @Enumerated(EnumType.STRING)
     private DocumentoStatusEnum documentoStatus;
 
@@ -74,7 +76,41 @@ public class Documento extends RepresentationModel<Documento> {
     @Column(name = "nr_replicas", nullable = false, columnDefinition = "INTEGER NOT NULL DEFAULT 0")
     private int qtdReplicas = 0;
 
+    @Column(name = "dt_em_alteracao")
+    private Timestamp dtEmAlteracao;
+
+    // Timestamp próprio para EM_ALTERACAO -> ALTERADO, separado de dtAprovacao para não
+    // sobrescrever o momento da aprovação original do fluxo normal (RASCUNHO->...->APROVADO).
+    @Column(name = "dt_alterado")
+    private Timestamp dtAlterado;
+
+    @Column(name = "tx_portaria_referencia")
+    private String portariaReferencia;
+
+    @Column(name = "tx_bca_referencia")
+    private String bcaReferencia;
+
+    @Column(name = "dt_portaria_referencia")
+    private Timestamp dtPortariaReferencia;
+
+    @Column(name = "dt_bca_referencia")
+    private Timestamp dtBcaReferencia;
+
+    // PDF da portaria enviado no ato da publicação -- concatenado com o PDF
+    // gerado do documento (ver DocumentoPdfService.gerarEArmazenarPdf).
+    // Ausente em documentos que nunca foram publicados.
+    @Column(name = "tx_url_portaria_pdf")
+    private String urlPortariaPdf;
+
     @Column(name = "nr_versao", nullable = false)
     @Version
     private Integer versao;
+
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "autor_id", nullable = false)
+    private Usuario autor;
+
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "om_id", nullable = false)
+    private OrganizacaoMilitar om;
 }

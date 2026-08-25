@@ -1,13 +1,16 @@
 <template>
   <div class="diff-viewer">
 
-    <!-- Row label -->
-    <div class="diff-row-label text-caption text-weight-bold text-grey-7 q-px-sm q-py-xs q-mb-sm">
-      {{ formatLabel(elemento) }}
+    <!-- Row label: ancestrais em tom neutro (contexto), elemento alterado em destaque -->
+    <div class="diff-row-label text-caption q-px-sm q-py-xs q-mb-sm">
+      <span v-if="labelAncestrais" class="text-grey-6">{{ labelAncestrais }}, </span>
+      <span class="text-weight-bold" :class="labelAtual ? 'text-primary' : 'text-grey-7'">
+        {{ labelAtual ?? formatLabel(elemento) }}
+      </span>
     </div>
 
     <!-- Side-by-side or unified diff -->
-    <div v-if="diff.length" class="diff-content" :class="mode === 'side' ? 'row' : ''" :style="mode === 'side' ? 'gap:12px' : ''">
+    <div v-if="hasDiff" class="diff-content" :class="mode === 'side' ? 'row' : ''" :style="mode === 'side' ? 'gap:12px' : ''">
 
       <!-- LEFT (version A) -->
       <div class="diff-pane col" :class="{ 'diff-pane--side': mode === 'side' }">
@@ -15,6 +18,9 @@
           {{ labelA }}
         </div>
         <div class="diff-pane-content q-pa-sm" v-html="renderedA" />
+        <div v-if="imagesA.length" class="diff-images q-pa-sm">
+          <img v-for="(img, i) in imagesA" :key="i" :src="img.src" :alt="img.titulo" class="diff-image" />
+        </div>
       </div>
 
       <!-- RIGHT (version B) — only in side mode -->
@@ -23,6 +29,9 @@
           {{ labelB }}
         </div>
         <div class="diff-pane-content q-pa-sm" v-html="renderedB" />
+        <div v-if="imagesB.length" class="diff-images q-pa-sm">
+          <img v-for="(img, i) in imagesB" :key="i" :src="img.src" :alt="img.titulo" class="diff-image" />
+        </div>
       </div>
 
       <!-- Unified diff -->
@@ -36,6 +45,9 @@
           }"
           v-text="part.value"
         />
+        <div v-if="imagesB.length" class="diff-images q-pt-sm">
+          <img v-for="(img, i) in imagesB" :key="i" :src="img.src" :alt="img.titulo" class="diff-image" />
+        </div>
       </div>
 
     </div>
@@ -54,11 +66,13 @@ import { diffWords } from 'diff'
 import { formatLabel } from '@/utils/numbering.js'
 
 const props = defineProps({
-  elemento:  { type: Object, required: true },
-  elementoB: { type: Object, default: null },
-  labelA:    { type: String, default: 'Versão anterior' },
-  labelB:    { type: String, default: 'Versão atual' },
-  mode:      { type: String, default: 'side' }, // 'side' | 'unified'
+  elemento:        { type: Object, required: true },
+  elementoB:       { type: Object, default: null },
+  labelAncestrais: { type: String, default: null }, // cadeia de contexto (ex.: "Art. 12., § 1º")
+  labelAtual:      { type: String, default: null },  // elemento alterado; sem override cai para formatLabel(elemento)
+  labelA:          { type: String, default: 'Versão anterior' },
+  labelB:          { type: String, default: 'Versão atual' },
+  mode:            { type: String, default: 'side' }, // 'side' | 'unified'
 })
 
 function extractText(conteudo) {
@@ -75,12 +89,40 @@ function extractText(conteudo) {
   } catch { return '' }
 }
 
+// Figuras (anexos/imagens) são nós atômicos sem texto — extractText não os alcança,
+// então diffWords nunca as via. Como não dá para "diffar" uma imagem palavra a
+// palavra, elas são extraídas à parte e só exibidas (não comparadas).
+function extractImages(conteudo) {
+  if (!conteudo) return []
+  try {
+    const imgs = []
+    const visit = (node) => {
+      if (!node) return
+      if (node.type === 'figure' && node.attrs?.src) {
+        imgs.push({ src: node.attrs.src, titulo: node.attrs.titulo ?? '' })
+      }
+      if (node.content) node.content.forEach(visit)
+    }
+    visit(JSON.parse(conteudo))
+    return imgs
+  } catch { return [] }
+}
+
 const textA = computed(() => extractText(props.elemento?.conteudo))
 const textB = computed(() => extractText(props.elementoB?.conteudo ?? props.elemento?.conteudo))
+const imagesA = computed(() => extractImages(props.elemento?.conteudo))
+const imagesB = computed(() => extractImages(props.elementoB?.conteudo ?? props.elemento?.conteudo))
 
 const diff = computed(() => {
   if (textA.value === textB.value) return []
   return diffWords(textA.value, textB.value)
+})
+
+const hasDiff = computed(() => {
+  if (diff.value.length) return true
+  const srcsA = imagesA.value.map(i => i.src).join('|')
+  const srcsB = imagesB.value.map(i => i.src).join('|')
+  return srcsA !== srcsB
 })
 
 const renderedA = computed(() => {
@@ -130,6 +172,16 @@ const renderedB = computed(() => {
 }
 .diff-pane--side + .diff-pane {
   border-left: 1px solid rgba(0, 0, 0, 0.3);
+}
+.diff-images {
+  border-top: 1px dashed rgba(0, 0, 0, 0.2);
+}
+.diff-image {
+  display: block;
+  max-width: 100%;
+  max-height: 220px;
+  object-fit: contain;
+  margin: 4px auto;
 }
 </style>
 

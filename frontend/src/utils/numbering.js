@@ -12,26 +12,41 @@ export function toLetter(n) {
   return String.fromCharCode(96 + n)
 }
 
+// Separador de milhar (padrão brasileiro) — nunca aplicado a anos.
+function comSeparadorMilhar(n) {
+  return n.toLocaleString('pt-BR')
+}
+
 // Decreto 12.002/2024 Art. 9 deg I e VII: ordinal (grau) ate o 9, cardinal (.) a partir do 10.
 function ordinalOrCardinal(n) {
-  return n <= 9 ? `${n}` + '\xBA' : `${n}.`
+  return n <= 9 ? `${n}` + '\xBA' : `${comSeparadorMilhar(n)}.`
+}
+
+// Sufixo de letra para elementos inseridos por emenda (Art. 7°-A, Art. 27-A., …)
+// Quando há letra, o ponto do cardinal (a partir do 10°) migra para o final,
+// depois da letra — nunca fica entre o número e o hífen.
+function ordinalWithLetra(n, letra) {
+  if (!letra) return ordinalOrCardinal(n)
+  if (n <= 9) return `${n}\xBA-${letra}`
+  return `${comSeparadorMilhar(n)}-${letra}.`
 }
 
 export function formatLabel(element) {
+  const letra = element._emendaLetra ?? null
   switch (element.tipo) {
     case 'capitulo': {
       const t = element.titulo ? ' — ' + element.titulo.toUpperCase() : ''
-      return 'CAP\xCDTULO ' + toRoman(element.numero ?? 0) + t
+      return 'CAP\xCDTULO ' + toRoman(element.numero ?? 0) + (letra ? '-' + letra : '') + t
     }
     case 'secao_normativa': {
       const t = element.titulo ? ' — ' + element.titulo : ''
-      return 'Se\xE7\xE3o ' + toRoman(element.numero ?? 0) + t
+      return 'Se\xE7\xE3o ' + toRoman(element.numero ?? 0) + (letra ? '-' + letra : '') + t
     }
     case 'subsecao_normativa': {
       const t = element.titulo ? ' — ' + element.titulo : ''
-      return 'Subse\xE7\xE3o ' + toRoman(element.numero ?? 0) + t
+      return 'Subse\xE7\xE3o ' + toRoman(element.numero ?? 0) + (letra ? '-' + letra : '') + t
     }
-    case 'artigo':          return 'Art. ' + ordinalOrCardinal(element.numero ?? 0)
+    case 'artigo':          return 'Art. ' + ordinalWithLetra(element.numero ?? 0, letra)
     case 'paragrafo_unico': return 'Par\xE1grafo \xFAnico'
     case 'paragrafo':       return '\xA7 ' + ordinalOrCardinal(element.numero ?? 0)
     case 'inciso':          return toRoman(element.numero ?? 0)
@@ -47,6 +62,20 @@ export function formatLabel(element) {
     case 'assinatura':           return 'Assinatura'
     case 'referenda':            return 'Referenda'
     default: return element.tipo
+  }
+}
+
+// Rótulo para a coluna "Referência" do quadro comparativo/PDF de justificativas
+// (Mapa de Alteração) — não é texto de corpo normativo, então incisos, alíneas e
+// subalíneas precisam do nome por extenso ("Inciso III", "Alínea c)") para o leitor
+// identificar o elemento fora do contexto do artigo. No corpo do documento em si
+// (formatLabel/bodyLabel) isso NUNCA aparece — a LC 95/1998 não usa esses rótulos.
+export function formatReferenciaLabel(element) {
+  switch (element.tipo) {
+    case 'inciso':     return 'Inciso ' + formatLabel(element)
+    case 'alinea':     return 'Alínea ' + formatLabel(element)
+    case 'sub_alinea': return 'Subalínea ' + formatLabel(element)
+    default:            return formatLabel(element)
   }
 }
 
@@ -164,6 +193,192 @@ export function demoteType(tipo) {
 }
 
 /**
+ * Renumeração para documentos em EM_ALTERACAO.
+ *
+ * Regras (LGCP):
+ * - Artigos e unidades SUPERIORES ao artigo (capítulo, seção, subseção) NÃO podem
+ *   ser renumerados. Elementos INALTERADO/ALTERADO/REVOGADO recebem números fixos.
+ * - Elemento INCLUIDO inserido ENTRE dois elementos não-INCLUIDO do mesmo tipo:
+ *   recebe _emendaLetra ('A', 'B', …) sem consumir a contagem.
+ * - Elemento INCLUIDO inserido APÓS o último não-INCLUIDO do mesmo tipo (final da
+ *   sequência): recebe numeração sequencial normal (sem letra-sufixo).
+ * - Unidades INTERNAS ao artigo (parágrafo, inciso, alínea, sub-alínea) são livremente
+ *   reordenáveis e sempre numeradas sequencialmente.
+ */
+
+// Coleta todos os artigos do documento em ordem DFS (leitura linear do documento).
+// Usado para determinar globalmente se um INCLUIDO é "ao final da sequência".
+function collectArtigosFlat(elements, result = []) {
+  for (const el of elements) {
+    if (el.tipo === 'artigo') result.push(el)
+    if (el.filhos?.length) collectArtigosFlat(el.filhos, result)
+  }
+  return result
+}
+
+// Verifica se há algum artigo INALTERADO/ALTERADO DEPOIS de `el` na sequência global.
+// REVOGADO é ignorado: não bloqueia a numeração sequencial de INCLUIDOs.
+// A lista `flatArtigos` é construída uma única vez na chamada raiz e compartilhada.
+function hasActiveArtigoAfterGlobal(el, flatArtigos) {
+  const idx = flatArtigos.indexOf(el)
+  for (let i = idx + 1; i < flatArtigos.length; i++) {
+    const s = flatArtigos[i]
+    if (s.emendaStatus !== 'INCLUIDO' && s.emendaStatus !== 'REVOGADO') return true
+  }
+  return false
+}
+
+// Verifica localmente (mesmo array de irmãos) se há elemento do mesmo tipo não-INCLUIDO
+// e não-REVOGADO após o índice dado. Usado para capítulos, seções e subseções, cuja
+// numeração é local ao pai (não cruzam capítulos).
+function hasNonIncludedSameTypeAfter(elements, idx, tipo) {
+  for (let i = idx + 1; i < elements.length; i++) {
+    const s = elements[i]
+    if (s.tipo === tipo && s.emendaStatus !== 'INCLUIDO' && s.emendaStatus !== 'REVOGADO') return true
+  }
+  return false
+}
+
+export function renumberElementsEmAlteracao(elements, _ctx = null) {
+  if (!elements?.length) return
+
+  // Na chamada raiz (ctx nulo), pré-coleta TODOS os artigos do documento em ordem
+  // DFS para que a verificação "ao final da sequência" seja global, não local.
+  const ctx = _ctx ?? { artCount: 0, flatArtigos: collectArtigosFlat(elements) }
+
+  let capCount = 0, secCount = 0, subSecCount = 0
+  let capLetterIdx = 0, secLetterIdx = 0, subSecLetterIdx = 0, artLetterIdx = 0
+  let incisoCount = 0, alineaCount = 0, subAlineaCount = 0
+  const paragrafos = []
+
+  for (let i = 0; i < elements.length; i++) {
+    const el = elements[i]
+    // Marca permanente, não o status ao vivo: um artigo incluído por emenda mantém seu
+    // sufixo de letra mesmo depois de ser alterado ou revogado — só assim emendaStatus
+    // fica livre para evoluir sem deslocar a numeração sequencial dos artigos seguintes
+    // (vedado pela LC 95/1998). Espelha DocumentoFoBuilder.java's assignNumbering.
+    const isIncluido = el.incluidoPorEmenda === true
+
+    switch (el.tipo) {
+      case 'capitulo': {
+        // Capítulos: verificação local (são numerados dentro do próprio nível raiz)
+        const atEnd = isIncluido && !hasNonIncludedSameTypeAfter(elements, i, 'capitulo')
+        if (!isIncluido || atEnd) {
+          capCount++
+          el.numero       = capCount
+          el._emendaLetra = null
+          el._emendaBase  = null
+          capLetterIdx    = 0
+        } else {
+          el.numero       = capCount
+          el._emendaBase  = capCount
+          el._emendaLetra = String.fromCharCode(65 + capLetterIdx++)
+        }
+        renumberElementsEmAlteracao(el.filhos, ctx)
+        break
+      }
+      case 'secao_normativa': {
+        // Seções: numeração local ao capítulo pai
+        const atEnd = isIncluido && !hasNonIncludedSameTypeAfter(elements, i, 'secao_normativa')
+        if (!isIncluido || atEnd) {
+          secCount++
+          el.numero       = secCount
+          el._emendaLetra = null
+          el._emendaBase  = null
+          secLetterIdx    = 0
+        } else {
+          el.numero       = secCount
+          el._emendaBase  = secCount
+          el._emendaLetra = String.fromCharCode(65 + secLetterIdx++)
+        }
+        renumberElementsEmAlteracao(el.filhos, ctx)
+        break
+      }
+      case 'subsecao_normativa': {
+        // Subseções: numeração local à seção pai
+        const atEnd = isIncluido && !hasNonIncludedSameTypeAfter(elements, i, 'subsecao_normativa')
+        if (!isIncluido || atEnd) {
+          subSecCount++
+          el.numero       = subSecCount
+          el._emendaLetra = null
+          el._emendaBase  = null
+          subSecLetterIdx = 0
+        } else {
+          el.numero       = subSecCount
+          el._emendaBase  = subSecCount
+          el._emendaLetra = String.fromCharCode(65 + subSecLetterIdx++)
+        }
+        renumberElementsEmAlteracao(el.filhos, ctx)
+        break
+      }
+      case 'artigo': {
+        // Artigos: numeração GLOBAL — verifica a lista flat de todo o documento.
+        // INALTERADO/ALTERADO/REVOGADO: incrementa a contagem (mantendo a sequência original).
+        // INCLUIDO entre dois ativos → letra-sufixo (não consome contagem).
+        // INCLUIDO ao final de toda a sequência global → numeração normal.
+        if (!isIncluido) {
+          ctx.artCount++
+          el.numero       = ctx.artCount
+          el._emendaLetra = null
+          el._emendaBase  = null
+          artLetterIdx    = 0
+        } else {
+          const atEnd = !hasActiveArtigoAfterGlobal(el, ctx.flatArtigos)
+          if (atEnd) {
+            ctx.artCount++
+            el.numero       = ctx.artCount
+            el._emendaLetra = null
+            el._emendaBase  = null
+            artLetterIdx    = 0
+          } else {
+            el.numero       = ctx.artCount
+            el._emendaBase  = ctx.artCount
+            el._emendaLetra = String.fromCharCode(65 + artLetterIdx++)
+          }
+        }
+        renumberElementsEmAlteracao(el.filhos, ctx)
+        break
+      }
+      case 'paragrafo':
+      case 'paragrafo_unico':
+        paragrafos.push(el)
+        el._emendaLetra = null
+        renumberElementsEmAlteracao(el.filhos, ctx)
+        break
+
+      case 'inciso':
+        incisoCount++
+        el.numero       = incisoCount
+        el._emendaLetra = null
+        renumberElementsEmAlteracao(el.filhos, ctx)
+        break
+
+      case 'alinea':
+        alineaCount++
+        el.numero       = alineaCount
+        el._emendaLetra = null
+        renumberElementsEmAlteracao(el.filhos, ctx)
+        break
+
+      case 'sub_alinea':
+        subAlineaCount++
+        el.numero       = subAlineaCount
+        el._emendaLetra = null
+        renumberElementsEmAlteracao(el.filhos, ctx)
+        break
+    }
+  }
+
+  const unicoOnly = paragrafos.length === 1 && paragrafos[0].tipo === 'paragrafo_unico'
+  if (unicoOnly) {
+    paragrafos[0].numero = null
+  } else if (paragrafos.length > 0) {
+    let pNum = 0
+    for (const p of paragrafos) { pNum++; p.tipo = 'paragrafo'; p.numero = pNum }
+  }
+}
+
+/**
  * Retorna false se o elemento ou qualquer descendente já está no nível mais baixo
  * (sub_alinea), tornando impossível rebaixar toda a subárvore.
  */
@@ -210,9 +425,10 @@ const S1 = '\xA0'     // um espaco — alinea/item (incisos XII, XIV)
  *   Item   -> "1. texto"    (inciso XIV: arabe + ponto + espaco)
  */
 export function bodyLabel(element) {
-  const n = element.numero ?? 0
+  const n    = element.numero ?? 0
+  const letra = element._emendaLetra ?? null
   switch (element.tipo) {
-    case 'artigo':          return 'Art. ' + ordinalOrCardinal(n) + S2
+    case 'artigo':          return 'Art. ' + ordinalWithLetra(n, letra) + S2
     case 'paragrafo_unico': return 'Par\xE1grafo \xFAnico.' + S2
     case 'paragrafo':       return '\xA7 ' + ordinalOrCardinal(n) + S2
     case 'inciso':          return toRoman(n) + S1 + '-' + S1
