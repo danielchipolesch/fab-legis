@@ -670,7 +670,7 @@ const anexosDocumento = computed(() =>
   white-space:   nowrap;
   letter-spacing: 12px;
   z-index: 10;
-  font-family: Arial, sans-serif;
+  font-family: 'Calibri', 'Carlito', 'Segoe UI', Arial, sans-serif;
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -721,7 +721,7 @@ const anexosDocumento = computed(() =>
   color: #fff;
 }
 .gladio-star  { font-size: 70px; line-height: 1; }
-.gladio-label { font-size: 12px; text-align: center; line-height: 1.3; margin-top: 6px; font-family: Arial, sans-serif; }
+.gladio-label { font-size: 12px; text-align: center; line-height: 1.3; margin-top: 6px; font-family: 'Calibri', 'Carlito', 'Segoe UI', Arial, sans-serif; }
 
 /* ASSUNTO BÁSICO — negrito, maiúsculo, grande */
 .capa-assunto {

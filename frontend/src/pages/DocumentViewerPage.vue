@@ -561,8 +561,8 @@ async function copiarTextoSugerido() {
 }
 
 :deep(.texto-sugerido-mono) {
-  font-family: 'Courier New', monospace;
-  font-size: 0.85rem;
+  font-family: 'Calibri', 'Carlito', 'Segoe UI', Arial, sans-serif;
+  font-size: 0.9rem;
   white-space: pre-wrap;
 }
 </style>

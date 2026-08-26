@@ -162,7 +162,7 @@ const renderedB = computed(() => {
 }
 .diff-pane-content,
 .diff-unified {
-  font-family: 'Times New Roman', serif;
+  font-family: 'Calibri', 'Carlito', 'Segoe UI', Arial, sans-serif;
   font-size: 11pt;
   line-height: 1.7;
   white-space: pre-wrap;
