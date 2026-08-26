@@ -31,6 +31,15 @@
         Versões
       </q-btn>
 
+      <q-btn
+        v-if="documento?.status === 'ALTERADO'"
+        outline color="primary" size="sm"
+        @click="abrirTextoSugerido"
+      >
+        <q-icon left name="mdi-file-document-edit-outline" />
+        Texto Sugerido
+      </q-btn>
+
       <q-btn outline color="deep-orange-7" size="sm" :loading="pdfLoading" @click="baixarPdf">
         <q-icon left name="mdi-file-pdf-box" />
         PDF
@@ -266,6 +275,37 @@
       </q-card>
     </q-dialog>
 
+    <!-- Texto sugerido para a portaria de alteração (NSCA 5-3, Art. 22) -->
+    <q-dialog v-model="dialogTextoSugerido">
+      <q-card style="min-width:560px;max-width:720px;width:100%">
+        <q-card-section class="row items-center q-pb-none">
+          <q-icon name="mdi-file-document-edit-outline" color="primary" size="24px" class="q-mr-sm" />
+          <span class="text-h6">Texto Sugerido da Portaria</span>
+        </q-card-section>
+        <q-card-section class="q-pt-sm q-pb-none">
+          <div class="text-caption text-grey-7">
+            Rascunho gerado automaticamente conforme o Art. 22 da NSCA 5-3 — revise antes de usar.
+            Não implementa a compactação com linha pontilhada para o caso em que o caput e o
+            dispositivo seguinte de um mesmo artigo são ambos preservados (Art. 22, VI-c-2).
+          </div>
+        </q-card-section>
+        <q-card-section class="q-pt-md">
+          <q-input
+            :model-value="textoSugerido"
+            type="textarea"
+            outlined
+            readonly
+            autogrow
+            input-class="texto-sugerido-mono"
+          />
+        </q-card-section>
+        <q-card-actions align="right" class="q-pb-md q-px-md">
+          <q-btn flat label="Fechar" v-close-popup />
+          <q-btn unelevated color="primary" label="Copiar" icon="mdi-content-copy" @click="copiarTextoSugerido" />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
+
   </q-page>
 </template>
 
@@ -276,6 +316,7 @@ import { useQuasar } from 'quasar'
 import { useDocumentsStore } from '@/stores/documents.js'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import { gerarPdf, pdfUrl } from '@/services/pdfService.js'
+import { gerarTextoSugeridoPortaria } from '@/utils/textoSugeridoPortaria.js'
 
 const route    = useRoute()
 const router   = useRouter()
@@ -383,6 +424,7 @@ onMounted(async () => {
     await docStore.fetchDocumento(documentoId.value)
     await docStore.fetchHistorico(documentoId.value)
     await docStore.fetchPortarias(documentoId.value)
+    await docStore.fetchMapaAlteracao(documentoId.value)
   } catch (e) {
     console.error('[Viewer] Erro ao buscar documento:', e)
     $q.notify({ type: 'negative', message: 'Erro ao carregar documento.' })
@@ -414,6 +456,34 @@ function executarClone() {
   docStore.cloneDocumento(documento.value.id).then(clone => {
     if (clone) router.push({ name: 'documento-editar', params: { id: clone.id } })
   })
+}
+
+// ── Texto sugerido da portaria de alteração (NSCA 5-3, Art. 22) ────────────────
+// Geração em si vive em utils/textoSugeridoPortaria.js, compartilhada com
+// ComparisonPage.vue. Sempre sobre o ciclo PENDENTE (ainda não publicado).
+const mapaAlteracao = computed(() => docStore.mapaAlteracaoPorDocumento[String(documentoId.value)] ?? [])
+const itensCicloPendente = computed(() => mapaAlteracao.value.filter(item => item.cicloReferencia == null))
+
+const dialogTextoSugerido = ref(false)
+const textoSugerido = ref('')
+
+function abrirTextoSugerido() {
+  textoSugerido.value = gerarTextoSugeridoPortaria({
+    documento: documento.value,
+    itensCicloPendente: itensCicloPendente.value,
+    portarias: portarias.value,
+    docLabel: docLabel.value,
+  })
+  dialogTextoSugerido.value = true
+}
+
+async function copiarTextoSugerido() {
+  try {
+    await navigator.clipboard.writeText(textoSugerido.value)
+    $q.notify({ type: 'positive', message: 'Texto copiado.' })
+  } catch {
+    $q.notify({ type: 'negative', message: 'Não foi possível copiar automaticamente. Selecione o texto manualmente.' })
+  }
 }
 </script>
 
@@ -488,5 +558,11 @@ function executarClone() {
 .info-value {
   font-size: 15px;
   color: var(--color-on-surface, #1a1a2e);
+}
+
+:deep(.texto-sugerido-mono) {
+  font-family: 'Courier New', monospace;
+  font-size: 0.85rem;
+  white-space: pre-wrap;
 }
 </style>
