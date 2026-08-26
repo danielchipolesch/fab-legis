@@ -54,7 +54,7 @@ final class DocumentoFoFrontMatterBuilder {
 
     String buildPortariaSequence() {
         var sb = new StringBuilder();
-        sb.append("<fo:page-sequence master-reference=\"a4-nofooter\">\n");
+        sb.append("<fo:page-sequence master-reference=\"a4-nofooter\" font-family=\"Calibri\">\n");
         sb.append(ctx.buildStaticContentWatermark());
         sb.append("<fo:flow flow-name=\"xsl-region-body\">\n");
 
@@ -121,7 +121,7 @@ final class DocumentoFoFrontMatterBuilder {
 
     String buildCapaSequence() {
         var sb = new StringBuilder();
-        sb.append("<fo:page-sequence master-reference=\"a4-nofooter\">\n");
+        sb.append("<fo:page-sequence master-reference=\"a4-nofooter\" font-family=\"Calibri\">\n");
         sb.append(ctx.buildStaticContentWatermark());
         sb.append("<fo:flow flow-name=\"xsl-region-body\">\n");
 
@@ -190,7 +190,7 @@ final class DocumentoFoFrontMatterBuilder {
 
     String buildAnexoSequence(AnexoResponseDto anexo) {
         var sb = new StringBuilder();
-        sb.append("<fo:page-sequence master-reference=\"a4\">\n");
+        sb.append("<fo:page-sequence master-reference=\"a4\" font-family=\"Calibri\">\n");
         sb.append("<fo:static-content flow-name=\"xsl-region-after\">\n");
         sb.append("  <fo:block text-align=\"right\" font-size=\"10pt\"><fo:page-number/></fo:block>\n");
         sb.append("</fo:static-content>\n");

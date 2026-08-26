@@ -34,7 +34,7 @@ final class DocumentoFoCorpoBuilder {
 
     String buildBodySequence() {
         var sb = new StringBuilder();
-        sb.append("<fo:page-sequence master-reference=\"a4\">\n");
+        sb.append("<fo:page-sequence master-reference=\"a4\" font-family=\"Calibri\">\n");
 
         // Footer with page number
         sb.append("<fo:static-content flow-name=\"xsl-region-after\">\n");

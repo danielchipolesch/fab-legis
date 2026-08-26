@@ -23,7 +23,6 @@ import org.xml.sax.XMLReader;
 
 import javax.xml.parsers.SAXParserFactory;
 import java.io.ByteArrayOutputStream;
-import java.io.File;
 import java.io.InputStream;
 import java.io.StringReader;
 import java.time.Instant;
@@ -42,15 +41,7 @@ public class DocumentoPdfService {
     private static final Set<DocumentoStatusEnum> STATUS_COM_PDF_ARMAZENADO = EnumSet.of(
             DocumentoStatusEnum.APROVADO, DocumentoStatusEnum.ALTERADO, DocumentoStatusEnum.PUBLICADO);
 
-    private static final FopFactory FOP_FACTORY;
-
-    static {
-        try {
-            FOP_FACTORY = FopFactory.newInstance(new File(".").toURI());
-        } catch (Exception e) {
-            throw new ExceptionInInitializerError(e);
-        }
-    }
+    private static final FopFactory FOP_FACTORY = FopFactoryProvider.get();
 
     @Autowired
     private DocumentoRepository documentoRepository;

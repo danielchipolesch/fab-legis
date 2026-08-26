@@ -131,7 +131,7 @@ public class DocumentoHtmlService {
                 @page { size: A4; margin: 2cm; }
                 * { box-sizing: border-box; }
                 body {
-                    font-family: Arial, Helvetica, sans-serif;
+                    font-family: 'Calibri', 'Carlito', 'Segoe UI', Arial, sans-serif;
                     font-size: 12pt;
                     line-height: 1.2;
                     color: #000;

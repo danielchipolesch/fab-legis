@@ -1,0 +1,29 @@
+<?xml version="1.0"?>
+<!--
+  Registra a fonte Carlito (instalada no container via `apk add font-carlito`,
+  ver Dockerfile) sob o nome "Calibri": Carlito é metricamente compatível
+  com Calibri e livremente redistribuível, ao contrário dela. Sem esta
+  configuração, o Apache FOP não reconhece "Calibri" e cai silenciosamente
+  num dos 14 fontes-base padrão (nunca Calibri), mesmo com font-family
+  declarado no FO.
+-->
+<fop version="1.0">
+  <renderers>
+    <renderer mime="application/pdf">
+      <fonts>
+        <font kerning="yes" embed-url="file:/usr/share/fonts/carlito/Carlito-Regular.ttf">
+          <font-triplet name="Calibri" style="normal" weight="normal"/>
+        </font>
+        <font kerning="yes" embed-url="file:/usr/share/fonts/carlito/Carlito-Bold.ttf">
+          <font-triplet name="Calibri" style="normal" weight="bold"/>
+        </font>
+        <font kerning="yes" embed-url="file:/usr/share/fonts/carlito/Carlito-Italic.ttf">
+          <font-triplet name="Calibri" style="italic" weight="normal"/>
+        </font>
+        <font kerning="yes" embed-url="file:/usr/share/fonts/carlito/Carlito-BoldItalic.ttf">
+          <font-triplet name="Calibri" style="italic" weight="bold"/>
+        </font>
+      </fonts>
+    </renderer>
+  </renderers>
+</fop>

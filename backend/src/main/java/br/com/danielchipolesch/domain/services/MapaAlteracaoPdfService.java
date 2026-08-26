@@ -14,7 +14,6 @@ import org.xml.sax.XMLReader;
 
 import javax.xml.parsers.SAXParserFactory;
 import java.io.ByteArrayOutputStream;
-import java.io.File;
 import java.io.StringReader;
 
 // Exporta o Quadro de Justificativas das Modificações Propostas (NSCA 5-3, Anexo XXIV)
@@ -36,15 +35,7 @@ public class MapaAlteracaoPdfService {
     // no cabeçalho da tabela e em HEADER_TEXT, reaproveitada aqui de propósito.
     private static final String COR_REFERENCIA_ATUAL = HEADER_TEXT;
 
-    private static final FopFactory FOP_FACTORY;
-
-    static {
-        try {
-            FOP_FACTORY = FopFactory.newInstance(new File(".").toURI());
-        } catch (Exception e) {
-            throw new ExceptionInInitializerError(e);
-        }
-    }
+    private static final FopFactory FOP_FACTORY = FopFactoryProvider.get();
 
     @Autowired
     private ObjectMapper objectMapper;
@@ -86,7 +77,7 @@ public class MapaAlteracaoPdfService {
           .append("  </fo:simple-page-master>\n");
         sb.append("</fo:layout-master-set>\n");
 
-        sb.append("<fo:page-sequence master-reference=\"a4-paisagem\">\n");
+        sb.append("<fo:page-sequence master-reference=\"a4-paisagem\" font-family=\"Calibri\">\n");
 
         sb.append("<fo:static-content flow-name=\"xsl-region-before\">\n")
           .append("  <fo:block font-size=\"9pt\" text-align=\"right\" color=\"#666666\">")
