@@ -144,7 +144,17 @@
             <q-icon name="mdi-table-edit" color="primary" class="q-mr-sm" size="18px" />
             Quadro de Justificativas das Modificações Propostas
           </div>
-          <div class="row justify-end">
+          <div class="row justify-end q-gutter-x-sm">
+            <q-btn
+              v-if="documento?.status === 'ALTERADO'"
+              size="sm"
+              outline
+              color="primary"
+              @click="abrirTextoSugerido"
+            >
+              <q-icon left name="mdi-file-document-edit-outline" />
+              Texto Sugerido
+            </q-btn>
             <q-btn
               size="sm"
               outline
@@ -197,6 +207,37 @@
       </q-card>
 
     </template>
+
+    <!-- Texto sugerido para a portaria de alteração (NSCA 5-3, Art. 22) -->
+    <q-dialog v-model="dialogTextoSugerido">
+      <q-card style="min-width:560px;max-width:720px;width:100%">
+        <q-card-section class="row items-center q-pb-none">
+          <q-icon name="mdi-file-document-edit-outline" color="primary" size="24px" class="q-mr-sm" />
+          <span class="text-h6">Texto Sugerido da Portaria</span>
+        </q-card-section>
+        <q-card-section class="q-pt-sm q-pb-none">
+          <div class="text-caption text-grey-7">
+            Rascunho gerado automaticamente conforme o Art. 22 da NSCA 5-3 — revise antes de usar.
+            Não implementa a compactação com linha pontilhada para o caso em que o caput e o
+            dispositivo seguinte de um mesmo artigo são ambos preservados (Art. 22, VI-c-2).
+          </div>
+        </q-card-section>
+        <q-card-section class="q-pt-md">
+          <q-input
+            :model-value="textoSugerido"
+            type="textarea"
+            outlined
+            readonly
+            autogrow
+            input-class="texto-sugerido-mono"
+          />
+        </q-card-section>
+        <q-card-actions align="right" class="q-pb-md q-px-md">
+          <q-btn flat label="Fechar" v-close-popup />
+          <q-btn unelevated color="primary" label="Copiar" icon="mdi-content-copy" @click="copiarTextoSugerido" />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
   </q-page>
 </template>
 
@@ -206,7 +247,7 @@ import { useRoute } from 'vue-router'
 import { useDocumentsStore } from '@/stores/documents.js'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import DiffViewer from '@/components/comparison/DiffViewer.vue'
-import { formatReferenciaLabel } from '@/utils/numbering.js'
+import { formatReferenciaLabel, formatLabel, toRoman } from '@/utils/numbering.js'
 import { generateHTML } from '@tiptap/html'
 import { editorExtensions } from '@/editor/extensions.js'
 import { gerarMapaAlteracaoPdf } from '@/services/pdfService.js'
@@ -215,6 +256,25 @@ import { useQuasar } from 'quasar'
 function conteudoToHtml(conteudo) {
   if (!conteudo) return ''
   try { return generateHTML(JSON.parse(conteudo), editorExtensions) } catch { return '' }
+}
+
+// Texto puro (sem HTML) do conteúdo TipTap -- para transcrição entre aspas no
+// texto sugerido da portaria. Mesmo padrão de EditorSidebar.vue/DiffViewer.vue,
+// duplicado aqui em vez de extraído para um util compartilhado (já é assim
+// nos outros dois lugares).
+function extractText(conteudo) {
+  if (!conteudo) return ''
+  try {
+    const visit = (node) => {
+      if (!node) return ''
+      if (node.text) return node.text
+      if (node.content) return node.content.map(visit).join('')
+      return ''
+    }
+    return visit(JSON.parse(conteudo)).trim()
+  } catch {
+    return ''
+  }
 }
 
 const route = useRoute()
@@ -233,6 +293,7 @@ onMounted(async () => {
       await store.fetchDocumento(route.params.id)
     }
     await store.fetchMapaAlteracao(route.params.id)
+    await store.fetchPortarias(route.params.id)
   } finally {
     loading.value = false
   }
@@ -240,6 +301,7 @@ onMounted(async () => {
 
 const documento = computed(() => store.getById(route.params.id))
 const mapaAlteracao = computed(() => store.mapaAlteracaoPorDocumento[String(route.params.id)] ?? [])
+const portarias = computed(() => store.portariasPorDocumento[String(route.params.id)] ?? [])
 
 const docId = computed(() => documento.value?.codigo_documento ?? '')
 
@@ -403,6 +465,127 @@ async function exportarQuadro() {
     exportando.value = false
   }
 }
+
+// ── Texto sugerido da portaria de alteração (NSCA 5-3, Art. 22) ────────────────
+// Sempre sobre o ciclo PENDENTE (ainda não publicado), independente do ciclo
+// selecionado no seletor da tela (que pode estar mostrando um ciclo antigo já
+// publicado) -- é o ciclo que a próxima portaria vai de fato republicar.
+const itensCicloPendente = computed(() =>
+  mapaAlteracao.value.filter(item => item.cicloReferencia == null)
+)
+
+const MESES_EXTENSO = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
+  'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro']
+
+function dataPorExtenso(isoStr) {
+  if (!isoStr) return null
+  const [y, m, d] = isoStr.split('-')
+  return `${parseInt(d, 10)} de ${MESES_EXTENSO[parseInt(m, 10) - 1]} de ${y}`
+}
+
+function referenciaCompleta(item) {
+  const { ancestrais, atual } = referenciaPartes(item)
+  return ancestrais.length ? `${atual} do ${ancestrais[ancestrais.length - 1]}` : atual
+}
+
+// Prefixo do dispositivo dentro de um bloco de artigo parcialmente alterado --
+// mesma convenção usada na renderização oficial do corpo do documento (ver
+// DocumentoFoCorpoBuilder.java): "§ 2º", "I -", "a)", "1.", "Parágrafo único.".
+function prefixoDispositivo(elemento) {
+  if (elemento.tipo === 'inciso') return formatLabel(elemento) + ' -'
+  return formatLabel(elemento)
+}
+
+// Agrupa os itens do ciclo pendente (exceto REVOGAR) em:
+// - diretos: o próprio artigo mudou por inteiro (ou não foi possível localizar
+//   um artigo ancestral -- fallback pra transcrição isolada, ex.: parte
+//   preliminar/final).
+// - porArtigoParcial: dispositivos internos (parágrafo/inciso/alínea/
+//   subalínea) agrupados pelo artigo ancestral, pra montar um único bloco com
+//   linha pontilhada por artigo (Art. 22, VI-c-1).
+function classificarItens(itens) {
+  const diretos = []
+  const porArtigoParcial = new Map()
+  for (const item of itens) {
+    const achado = findElementoComAncestrais(item.secao, item.elementoId)
+    if (!achado || achado.elemento.tipo === 'artigo') {
+      diretos.push(item)
+      continue
+    }
+    const artigoAncestral = [...achado.ancestrais].reverse().find(a => a.tipo === 'artigo')
+    if (!artigoAncestral) {
+      diretos.push(item)
+      continue
+    }
+    const label = formatLabel(artigoAncestral)
+    if (!porArtigoParcial.has(label)) porArtigoParcial.set(label, [])
+    porArtigoParcial.get(label).push(item)
+  }
+  return { diretos, porArtigoParcial }
+}
+
+// Bloco de um artigo alterado só parcialmente: uma linha pontilhada precedida
+// do artigo, seguida de cada dispositivo mudado com seu próprio prefixo, tudo
+// dentro de UM único par de aspas terminado em UM "(NR)" -- não implementa o
+// caso de duas linhas pontilhadas quando o caput E o dispositivo seguinte são
+// ambos preservados (Art. 22, VI-c-2), simplificação assumida nesta versão.
+function blocoArtigoParcial(artigoLabel, itens) {
+  const pontilhado = artigoLabel + '  ' + '.'.repeat(60)
+  const linhas = itens.map(item => {
+    const achado = findElementoComAncestrais(item.secao, item.elementoId)
+    const prefixo = achado ? prefixoDispositivo(achado.elemento) : ''
+    return `${prefixo}  ${extractText(item.textoNovo)}`.trim()
+  })
+  return `"${pontilhado}\n${linhas.join('\n')}." (NR)`
+}
+
+const dialogTextoSugerido = ref(false)
+const textoSugerido = ref('')
+
+function gerarTextoSugerido() {
+  const itens = itensCicloPendente.value
+  if (!itens.length) return 'Nenhuma alteração pendente neste ciclo.'
+
+  const d = documento.value
+  const edicao = portarias.value.find(p => p.tipo === 'EDICAO')
+  const numero = [d?.numero_basico, d?.numero_secundario].filter(Boolean).join('-')
+  const dataExt = edicao ? dataPorExtenso(edicao.dataPortaria) : null
+  const cabecalho = dataExt
+    ? `${d?.especie} nº ${numero}, de ${dataExt}, passa a vigorar com as seguintes alterações:`
+    : `${docLabel.value} passa a vigorar com as seguintes alterações:`
+
+  const alterarIncluir = itens.filter(i => i.acao !== 'REVOGAR')
+  const revogados = itens.filter(i => i.acao === 'REVOGAR')
+  const { diretos, porArtigoParcial } = classificarItens(alterarIncluir)
+
+  const blocos = [
+    ...diretos.map(item => `"${referenciaCompleta(item)}  ${extractText(item.textoNovo)}" (NR)`),
+    ...Array.from(porArtigoParcial.entries()).map(([label, its]) => blocoArtigoParcial(label, its)),
+  ]
+
+  const partes = [cabecalho, ...blocos]
+
+  if (revogados.length) {
+    const linhasRevogados = revogados.map((item, i) => `${toRoman(i + 1)} - ${referenciaCompleta(item)};`)
+    partes.push(`Ficam revogados os seguintes dispositivos:\n${linhasRevogados.join('\n')}`)
+  }
+
+  return partes.join('\n\n')
+}
+
+function abrirTextoSugerido() {
+  textoSugerido.value = gerarTextoSugerido()
+  dialogTextoSugerido.value = true
+}
+
+async function copiarTextoSugerido() {
+  try {
+    await navigator.clipboard.writeText(textoSugerido.value)
+    $q.notify({ type: 'positive', message: 'Texto copiado.' })
+  } catch {
+    $q.notify({ type: 'negative', message: 'Não foi possível copiar automaticamente. Selecione o texto manualmente.' })
+  }
+}
 </script>
 
 <style scoped>
@@ -433,5 +616,10 @@ async function exportarQuadro() {
   padding-top: 8px !important;
   padding-bottom: 8px !important;
   border-bottom: 1px solid rgba(0, 0, 0, 0.2) !important;
+}
+:deep(.texto-sugerido-mono) {
+  font-family: 'Courier New', monospace;
+  font-size: 0.85rem;
+  white-space: pre-wrap;
 }
 </style>
