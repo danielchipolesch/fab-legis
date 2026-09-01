@@ -6,7 +6,7 @@ import br.com.danielchipolesch.application.dtos.itemPartePreliminarDtos.ItemPart
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.Documento;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.DocumentoStatusEnum;
 import br.com.danielchipolesch.domain.handlers.exceptions.ResourceNotFoundException;
-import br.com.danielchipolesch.domain.handlers.exceptions.enums.DocumentException;
+import br.com.danielchipolesch.domain.handlers.exceptions.enums.DocumentoException;
 import br.com.danielchipolesch.infrastructure.repositories.AnexoRepository;
 import br.com.danielchipolesch.infrastructure.repositories.DocumentoRepository;
 import org.apache.fop.apps.Fop;
@@ -68,7 +68,7 @@ public class DocumentoPdfService {
     // transmitir em stream nesse caminho sem reescrever a geração do FO.
     public StreamingResponseBody streamPdf(Long documentoId) {
         Documento doc = documentoRepository.findById(documentoId)
-                .orElseThrow(() -> new ResourceNotFoundException(DocumentException.NOT_FOUND.getMessage()));
+                .orElseThrow(() -> new ResourceNotFoundException(DocumentoException.NOT_FOUND.getMessage()));
 
         if (STATUS_COM_PDF_ARMAZENADO.contains(doc.getDocumentoStatus()) && doc.getUrlPdf() != null) {
             InputStream armazenado = imagemService.getObjectStream(doc.getUrlPdf());

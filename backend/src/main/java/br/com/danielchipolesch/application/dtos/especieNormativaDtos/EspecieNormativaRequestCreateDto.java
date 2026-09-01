@@ -4,14 +4,14 @@ import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 
 @Data
-public class DocumentationTypeRequestCreateDto{
+public class EspecieNormativaRequestCreateDto{
 
     @NotBlank(message = "Sigla não pode estar vazia")
-    private String acronym;
+    private String sigla;
 
     @NotBlank(message = "Nome não pode estar vazio")
-    private String name;
+    private String nome;
 
     @NotBlank(message = "Descrição não pode estar vazia")
-    private String description;
+    private String descricao;
 }

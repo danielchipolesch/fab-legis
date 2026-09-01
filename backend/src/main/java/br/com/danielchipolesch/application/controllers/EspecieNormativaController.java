@@ -1,8 +1,8 @@
 package br.com.danielchipolesch.application.controllers;
 
-import br.com.danielchipolesch.application.dtos.especieNormativaDtos.DocumentationTypeRequestCreateDto;
-import br.com.danielchipolesch.application.dtos.especieNormativaDtos.DocumentationTypeResponseDto;
-import br.com.danielchipolesch.application.dtos.especieNormativaDtos.DocumentationTypeRequestUpdateDto;
+import br.com.danielchipolesch.application.dtos.especieNormativaDtos.EspecieNormativaRequestCreateDto;
+import br.com.danielchipolesch.application.dtos.especieNormativaDtos.EspecieNormativaResponseDto;
+import br.com.danielchipolesch.application.dtos.especieNormativaDtos.EspecieNormativaRequestUpdateDto;
 import br.com.danielchipolesch.domain.services.EspecieNormativaService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -26,17 +26,17 @@ public class EspecieNormativaController {
     EspecieNormativaService especieNormativaService;
 
     @PostMapping
-    public ResponseEntity<DocumentationTypeResponseDto> post(@RequestBody @Valid DocumentationTypeRequestCreateDto request) throws Exception {
+    public ResponseEntity<EspecieNormativaResponseDto> post(@RequestBody @Valid EspecieNormativaRequestCreateDto request) throws Exception {
         return ResponseEntity.status(HttpStatus.CREATED).body(especieNormativaService.create(request));
     }
 
     @GetMapping("{id}")
-    public ResponseEntity<DocumentationTypeResponseDto>  getById(@PathVariable(value = "id") Long id) throws Exception {
+    public ResponseEntity<EspecieNormativaResponseDto>  getById(@PathVariable(value = "id") Long id) throws Exception {
         return  ResponseEntity.status(HttpStatus.OK).body(especieNormativaService.getById(id));
     }
 
     @GetMapping("obter-todos")
-    public ResponseEntity<List<DocumentationTypeResponseDto>> getAll(
+    public ResponseEntity<List<EspecieNormativaResponseDto>> getAll(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(defaultValue = "id") String sortBy
@@ -46,13 +46,13 @@ public class EspecieNormativaController {
     }
 
     @PutMapping("{id}")
-    public ResponseEntity<DocumentationTypeResponseDto> put(@PathVariable(value = "id") Long id,
-                                                            @RequestBody DocumentationTypeRequestUpdateDto request) throws Exception {
+    public ResponseEntity<EspecieNormativaResponseDto> put(@PathVariable(value = "id") Long id,
+                                                            @RequestBody EspecieNormativaRequestUpdateDto request) throws Exception {
         return ResponseEntity.status(HttpStatus.OK).body(especieNormativaService.update(id, request));
     }
 
     @DeleteMapping("{id}")
-    public ResponseEntity<DocumentationTypeResponseDto> delete(@PathVariable(value = "id") Long id) throws Exception {
+    public ResponseEntity<EspecieNormativaResponseDto> delete(@PathVariable(value = "id") Long id) throws Exception {
         return ResponseEntity.status(HttpStatus.NO_CONTENT).body(especieNormativaService.delete(id));
     }
 }

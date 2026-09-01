@@ -6,7 +6,7 @@ import br.com.danielchipolesch.domain.entities.estruturaDocumento.Anexo;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.Documento;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.DocumentoStatusEnum;
 import br.com.danielchipolesch.domain.handlers.exceptions.ResourceNotFoundException;
-import br.com.danielchipolesch.domain.handlers.exceptions.enums.DocumentException;
+import br.com.danielchipolesch.domain.handlers.exceptions.enums.DocumentoException;
 import br.com.danielchipolesch.infrastructure.repositories.AnexoRepository;
 import br.com.danielchipolesch.infrastructure.repositories.DocumentoRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -33,7 +33,7 @@ public class AnexoService {
 
     public List<AnexoResponseDto> listar(Long documentoId) {
         documentoRepository.findById(documentoId)
-                .orElseThrow(() -> new ResourceNotFoundException(DocumentException.NOT_FOUND.getMessage()));
+                .orElseThrow(() -> new ResourceNotFoundException(DocumentoException.NOT_FOUND.getMessage()));
         return anexoRepository.findByDocumentoIdOrderByOrdemAsc(documentoId)
                 .stream().map(AnexoResponseDto::from).toList();
     }
@@ -41,7 +41,7 @@ public class AnexoService {
     @Transactional
     public AnexoResponseDto adicionar(Long documentoId, String titulo, MultipartFile arquivo) throws Exception {
         Documento documento = documentoRepository.findById(documentoId)
-                .orElseThrow(() -> new ResourceNotFoundException(DocumentException.NOT_FOUND.getMessage()));
+                .orElseThrow(() -> new ResourceNotFoundException(DocumentoException.NOT_FOUND.getMessage()));
 
         String url = imagemService.uploadImagem(arquivo);
 

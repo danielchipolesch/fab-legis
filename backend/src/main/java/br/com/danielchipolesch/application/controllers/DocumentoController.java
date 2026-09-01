@@ -133,11 +133,11 @@ public class DocumentoController {
     }
 
     @GetMapping("filtrar")
-    public ResponseEntity<List<EntityModel<DocumentoResponseSemAnexoTextualDto>>> getByDocumentationTypeAndBasicSubject(
-            @RequestParam(value = "especie-normativa") Long documentTypeId,
-            @RequestParam(value = "assunto-basico") Long basicSubjectId) throws RuntimeException {
+    public ResponseEntity<List<EntityModel<DocumentoResponseSemAnexoTextualDto>>> getByEspecieNormativaAndAssuntoBasico(
+            @RequestParam(value = "especie-normativa") Long especieNormativaId,
+            @RequestParam(value = "assunto-basico") Long assuntoBasicoId) throws RuntimeException {
         List<EntityModel<DocumentoResponseSemAnexoTextualDto>> models = documentoService
-                .getByDocumentationTypeAndBasicSubject(documentTypeId, basicSubjectId)
+                .getByEspecieNormativaAndAssuntoBasico(especieNormativaId, assuntoBasicoId)
                 .stream().map(this::toModel).toList();
         return ResponseEntity.ok(models);
     }

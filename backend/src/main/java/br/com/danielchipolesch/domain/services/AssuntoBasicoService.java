@@ -6,7 +6,7 @@ import br.com.danielchipolesch.application.dtos.assuntoBasicoDtos.AssuntoBasicoR
 import br.com.danielchipolesch.domain.entities.numeracaoDocumento.AssuntoBasico;
 import br.com.danielchipolesch.domain.handlers.exceptions.ResourceAlreadyExistsException;
 import br.com.danielchipolesch.domain.handlers.exceptions.ResourceNotFoundException;
-import br.com.danielchipolesch.domain.handlers.exceptions.enums.BasicSubjectException;
+import br.com.danielchipolesch.domain.handlers.exceptions.enums.AssuntoBasicoException;
 import br.com.danielchipolesch.infrastructure.repositories.AssuntoBasicoRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -23,7 +23,7 @@ public class AssuntoBasicoService {
 
     public AssuntoBasicoResponseDto create(AssuntoBasicoRequestCreateDto request) throws Exception {
         if(assuntoBasicoRepository.existsByCodigo(request.codigo())){
-            throw new ResourceAlreadyExistsException(BasicSubjectException.ALREADY_EXISTS.getMessage());
+            throw new ResourceAlreadyExistsException(AssuntoBasicoException.ALREADY_EXISTS.getMessage());
         }
 
         AssuntoBasico assuntoBasico = new AssuntoBasico();
@@ -37,7 +37,7 @@ public class AssuntoBasicoService {
 
     public AssuntoBasicoResponseDto update(Long id, AssuntoBasicoRequestUpdateDto request) throws Exception{
 
-        AssuntoBasico assuntoBasico = assuntoBasicoRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException(BasicSubjectException.NOT_FOUND.getMessage()));
+        AssuntoBasico assuntoBasico = assuntoBasicoRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException(AssuntoBasicoException.NOT_FOUND.getMessage()));
 
         assuntoBasico.setCodigo(request.codigo().isBlank() ? assuntoBasico.getCodigo() : request.codigo());
         assuntoBasico.setNome(request.nome().isBlank() ? assuntoBasico.getNome() : request.nome());
@@ -50,7 +50,7 @@ public class AssuntoBasicoService {
 
     public AssuntoBasicoResponseDto delete(Long id) throws Exception {
         AssuntoBasico assuntoBasico = assuntoBasicoRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException(BasicSubjectException.NOT_FOUND.getMessage()));
+                .orElseThrow(() -> new ResourceNotFoundException(AssuntoBasicoException.NOT_FOUND.getMessage()));
 
         assuntoBasicoRepository.delete(assuntoBasico);
 
@@ -59,7 +59,7 @@ public class AssuntoBasicoService {
 
     public AssuntoBasicoResponseDto getById(Long id) throws Exception {
         AssuntoBasico assuntoBasico = assuntoBasicoRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException(BasicSubjectException.NOT_FOUND.getMessage()));
+                .orElseThrow(() -> new ResourceNotFoundException(AssuntoBasicoException.NOT_FOUND.getMessage()));
         return toDto(assuntoBasico);
     }
 

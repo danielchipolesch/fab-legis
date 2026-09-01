@@ -11,7 +11,7 @@ import br.com.danielchipolesch.domain.entities.estruturaDocumento.TipoAlteracaoE
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.TipoPortariaPublicacaoEnum;
 import br.com.danielchipolesch.domain.handlers.exceptions.ResourceNotFoundException;
 import br.com.danielchipolesch.domain.handlers.exceptions.StatusCannotBeUpdatedException;
-import br.com.danielchipolesch.domain.handlers.exceptions.enums.DocumentException;
+import br.com.danielchipolesch.domain.handlers.exceptions.enums.DocumentoException;
 import br.com.danielchipolesch.domain.mappers.DocumentoMapper;
 import br.com.danielchipolesch.infrastructure.repositories.DocumentoRepository;
 import br.com.danielchipolesch.infrastructure.repositories.ItemAnexoParteNormativaRepository;
@@ -51,11 +51,11 @@ public class DocumentoStatusService {
     @Transactional
     public DocumentoResponseSemAnexoTextualDto changeStatus(Long id, DocumentoStatusRequestDto request) throws RuntimeException {
 
-        Documento document = documentoRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException(DocumentException.NOT_FOUND.getMessage()));
+        Documento documento = documentoRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException(DocumentoException.NOT_FOUND.getMessage()));
 
         DocumentoStatusEnum novoStatus = request.status();
-        DocumentoStatusEnum current = document.getDocumentoStatus();
+        DocumentoStatusEnum current = documento.getDocumentoStatus();
 
         boolean transicaoValida = switch (novoStatus) {
             // MINUTA nunca é alcançável a partir de ALTERADO: um documento que passou por
@@ -74,7 +74,7 @@ public class DocumentoStatusService {
         };
 
         if (!transicaoValida) {
-            throw new StatusCannotBeUpdatedException(DocumentException.CANNOT_BE_UPDATED.getMessage());
+            throw new StatusCannotBeUpdatedException(DocumentoException.CANNOT_BE_UPDATED.getMessage());
         }
 
         // Publicar (primeira publicação a partir de APROVADO ou republicação a partir de
@@ -115,13 +115,13 @@ public class DocumentoStatusService {
                 throw new StatusCannotBeUpdatedException(
                         "O número do BCA deve estar entre 1 e 366.");
             }
-            if (document.getDtPortariaReferencia() != null
-                    && dataPortaria.isBefore(document.getDtPortariaReferencia().toLocalDateTime().toLocalDate())) {
+            if (documento.getDtPortariaReferencia() != null
+                    && dataPortaria.isBefore(documento.getDtPortariaReferencia().toLocalDateTime().toLocalDate())) {
                 throw new StatusCannotBeUpdatedException(
                         "A data da portaria não pode ser anterior à da alteração anterior.");
             }
-            if (document.getDtBcaReferencia() != null
-                    && dataBca.isBefore(document.getDtBcaReferencia().toLocalDateTime().toLocalDate())) {
+            if (documento.getDtBcaReferencia() != null
+                    && dataBca.isBefore(documento.getDtBcaReferencia().toLocalDateTime().toLocalDate())) {
                 throw new StatusCannotBeUpdatedException(
                         "A data do BCA não pode ser anterior à da alteração anterior.");
             }
@@ -129,18 +129,18 @@ public class DocumentoStatusService {
             String orgaoSetor = (setorPortaria != null && !setorPortaria.isBlank())
                     ? orgaoPortaria.strip() + "/" + setorPortaria.strip()
                     : orgaoPortaria.strip();
-            document.setPortariaReferencia("Portaria " + orgaoSetor + " n° " + numeroPortaria.strip()
+            documento.setPortariaReferencia("Portaria " + orgaoSetor + " n° " + numeroPortaria.strip()
                     + ", de " + formatarDataPorExtenso(dataPortaria));
-            document.setBcaReferencia("BCA n° " + numeroBca + ", de " + formatarDataPorExtenso(dataBca));
-            document.setDtPortariaReferencia(Timestamp.valueOf(dataPortaria.atStartOfDay()));
-            document.setDtBcaReferencia(Timestamp.valueOf(dataBca.atStartOfDay()));
+            documento.setBcaReferencia("BCA n° " + numeroBca + ", de " + formatarDataPorExtenso(dataBca));
+            documento.setDtPortariaReferencia(Timestamp.valueOf(dataPortaria.atStartOfDay()));
+            documento.setDtBcaReferencia(Timestamp.valueOf(dataBca.atStartOfDay()));
 
             // Tipo da portaria: revogação é sempre REVOGACAO; publicar a partir de
             // ALTERADO é uma alteração (numerada automaticamente); publicar a partir de
             // APROVADO é a edição original do documento.
             TipoPortariaPublicacaoEnum tipoPortaria = !publicando ? TipoPortariaPublicacaoEnum.REVOGACAO
                     : (current == DocumentoStatusEnum.ALTERADO ? TipoPortariaPublicacaoEnum.ALTERACAO : TipoPortariaPublicacaoEnum.EDICAO);
-            portariaPublicacaoService.registrar(document, tipoPortaria, orgaoPortaria, setorPortaria,
+            portariaPublicacaoService.registrar(documento, tipoPortaria, orgaoPortaria, setorPortaria,
                     numeroPortaria, dataPortaria, numeroBca, dataBca, request.portariaPdfUrl());
 
             if (publicando) {
@@ -148,7 +148,7 @@ public class DocumentoStatusService {
                 // nesta publicação (mesma lógica de "apaga tudo e recria" já usada
                 // por DocumentoParteNormativaService.salvarSecoes durante a edição,
                 // só que agora só roda aqui).
-                documentoParteNormativaService.salvarItensPreliminares(document, List.of(
+                documentoParteNormativaService.salvarItensPreliminares(documento, List.of(
                         new SecaoItemRequestDto(SecaoDocumentoEnum.PARTE_PRELIMINAR, ItemAnexoParteNormativaTipoEnum.EPIGRAFE, 1, null, request.epigrafe(), null, null),
                         new SecaoItemRequestDto(SecaoDocumentoEnum.PARTE_PRELIMINAR, ItemAnexoParteNormativaTipoEnum.EMENTA, 2, null, request.ementa(), null, null),
                         new SecaoItemRequestDto(SecaoDocumentoEnum.PARTE_PRELIMINAR, ItemAnexoParteNormativaTipoEnum.PREAMBULO, 3, null, request.preambulo(), null, null),
@@ -160,25 +160,25 @@ public class DocumentoStatusService {
                 // alteração concluído); a primeira publicação (a partir de APROVADO) nunca
                 // passou por EM_ALTERACAO, então não há nada para consolidar.
                 if (current == DocumentoStatusEnum.ALTERADO) {
-                    emendaService.consolidarPublicacao(id, document.getPortariaReferencia(), document.getBcaReferencia());
+                    emendaService.consolidarPublicacao(id, documento.getPortariaReferencia(), documento.getBcaReferencia());
                 }
             }
         }
 
         Timestamp agora = Timestamp.from(Instant.now());
         switch (novoStatus) {
-            case MINUTA       -> document.setDtMinuta(agora);
-            case APROVADO    -> document.setDtAprovacao(agora);
-            case ALTERADO    -> document.setDtAlterado(agora);
-            case PUBLICADO    -> document.setDtPublicacao(agora);
-            case EM_ALTERACAO -> document.setDtEmAlteracao(agora);
-            case ARQUIVADO    -> document.setDtArquivamento(agora);
-            case REVOGADO     -> document.setDtRevogacao(agora);
-            case CANCELADO    -> document.setDtCancelamento(agora);
+            case MINUTA       -> documento.setDtMinuta(agora);
+            case APROVADO    -> documento.setDtAprovacao(agora);
+            case ALTERADO    -> documento.setDtAlterado(agora);
+            case PUBLICADO    -> documento.setDtPublicacao(agora);
+            case EM_ALTERACAO -> documento.setDtEmAlteracao(agora);
+            case ARQUIVADO    -> documento.setDtArquivamento(agora);
+            case REVOGADO     -> documento.setDtRevogacao(agora);
+            case CANCELADO    -> documento.setDtCancelamento(agora);
             default           -> { }
         }
 
-        document.setDocumentoStatus(novoStatus);
+        documento.setDocumentoStatus(novoStatus);
         // saveAndFlush, não save: o @Version só incrementa no flush, que por
         // padrão só aconteceria no commit -- depois deste método já ter
         // retornado o DTO. Sem o flush explícito, o DTO de resposta carrega a
@@ -187,7 +187,7 @@ public class DocumentoStatusService {
         // mesmo usuário -- ver DocumentoConcorrenciaService. Isso é
         // especialmente comum aqui: RASCUNHO->MINUTA dispara em toda primeira
         // edição de um documento novo (ver editor.js save()).
-        documentoRepository.saveAndFlush(document);
+        documentoRepository.saveAndFlush(documento);
 
         // Ao entrar em EM_ALTERACAO, espaça os elementOrder (×100) para que novos
         // elementos incluídos por emenda possam ser inseridos em posições intermediárias.
@@ -207,20 +207,20 @@ public class DocumentoStatusService {
                 || novoStatus == DocumentoStatusEnum.ALTERADO
                 || novoStatus == DocumentoStatusEnum.PUBLICADO) {
             try {
-                String urlPdf = documentoPdfService.gerarEArmazenarPdf(document);
-                document.setUrlPdf(urlPdf);
-                documentoRepository.saveAndFlush(document);
+                String urlPdf = documentoPdfService.gerarEArmazenarPdf(documento);
+                documento.setUrlPdf(urlPdf);
+                documentoRepository.saveAndFlush(documento);
             } catch (Exception e) {
                 // Não-fatal: a mudança de status não pode falhar por causa do PDF —
                 // streamPdf cai de volta para renderização ao vivo quando urlPdf
                 // está ausente. Mas o erro precisa ficar visível, senão a causa de um
                 // PDF armazenado desatualizado/ausente é impossível de diagnosticar.
                 log.error("Falha ao gerar/armazenar PDF do documento {} na transição para {}",
-                        document.getId(), novoStatus, e);
+                        documento.getId(), novoStatus, e);
             }
         }
 
-        documentoHistoricoService.registrar(document, TipoAlteracaoEnum.ALTERACAO_STATUS,
+        documentoHistoricoService.registrar(documento, TipoAlteracaoEnum.ALTERACAO_STATUS,
                 current.name() + " → " + novoStatus.name(), current, novoStatus);
 
         // MINUTA e EM_ALTERACAO são as únicas situações que aguardam uma ação de
@@ -229,15 +229,15 @@ public class DocumentoStatusService {
         // ser avisado.
         if (novoStatus == DocumentoStatusEnum.MINUTA || novoStatus == DocumentoStatusEnum.EM_ALTERACAO) {
             String descricao = String.format("%s %s-%d",
-                    document.getEspecieNormativa().getSigla(),
-                    document.getAssuntoBasico().getCodigo(),
-                    document.getNumeroSecundario());
+                    documento.getEspecieNormativa().getSigla(),
+                    documento.getAssuntoBasico().getCodigo(),
+                    documento.getNumeroSecundario());
             String acao = novoStatus == DocumentoStatusEnum.MINUTA ? "aguarda aprovação" : "aguarda aprovação da alteração";
-            notificacaoService.notificarAprovadoresPendencia(document.getOm().getId(), document.getId(), descricao,
+            notificacaoService.notificarAprovadoresPendencia(documento.getOm().getId(), documento.getId(), descricao,
                     "O documento " + descricao + " " + acao + ".");
         }
 
-        return DocumentoMapper.documentoToDocumentoSemAnexoTextualResponseDto(document);
+        return DocumentoMapper.documentoToDocumentoSemAnexoTextualResponseDto(documento);
     }
 
     private static final String[] MESES = {
