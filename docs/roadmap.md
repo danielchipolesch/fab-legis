@@ -9,7 +9,6 @@ O FAB Legis foi desenhado para crescer. As linhas de evolução abaixo estão or
 - **Cobertura de testes** — testes unitários dos serviços de domínio (com destaque para a numeração e as transições de status) e testes de integração dos controllers com Testcontainers.
 - **Exportação DOCX nativa** — o HTML portável produzido pelo editor já foi pensado para isso; falta o conversor no backend.
 - **Backend como fonte única da numeração/ordenação** — hoje `numbering.js` (frontend) e a classe `Numbering` de `DocumentoFoBuilder.java` (backend) implementam a mesma regra em paralelo, mantidas manualmente em sincronia; um endpoint que devolva a numeração já calculada eliminaria esse risco de divergência.
-- **Cache do PDF gerado** — hoje todo PDF (documento oficial ou quadro de emendas) é renderizado do zero a cada download/exportação; avaliar armazenar o resultado no MinIO (documentos imutáveis) e/ou cache de curto prazo em Redis (rascunhos voláteis) para reduzir custo de CPU do FOP sob carga.
 - **Notificação de sessão expirada via SSE** — a conexão de notificações (`EventSource`) reconecta silenciosamente em caso de erro, sem avisar a store de autenticação; hoje isso é aceito como comportamento reativo por design (ver nota em [Autenticação e Colaboração](autenticacao.md)), mas poderia ganhar um handler de erro que force um refresh de token ou logout quando apropriado.
 
 ## Médio prazo — fluxo de trabalho completo
