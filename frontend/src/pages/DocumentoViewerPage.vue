@@ -313,7 +313,7 @@
 import { ref, computed, reactive, watch, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
-import { useDocumentsStore } from '@/stores/documents.js'
+import { useDocumentosStore } from '@/stores/documentos.js'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import { gerarPdf, pdfUrl } from '@/services/pdfService.js'
 import { gerarTextoSugeridoPortaria } from '@/utils/textoSugeridoPortaria.js'
@@ -322,7 +322,7 @@ import { resolveMinioUrl, resolveMinioUrls } from '@/utils/minioUrls.js'
 const route    = useRoute()
 const router   = useRouter()
 const $q       = useQuasar()
-const docStore = useDocumentsStore()
+const docStore = useDocumentosStore()
 
 const pdfLoading = ref(false)
 

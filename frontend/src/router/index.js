@@ -17,19 +17,19 @@ const routes = [
   {
     path: '/documento/novo',
     name: 'documento-novo',
-    component: () => import('@/pages/DocumentEditorPage.vue'),
+    component: () => import('@/pages/DocumentoEditorPage.vue'),
     meta: { title: 'Novo Documento' },
   },
   {
     path: '/documento/:id/editar',
     name: 'documento-editar',
-    component: () => import('@/pages/DocumentEditorPage.vue'),
+    component: () => import('@/pages/DocumentoEditorPage.vue'),
     meta: { title: 'Editar Documento' },
   },
   {
     path: '/documento/:id/visualizar',
     name: 'documento-visualizar',
-    component: () => import('@/pages/DocumentViewerPage.vue'),
+    component: () => import('@/pages/DocumentoViewerPage.vue'),
     meta: { title: 'Visualizar Documento' },
   },
   {
@@ -41,7 +41,7 @@ const routes = [
   {
     path: '/usuarios',
     name: 'usuarios',
-    component: () => import('@/pages/UsersPage.vue'),
+    component: () => import('@/pages/UsuariosPage.vue'),
     meta: { title: 'Gestão de Usuários', requiresAdmin: true },
   },
   {

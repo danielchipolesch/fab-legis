@@ -20,7 +20,7 @@
       </q-btn>
     </div>
 
-    <NewDocumentDialog v-model="dialogNovoDoc" />
+    <NovoDocumentoDialog v-model="dialogNovoDoc" />
 
     <!-- Abas (ownership) + filtros/resumo — tudo dentro do MESMO card de propósito:
          os filtros e as chips abaixo operam só sobre a aba selecionada acima, nunca
@@ -630,15 +630,15 @@
 <script setup>
 import { ref, computed, reactive, onMounted, watch } from 'vue'
 import { useQuasar } from 'quasar'
-import { useDocumentsStore, jDoc, jPara, jText } from '@/stores/documents.js'
+import { useDocumentosStore, jDoc, jPara, jText } from '@/stores/documentos.js'
 import { useAuthStore } from '@/stores/auth.js'
 import StatusBadge from '@/components/common/StatusBadge.vue'
-import NewDocumentDialog from '@/components/common/NewDocumentDialog.vue'
+import NovoDocumentoDialog from '@/components/common/NovoDocumentoDialog.vue'
 import { gerarPdf } from '@/services/pdfService.js'
 import { BASE_URL } from '@/api/client.js'
 
 const $q = useQuasar()
-const store = useDocumentsStore()
+const store = useDocumentosStore()
 const auth = useAuthStore()
 
 onMounted(() => store.fetchAll())

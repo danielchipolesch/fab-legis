@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { renumberElements, removeById, findById, promoteType, demoteType, canDemoteSubtree, formatLabel } from '@/utils/numbering.js'
-import { useDocumentsStore } from './documents.js'
+import { useDocumentosStore } from './documentos.js'
 
 export const useEditorStore = defineStore('editor', {
   state: () => ({
@@ -29,7 +29,7 @@ export const useEditorStore = defineStore('editor', {
 
   actions: {
     load(id) {
-      const store = useDocumentsStore()
+      const store = useDocumentosStore()
       const doc = store.getById(id)
       if (!doc) return false
       this.documento = JSON.parse(JSON.stringify(doc))
@@ -41,7 +41,7 @@ export const useEditorStore = defineStore('editor', {
     },
 
     // Busca o documento de novo NO SERVIDOR (nunca do cache local) -- é chamado
-    // sobretudo após um 409 de conflito de edição (ver DocumentEditorPage.vue),
+    // sobretudo após um 409 de conflito de edição (ver DocumentoEditorPage.vue),
     // e nesse caso o cache do documents store ainda reflete a versão antiga que
     // causou o conflito. Reler do cache ali reintroduziria a mesma versão
     // desatualizada, fazendo o próximo salvamento colidir de novo -- e de novo --
@@ -50,7 +50,7 @@ export const useEditorStore = defineStore('editor', {
     // realmente chegou.
     async reload() {
       if (!this.documentoId) return
-      const store = useDocumentsStore()
+      const store = useDocumentosStore()
       const doc = await store.fetchDocumento(this.documentoId)
       if (!doc) return
       const prevSelectedId = this.selectedElementId
@@ -60,7 +60,7 @@ export const useEditorStore = defineStore('editor', {
     },
 
     loadNew() {
-      const store = useDocumentsStore()
+      const store = useDocumentosStore()
       const doc = store.createDocumento({})
       this.documento = JSON.parse(JSON.stringify(doc))
       this.documentoId = doc.id
@@ -84,7 +84,7 @@ export const useEditorStore = defineStore('editor', {
     },
 
     async save() {
-      const store = useDocumentsStore()
+      const store = useDocumentosStore()
       await store.saveDocumento(this.documento)
       if (this.hasUserEdit && this.documento?.status === 'RASCUNHO') {
         await store.changeStatus(this.documentoId, 'MINUTA')

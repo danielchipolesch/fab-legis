@@ -600,13 +600,13 @@ import { useQuasar } from 'quasar'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import { formatLabel, elementIcon } from '@/utils/numbering.js'
 import { useEditorStore } from '@/stores/editor.js'
-import { useDocumentsStore } from '@/stores/documents.js'
+import { useDocumentosStore } from '@/stores/documentos.js'
 import { useAuthStore } from '@/stores/auth.js'
 import { BASE_URL } from '@/api/client.js'
 
 const $q = useQuasar()
 const editorStore = useEditorStore()
-const documentsStore = useDocumentsStore()
+const documentsStore = useDocumentosStore()
 const authStore = useAuthStore()
 
 const props = defineProps({

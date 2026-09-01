@@ -244,7 +244,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { useDocumentsStore } from '@/stores/documents.js'
+import { useDocumentosStore } from '@/stores/documentos.js'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import DiffViewer from '@/components/comparison/DiffViewer.vue'
 import { formatReferenciaLabel } from '@/utils/numbering.js'
@@ -260,7 +260,7 @@ function conteudoToHtml(conteudo) {
 }
 
 const route = useRoute()
-const store = useDocumentsStore()
+const store = useDocumentosStore()
 const $q = useQuasar()
 const loading = ref(true)
 const exportando = ref(false)
@@ -453,7 +453,7 @@ async function exportarQuadro() {
 // selecionado no seletor da tela (que pode estar mostrando um ciclo antigo já
 // publicado) -- é o ciclo que a próxima portaria vai de fato republicar.
 // Geração em si vive em utils/textoSugeridoPortaria.js, compartilhada com
-// DocumentViewerPage.vue.
+// DocumentoViewerPage.vue.
 const itensCicloPendente = computed(() =>
   mapaAlteracao.value.filter(item => item.cicloReferencia == null)
 )

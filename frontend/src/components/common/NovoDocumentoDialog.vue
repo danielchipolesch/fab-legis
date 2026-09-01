@@ -129,7 +129,7 @@
 
 <script setup>
 import { ref, reactive, computed, watch } from 'vue'
-import { useDocumentsStore } from '@/stores/documents.js'
+import { useDocumentosStore } from '@/stores/documentos.js'
 import { useRouter } from 'vue-router'
 import { listEspeciesNormativas, listAssuntosBasicos, normalizeEspecie, normalizeAssunto } from '@/api/referencias.js'
 
@@ -139,7 +139,7 @@ const props = defineProps({
 const emit = defineEmits(['update:modelValue'])
 
 const router = useRouter()
-const store  = useDocumentsStore()
+const store  = useDocumentosStore()
 
 const formRef  = ref(null)
 const salvando = ref(false)
@@ -232,7 +232,7 @@ async function confirmar() {
       router.push({ name: 'documento-editar', params: { id: doc.id } })
     }
   } catch (e) {
-    console.error('[NewDocumentDialog] Erro ao criar documento:', e)
+    console.error('[NovoDocumentoDialog] Erro ao criar documento:', e)
   } finally {
     salvando.value = false
   }

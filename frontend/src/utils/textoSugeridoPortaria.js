@@ -3,7 +3,7 @@ import { formatReferenciaLabel, formatLabel, toRoman } from '@/utils/numbering.j
 // Gera um rascunho de texto para a portaria de (re)publicação de um documento
 // ALTERADO, seguindo as regras de transcrição do Art. 22 da NSCA 5-3. Usado
 // tanto em ComparisonPage.vue (tela de comparação de versões) quanto em
-// DocumentViewerPage.vue (tela de visualização) -- extraído pra cá em vez de
+// DocumentoViewerPage.vue (tela de visualização) -- extraído pra cá em vez de
 // duplicado porque é lógica de negócio substancial, não um helper trivial.
 //
 // Regras cobertas:

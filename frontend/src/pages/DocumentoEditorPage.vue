@@ -238,7 +238,7 @@
 
         <!-- PDF Preview panel -->
         <div class="preview-panel" style="overflow-y:auto; position:relative">
-          <DocumentPreview
+          <DocumentoPreview
             v-if="previewMounted && documento"
             :documento="documento"
             :selected-element-id="editorStore.selectedElementId"
@@ -261,24 +261,24 @@ import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { useEditorStore } from '@/stores/editor.js'
-import { useDocumentsStore } from '@/stores/documents.js'
+import { useDocumentosStore } from '@/stores/documentos.js'
 import { useAuthStore } from '@/stores/auth.js'
 import { formatLabel, elementIcon, renumberElements } from '@/utils/numbering.js'
 import { gerarPdf } from '@/services/pdfService.js'
 import EditorSidebar from '@/components/editor/EditorSidebar.vue'
 import WysiwygEditor from '@/components/editor/WysiwygEditor.vue'
-import DocumentPreview from '@/components/editor/DocumentPreview.vue'
+import DocumentoPreview from '@/components/editor/DocumentoPreview.vue'
 import EmendaDialog from '@/components/editor/EmendaDialog.vue'
 import IncluirElementoDialog from '@/components/editor/IncluirElementoDialog.vue'
 import Lc95HelpDialog from '@/components/editor/Lc95HelpDialog.vue'
 import CompartilharDialog from '@/components/editor/CompartilharDialog.vue'
-import * as documentsApi from '@/api/documents.js'
+import * as documentsApi from '@/api/documentos.js'
 
 const route = useRoute()
 const router = useRouter()
 const $q = useQuasar()
 const editorStore = useEditorStore()
-const docStore = useDocumentsStore()
+const docStore = useDocumentosStore()
 const auth = useAuthStore()
 
 const previewMounted = ref(false)

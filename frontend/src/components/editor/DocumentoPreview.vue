@@ -258,12 +258,12 @@ import { ref, computed, watch, nextTick, onMounted, onUnmounted, onUpdated } fro
 import { generateHTML } from '@tiptap/html'
 import { editorExtensions } from '@/editor/extensions.js'
 import { bodyLabel, formatLabel, toRoman } from '@/utils/numbering.js'
-import { useDocumentsStore } from '@/stores/documents.js'
+import { useDocumentosStore } from '@/stores/documentos.js'
 import { resolveMinioUrls } from '@/utils/minioUrls.js'
 
 function toRomanStr(n) { return toRoman(n ?? 0) }
 
-const documentsStore = useDocumentsStore()
+const documentsStore = useDocumentosStore()
 
 function conteudoToHtml(conteudo) {
   if (!conteudo) return ''

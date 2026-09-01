@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { v4 as uuidv4 } from 'uuid'
 import { renumberElements, renumberElementsEmAlteracao } from '@/utils/numbering.js'
-import * as api from '@/api/documents.js'
+import * as api from '@/api/documentos.js'
 
 function renumerarSecaoNormativa(doc) {
   const normativa = doc.secoes?.find(s => s.tipo === 'parte_normativa')
@@ -65,7 +65,7 @@ function gerarSecoesTemplate(doc) {
   ]
 }
 
-export const useDocumentsStore = defineStore('documents', {
+export const useDocumentosStore = defineStore('documents', {
   state: () => ({
     documentos: [],
     loading: false,
