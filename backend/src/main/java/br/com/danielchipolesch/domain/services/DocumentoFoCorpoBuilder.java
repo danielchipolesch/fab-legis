@@ -6,6 +6,7 @@ import br.com.danielchipolesch.domain.entities.estruturaDocumento.ItemAnexoParte
 import br.com.danielchipolesch.domain.util.tiptap.TipTapNode;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -274,19 +275,59 @@ final class DocumentoFoCorpoBuilder {
         }
     }
 
+    // Parágrafo INCLUIDO entre dois já em vigor (não-INCLUIDO/não-REVOGADO): sufixo de
+    // letra permanente (§ 2º-A), sem deslocar a numeração dos seguintes — mesma regra
+    // já aplicada a capítulo/seção/subseção/artigo em NumeracaoService. Vedação expressa
+    // do Decreto nº 12.002/2024, art. 14, IV (renumeração de parágrafo já em vigor).
+    private boolean hasActiveParagrafoAfter(List<ItemAnexoParteNormativaResponseDto> paragrafos, int idx) {
+        for (int i = idx + 1; i < paragrafos.size(); i++) {
+            var s = paragrafos.get(i);
+            if (s.emendaStatus() != ElementoEmendaStatusEnum.INCLUIDO
+                    && s.emendaStatus() != ElementoEmendaStatusEnum.REVOGADO) return true;
+        }
+        return false;
+    }
+
+    // Rótulo "§ Nº" (com sufixo de letra quando aplicável) de cada parágrafo, calculado
+    // uma vez para todos os filhos do artigo antes da renderização.
+    private Map<ItemAnexoParteNormativaResponseDto, String> labelParagrafos(
+            List<ItemAnexoParteNormativaResponseDto> paragrafos) {
+        Map<ItemAnexoParteNormativaResponseDto, String> labels = new HashMap<>();
+        boolean unicoOnly = paragrafos.size() == 1
+                && paragrafos.get(0).elementType() == ItemAnexoParteNormativaTipoEnum.PARAGRAFO_UNICO;
+        if (unicoOnly) {
+            labels.put(paragrafos.get(0), "Parágrafo único.  ");
+            return labels;
+        }
+        int pNum = 0, letterIdx = 0;
+        for (int i = 0; i < paragrafos.size(); i++) {
+            var p = paragrafos.get(i);
+            boolean isIncluido = p.incluidoPorEmenda();
+            boolean atEnd = isIncluido && !hasActiveParagrafoAfter(paragrafos, i);
+            String letra = null;
+            if (!isIncluido || atEnd) {
+                pNum++;
+                letterIdx = 0;
+            } else {
+                letra = NumeracaoService.letterFor(letterIdx++);
+            }
+            labels.put(p, "§ " + NumeracaoService.comSufixoLetra(pNum, letra) + "  ");
+        }
+        return labels;
+    }
+
     private void renderArtigoFilhos(List<ItemAnexoParteNormativaResponseDto> filhos, StringBuilder sb) {
         if (filhos == null) return;
-        long parCount = filhos.stream()
+        List<ItemAnexoParteNormativaResponseDto> paragrafos = filhos.stream()
                 .filter(c -> c.elementType() == ItemAnexoParteNormativaTipoEnum.PARAGRAFO
                           || c.elementType() == ItemAnexoParteNormativaTipoEnum.PARAGRAFO_UNICO)
-                .count();
-        int parNum = 0, incisoNum = 0;
+                .toList();
+        Map<ItemAnexoParteNormativaResponseDto, String> parLabels = labelParagrafos(paragrafos);
+        int incisoNum = 0;
         for (var child : filhos) {
             switch (child.elementType()) {
                 case PARAGRAFO, PARAGRAFO_UNICO -> {
-                    parNum++;
-                    boolean unico = parCount == 1 && child.elementType() == ItemAnexoParteNormativaTipoEnum.PARAGRAFO_UNICO;
-                    renderBodyEl(sb, null, unico ? "Parágrafo único.  " : "§ " + NumeracaoService.ordinalOrCardinal(parNum) + "  ",
+                    renderBodyEl(sb, null, parLabels.get(child),
                             false, child.elementContent(), child.emendaStatus(), child.conteudoEmenda(), child.clausulaEmenda(), child.clausulaEmendaAnterior());
                     renderIncisoFilhos(child.children(), sb);
                 }
