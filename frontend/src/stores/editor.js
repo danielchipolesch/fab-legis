@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { renumberElements, removeById, findById, promoteType, demoteType, canDemoteSubtree, formatLabel } from '@/utils/numbering.js'
+import { idPersistido } from '@/api/documentos.js'
 import { useDocumentosStore } from './documentos.js'
 
 export const useEditorStore = defineStore('editor', {
@@ -78,6 +79,11 @@ export const useEditorStore = defineStore('editor', {
       this.selectedElementId = id
     },
 
+    // Só é chamado pelo WysiwygEditor quando o elemento ainda não tem sala Yjs (sem
+    // id persistido) -- uma vez colaborativo, o conteúdo passa a viver só no Y.Doc
+    // e no Postgres (via Hocuspocus), nunca mais aqui; ver WysiwygEditor.vue e
+    // converterElemento() em api/documentos.js, que por isso nem manda mais este
+    // `conteudo` local (potencialmente já desatualizado) no autosave estrutural.
     updateContent(elementId, html) {
       const el = this.findElement(elementId)
       if (el) { el.conteudo = html; this.markUserEdit() }
@@ -164,6 +170,66 @@ export const useEditorStore = defineStore('editor', {
           return
         }
       }
+    },
+
+    // Aplica em tempo real (SSE, event: estrutura -- ver DocumentoEditorPage.vue)
+    // mudanças estruturais que OUTRA pessoa fez: criar, mover/renomear ou excluir
+    // elemento. Nunca chamado para o próprio eco (a página já filtra pelo clientId
+    // antes de chegar aqui -- ver frontend/src/utils/clientId.js). Feito por patch
+    // incremental na árvore local, não por recarregar o documento inteiro: um
+    // reload completo trocaria a identidade (id local) de todo elemento já aberto,
+    // remontando o WysiwygEditor de quem estiver editando ao vivo nesse instante e
+    // interrompendo a digitação -- exatamente o que este recurso existe para evitar.
+    // Retorna true se o elemento removido era o que estava selecionado agora mesmo
+    // (a página usa isso para avisar o usuário e fechar o editor).
+    aplicarEventosEstrutura(eventos) {
+      const secao = this.normativaSecao
+      if (!secao || !eventos?.length) return false
+
+      let selecaoRemovida = false
+
+      for (const evento of eventos) {
+        if (evento.tipo === 'EXCLUIDO') {
+          const achado = localizarPorBackendId(secao.elementos, evento.id)
+          if (!achado) continue
+          achado.lista.splice(achado.indice, 1)
+          if (this.selectedElementId === achado.el.id) {
+            this.selectedElementId = null
+            selecaoRemovida = true
+          }
+          continue
+        }
+
+        const paiAlvo = evento.parentId != null ? localizarPorBackendId(secao.elementos, evento.parentId) : null
+        const achado = localizarPorBackendId(secao.elementos, evento.id)
+
+        if (!achado) {
+          // CRIADO por outra pessoa. O evento nunca carrega `conteudo` (ver
+          // EventoEstruturaDto no backend) -- um placeholder basta, porque ao abrir
+          // este elemento o WysiwygEditor conecta pela sala Yjs e busca o conteúdo
+          // real (ver Fase 4); não há necessidade de buscar/duplicar aqui.
+          const novo = criarElementoRemoto(evento)
+          const listaDestino = paiAlvo ? (paiAlvo.el.filhos ??= []) : secao.elementos
+          const posicao = clamp((evento.elementOrder ?? listaDestino.length + 1) - 1, 0, listaDestino.length)
+          listaDestino.splice(posicao, 0, novo)
+          continue
+        }
+
+        // ATUALIZADO -- reposiciona só se o pai realmente mudou (evita
+        // splice+insert à toa a cada evento redundante).
+        const paiMudou = (achado.pai?.id ?? null) !== (paiAlvo?.el.id ?? null)
+        if (paiMudou) {
+          achado.lista.splice(achado.indice, 1)
+          const listaDestino = paiAlvo ? (paiAlvo.el.filhos ??= []) : secao.elementos
+          const posicao = clamp((evento.elementOrder ?? listaDestino.length + 1) - 1, 0, listaDestino.length)
+          listaDestino.splice(posicao, 0, achado.el)
+        }
+        if (evento.elementTitle !== undefined) achado.el.titulo = evento.elementTitle
+      }
+
+      secao.elementos = [...secao.elementos]
+      this.renumberNormativa()
+      return selecaoRemovida
     },
 
     moveUp(id) {
@@ -402,6 +468,46 @@ function makeNormEl(tipo) {
   return GROUPING_TYPES.has(tipo)
     ? { id: crypto.randomUUID(), tipo, numero: 0, titulo: '', filhos: [] }
     : { id: crypto.randomUUID(), tipo, numero: 0, conteudo: '{"type":"doc","content":[{"type":"paragraph"}]}', filhos: [] }
+}
+
+function clamp(n, min, max) {
+  return Math.min(Math.max(n, min), max)
+}
+
+// Id de backend de um elemento local: já persistido (id numérico vindo do backend,
+// ver apiItemParaFrontend em api/documentos.js) ou reconciliado após o primeiro save
+// de um elemento novo (backendId, ver aplicarIdsPersistidos) -- null se ainda não
+// existe no backend (só id local, um UUID). Usado para casar os eventos SSE
+// (identificados só por id de backend, nunca pelo UUID local) com a árvore local.
+function backendIdDeElemento(el) {
+  return el.backendId ?? idPersistido(el.id)
+}
+
+// Busca por id de BACKEND (não o id local/UUID) -- ver backendIdDeElemento.
+// Retorna { el, lista, indice, pai } (pai = elemento pai local, ou null se raiz) ou
+// null se não encontrado nesta sessão (ex.: o usuário ainda não tinha essa parte da
+// árvore carregada -- patch incremental é best-effort, não crítico).
+function localizarPorBackendId(elements, backendId, pai = null) {
+  if (!elements) return null
+  for (let i = 0; i < elements.length; i++) {
+    const el = elements[i]
+    if (backendIdDeElemento(el) === backendId) return { el, lista: elements, indice: i, pai }
+    const achado = localizarPorBackendId(el.filhos, backendId, el)
+    if (achado) return achado
+  }
+  return null
+}
+
+// Elemento novo, criado por OUTRA pessoa, chegando via evento estrutural (nunca traz
+// `conteudo` -- ver EventoEstruturaDto). Mesmo formato de makeNormEl, mas com id já
+// resolvido (backendId), já que este elemento nunca precisa passar por
+// aplicarIdsPersistidos -- ele já nasce com o id real.
+function criarElementoRemoto(evento) {
+  const tipo = (evento.elementType ?? '').toLowerCase()
+  const base = { id: String(evento.id), backendId: evento.id, tipo, numero: 0, filhos: [] }
+  return GROUPING_TYPES.has(tipo)
+    ? { ...base, titulo: evento.elementTitle ?? '' }
+    : { ...base, conteudo: '{"type":"doc","content":[{"type":"paragraph"}]}' }
 }
 
 function findInElements(elements, id) {

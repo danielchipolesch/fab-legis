@@ -195,12 +195,18 @@
               </p>
             </template>
 
-            <!-- WYSIWYG editor para elementos de conteúdo -->
+            <!-- WYSIWYG editor para elementos de conteúdo. A chave inclui se a sala de
+                 colaboração está disponível: muda exatamente UMA vez por elemento, no
+                 instante em que ele ganha um id persistido (primeiro autosave), forçando
+                 o único remount necessário para trocar do modo local para o Yjs -- ver
+                 WysiwygEditor.vue. -->
             <WysiwygEditor
               v-else
-              :key="selectedElement.id"
+              :key="`${selectedElement.id}:${elementoIdColaborativo ? 'collab' : 'local'}`"
               :model-value="wysiwygConteudo"
               :readonly="isReadonly"
+              :documento-id="documentoId"
+              :elemento-id="elementoIdColaborativo"
               @update:model-value="onContentUpdate"
             />
 
@@ -273,6 +279,7 @@ import IncluirElementoDialog from '@/components/editor/IncluirElementoDialog.vue
 import Lc95HelpDialog from '@/components/editor/Lc95HelpDialog.vue'
 import CompartilharDialog from '@/components/editor/CompartilharDialog.vue'
 import * as documentsApi from '@/api/documentos.js'
+import { clientId } from '@/utils/clientId.js'
 
 const route = useRoute()
 const router = useRouter()
@@ -314,6 +321,27 @@ function iniciarPresenca() {
     }
 
     presencaOutros.value = outros
+  })
+
+  // Mesma conexão, evento diferente: outra pessoa criou/moveu/renomeou/excluiu um
+  // elemento (PATCH /secoes, ver Fase 2 do plano de colaboração). `origem` é o
+  // clientId de quem disparou a mudança -- se for o nosso próprio (já aplicamos
+  // localmente antes de mandar a requisição, ver api/documentos.js), ignora; senão
+  // aplica o patch incremental na árvore (nunca um reload completo, que
+  // interromperia quem estiver editando ao vivo nesse instante).
+  presencaEventSource.addEventListener('estrutura', (event) => {
+    const { origem, eventos } = JSON.parse(event.data)
+    if (origem === clientId) return
+    const selecaoRemovida = editorStore.aplicarEventosEstrutura(eventos)
+    if (selecaoRemovida) {
+      $q.notify({
+        type: 'warning',
+        icon: 'mdi-file-remove-outline',
+        position: 'bottom-right',
+        message: 'O elemento que você estava editando foi excluído por outra pessoa.',
+        timeout: 8000,
+      })
+    }
   })
   // onerror não precisa de tratamento manual: o browser reconecta o
   // EventSource sozinho enquanto o editor continuar aberto.
@@ -397,6 +425,19 @@ const wysiwygConteudo = computed(() => {
   const el = selectedElement.value
   if (!el) return ''
   return el.emendaStatus === 'ALTERADO' ? el.conteudoEmenda : el.conteudo
+})
+
+// Sala de colaboração ao vivo só faz sentido quando o elemento já existe no backend
+// (backendId/id numérico -- ver aplicarIdsPersistidos em api/documentos.js) E o
+// documento está em RASCUNHO/MINUTA (fora disso já é isReadonly, e em EM_ALTERACAO
+// o texto vigente mora em conteudoEmenda, um campo que o serviço de colaboração não
+// conhece -- conectar lá reescreveria o campo errado). null aqui faz o
+// WysiwygEditor cair no modo local antigo (sem Yjs).
+const elementoIdColaborativo = computed(() => {
+  if (isReadonly.value) return null
+  const el = selectedElement.value
+  if (!el) return null
+  return el.backendId ?? documentsApi.idPersistido(el.id)
 })
 
 // ── Emenda dialog state ───────────────────────────────────────────────────────

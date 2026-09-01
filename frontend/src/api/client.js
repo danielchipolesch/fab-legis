@@ -95,8 +95,8 @@ export async function put(path, body) {
   return request('PUT', path, { 'Content-Type': 'application/json' }, body)
 }
 
-export async function patch(path, body) {
-  return request('PATCH', path, { 'Content-Type': 'application/json' }, body)
+export async function patch(path, body, extraHeaders) {
+  return request('PATCH', path, { 'Content-Type': 'application/json', ...extraHeaders }, body)
 }
 
 export async function del(path) {

@@ -1,4 +1,5 @@
 import * as http from './client.js'
+import { clientId } from '@/utils/clientId.js'
 
 const SECAO_CONFIG = {
   PARTE_NORMATIVA:  { tipo: 'parte_normativa',  titulo: 'Parte Normativa',  ordem: 1 },
@@ -67,15 +68,54 @@ function buildSecao(secaoKey, itensApi) {
   }
 }
 
+// Elemento novo (ainda não salvo) tem id gerado no cliente (crypto.randomUUID(), ver
+// makeNormEl em stores/editor.js); elemento já persistido tem o id numérico vindo do
+// backend, guardado como string (ver apiItemParaFrontend). O backend usa esse id pra
+// aplicar um diff em vez de apagar/reinserir a árvore inteira -- ver
+// DocumentoParteNormativaService.salvarItensNormativos.
+export function idPersistido(id) {
+  return /^\d+$/.test(id ?? '') ? Number(id) : null
+}
+
 function converterElemento(el, secaoEnum, posicao) {
+  // backendId cobre o elemento criado nesta sessão e já salvo uma vez (ver
+  // aplicarIdsPersistidos) -- sem isso, cada autosave subsequente o trataria como
+  // novo de novo (id ainda é o UUID local) e duplicaria a linha no banco.
+  const idBackend = el.backendId ?? idPersistido(el.id)
+  // Elemento já persistido tem sala Yjs própria (ver WysiwygEditor.vue) -- o
+  // `conteudo`/`fullTextContent` locais não são mais atualizados por ela (o Yjs
+  // nunca escreve de volta no Pinia, só no Y.Doc e no Postgres via Hocuspocus), e o
+  // backend já ignora esses campos pra um item existente de qualquer forma (ver
+  // DocumentoParteNormativaService.aplicarItemNormativoRecursivo). Mandar aqui uma
+  // cópia local potencialmente desatualizada seria, na melhor das hipóteses, bytes
+  // ignorados a cada autosave estrutural -- então nem manda.
+  const ehNovo = idBackend == null
   return {
+    id: idBackend,
     secao: secaoEnum,
     tipo: (el.tipo ?? '').toUpperCase(),
     elementOrder: posicao,
     titulo: el.titulo ?? null,
-    conteudo: el.conteudo ?? null,
-    fullTextContent: el.fullTextContent ?? null,
+    conteudo: ehNovo ? (el.conteudo ?? null) : null,
+    fullTextContent: ehNovo ? (el.fullTextContent ?? null) : null,
     filhos: (el.filhos ?? []).map((f, i) => converterElemento(f, secaoEnum, i + 1)),
+  }
+}
+
+// Depois de salvar, anota em cada elemento recém-criado (id local ainda é o UUID do
+// cliente) o id real atribuído pelo backend, SEM substituir `el.id` -- trocar `el.id`
+// remontaria o WysiwygEditor no meio de uma digitação, porque a seleção do elemento
+// ativo usa `el.id` como :key (ver DocumentoEditorPage.vue). A ordem dos dois lados
+// coincide porque elementOrder enviado é sequencial (i+1) e a resposta vem ordenada
+// por elementOrder ASC.
+export function aplicarIdsPersistidos(locais, resposta) {
+  if (!locais || !resposta) return
+  const n = Math.min(locais.length, resposta.length)
+  for (let i = 0; i < n; i++) {
+    if (idPersistido(locais[i].id) == null && locais[i].backendId == null) {
+      locais[i].backendId = resposta[i].id
+    }
+    aplicarIdsPersistidos(locais[i].filhos, resposta[i].children)
   }
 }
 
@@ -236,7 +276,10 @@ export async function saveSecoes(id, secoes, versaoEsperada) {
       itens.push(converterElemento(elementos[i], secaoEnum, i + 1))
     }
   }
-  return http.put(`/documentos/${id}/secoes`, { itens, versaoEsperada: versaoEsperada ?? null })
+  // X-Client-Id: devolvido no broadcast SSE (event: estrutura) -- é assim que
+  // DocumentoEditorPage.vue reconhece e ignora o próprio eco (já aplicou a mudança
+  // localmente antes de mandar esta requisição).
+  return http.patch(`/documentos/${id}/secoes`, { itens, versaoEsperada: versaoEsperada ?? null }, { 'X-Client-Id': clientId })
 }
 
 export async function deleteDocumento(id) {

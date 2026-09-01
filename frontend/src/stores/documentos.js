@@ -143,7 +143,9 @@ export const useDocumentosStore = defineStore('documents', {
       const idx = this.documentos.findIndex(d => String(d.id) === String(documento.id))
       if (idx === -1) return
       if (documento.secoes) {
-        await api.saveSecoes(documento.id, documento.secoes, documento.versao)
+        const normativos = await api.saveSecoes(documento.id, documento.secoes, documento.versao)
+        const secaoNormativa = documento.secoes.find(s => s.tipo === 'parte_normativa')
+        if (secaoNormativa) api.aplicarIdsPersistidos(secaoNormativa.elementos, normativos ?? [])
       }
       const atualizado = await api.updateDocumento(documento.id, documento)
       if (atualizado) {

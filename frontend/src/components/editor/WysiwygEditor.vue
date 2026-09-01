@@ -113,17 +113,30 @@
 <script setup>
 import { ref, watch, onBeforeUnmount } from 'vue'
 import { useEditor, EditorContent } from '@tiptap/vue-3'
-import { editorExtensions } from '@/editor/extensions.js'
+import Collaboration from '@tiptap/extension-collaboration'
+import CollaborationCursor from '@tiptap/extension-collaboration-cursor'
+import { HocuspocusProvider } from '@hocuspocus/provider'
+import { editorExtensions, editorExtensionsColaborativas } from '@/editor/extensions.js'
+import { useAuthStore } from '@/stores/auth.js'
 import { useQuasar } from 'quasar'
 
 const props = defineProps({
   modelValue: { type: String, default: '' },
   readonly:   { type: Boolean, default: false },
+  // Presentes juntos => edição colaborativa ao vivo (Yjs/Hocuspocus) para este
+  // elemento; ausentes (elemento recém-criado, ainda sem id persistido) => modo local
+  // antigo, via modelValue/update:modelValue. A decisão é tomada uma vez, na criação
+  // do componente -- DocumentoEditorPage.vue força um remount (:key) exatamente na
+  // transição local->colaborativo, quando o elemento ganha o primeiro id real. Ver
+  // Fase 4 do plano de colaboração em tempo real.
+  documentoId: { type: [String, Number], default: null },
+  elementoId:  { type: [String, Number], default: null },
 })
 
 const emit = defineEmits(['update:modelValue'])
 
 const $q = useQuasar()
+const authStore = useAuthStore()
 const fileInputRef = ref(null)
 const uploadando = ref(false)
 
@@ -132,30 +145,86 @@ function parseContent(val) {
   try { return JSON.parse(val) } catch { return null }
 }
 
-const editor = useEditor({
-  content: parseContent(props.modelValue),
-  editable: !props.readonly,
-  extensions: editorExtensions,
-  onUpdate({ editor }) {
-    emit('update:modelValue', JSON.stringify(editor.getJSON()))
-  },
-})
+// Mesmo cálculo em qualquer navegador para o mesmo usuário -- cor estável do cursor
+// de colaboração, sem precisar de um cadastro de cores por usuário.
+function corDoUsuario(usuarioId) {
+  const paleta = ['#0B3D91', '#B3261E', '#1B7A43', '#8E4EC6', '#C77700', '#0E7C86']
+  const indice = Math.abs(Number(usuarioId) || 0) % paleta.length
+  return paleta[indice]
+}
 
-watch(() => props.modelValue, (val) => {
-  if (!editor.value) return
-  const parsed = parseContent(val)
-  if (!parsed) return
-  const currentJson = JSON.stringify(editor.value.getJSON())
-  if (currentJson !== JSON.stringify(parsed)) {
-    editor.value.commands.setContent(parsed, false)
+// Mesmo formato do nome no topbar (ver AppTopBar.vue) -- "CP CHIPOLESCH" em vez do
+// nome completo, pra caber ao lado do cursor sem tomar a tela toda.
+function rotuloDoUsuario(usuario) {
+  if (!usuario) return 'Anônimo'
+  if (usuario.postoGraduacaoBigrama && usuario.nomeGuerra) {
+    return `${usuario.postoGraduacaoBigrama} ${usuario.nomeGuerra}`
   }
-})
+  return usuario.nome ?? 'Anônimo'
+}
+
+const colaborativo = !!(props.documentoId && props.elementoId)
+
+let provider = null
+let editor
+
+if (colaborativo) {
+  const collabUrl = import.meta.env.VITE_COLLAB_URL ?? 'ws://127.0.0.1:1234'
+  provider = new HocuspocusProvider({
+    url: collabUrl,
+    name: `documento:${props.documentoId}:elemento:${props.elementoId}`,
+    // Função, não string: em caso de reconexão (ex.: o WebSocket cai e o provider
+    // tenta de novo sozinho), pega o token MAIS RECENTE da store -- importante porque
+    // o access token expira em 15min e é renovado via refresh em client.js.
+    token: () => authStore.token,
+  })
+
+  editor = useEditor({
+    editable: !props.readonly,
+    extensions: [
+      ...editorExtensionsColaborativas,
+      Collaboration.configure({ document: provider.document, field: 'default' }),
+      CollaborationCursor.configure({
+        provider,
+        user: {
+          name: rotuloDoUsuario(authStore.usuario),
+          color: corDoUsuario(authStore.usuario?.id),
+        },
+      }),
+    ],
+  })
+} else {
+  editor = useEditor({
+    content: parseContent(props.modelValue),
+    editable: !props.readonly,
+    extensions: editorExtensions,
+    onUpdate({ editor }) {
+      emit('update:modelValue', JSON.stringify(editor.getJSON()))
+    },
+  })
+
+  // Só faz sentido nesse modo -- no colaborativo o Y.Doc é a única fonte de verdade
+  // e sincroniza sozinho; reagir a modelValue aqui reintroduziria a possibilidade de
+  // sobrescrever o que está sendo digitado ao vivo por outra pessoa.
+  watch(() => props.modelValue, (val) => {
+    if (!editor.value) return
+    const parsed = parseContent(val)
+    if (!parsed) return
+    const currentJson = JSON.stringify(editor.value.getJSON())
+    if (currentJson !== JSON.stringify(parsed)) {
+      editor.value.commands.setContent(parsed, false)
+    }
+  })
+}
 
 watch(() => props.readonly, (val) => {
   editor.value?.setEditable(!val)
 })
 
-onBeforeUnmount(() => editor.value?.destroy())
+onBeforeUnmount(() => {
+  editor.value?.destroy()
+  provider?.destroy()
+})
 
 async function onFileSelected(event) {
   const arquivo = event.target.files?.[0]
