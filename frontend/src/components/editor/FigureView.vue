@@ -14,7 +14,7 @@
     </div>
 
     <img
-      :src="node.attrs.src"
+      :src="srcResolvido"
       :alt="node.attrs.alt"
       class="figura-img"
       @error="onImgError"
@@ -36,14 +36,24 @@
 </template>
 
 <script setup>
+import { ref, watch } from 'vue'
 import { NodeViewWrapper } from '@tiptap/vue-3'
+import { resolveMinioUrl } from '@/utils/minioUrls.js'
 
-defineProps({
+const props = defineProps({
   node:             { type: Object, required: true },
   updateAttributes: { type: Function, required: true },
   selected:         { type: Boolean, default: false },
   editor:           { type: Object, default: null },
 })
+
+// O bucket do MinIO é privado -- a URL armazenada não é diretamente buscável pelo
+// navegador, precisa ser trocada por uma URL assinada de curta duração antes de
+// virar src (ver utils/minioUrls.js).
+const srcResolvido = ref(props.node.attrs.src)
+watch(() => props.node.attrs.src, async (src) => {
+  srcResolvido.value = await resolveMinioUrl(src)
+}, { immediate: true })
 
 function onImgError(e) {
   e.target.style.display = 'none'

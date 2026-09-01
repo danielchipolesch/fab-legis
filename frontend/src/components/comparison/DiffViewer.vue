@@ -61,9 +61,10 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { diffWords } from 'diff'
 import { formatLabel } from '@/utils/numbering.js'
+import { resolveMinioUrls } from '@/utils/minioUrls.js'
 
 const props = defineProps({
   elemento:        { type: Object, required: true },
@@ -110,8 +111,23 @@ function extractImages(conteudo) {
 
 const textA = computed(() => extractText(props.elemento?.conteudo))
 const textB = computed(() => extractText(props.elementoB?.conteudo ?? props.elemento?.conteudo))
-const imagesA = computed(() => extractImages(props.elemento?.conteudo))
-const imagesB = computed(() => extractImages(props.elementoB?.conteudo ?? props.elemento?.conteudo))
+
+// O bucket do MinIO é privado -- as URLs extraídas precisam ser trocadas por URLs
+// assinadas de curta duração antes de virar src (ver utils/minioUrls.js), por isso
+// imagesA/imagesB são refs resolvidas de forma assíncrona, não computed direto.
+const rawImagesA = computed(() => extractImages(props.elemento?.conteudo))
+const rawImagesB = computed(() => extractImages(props.elementoB?.conteudo ?? props.elemento?.conteudo))
+const imagesA = ref([])
+const imagesB = ref([])
+
+async function resolveImages(raw, alvo) {
+  if (!raw.length) { alvo.value = []; return }
+  const mapa = await resolveMinioUrls(raw.map(i => i.src))
+  alvo.value = raw.map(i => ({ ...i, src: mapa.get(i.src) ?? i.src }))
+}
+
+watch(rawImagesA, (raw) => resolveImages(raw, imagesA), { immediate: true })
+watch(rawImagesB, (raw) => resolveImages(raw, imagesB), { immediate: true })
 
 const diff = computed(() => {
   if (textA.value === textB.value) return []

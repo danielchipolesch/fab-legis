@@ -317,6 +317,7 @@ import { useDocumentsStore } from '@/stores/documents.js'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import { gerarPdf, pdfUrl } from '@/services/pdfService.js'
 import { gerarTextoSugeridoPortaria } from '@/utils/textoSugeridoPortaria.js'
+import { resolveMinioUrl, resolveMinioUrls } from '@/utils/minioUrls.js'
 
 const route    = useRoute()
 const router   = useRouter()
@@ -338,13 +339,20 @@ const STATUS_COM_PDF = new Set(['APROVADO', 'ALTERADO', 'PUBLICADO', 'ARQUIVADO'
 const documentoId = computed(() => route.params.id)
 const documento   = computed(() => docStore.getById(documentoId.value))
 
-const iframePdfSrc = computed(() => {
+const iframePdfSrcBruto = computed(() => {
   const doc = documento.value
   if (!doc) return null
   if (doc.url_pdf) return doc.url_pdf
   if (STATUS_COM_PDF.has(doc.status)) return pdfUrl(documentoId.value)
   return null
 })
+
+// doc.url_pdf é a URL "canônica" de um PDF já gerado/armazenado no MinIO (bucket
+// privado) -- precisa virar uma URL assinada antes de servir de src pro iframe.
+const iframePdfSrc = ref(null)
+watch(iframePdfSrcBruto, async (src) => {
+  iframePdfSrc.value = src ? await resolveMinioUrl(src) : null
+}, { immediate: true })
 
 const pdfIframeLoading = ref(false)
 watch(iframePdfSrc, (src) => { pdfIframeLoading.value = !!src }, { immediate: true })
@@ -377,7 +385,16 @@ const STATUS_META = {
 }
 
 const historico = computed(() => docStore.historicoPorDocumento[String(documentoId.value)] ?? [])
-const portarias = computed(() => docStore.portariasPorDocumento[String(documentoId.value)] ?? [])
+const portariasBrutas = computed(() => docStore.portariasPorDocumento[String(documentoId.value)] ?? [])
+
+// urlPdf de cada portaria também é uma URL "canônica" do MinIO (bucket privado) --
+// resolve todas de uma vez (um único round-trip) sempre que a lista mudar.
+const portarias = ref([])
+watch(portariasBrutas, async (lista) => {
+  if (!lista.length) { portarias.value = []; return }
+  const mapa = await resolveMinioUrls(lista.map(p => p.urlPdf))
+  portarias.value = lista.map(p => ({ ...p, urlPdf: mapa.get(p.urlPdf) ?? p.urlPdf }))
+}, { immediate: true })
 
 // EDICAO e REVOGACAO só ocorrem uma vez por documento, sem numeração; cada
 // ALTERACAO é numerada automaticamente pelo backend (numeroSequencial), mas
