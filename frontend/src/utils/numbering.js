@@ -48,7 +48,7 @@ export function formatLabel(element) {
     }
     case 'artigo':          return 'Art. ' + ordinalWithLetra(element.numero ?? 0, letra)
     case 'paragrafo_unico': return 'Par\xE1grafo \xFAnico'
-    case 'paragrafo':       return '\xA7 ' + ordinalOrCardinal(element.numero ?? 0)
+    case 'paragrafo':       return '\xA7 ' + ordinalWithLetra(element.numero ?? 0, letra)
     case 'inciso':          return toRoman(element.numero ?? 0)
     case 'alinea':          return toLetter(element.numero ?? 1) + ')'
     case 'sub_alinea':      return (element.numero ?? 1) + '.'
@@ -239,6 +239,16 @@ function hasNonIncludedSameTypeAfter(elements, idx, tipo) {
   return false
 }
 
+// Mesma checagem, mas para uma lista já homogênea (ex.: parágrafos de um mesmo
+// artigo, coletados à parte) — não precisa filtrar por tipo.
+function hasActiveAfterInList(list, idx) {
+  for (let i = idx + 1; i < list.length; i++) {
+    const s = list[i]
+    if (s.emendaStatus !== 'INCLUIDO' && s.emendaStatus !== 'REVOGADO') return true
+  }
+  return false
+}
+
 export function renumberElementsEmAlteracao(elements, _ctx = null) {
   if (!elements?.length) return
 
@@ -342,7 +352,6 @@ export function renumberElementsEmAlteracao(elements, _ctx = null) {
       case 'paragrafo':
       case 'paragrafo_unico':
         paragrafos.push(el)
-        el._emendaLetra = null
         renumberElementsEmAlteracao(el.filhos, ctx)
         break
 
@@ -369,12 +378,34 @@ export function renumberElementsEmAlteracao(elements, _ctx = null) {
     }
   }
 
+  // Parágrafo INCLUIDO entre dois parágrafos já em vigor (não-INCLUIDO/não-REVOGADO):
+  // sufixo de letra permanente (§ 2º-A), sem deslocar a numeração dos seguintes —
+  // mesma regra já aplicada a capítulo/seção/subseção/artigo acima. Vedação expressa
+  // do Decreto nº 12.002/2024, art. 14, IV (renumeração de parágrafo já em vigor).
   const unicoOnly = paragrafos.length === 1 && paragrafos[0].tipo === 'paragrafo_unico'
   if (unicoOnly) {
-    paragrafos[0].numero = null
+    paragrafos[0].numero       = null
+    paragrafos[0]._emendaLetra = null
+    paragrafos[0]._emendaBase  = null
   } else if (paragrafos.length > 0) {
-    let pNum = 0
-    for (const p of paragrafos) { pNum++; p.tipo = 'paragrafo'; p.numero = pNum }
+    let pNum = 0, letterIdx = 0
+    for (let i = 0; i < paragrafos.length; i++) {
+      const p = paragrafos[i]
+      p.tipo = 'paragrafo'
+      const isIncluido = p.incluidoPorEmenda === true
+      const atEnd = isIncluido && !hasActiveAfterInList(paragrafos, i)
+      if (!isIncluido || atEnd) {
+        pNum++
+        p.numero       = pNum
+        p._emendaLetra = null
+        p._emendaBase  = null
+        letterIdx       = 0
+      } else {
+        p.numero       = pNum
+        p._emendaBase  = pNum
+        p._emendaLetra = String.fromCharCode(65 + letterIdx++)
+      }
+    }
   }
 }
 
@@ -430,7 +461,7 @@ export function bodyLabel(element) {
   switch (element.tipo) {
     case 'artigo':          return 'Art. ' + ordinalWithLetra(n, letra) + S2
     case 'paragrafo_unico': return 'Par\xE1grafo \xFAnico.' + S2
-    case 'paragrafo':       return '\xA7 ' + ordinalOrCardinal(n) + S2
+    case 'paragrafo':       return '\xA7 ' + ordinalWithLetra(n, letra) + S2
     case 'inciso':          return toRoman(n) + S1 + '-' + S1
     case 'alinea':          return toLetter(n) + ')' + S1
     case 'sub_alinea':      return n + '.' + S1
