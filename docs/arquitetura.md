@@ -19,8 +19,10 @@ graph TB
     F -->|"REST /v1/*"| A
     A -->|JPA| P
     A -->|"S3 SDK"| M
-    B -.->|"URL pública da imagem"| M
+    B -.->|"URL assinada (curta duração)"| M
 ```
+
+O bucket do MinIO é **privado** — o navegador nunca acessa um objeto direto pela URL "canônica" devolvida no upload. Toda leitura (imagem de figura, PDF do documento, PDF de portaria) passa antes por `POST /v1/imagens/urls-assinadas` (autenticado, igual ao resto do `/v1/**`), que troca a URL canônica por uma URL assinada (S3 pre-signed, válida por 1h) — só essa é usada como `src`/`href` no navegador. O backend, por sua vez, nunca depende de acesso público: lê os objetos direto via SDK autenticado (`ImagemService.getImageAsDataUri`/`getObjectStream`), usado por exemplo na geração do PDF oficial (Apache FOP embute a imagem como *data URI*, sem depender de rede).
 
 ## Camadas do backend — arquitetura em cebola
 
