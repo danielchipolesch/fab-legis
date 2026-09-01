@@ -1,0 +1,68 @@
+site_name: FAB Legis — Documentação Técnica
+site_description: Documentação técnica do FAB Legis, sistema de elaboração e gestão de atos normativos do Comando da Aeronáutica.
+repo_url: https://github.com/danielchipolesch/fab-legis
+repo_name: fab-legis
+docs_dir: docs
+
+extra_css:
+  - stylesheets/extra.css?v=4
+
+theme:
+  name: material
+  language: pt-BR
+  palette:
+    - scheme: default
+      primary: custom
+      accent: custom
+      toggle:
+        icon: material/weather-night
+        name: Mudar para modo escuro
+    - scheme: slate
+      primary: custom
+      accent: custom
+      toggle:
+        icon: material/weather-sunny
+        name: Mudar para modo claro
+  features:
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - navigation.indexes
+    - navigation.instant
+    - navigation.tracking
+    - content.code.copy
+    - content.code.annotate
+    - search.suggest
+    - search.highlight
+    - toc.follow
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.tabbed:
+      alternate_style: true
+  - tables
+  - toc:
+      permalink: true
+
+nav:
+  - Início: index.md
+  - Guia de Uso:
+      - Funcionalidades: funcionalidades.md
+      - Instalação e Configuração: instalacao.md
+  - Referência Técnica:
+      - Arquitetura: arquitetura.md
+      - Modelo de Domínio: dominio.md
+      - Autenticação e Colaboração: autenticacao.md
+      - Ciclo de Vida do Documento: ciclo-de-vida.md
+      - Geração de PDF e Portarias: exportacao-pdf.md
+      - API REST: api-rest.md
+  - Roadmap: roadmap.md
