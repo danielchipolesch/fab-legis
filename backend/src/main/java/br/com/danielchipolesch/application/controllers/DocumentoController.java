@@ -10,7 +10,9 @@ import br.com.danielchipolesch.application.dtos.documentoDtos.PortariaPdfRespons
 import br.com.danielchipolesch.application.dtos.documentoDtos.PortariaPublicacaoResponseDto;
 import br.com.danielchipolesch.application.dtos.emendaDtos.MapaAlteracaoItemResponseDto;
 import br.com.danielchipolesch.application.dtos.emendaDtos.MapaAlteracaoPdfRequestDto;
+import br.com.danielchipolesch.application.dtos.itemAnexoParteNormativaDtos.ElementoConteudoRequestDto;
 import br.com.danielchipolesch.application.dtos.itemAnexoParteNormativaDtos.ItemAnexoParteNormativaRequestDto;
+import br.com.danielchipolesch.application.dtos.itemAnexoParteNormativaDtos.ItemAnexoParteNormativaResponseDto;
 import br.com.danielchipolesch.application.dtos.itemAnexoParteNormativaDtos.NumeracaoElementoResponseDto;
 import br.com.danielchipolesch.application.dtos.itemAnexoParteNormativaDtos.SecoesSaveRequestDto;
 import br.com.danielchipolesch.application.dtos.usuarioDtos.CompartilharDocumentoRequestDto;
@@ -214,15 +216,52 @@ public class DocumentoController {
         return ResponseEntity.ok(model);
     }
 
+    // PATCH, não PUT: salvarSecoes aplica um diff contra a árvore persistida (casando
+    // por id) em vez de apagar/reinserir tudo -- ver comentário em
+    // DocumentoParteNormativaService.salvarItensNormativos. Trocar só o verbo sem essa
+    // mudança de comportamento não protegeria nada; é a semântica de fato que importa.
+    // Retorna a árvore normativa persistida (com os ids reais dos elementos recém-
+    // criados) porque o frontend manda elementos novos sem id -- sem devolver o id
+    // atribuído, o próximo autosave os trataria como novos de novo, duplicando-os.
     @PreAuthorize("@documentoAcessoService.podeEditar(#id, authentication)")
-    @PutMapping("{id}/secoes")
-    public ResponseEntity<Void> saveSecoes(
+    @PatchMapping("{id}/secoes")
+    public ResponseEntity<List<ItemAnexoParteNormativaResponseDto>> saveSecoes(
             @PathVariable(value = "id") Long id,
-            @RequestBody SecoesSaveRequestDto request) throws RuntimeException {
-        documentoParteNormativaService.salvarSecoes(id, request);
+            @RequestBody SecoesSaveRequestDto request,
+            // Id de sessão gerado uma vez por aba no frontend (ver frontend/src/utils/
+            // clientId.js) -- devolvido no broadcast SSE (event: estrutura) pra quem
+            // originou a mudança poder ignorar o próprio eco. Opcional: sem ele, o
+            // broadcast simplesmente não tem como ser filtrado pelo emissor.
+            @RequestHeader(value = "X-Client-Id", required = false) String clientId) throws RuntimeException {
+        documentoParteNormativaService.salvarSecoes(id, request, clientId);
         DocumentoResponseSemAnexoTextualDto dto = DocumentoMapper.documentoToDocumentoSemAnexoTextualResponseDto(
                 documentoService.getById(id));
         logAuditoriaService.registrar(dto.idDocumento(), dto.codigoDocumento(), AcaoAuditoriaEnum.EDITOU, "Conteúdo do documento");
+        List<ItemAnexoParteNormativaResponseDto> normativos = documentoParteNormativaService
+                .getItensNormativosByDocumento(id).stream().map(ItemAnexoParteNormativaResponseDto::from).toList();
+        return ResponseEntity.ok(normativos);
+    }
+
+    // Grava só o conteudo de UM elemento -- ponto de escrita usado pelo serviço de
+    // colaboração (Hocuspocus) a cada persistência do Y.Doc, nunca pelo autosave
+    // estrutural acima. Ver plano de colaboração em tempo real (CRDT/Yjs).
+    @PreAuthorize("@documentoAcessoService.podeEditar(#id, authentication)")
+    @PatchMapping("{id}/elementos/{elementoId}/conteudo")
+    public ResponseEntity<Void> atualizarConteudoElemento(
+            @PathVariable(value = "id") Long id,
+            @PathVariable(value = "elementoId") Long elementoId,
+            @RequestBody ElementoConteudoRequestDto request) {
+        documentoParteNormativaService.atualizarConteudoElemento(id, elementoId, request.conteudo());
+        return ResponseEntity.noContent().build();
+    }
+
+    // Sem corpo de resposta -- existe só para o serviço de colaboração (Hocuspocus)
+    // perguntar, com o JWT de quem está se conectando, "esta pessoa pode editar este
+    // documento?" antes de aceitar a conexão a uma sala Yjs. 204 = pode; o
+    // @PreAuthorize barra com 403 antes mesmo de o método rodar, caso contrário.
+    @PreAuthorize("@documentoAcessoService.podeEditar(#id, authentication)")
+    @GetMapping("{id}/pode-editar")
+    public ResponseEntity<Void> podeEditar(@PathVariable(value = "id") Long id) {
         return ResponseEntity.noContent().build();
     }
 

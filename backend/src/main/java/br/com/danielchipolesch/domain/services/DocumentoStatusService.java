@@ -149,11 +149,11 @@ public class DocumentoStatusService {
                 // por DocumentoParteNormativaService.salvarSecoes durante a edição,
                 // só que agora só roda aqui).
                 documentoParteNormativaService.salvarItensPreliminares(documento, List.of(
-                        new SecaoItemRequestDto(SecaoDocumentoEnum.PARTE_PRELIMINAR, ItemAnexoParteNormativaTipoEnum.EPIGRAFE, 1, null, request.epigrafe(), null, null),
-                        new SecaoItemRequestDto(SecaoDocumentoEnum.PARTE_PRELIMINAR, ItemAnexoParteNormativaTipoEnum.EMENTA, 2, null, request.ementa(), null, null),
-                        new SecaoItemRequestDto(SecaoDocumentoEnum.PARTE_PRELIMINAR, ItemAnexoParteNormativaTipoEnum.PREAMBULO, 3, null, request.preambulo(), null, null),
-                        new SecaoItemRequestDto(SecaoDocumentoEnum.PARTE_PRELIMINAR, ItemAnexoParteNormativaTipoEnum.FECHO, 4, null, request.fecho(), null, null),
-                        new SecaoItemRequestDto(SecaoDocumentoEnum.PARTE_PRELIMINAR, ItemAnexoParteNormativaTipoEnum.ASSINATURA, 5, null, request.assinatura(), null, null)
+                        new SecaoItemRequestDto(null, SecaoDocumentoEnum.PARTE_PRELIMINAR, ItemAnexoParteNormativaTipoEnum.EPIGRAFE, 1, null, request.epigrafe(), null, null),
+                        new SecaoItemRequestDto(null, SecaoDocumentoEnum.PARTE_PRELIMINAR, ItemAnexoParteNormativaTipoEnum.EMENTA, 2, null, request.ementa(), null, null),
+                        new SecaoItemRequestDto(null, SecaoDocumentoEnum.PARTE_PRELIMINAR, ItemAnexoParteNormativaTipoEnum.PREAMBULO, 3, null, request.preambulo(), null, null),
+                        new SecaoItemRequestDto(null, SecaoDocumentoEnum.PARTE_PRELIMINAR, ItemAnexoParteNormativaTipoEnum.FECHO, 4, null, request.fecho(), null, null),
+                        new SecaoItemRequestDto(null, SecaoDocumentoEnum.PARTE_PRELIMINAR, ItemAnexoParteNormativaTipoEnum.ASSINATURA, 5, null, request.assinatura(), null, null)
                 ));
 
                 // Só há emendas pendentes a consolidar quando vem de ALTERADO (ciclo de

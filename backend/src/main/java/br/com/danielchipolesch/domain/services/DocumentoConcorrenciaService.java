@@ -11,10 +11,16 @@ import java.time.Instant;
 
 // Trava otimista sobre Documento.versao (nr_versao, já existente como
 // @Version para o próprio JPA) reaproveitada como checagem explícita de
-// conflito de edição -- ver o design doc: isso resolve a COLISÃO entre duas
-// pessoas editando ao mesmo tempo (quem salva por último por cima perde a
-// mudança da outra sem aviso), distinto de DocumentoPresencaService, que só
-// avisa "fulano também está editando" sem impedir nada.
+// conflito de edição -- distinto de DocumentoPresencaService, que só avisa
+// "fulano também está editando" sem impedir nada.
+//
+// Escopo reduzido desde a edição colaborativa em tempo real (Yjs/Hocuspocus,
+// ver plano de colaboração): conteúdo de elemento não colide mais aqui (o
+// CRDT resolve isso ao vivo, sem 409 -- ver
+// DocumentoParteNormativaService.atualizarConteudoElemento, que nunca chama
+// este serviço). Esta checagem hoje só protege ESTRUTURA da árvore
+// (PATCH /{id}/secoes) e metadados do documento (PUT /{id}) -- a chamada de
+// checarEAtualizarVersao é o que ainda bumpa nr_versao a cada uma dessas.
 //
 // O cliente manda a versão que tinha quando abriu o documento
 // (versaoEsperada); se não bater mais com o banco, outra pessoa já salvou
