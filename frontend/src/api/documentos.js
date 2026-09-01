@@ -1,80 +1,102 @@
 import * as http from './client.js'
 
-// ─── Mapeamento de tipos entre backend (enum) e frontend (string) ─────────────
-
-const TIPO_BACKEND_PARA_FRONTEND = {
-  TITULO:             'titulo',
-  CAPITULO:           'capitulo',
-  SECAO:              'secao_normativa',
-  SUBSECAO:           'subsecao_normativa',
-  ARTIGO:             'artigo',
-  PARAGRAFO_NUMERADO: 'paragrafo',
-  PARAGRAFO_UNICO:    'paragrafo_unico',
-  INCISO:             'inciso',
-  ALINEA:             'alinea',
-  ITEM:               'sub_alinea',
+const SECAO_CONFIG = {
+  PARTE_NORMATIVA:  { tipo: 'parte_normativa',  titulo: 'Parte Normativa',  ordem: 1 },
 }
 
-const TIPO_FRONTEND_PARA_BACKEND = {
-  titulo:              'TITULO',
-  capitulo:            'CAPITULO',
-  secao_normativa:     'SECAO',
-  subsecao_normativa:  'SUBSECAO',
-  artigo:              'ARTIGO',
-  paragrafo:           'PARAGRAFO_NUMERADO',
-  paragrafo_unico:     'PARAGRAFO_UNICO',
-  inciso:              'INCISO',
-  alinea:              'ALINEA',
-  sub_alinea:          'ITEM',
+const SECAO_ENUM_MAP = {
+  parte_normativa:  'PARTE_NORMATIVA',
 }
 
-export function tipoParaBackend(tipoFrontend) {
-  return TIPO_FRONTEND_PARA_BACKEND[tipoFrontend] ?? tipoFrontend.toUpperCase()
+function parseDtCriacao(dt) {
+  if (!dt) return null
+  if (typeof dt === 'number') return new Date(dt).toISOString()
+  return String(dt)
 }
 
-export function tipoParaFrontend(tipoBackend) {
-  return TIPO_BACKEND_PARA_FRONTEND[tipoBackend] ?? tipoBackend.toLowerCase()
+// Ordena elementos por elementOrder; empates resolvidos por tipo + status:
+// - REVOGADO (order=null → Infinity) fica sempre por último.
+// - Mesmo tipo: INCLUIDO ANTES do INALTERADO — o elementOrder do INCLUIDO é calculado
+//   como afterEl.order+1, que coincide com o order do próximo elemento existente; logo,
+//   o INCLUIDO deve aparecer imediatamente ANTES desse próximo elemento.
+// - Tipos diferentes: INALTERADO ANTES do INCLUIDO — estrutura existente tem prioridade
+//   (ex.: CAPITULO INALTERADO antes de ARTIGO INCLUIDO com mesmo order).
+function sortEmendaItens(itens) {
+  if (!itens?.length) return itens ?? []
+  return [...itens].sort((a, b) => {
+    const oa = a.elementOrder ?? Infinity
+    const ob = b.elementOrder ?? Infinity
+    if (oa !== ob) return oa - ob
+    // REVOGADO por último
+    if (a.emendaStatus === 'REVOGADO' && b.emendaStatus !== 'REVOGADO') return 1
+    if (b.emendaStatus === 'REVOGADO' && a.emendaStatus !== 'REVOGADO') return -1
+    if (a.tipo === b.tipo) {
+      // Mesmo tipo: INCLUIDO antes de INALTERADO/ALTERADO
+      return (a.emendaStatus === 'INCLUIDO' ? 0 : 1) - (b.emendaStatus === 'INCLUIDO' ? 0 : 1)
+    }
+    // Tipos diferentes: INALTERADO/ALTERADO antes de INCLUIDO
+    return (a.emendaStatus === 'INCLUIDO' ? 1 : 0) - (b.emendaStatus === 'INCLUIDO' ? 1 : 0)
+  })
 }
 
-// ─── Normalização backend → frontend ─────────────────────────────────────────
-
-function itemParaElemento(item) {
+function apiItemParaFrontend(item) {
   return {
     id: String(item.id),
-    tipo: tipoParaFrontend(item.tipo ?? 'ARTIGO'),
-    numero: 0,
-    titulo: item.titulo ?? '',
-    conteudo: item.conteuto ?? '<p></p>',
-    filhos: (item.children ?? []).map(c =>
-      typeof c === 'object' ? itemParaElemento(c) : { id: String(c), tipo: 'artigo', numero: 0, titulo: '', conteudo: '<p></p>', filhos: [] }
-    ),
+    tipo: (item.elementType ?? '').toLowerCase(),
+    elementOrder: item.elementOrder ?? null,
+    numero: null,
+    titulo: item.elementTitle ?? null,
+    conteudo: item.elementContent ?? null,
+    fullTextContent: item.fullTextContent ?? null,
+    emendaStatus: item.emendaStatus ?? 'INALTERADO',
+    conteudoEmenda: item.conteudoEmenda ?? null,
+    tituloEmenda: item.tituloEmenda ?? null,
+    justificativaEmenda: item.justificativaEmenda ?? null,
+    clausulaEmenda: item.clausulaEmenda ?? null,
+    clausulaEmendaAnterior: item.clausulaEmendaAnterior ?? null,
+    incluidoPorEmenda: item.incluidoPorEmenda ?? false,
+    filhos: sortEmendaItens(item.children ?? []).map(apiItemParaFrontend),
   }
 }
 
-function parsarData(valor) {
-  if (!valor) return null
-  if (typeof valor === 'number') {
-    const d = new Date(valor)
-    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
+function buildSecao(secaoKey, itensApi) {
+  return {
+    ...SECAO_CONFIG[secaoKey],
+    id: crypto.randomUUID(),
+    elementos: sortEmendaItens(itensApi ?? []).map(apiItemParaFrontend),
   }
-  if (typeof valor === 'string') return valor.split('T')[0]
-  if (Array.isArray(valor)) return `${valor[0]}-${String(valor[1]).padStart(2,'0')}-${String(valor[2]).padStart(2,'0')}`
-  return null
 }
 
-export function normalizar(doc) {
+function converterElemento(el, secaoEnum, posicao) {
+  return {
+    secao: secaoEnum,
+    tipo: (el.tipo ?? '').toUpperCase(),
+    elementOrder: posicao,
+    titulo: el.titulo ?? null,
+    conteudo: el.conteudo ?? null,
+    fullTextContent: el.fullTextContent ?? null,
+    filhos: (el.filhos ?? []).map((f, i) => converterElemento(f, secaoEnum, i + 1)),
+  }
+}
+
+export function backendParaFrontend(doc) {
   if (!doc) return null
 
-  const todosItens = doc.itens ?? []
+  const preliminarItens = doc.itensPreliminares ?? []
+  const normativaItens  = doc.itensNormativos   ?? []
 
-  // Identifica itens raiz: aqueles que não aparecem como filhos de nenhum outro item
-  const childIds = new Set()
-  todosItens.forEach(item => {
-    ;(item.children ?? []).forEach(c => {
-      childIds.add(String(typeof c === 'object' ? c.id : c))
-    })
-  })
-  const raiz = todosItens.filter(item => !childIds.has(String(item.id)))
+  // A parte preliminar (epígrafe/ementa/preâmbulo/fecho/assinatura) não é
+  // mais mostrada na edição -- só existe de fato a partir da publicação (ver
+  // formulário de publicação em HomePage.vue), então itensPreliminares nunca
+  // vira uma seção aqui, mesmo quando presente (documento já publicado).
+  // Ainda conta para "hasAnyData" para não re-templatizar um documento já
+  // publicado que, por algum motivo, não tenha itens de parte normativa.
+  const hasAnyData = preliminarItens.length > 0 || normativaItens.length > 0
+
+  const secoes = hasAnyData ? [
+    buildSecao('PARTE_NORMATIVA',  normativaItens),
+    { tipo: 'anexos', titulo: 'Anexos', ordem: 2, id: crypto.randomUUID(), elementos: [] },
+  ] : null
 
   return {
     id: doc.idDocumento,
@@ -84,59 +106,192 @@ export function normalizar(doc) {
     assunto_basico: doc.nomeAssuntoBasico ?? doc.codigoAssuntoBasico,
     titulo: doc.tituloDocumento,
     codigo_documento: doc.codigoDocumento,
-    data_criacao: parsarData(doc.dtCriacao),
+    data_criacao:      parseDtCriacao(doc.dtCriacao),
+    data_alteracao:    parseDtCriacao(doc.dtAlteracao),
+    data_minuta:       parseDtCriacao(doc.dtMinuta),
+    data_aprovacao:    parseDtCriacao(doc.dtAprovacao),
+    data_publicacao:   parseDtCriacao(doc.dtPublicacao),
+    data_arquivamento: parseDtCriacao(doc.dtArquivamento),
+    data_revogacao:    parseDtCriacao(doc.dtRevogacao),
+    data_cancelamento: parseDtCriacao(doc.dtCancelamento),
+    data_em_alteracao: parseDtCriacao(doc.dtEmAlteracao),
+    data_alterado:     parseDtCriacao(doc.dtAlterado),
     status: doc.statusDocumento,
-    itens: todosItens,
-    secoes: [
-      { id: 'parte_preliminar', tipo: 'parte_preliminar', titulo: 'Parte Preliminar', ordem: 1, elementos: [] },
-      { id: 'parte_normativa',  tipo: 'parte_normativa',  titulo: 'Parte Normativa',  ordem: 2, elementos: raiz.map(itemParaElemento) },
-      { id: 'parte_final',      tipo: 'parte_final',      titulo: 'Parte Final',      ordem: 3, elementos: [] },
-    ],
+    url_pdf: doc.urlPdf ?? null,
+    qtd_replicas: doc.qtdReplicas ?? 0,
+    portaria_referencia: doc.portariaReferencia ?? null,
+    bca_referencia: doc.bcaReferencia ?? null,
+    data_portaria_referencia: parseDtCriacao(doc.dtPortariaReferencia),
+    data_bca_referencia:      parseDtCriacao(doc.dtBcaReferencia),
+    versao: doc.versao ?? null,
+    autor_id: doc.autorId != null ? String(doc.autorId) : null,
+    autor_nome: doc.autorNome ?? null,
+    om_id: doc.omId != null ? String(doc.omId) : null,
+    om_nome: doc.omNome ?? null,
+    versoes: [],
+    secoes,
   }
 }
 
-// ─── Endpoints ────────────────────────────────────────────────────────────────
+export function frontendParaBackendCreate(payload) {
+  return {
+    idEspecieNormativa: payload.idEspecieNormativa,
+    idAssuntoBasico:    payload.idAssuntoBasico,
+    tituloDocumento:    payload.tituloDocumento,
+  }
+}
 
-export async function listar() {
+export async function listDocumentos() {
   const data = await http.get('/documentos/obter-todos?size=200&sortBy=id')
-  return (Array.isArray(data) ? data : []).map(normalizar)
+  const items = Array.isArray(data) ? data : []
+  return items.map(backendParaFrontend)
 }
 
-export async function obterPorId(id) {
+export async function listDocumentosComHistoricoEmenda() {
+  const data = await http.get('/documentos/com-historico-emenda')
+  return Array.isArray(data) ? data.map(String) : []
+}
+
+export async function getDocumento(id) {
   const data = await http.get(`/documentos/${id}`)
-  return normalizar(data)
+  return backendParaFrontend(data)
 }
 
-export async function criar(payload) {
-  const data = await http.post('/documentos', payload)
-  return normalizar(data)
+export async function createDocumento(payload) {
+  const body = frontendParaBackendCreate(payload)
+  const data = await http.post('/documentos', body)
+  return backendParaFrontend(data)
 }
 
-export async function clonar(id) {
+export async function cloneDocumento(id) {
   const data = await http.post(`/documentos/${id}/clonar`)
-  return normalizar(data)
+  return backendParaFrontend(data)
 }
 
-export async function atualizar(id, titulo) {
-  const data = await http.put(`/documentos/${id}`, { tituloDocumento: titulo })
-  return normalizar(data)
+export async function updateDocumento(id, data) {
+  const body = {
+    tituloDocumento: data.titulo ?? data.tituloDocumento,
+    ...(data.numero_secundario != null && { numeroSecundario: parseInt(data.numero_secundario, 10) || undefined }),
+  }
+  const result = await http.put(`/documentos/${id}`, body)
+  return backendParaFrontend(result)
 }
 
-export async function mudarStatus(id, status) {
-  const data = await http.patch(`/documentos/${id}/status`, { status })
-  return normalizar(data)
+export async function changeDocumentoStatus(id, novoStatus, refs) {
+  const body = { status: novoStatus }
+  if (refs) {
+    body.orgaoPortaria   = refs.orgaoPortaria ?? null
+    body.setorPortaria   = refs.setorPortaria ?? null
+    body.numeroPortaria  = refs.numeroPortaria ?? null
+    body.dataPortaria    = refs.dataPortaria ?? null
+    body.numeroBca       = refs.numeroBca ?? null
+    body.dataBca         = refs.dataBca ?? null
+    body.epigrafe        = refs.epigrafe ?? null
+    body.ementa          = refs.ementa ?? null
+    body.preambulo       = refs.preambulo ?? null
+    body.fecho           = refs.fecho ?? null
+    body.assinatura      = refs.assinatura ?? null
+    body.portariaPdfUrl  = refs.portariaPdfUrl ?? null
+  }
+  const result = await http.patch(`/documentos/${id}/status`, body)
+  return backendParaFrontend(result)
 }
 
-export async function excluir(id) {
+// ── Emenda de elementos ───────────────────────────────────────────────────────
+
+export async function emendar(docId, secao, elementoId, acao, novoConteudo, novoTitulo, justificativa, versaoEsperada) {
+  return http.patch(`/documentos/${docId}/emendar/${secao}/${elementoId}`, {
+    acao,
+    novoConteudo: novoConteudo ?? null,
+    novoTitulo: novoTitulo ?? null,
+    justificativa: justificativa ?? null,
+    versaoEsperada: versaoEsperada ?? null,
+  })
+}
+
+export async function reordenarElementoEmenda(docId, secao, elementoId, direcao) {
+  return http.patch(`/documentos/${docId}/emendar/${secao}/${elementoId}/reordenar?direcao=${direcao}`, {})
+}
+
+export async function incluirElementoEmenda(docId, secao, tipo, titulo, conteudo, parentId, elementOrder, justificativa, versaoEsperada) {
+  return http.post(`/documentos/${docId}/emendar/${secao}`, {
+    tipo,
+    titulo: titulo ?? null,
+    conteudo: conteudo ?? null,
+    parentId: parentId ?? null,
+    elementOrder: elementOrder ?? null,
+    justificativa,
+    versaoEsperada: versaoEsperada ?? null,
+  })
+}
+
+export async function saveSecoes(id, secoes, versaoEsperada) {
+  if (!secoes?.length) return null
+  const itens = []
+  for (const secao of secoes) {
+    const secaoEnum = SECAO_ENUM_MAP[secao.tipo]
+    if (!secaoEnum) continue
+    const elementos = secao.elementos ?? []
+    for (let i = 0; i < elementos.length; i++) {
+      itens.push(converterElemento(elementos[i], secaoEnum, i + 1))
+    }
+  }
+  return http.put(`/documentos/${id}/secoes`, { itens, versaoEsperada: versaoEsperada ?? null })
+}
+
+export async function deleteDocumento(id) {
   return http.del(`/documentos/${id}`)
 }
 
-export async function filtrar(idEspecie, idAssunto) {
-  const data = await http.get(`/documentos/filtrar?especie-normativa=${idEspecie}&assunto-basico=${idAssunto}`)
-  return (Array.isArray(data) ? data : []).map(normalizar)
+// ── Histórico ─────────────────────────────────────────────────────────────────
+
+export async function listHistorico(documentoId) {
+  return http.get(`/documentos/${documentoId}/historico`)
 }
 
-export async function adicionarItem(idDocumento, item) {
-  const data = await http.put(`/documentos/${idDocumento}/adicionar-item-anexo-parte-textual`, item)
-  return normalizar(data)
+// ── Mapa de alteração (Quadro de Justificativas, NSCA 5-3 Anexo XXIV) ──────────
+
+export async function listMapaAlteracao(documentoId) {
+  return http.get(`/documentos/${documentoId}/mapa-alteracao`)
+}
+
+// ── Presença de edição (aviso de edição concorrente, via SSE) ───────────────────
+// Não impede colisão por si só (ver DocumentoConcorrenciaService/versaoEsperada
+// acima) -- só avisa "fulano também está editando agora". "Quem está editando"
+// é literalmente "quem tem esta conexão aberta agora" (ver
+// DocumentoPresencaEmitterRegistry no backend), por isso é uma URL de stream,
+// não uma chamada avulsa.
+
+export function presencaStreamUrl(documentoId, token) {
+  return `${http.BASE_URL}/documentos/${documentoId}/presenca/stream?token=${encodeURIComponent(token)}`
+}
+
+// ── Compartilhamento (coautoria) ─────────────────────────────────────────────
+
+export async function listCompartilhamentos(documentoId) {
+  return http.get(`/documentos/${documentoId}/compartilhamentos`)
+}
+
+export async function compartilharDocumento(documentoId, cpf) {
+  return http.post(`/documentos/${documentoId}/compartilhamentos`, { cpf })
+}
+
+export async function removerCompartilhamento(documentoId, usuarioId) {
+  return http.del(`/documentos/${documentoId}/compartilhamentos/${usuarioId}`)
+}
+
+// ── Anexos ────────────────────────────────────────────────────────────────────
+
+export async function listAnexos(documentoId) {
+  return http.get(`/documentos/${documentoId}/anexos`)
+}
+
+// ── Portarias (edição, alterações e revogação do documento) ────────────────────
+
+export async function listPortarias(documentoId) {
+  return http.get(`/documentos/${documentoId}/portarias`)
+}
+
+export async function deleteAnexo(documentoId, anexoId) {
+  return http.del(`/documentos/${documentoId}/anexos/${anexoId}`)
 }

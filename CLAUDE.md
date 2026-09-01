@@ -20,3 +20,12 @@ Este projeto mantém a documentação técnica em `docs/` (MkDocs Material, serv
 | `docs/roadmap.md` | Perspectivas futuras — mova um item para cá quando virar decisão adiada, ou remova-o quando for implementado |
 
 Se a mudança não se encaixa em nenhuma página existente, prefira estender a mais próxima a criar uma nova; só crie página nova para um assunto genuinamente novo, e nesse caso adicione a entrada em `mkdocs.yml` (`nav:`).
+
+## Convenção de nomenclatura (português vs. inglês)
+
+O domínio deste sistema é a técnica legislativa brasileira (LC 95/1998, Decreto nº 12.002/2024, NSCA 5-3) — os termos de negócio **são** em português e não têm tradução que faça sentido (Documento, Artigo, Emenda, Portaria, Espécie Normativa, Assunto Básico...). A convenção adotada:
+
+- **Infraestrutura/scaffolding genérico → inglês**: pacotes (`domain.services`, `application.controllers`), anotações e padrões de framework, utilitários sem relação com a lei em si.
+- **Vocabulário de negócio → português**: entidades, serviços, DTOs, métodos e variáveis que implementam ou nomeiam um conceito da técnica legislativa. Isso vale tanto no backend (Java) quanto no frontend (Vue/JS).
+
+Ao criar algo novo, mantenha o nome do conceito consistente com o que já existe no resto do código para o mesmo conceito — não traduza um nome de entidade/DTO/página já usado em outro lugar (ex.: se a entidade é `EspecieNormativa`, o DTO correspondente é `EspecieNormativaResponseDto`, não `DocumentationTypeResponseDto`).
