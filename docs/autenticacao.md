@@ -25,10 +25,12 @@ Todo usuário autenticado já é, implicitamente, **Redator**: cria documentos, 
 
 ## Edição concorrente
 
-Duas peças deliberadamente separadas, uma para *avisar*, outra para *impedir* colisão real:
+Em RASCUNHO/MINUTA, duas peças complementares — uma para o *conteúdo* de cada elemento, outra para a *estrutura* da árvore:
 
-- **Presença ao vivo** — enquanto o editor está aberto, uma conexão **SSE** (`GET /{id}/presenca/stream`) informa em tempo real quem mais está editando o mesmo documento (banner + toast); "quem está editando" é literalmente "quem tem essa conexão aberta agora" — sem heartbeat, sem polling, sem tabela própria no banco.
-- **Bloqueio otimista por versão** — cada documento carrega um número de versão (`nr_versao`); todo salvamento envia a versão que tinha em mãos, e o backend rejeita com `409` se ela não bater com a atual (`DocumentoConcorrenciaService`), evitando que uma edição sobrescreva silenciosamente outra. Ao colidir, o editor recarrega a versão real do servidor e avisa, sem perder o próprio trabalho não salvo.
+- **Colaboração ao vivo por elemento (CRDT/Yjs)** — o texto de cada artigo/parágrafo/inciso é editado através do serviço `collab` (Node.js + [Hocuspocus](https://tiptap.dev/docs/hocuspocus/introduction), ver [Arquitetura](arquitetura.md)): duas pessoas no mesmo elemento veem as letras uma da outra em tempo real, com *merge* automático, sem tela de conflito. A persistência no Postgres acontece em paralelo (debounced), mas a visualização entre colaboradores não depende de salvar. Elementos ainda não persistidos (recém-criados, sem id do backend) usam um modo local simples até o primeiro salvamento.
+- **Mudanças estruturais em tempo real** — criar, mover ou excluir um elemento (não é edição de texto, é mudança na árvore) é salvo por *diff* contra o que já está persistido (`PATCH /{id}/secoes`, nunca reescreve o `conteudo` de um elemento existente) e propagado aos demais navegadores conectados via o mesmo canal SSE de presença (`event: estrutura`) — a árvore de quem mais está editando se atualiza sozinha, por *patch* incremental (nunca um recarregamento completo, que interromperia quem estiver digitando ao vivo em outro elemento). Cada aba gera um id próprio (`clientId`) enviado junto com o salvamento e devolvido no evento, para que quem originou a mudança ignore o próprio eco. Se o elemento excluído era o que você tinha aberto, o editor fecha sozinho com um aviso.
+- **Presença ao vivo** — enquanto o editor está aberto, a mesma conexão **SSE** (`GET /{id}/presenca/stream`) informa em tempo real quem mais está editando o mesmo documento (banner + toast, `event: presenca`); "quem está editando" é literalmente "quem tem essa conexão aberta agora" — sem heartbeat, sem polling, sem tabela própria no banco.
+- **Bloqueio otimista por versão** — reservado a metadados do documento (título) e, na prática, raramente acionado hoje que conteúdo e estrutura têm seus próprios mecanismos de concorrência acima; cada documento carrega um número de versão (`nr_versao`), e o backend rejeita com `409` se a versão enviada não bater com a atual (`DocumentoConcorrenciaService`).
 
 ## Notificações e auditoria
 

@@ -21,7 +21,9 @@ Documentação interativa completa em **`/swagger-ui.html`**. Todas as rotas aba
 | `GET` | `/filtrar` | Filtra por espécie normativa e assunto básico |
 | `PUT` | `/{id}` | Atualiza metadados (somente Rascunho/Minuta, autor/coautor) |
 | `PATCH` | `/{id}/status` | Transição de status validada e autorizada por papel (publicar/alterar/revogar registram Portaria+BCA, ver [Ciclo de Vida](ciclo-de-vida.md)) |
-| `PUT` | `/{id}/secoes` | Salva a árvore completa de seções (checagem de versão) |
+| `PATCH` | `/{id}/secoes` | Salva a árvore de seções por *diff* contra o que já está persistido (checagem de versão) — nunca reescreve `conteudo` de elemento existente, criado/atualizado/excluído propagam via SSE (`event: estrutura`) |
+| `PATCH` | `/{id}/elementos/{elementoId}/conteudo` | Grava só o `conteudo` de um elemento — usado pelo serviço `collab` a cada persistência da edição colaborativa |
+| `GET` | `/{id}/pode-editar` | 204 se o usuário autenticado pode editar o documento, 403 caso contrário — usado pelo `collab` para autorizar a conexão a uma sala |
 | `PUT` | `/{idDocumento}/adicionar-item-anexo-parte-textual` | Adiciona item à parte normativa |
 | `GET` | `/{id}/numeracao` | Numeração calculada da parte normativa |
 | `GET` | `/{id}/pdf` | Gera o PDF oficial do documento sob demanda (Apache FOP) |
@@ -29,7 +31,7 @@ Documentação interativa completa em **`/swagger-ui.html`**. Todas as rotas aba
 | `DELETE` | `/{id}` | Remove o documento e seus itens em cascata (somente Rascunho/Minuta, autor/coautor) |
 | `GET`/`POST` | `/{id}/compartilhamentos` | Lista ou adiciona um coautor (só o autor) |
 | `DELETE` | `/{id}/compartilhamentos/{usuarioId}` | Remove um coautor (só o autor) |
-| `GET` | `/{id}/presenca/stream` | Conexão SSE: quem mais está editando este documento agora |
+| `GET` | `/{id}/presenca/stream` | Conexão SSE: quem mais está editando este documento agora (`event: presenca`) e mudanças estruturais da árvore em tempo real (`event: estrutura`) |
 
 ## Emendas — `/v1/documentos` (ciclo de alteração)
 

@@ -11,7 +11,8 @@
 git clone https://github.com/danielchipolesch/fab-legis.git
 cd fab-legis
 
-# Sobe PostgreSQL, MinIO, backend, frontend e a documentação técnica
+# Sobe PostgreSQL, MinIO, backend, collab (colaboração em tempo real), frontend
+# e a documentação técnica
 docker compose up -d
 
 # Acompanhar os logs
@@ -25,6 +26,7 @@ docker compose logs -f backend frontend
 | Frontend (dev) | http://localhost:5173 | — |
 | Backend (API) | http://localhost:8081 | — |
 | Swagger UI | http://localhost:8081/swagger-ui.html | — |
+| Collab (colaboração em tempo real) | ws://localhost:1234 | — |
 | OpenAPI JSON | http://localhost:8081/v1/fab-legis-api | — |
 | Documentação técnica | http://localhost:8000 | — |
 | PostgreSQL | `localhost:5432` | `postgres` / `123456` |
@@ -85,11 +87,20 @@ docker compose --profile production up -d
 | `JWT_REFRESH_EXPIRATION_MS` | `604800000` (7 dias) | Validade do refresh token |
 | `APP_ADMIN_CPF` / `APP_ADMIN_SENHA` / `APP_ADMIN_NOME` | ver acima | Usuário administrador padrão, criado só no primeiro boot |
 
+**Collab** (serviço de colaboração em tempo real, ver [Arquitetura](arquitetura.md))
+
+| Variável | Padrão | Descrição |
+|---|---|---|
+| `JWT_SECRET` | *(mesmo valor do backend)* | **Precisa ser idêntico** ao `JWT_SECRET` do backend — o `collab` valida o mesmo token, não emite o seu próprio |
+| `BACKEND_URL` | `http://backend:8081/v1` | Onde o `collab` busca/persiste o conteúdo de cada elemento (`GET`/`PATCH /documentos/...`) |
+| `PORT` | `1234` | Porta do servidor WebSocket (Hocuspocus) |
+
 **Frontend**
 
 | Variável | Padrão | Descrição |
 |---|---|---|
 | `VITE_API_BASE_URL` | `http://localhost:8081/v1` | URL base da API |
+| `VITE_COLLAB_URL` | `ws://127.0.0.1:1234` | URL do serviço de colaboração em tempo real (WebSocket) |
 | `VITE_APP_ENV` | `development` | Ambiente (`development` \| `staging` \| `production`) |
 
 !!! warning "Atenção"
