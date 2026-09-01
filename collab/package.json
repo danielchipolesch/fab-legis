@@ -1,0 +1,33 @@
+{
+  "name": "fab-legis-collab",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "description": "Servidor de colaboracao em tempo real (Yjs/Hocuspocus) para o editor do FAB Legis. Ver docs/arquitetura.md.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "dependencies": {
+    "@hocuspocus/server": "^2.15.0",
+    "@tiptap/core": "^2.10.4",
+    "@tiptap/extension-color": "^2.10.4",
+    "@tiptap/extension-highlight": "^2.10.4",
+    "@tiptap/extension-table": "^2.10.4",
+    "@tiptap/extension-table-cell": "^2.10.4",
+    "@tiptap/extension-table-header": "^2.10.4",
+    "@tiptap/extension-table-row": "^2.10.4",
+    "@tiptap/extension-text-align": "^2.10.4",
+    "@tiptap/extension-text-style": "^2.10.4",
+    "@tiptap/extension-underline": "^2.10.4",
+    "@tiptap/starter-kit": "^2.10.4",
+    "jsonwebtoken": "^9.0.2",
+    "y-prosemirror": "^1.2.15",
+    "yjs": "^13.6.20"
+  },
+  "devDependencies": {
+    "@hocuspocus/provider": "^2.15.0",
+    "ws": "^8.18.0"
+  }
+}
