@@ -25,7 +25,8 @@
     <!-- Abas (ownership) + filtros/resumo — tudo dentro do MESMO card de propósito:
          os filtros e as chips abaixo operam só sobre a aba selecionada acima, nunca
          sobre o acervo inteiro, e agrupar visualmente sem nenhum espaço/separador
-         entre as duas coisas deixa essa relação óbvia (ver ABA_FILTROS/documentosDaAba). -->
+         entre as duas coisas deixa essa relação óbvia (busca paginada no backend, ver
+         carregar()/DocumentoSpecifications.aba). -->
     <q-card flat bordered class="q-mb-lg">
       <q-tabs
         v-model="abaAtiva"
@@ -40,25 +41,25 @@
         <q-tab name="meus" icon="mdi-account-outline">
           <div class="row items-center no-wrap" style="gap:6px">
             <span>Meus Documentos</span>
-            <q-badge rounded color="primary">{{ contagemAbas.meus }}</q-badge>
+            <q-badge rounded color="primary">{{ store.resumoAbas.meus }}</q-badge>
           </div>
         </q-tab>
         <q-tab name="minha_om" icon="mdi-office-building-outline">
           <div class="row items-center no-wrap" style="gap:6px">
             <span>Documentos da Minha OM</span>
-            <q-badge rounded color="primary">{{ contagemAbas.minha_om }}</q-badge>
+            <q-badge rounded color="primary">{{ store.resumoAbas.minha_om }}</q-badge>
           </div>
         </q-tab>
         <q-tab name="outras_oms" icon="mdi-domain">
           <div class="row items-center no-wrap" style="gap:6px">
             <span>Documentos de Outras OMs</span>
-            <q-badge rounded color="primary">{{ contagemAbas.outras_oms }}</q-badge>
+            <q-badge rounded color="primary">{{ store.resumoAbas.outras_oms }}</q-badge>
           </div>
         </q-tab>
         <q-tab name="revogados" icon="mdi-file-remove-outline">
           <div class="row items-center no-wrap" style="gap:6px">
             <span>Documentos Revogados</span>
-            <q-badge rounded color="primary">{{ contagemAbas.revogados }}</q-badge>
+            <q-badge rounded color="primary">{{ store.resumoAbas.revogados }}</q-badge>
           </div>
         </q-tab>
       </q-tabs>
@@ -151,11 +152,13 @@
     <template v-if="viewMode === 'tabela'">
       <q-card flat bordered>
         <q-table
-          :rows="documentosFiltrados"
+          :rows="store.documentos"
           :columns="columns"
           row-key="id"
+          :loading="store.loading"
           :rows-per-page-options="[15, 25, 50]"
           v-model:pagination="tablePagination"
+          @request="onRequest"
           flat
           class="legis-table"
         >
@@ -323,7 +326,7 @@
     <template v-else>
       <div class="row q-col-gutter-md">
         <div
-          v-for="doc in documentosFiltrados"
+          v-for="doc in store.documentos"
           :key="doc.id"
           class="col-12 col-sm-6 col-md-4 col-lg-3"
         >
@@ -399,12 +402,26 @@
             </q-card-actions>
           </q-card>
         </div>
-        <div v-if="!documentosFiltrados.length" class="col-12">
+        <div v-if="!store.documentos.length" class="col-12">
           <div class="column items-center q-py-xl text-grey-7">
             <q-icon size="64px" class="q-mb-md" name="mdi-file-search-outline" />
             <p>Nenhum documento encontrado.</p>
           </div>
         </div>
+      </div>
+
+      <!-- Paginação própria -- a q-table cuida disso sozinha (@request), mas o modo
+           cartões não usa q-table, então precisa do próprio controle pra navegar pelas
+           páginas que agora vêm do servidor (antes, o array inteiro já filtrado vinha
+           de uma vez, sem precisar de paginação aqui). -->
+      <div v-if="totalPaginas > 1" class="row justify-center q-mt-lg">
+        <q-pagination
+          v-model="tablePagination.page"
+          :max="totalPaginas"
+          direction-links
+          boundary-links
+          @update:model-value="carregar"
+        />
       </div>
     </template>
 
@@ -641,8 +658,6 @@ const $q = useQuasar()
 const store = useDocumentosStore()
 const auth = useAuthStore()
 
-onMounted(() => store.fetchAll())
-
 const dialogNovoDoc = ref(false)
 const viewMode = ref('tabela')
 const abaAtiva = ref('meus')
@@ -663,27 +678,23 @@ const columns = [
   { name: 'actions',        label: 'Ações',          field: 'actions',        align: 'center', sortable: false, style: 'width: 220px' },
 ]
 
+// Nome da coluna (frontend, snake_case) -> propriedade Java que o backend ordena (ver
+// DocumentoController.getAll) -- os dois lados usam nomenclaturas diferentes de
+// propósito (ver convenção do projeto), então a ordenação por servidor precisa dessa
+// tradução explícita.
+const SORT_FIELD_MAP = {
+  especie: 'especieNormativa.sigla',
+  titulo: 'tituloDocumento',
+  assunto_basico: 'assuntoBasico.nome',
+  data_criacao: 'dtCriacao',
+  status: 'documentoStatus',
+  replicas: 'qtdReplicas',
+}
+
 function formatarData(isoStr) {
   if (!isoStr) return '—'
   const [y, m, d] = String(isoStr).slice(0, 10).split('-')
   return `${d}/${m}/${y}`
-}
-
-// A listagem em si já vem completa do backend para qualquer usuário
-// autenticado (visualizar é universal -- ver DocumentoAcessoService); estas
-// abas são só uma forma de navegar esse mesmo conjunto, não uma restrição de
-// acesso. A restrição de verdade (editar/excluir) é sempre checada no
-// backend, nunca aqui.
-const ABA_FILTROS = {
-  meus:       (doc) => doc.autor_id === String(auth.usuario?.id),
-  minha_om:   (doc) => doc.om_id === String(auth.usuario?.omId) && doc.autor_id !== String(auth.usuario?.id),
-  outras_oms: (doc) => doc.om_id !== String(auth.usuario?.omId),
-  // Cruza a divisão por posse das outras 3 abas -- mostra os revogados de
-  // qualquer OM/autor, já que a visualização já é universal. Um documento
-  // revogado que você mesmo autorou aparece tanto aqui quanto em "Meus
-  // Documentos": as abas não são uma partição estrita, cada uma é só um
-  // recorte útil sobre o mesmo acervo.
-  revogados:  (doc) => doc.status === 'REVOGADO',
 }
 
 const ABA_LABELS = {
@@ -694,45 +705,57 @@ const ABA_LABELS = {
 }
 const abaAtivaLabel = computed(() => ABA_LABELS[abaAtiva.value])
 
-// Documentos da aba ativa, já com busca/espécie aplicados mas SEM o filtro de
-// situação -- serve de base tanto para a tabela (que aplica a situação por
-// cima) quanto para o resumo por chip (que precisa contar cada situação
-// possível dentro da aba, não só a que estiver selecionada no momento).
-const documentosDaAbaFiltrados = computed(() => {
-  const passaAba = ABA_FILTROS[abaAtiva.value] ?? (() => true)
-  return store.documentos.filter(doc => {
-    if (!passaAba(doc)) return false
-    if (filtros.especie && doc.especie !== filtros.especie) return false
-    if (filtros.busca) {
-      const q = filtros.busca.toLowerCase()
-      const match = doc.assunto_basico?.toLowerCase().includes(q)
-        || doc.numero_basico?.toString().includes(q)
-        || doc.especie?.toLowerCase().includes(q)
-      if (!match) return false
-    }
-    return true
-  })
+// Paginação real no backend (ver DocumentoController.getAll/DocumentoService --
+// antes disso, um único fetch de até 200 documentos vinha pro navegador, e aba, busca,
+// espécie/situação e a própria paginação da tabela eram calculadas em JS por cima desse
+// array fixo -- acima de 200 documentos no acervo o resto simplesmente não aparecia).
+const totalPaginas = computed(() => Math.max(1, Math.ceil(store.totalElements / tablePagination.value.rowsPerPage)))
+
+async function carregar() {
+  const params = {
+    aba: abaAtiva.value,
+    busca: filtros.busca || undefined,
+    especieSigla: filtros.especie || undefined,
+    status: filtros.status || undefined,
+    page: tablePagination.value.page - 1,
+    size: tablePagination.value.rowsPerPage,
+    sortBy: SORT_FIELD_MAP[tablePagination.value.sortBy] ?? 'dtCriacao',
+    descending: tablePagination.value.descending,
+  }
+  await Promise.all([
+    store.fetchPagina(params),
+    store.fetchResumo({ aba: params.aba, busca: params.busca, especieSigla: params.especieSigla }),
+  ])
+}
+
+// Disparado pela q-table (clique de página/ordenação/linhas-por-página) -- a própria
+// tabela já atualiza tablePagination via v-model antes de chamar isso (padrão Quasar de
+// paginação por servidor, mesmo usado em AuditoriaPage.vue).
+function onRequest(props) {
+  tablePagination.value.page = props.pagination.page
+  tablePagination.value.rowsPerPage = props.pagination.rowsPerPage
+  tablePagination.value.sortBy = props.pagination.sortBy
+  tablePagination.value.descending = props.pagination.descending
+  carregar()
+}
+
+const tablePagination = ref({ page: 1, rowsPerPage: 15, sortBy: 'data_criacao', descending: true, rowsNumber: 0 })
+watch(() => store.totalElements, (v) => { tablePagination.value.rowsNumber = v })
+
+// Trocar de aba/espécie/situação busca de novo na hora; busca por texto livre tem um
+// debounce curto (a q-table não dispara @request por digitação, então sem isso cada
+// tecla viraria uma requisição).
+let buscaTimer = null
+watch(() => filtros.busca, () => {
+  clearTimeout(buscaTimer)
+  buscaTimer = setTimeout(() => { tablePagination.value.page = 1; carregar() }, 350)
+})
+watch([abaAtiva, () => filtros.especie, () => filtros.status], () => {
+  tablePagination.value.page = 1
+  carregar()
 })
 
-const documentosFiltrados = computed(() =>
-  documentosDaAbaFiltrados.value.filter(doc => !filtros.status || doc.status === filtros.status)
-)
-
-// Indicador de quantidade por aba -- conta o total de documentos de cada aba
-// (sem aplicar busca/espécie/status, que são filtros sobre a aba já ativa),
-// para servir como referência estável mesmo enquanto o usuário está filtrando.
-const contagemAbas = computed(() => ({
-  meus:        store.documentos.filter(ABA_FILTROS.meus).length,
-  minha_om:    store.documentos.filter(ABA_FILTROS.minha_om).length,
-  outras_oms:  store.documentos.filter(ABA_FILTROS.outras_oms).length,
-  revogados:   store.documentos.filter(ABA_FILTROS.revogados).length,
-}))
-
-// A tabela pagina/busca dentro do conjunto já restrito à aba ativa
-// (documentosFiltrados) -- ao trocar de aba ou de filtro, volta pra página 1
-// pra não ficar numa página que não existe mais no novo conjunto.
-const tablePagination = ref({ page: 1, rowsPerPage: 15, sortBy: 'data_criacao', descending: true })
-watch([abaAtiva, filtros], () => { tablePagination.value.page = 1 }, { deep: true })
+onMounted(() => carregar())
 
 const STATUS_CFG = {
   RASCUNHO:     { bg: 'grey-3',        fg: 'grey-9',          label: 'Rascunho'     },
@@ -746,16 +769,16 @@ const STATUS_CFG = {
   REVOGADO:     { bg: 'brown-2',       fg: 'brown-10',        label: 'Revogado'     },
 }
 
-// Contado sobre documentosDaAbaFiltrados (aba ativa + busca/espécie), não
-// sobre o acervo inteiro -- é o que estava confundindo: o número no chip
-// precisa bater com o que aparece na tabela ao clicar nele.
+// store.resumoStatus já vem do servidor com aba/busca/espécie aplicados (ver
+// DocumentoService.getResumo) -- o número no chip bate com o que aparece na tabela ao
+// clicar nele, mesma garantia de antes, só que calculada no backend agora.
 const statusSummary = computed(() =>
   Object.entries(STATUS_CFG).map(([status, cfg]) => ({
     status,
     label: cfg.label,
     bg: cfg.bg,
     fg: cfg.fg,
-    count: documentosDaAbaFiltrados.value.filter(d => d.status === status).length,
+    count: store.resumoStatus[status] ?? 0,
   })).filter(s => s.count > 0)
 )
 
@@ -832,6 +855,10 @@ async function executarMudancaStatus() {
   alterandoStatus.value = true
   try {
     await store.changeStatus(alvo.id, opt.status, refs)
+    // Mudar a situação afeta as contagens das abas/chips (ex.: revogar tira o
+    // documento do total normal e o soma em "Revogados") -- store.changeStatus já
+    // atualiza a linha em si, mas resumo/total só refletem isso com um recarregamento.
+    await carregar()
     dialog.status = false
     dialog.target = null
     dialog.statusOpt = null
@@ -877,8 +904,14 @@ function confirmarClone(doc) {
   dialog.clone = true
 }
 
-function executarClone() {
-  if (dialog.target) store.cloneDocumento(dialog.target.id)
+// Antes, o clone só entrava direto no array local (store.documentos.unshift) porque
+// esse array já era "o acervo inteiro" -- agora que é só a página atual, precisa
+// recarregar de verdade pra refletir o total/ordenação corretos (ver carregar()).
+async function executarClone() {
+  if (dialog.target) {
+    await store.cloneDocumento(dialog.target.id)
+    await carregar()
+  }
   dialog.clone = false
   dialog.target = null
 }
@@ -991,8 +1024,11 @@ function confirmarExclusao(doc) {
   dialog.delete = true
 }
 
-function excluir() {
-  if (dialog.target) store.deleteDocumento(dialog.target.id)
+async function excluir() {
+  if (dialog.target) {
+    await store.deleteDocumento(dialog.target.id)
+    await carregar()
+  }
   dialog.delete = false
   dialog.target = null
 }

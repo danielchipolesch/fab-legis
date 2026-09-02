@@ -181,10 +181,39 @@ export function frontendParaBackendCreate(payload) {
   }
 }
 
-export async function listDocumentos() {
-  const data = await http.get('/documentos/obter-todos?size=200&sortBy=id')
-  const items = Array.isArray(data) ? data : []
-  return items.map(backendParaFrontend)
+// Paginação de verdade (ver DocumentoController.getAll): antes disso, listDocumentos()
+// chamava isso uma vez com size=200 e a HomePage filtrava/paginava tudo no navegador --
+// acima de 200 documentos no acervo, o resto nunca aparecia. Mesmo padrão de
+// listAuditoria em api/auditoria.js: devolve o Page cru ({content, totalElements, ...}),
+// só mapeando os itens de content pro formato do frontend.
+export async function listDocumentosPaginado({
+  aba, busca, especieSigla, status, page = 0, size = 15, sortBy = 'dtCriacao', descending = true,
+} = {}) {
+  const params = new URLSearchParams()
+  if (aba) params.set('aba', aba)
+  if (busca) params.set('busca', busca)
+  if (especieSigla) params.set('especieSigla', especieSigla)
+  if (status) params.set('status', status)
+  params.set('page', page)
+  params.set('size', size)
+  params.set('sortBy', sortBy)
+  params.set('descending', descending)
+  const resp = await http.get(`/documentos/obter-todos?${params.toString()}`)
+  return {
+    items: (resp?.content ?? []).map(backendParaFrontend),
+    totalElements: resp?.totalElements ?? 0,
+  }
+}
+
+// Contagens pros badges das 4 abas e chips de situação da HomePage -- mesmos filtros de
+// busca/espécie/aba da listagem acima, pra ficar em sincronia com o que ela está
+// mostrando no momento.
+export async function getResumoDocumentos({ aba, busca, especieSigla } = {}) {
+  const params = new URLSearchParams()
+  if (aba) params.set('aba', aba)
+  if (busca) params.set('busca', busca)
+  if (especieSigla) params.set('especieSigla', especieSigla)
+  return http.get(`/documentos/resumo?${params.toString()}`)
 }
 
 export async function listDocumentosComHistoricoEmenda() {

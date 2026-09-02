@@ -67,7 +67,15 @@ function gerarSecoesTemplate(doc) {
 
 export const useDocumentosStore = defineStore('documents', {
   state: () => ({
+    // Antes, "o acervo inteiro visível" (até 200 documentos, carregado uma vez). Agora
+    // é só a página atual da HomePage -- getById continua funcionando pras outras telas
+    // porque elas sempre chamam fetchDocumento(id) antes de ler por ali (ver
+    // DocumentoViewerPage.vue/DocumentoEditorPage.vue/ComparisonPage.vue), nunca dependem
+    // do array já estar populado por uma listagem anterior.
     documentos: [],
+    totalElements: 0,
+    resumoAbas: { meus: 0, minha_om: 0, outras_oms: 0, revogados: 0 },
+    resumoStatus: {},
     loading: false,
     anexosPorDocumento: {},
     portariasPorDocumento: {},
@@ -82,19 +90,29 @@ export const useDocumentosStore = defineStore('documents', {
   },
 
   actions: {
-    async fetchAll() {
-      if (this.loading) return
+    // Busca a página atual do acervo (filtrada por aba/busca/espécie/situação) --
+    // substitui o antigo fetchAll(), que carregava tudo de uma vez e filtrava no
+    // navegador. Chamada pela HomePage a cada troca de aba/filtro/página (ver
+    // HomePage.vue).
+    async fetchPagina(params) {
       this.loading = true
       try {
-        const [docs, comHistorico] = await Promise.all([
-          api.listDocumentos(),
-          api.listDocumentosComHistoricoEmenda(),
-        ])
-        this.documentos = docs.map(d => ({ ...d }))
-        this.documentosComHistorico = comHistorico
+        const { items, totalElements } = await api.listDocumentosPaginado(params)
+        this.documentos = items
+        this.totalElements = totalElements
       } finally {
         this.loading = false
       }
+    },
+
+    async fetchResumo(params) {
+      const resp = await api.getResumoDocumentos(params)
+      this.resumoAbas = resp?.porAba ?? { meus: 0, minha_om: 0, outras_oms: 0, revogados: 0 }
+      this.resumoStatus = resp?.porStatus ?? {}
+    },
+
+    async fetchComHistoricoEmenda() {
+      this.documentosComHistorico = await api.listDocumentosComHistoricoEmenda()
     },
 
     async fetchDocumento(id) {
