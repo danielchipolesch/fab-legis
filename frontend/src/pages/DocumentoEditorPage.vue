@@ -216,6 +216,7 @@
               :elemento-id="elementoIdColaborativo"
               @update:model-value="onContentUpdate"
               @sync-status="v => colabSyncStatus = v"
+              @content-live="onContentLive"
             />
 
             <!-- Add child element shortcuts -->
@@ -627,6 +628,15 @@ function onContentUpdate(html) {
   if (selectedElement.value) {
     editorStore.updateContent(selectedElement.value.id, html)
     scheduleAutoSave()
+  }
+}
+
+// Elemento colaborativo: o Y.Doc/Hocuspocus já persiste sozinho (ver
+// scheduleAutoSave), então aqui só espelha o conteúdo pra prévia reagir --
+// nunca marca o documento como sujo nem agenda o autosave antigo.
+function onContentLive(json) {
+  if (selectedElement.value) {
+    editorStore.setConteudoAoVivo(selectedElement.value.id, json)
   }
 }
 

@@ -89,6 +89,17 @@ export const useEditorStore = defineStore('editor', {
       if (el) { el.conteudo = html; this.markUserEdit() }
     },
 
+    // Só pra alimentar a prévia em tempo real de um elemento colaborativo (ver
+    // @content-live no WysiwygEditor.vue) -- propositalmente NÃO chama
+    // markUserEdit(). O Y.Doc/Hocuspocus já é quem persiste esse conteúdo; marcar
+    // isDirty aqui disparia o autosave antigo (PATCH /secoes) à toa a cada
+    // tecla digitada, mesmo sabendo que esse payload nem carrega o `conteudo`
+    // de elementos já colaborativos (ver comentário de updateContent acima).
+    setConteudoAoVivo(elementId, json) {
+      const el = this.findElement(elementId)
+      if (el) el.conteudo = json
+    },
+
     async save() {
       const store = useDocumentosStore()
       await store.saveDocumento(this.documento)

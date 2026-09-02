@@ -99,24 +99,60 @@ async function onLoadDocument({ documentName, context }) {
   return prosemirrorJSONToYDoc(schema, json, CAMPO_YJS)
 }
 
+// Avisa os clientes conectados nesta sala do andamento do salvamento -- sem
+// isso, o único sinal que o navegador tem é o ACK do próprio WebSocket (quase
+// instantâneo), bem diferente de quando o conteúdo realmente chega no
+// Postgres (só depois do debounce abaixo). "saving" dispara a cada alteração
+// (própria ou de outra pessoa -- é por isso que roda em onChange, não em
+// onStoreDocument); "saved"/"error" fecham o ciclo quando o debounce
+// finalmente persiste. Ver WysiwygEditor.vue (ouve via provider.on('stateless')).
+function avisarStatus(document, status) {
+  document.broadcastStateless(JSON.stringify({ status }))
+}
+
+// Roda a cada alteração no Y.Doc (própria ou remota), bem antes do debounce
+// de persistência -- é o gatilho do "Salvando…" no frontend.
+async function onChange({ document }) {
+  avisarStatus(document, 'saving')
+}
+
 // Debounced (ver Server.configure abaixo) -- converte o Y.Doc de volta para
 // JSON TipTap e grava só o `conteudo` deste elemento via o endpoint granular
 // da Fase 1 (nunca o PATCH /secoes em massa). Esse mesmo JSON é o que o FOP
 // (geração de PDF), a numeração e o diff de emendas já sabem ler -- nada
 // muda nessas camadas.
+//
+// Nunca deixa o erro escapar daqui: o token capturado em onAuthenticate é o de
+// quando a conexão foi aberta, e o access token expira em 15min (ver
+// JwtService.java) -- uma sessão de edição mais longa que isso faz esse PATCH
+// falhar com 401 de forma esperada, não excepcional. Deixar isso lançar já
+// derrubou o processo Hocuspocus inteiro uma vez (rejection não tratada),
+// tirando a colaboração em tempo real de TODOS os documentos, não só deste
+// elemento -- por isso o catch aqui, em vez de confiar no tratamento interno
+// do Hocuspocus para esse hook.
 async function onStoreDocument({ documentName, document, context }) {
   const { documentoId, elementoId } = parseNomeSala(documentName)
-  const json = yDocToProsemirrorJSON(document, CAMPO_YJS)
 
-  const resposta = await fetch(`${BACKEND_URL}/documentos/${documentoId}/elementos/${elementoId}/conteudo`, {
-    method: 'PATCH',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${context.token}`,
-    },
-    body: JSON.stringify({ conteudo: JSON.stringify(json) }),
-  })
-  if (!resposta.ok) throw new Error(`Falha ao persistir elemento ${elementoId}: HTTP ${resposta.status}`)
+  try {
+    const json = yDocToProsemirrorJSON(document, CAMPO_YJS)
+    const resposta = await fetch(`${BACKEND_URL}/documentos/${documentoId}/elementos/${elementoId}/conteudo`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${context.token}`,
+      },
+      body: JSON.stringify({ conteudo: JSON.stringify(json) }),
+    })
+    if (!resposta.ok) {
+      console.error(`[onStoreDocument] Falha ao persistir elemento ${elementoId}: HTTP ${resposta.status}`)
+      avisarStatus(document, 'error')
+      return
+    }
+    avisarStatus(document, 'saved')
+  } catch (err) {
+    console.error(`[onStoreDocument] Falha ao persistir elemento ${elementoId}:`, err)
+    avisarStatus(document, 'error')
+  }
 }
 
 if (!JWT_SECRET) {
@@ -124,11 +160,23 @@ if (!JWT_SECRET) {
   process.exit(1)
 }
 
+// Rede de segurança: este processo atende TODAS as salas simultaneamente, então
+// um erro não tratado em qualquer lugar (nosso código ou uma dependência)
+// derrubaria a colaboração em tempo real de todo mundo, não só de quem causou o
+// erro -- só loga e segue.
+process.on('unhandledRejection', (err) => {
+  console.error('[unhandledRejection]', err)
+})
+process.on('uncaughtException', (err) => {
+  console.error('[uncaughtException]', err)
+})
+
 Server.configure({
   port: PORT,
   debounce: 2000,
   maxDebounce: 10000,
   onAuthenticate,
   onLoadDocument,
+  onChange,
   onStoreDocument,
 }).listen()

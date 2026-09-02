@@ -120,6 +120,33 @@ import { editorExtensions, editorExtensionsColaborativas } from '@/editor/extens
 import { useAuthStore } from '@/stores/auth.js'
 import { useQuasar } from 'quasar'
 
+// Throttle simples (leading+trailing): a primeira chamada roda na hora, chamadas
+// subsequentes dentro da janela viram uma única execução ao final dela -- garante
+// que o ÚLTIMO estado do editor sempre chega, mesmo que a digitação pare no meio
+// da janela.
+function throttle(fn, ms) {
+  let ultimaExecucao = 0
+  let timer = null
+  let argsPendentes = null
+  function disparar() {
+    ultimaExecucao = Date.now()
+    timer = null
+    fn(...argsPendentes)
+  }
+  const throttled = (...args) => {
+    argsPendentes = args
+    const decorrido = Date.now() - ultimaExecucao
+    if (decorrido >= ms) {
+      if (timer) { clearTimeout(timer); timer = null }
+      disparar()
+    } else if (!timer) {
+      timer = setTimeout(disparar, ms - decorrido)
+    }
+  }
+  throttled.cancel = () => { if (timer) { clearTimeout(timer); timer = null } }
+  return throttled
+}
+
 const props = defineProps({
   modelValue: { type: String, default: '' },
   readonly:   { type: Boolean, default: false },
@@ -139,7 +166,12 @@ const props = defineProps({
 // isso pra alimentar o indicador "Salvo"/"Salvando" no topo, que sem isso nunca mudava
 // pra elementos já colaborativos (o autosave antigo, debounce+PATCH /secoes, não
 // dispara mais pra conteúdo -- ver Fase 6 do plano de colaboração em tempo real).
-const emit = defineEmits(['update:modelValue', 'sync-status'])
+// content-live: só emitido no modo colaborativo -- JSON do editor a cada mudança
+// (própria ou de outra pessoa, throttled), pra alimentar a prévia (DocumentoPreview)
+// em tempo real. update:modelValue continua reservado ao modo local antigo (onde
+// modelValue É a fonte de verdade); no colaborativo essa fonte é o Y.Doc, então
+// content-live é só um espelho pra exibição, nunca volta a escrever no Y.Doc.
+const emit = defineEmits(['update:modelValue', 'sync-status', 'content-live'])
 
 const $q = useQuasar()
 const authStore = useAuthStore()
@@ -173,6 +205,7 @@ const colaborativo = !!(props.documentoId && props.elementoId)
 
 let provider = null
 let editor
+let emitirContentLive = null
 
 if (colaborativo) {
   const collabUrl = import.meta.env.VITE_COLLAB_URL ?? 'ws://127.0.0.1:1234'
@@ -185,17 +218,41 @@ if (colaborativo) {
     token: () => authStore.token,
     onStatus: ({ status }) => {
       // 'connected' | 'connecting' | 'disconnected' (WebSocketStatus do provider) --
-      // só reclassifica pra "saving" se também tiver mudança pendente; senão uma
-      // reconexão rápida piscaria "salvando" à toa.
-      emit('sync-status', status === 'connected' ? (provider.unsyncedChanges > 0 ? 'saving' : 'synced') : 'offline')
+      // só cobre o estado da CONEXÃO; salvo/salvando vem das mensagens stateless
+      // abaixo, que refletem quando o servidor realmente persistiu no Postgres,
+      // não o ACK (quase instantâneo) do próprio WebSocket.
+      if (status === 'connected') emit('sync-status', 'synced')
+      else emit('sync-status', 'offline')
     },
   })
-  // unsyncedChanges: contador de alterações locais no Y.Doc ainda não confirmadas
-  // pelo servidor (ver onStoreDocument em collab/server.js) -- é o equivalente, no
-  // mundo Yjs, do isDirty do autosave antigo.
-  provider.on('unsyncedChanges', (n) => {
-    emit('sync-status', n > 0 ? 'saving' : 'synced')
+  // 'saving' | 'saved' | 'error' -- emitido pelo collab/server.js (avisarStatus em
+  // onChange/onStoreDocument). unsyncedChanges (contador de updates locais ainda
+  // não confirmados pelo WebSocket) NÃO serve pra isso: o ACK do WS é quase
+  // instantâneo, bem antes do debounce (2-10s) que realmente grava no banco --
+  // usá-lo fazia o indicador "Salvando" piscar tão rápido que ficava
+  // imperceptível. A mensagem stateless dispara a cada alteração de QUALQUER
+  // pessoa conectada (onChange roda pro Y.Doc inteiro, não só pro autor local),
+  // então todo mundo na sala vê o mesmo estado de salvamento.
+  provider.on('stateless', ({ payload }) => {
+    try {
+      const { status } = JSON.parse(payload)
+      if (status === 'saving' || status === 'saved' || status === 'error') {
+        emit('sync-status', status === 'saved' ? 'synced' : status)
+      }
+    } catch {
+      // mensagem stateless de outra finalidade (ex.: preview de histórico) -- ignora
+    }
   })
+
+  // Espelha o conteúdo (próprio ou de outra pessoa, já mesclado pelo CRDT) pra
+  // prévia -- sem isso o DocumentoPreview só via o `conteudo` de quando o
+  // elemento foi carregado, porque nada mais escreve em editorStore fora deste
+  // evento (ver comentário de updateContent em stores/editor.js). Throttled:
+  // a prévia refaz a numeração de figuras/artigos inteira a cada chamada, cara
+  // demais pra rodar em todo keystroke.
+  emitirContentLive = throttle(({ editor }) => {
+    emit('content-live', JSON.stringify(editor.getJSON()))
+  }, 400)
 
   editor = useEditor({
     editable: !props.readonly,
@@ -210,6 +267,7 @@ if (colaborativo) {
         },
       }),
     ],
+    onUpdate: emitirContentLive,
   })
 } else {
   editor = useEditor({
@@ -240,6 +298,7 @@ watch(() => props.readonly, (val) => {
 })
 
 onBeforeUnmount(() => {
+  emitirContentLive?.cancel()
   editor.value?.destroy()
   provider?.destroy()
 })
