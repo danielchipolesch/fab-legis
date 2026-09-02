@@ -5,6 +5,7 @@ import br.com.danielchipolesch.application.dtos.documentoDtos.DocumentoRequestCr
 import br.com.danielchipolesch.application.dtos.documentoDtos.DocumentoRequestUpdateDto;
 import br.com.danielchipolesch.application.dtos.documentoDtos.DocumentoResponseComAnexoTextualDto;
 import br.com.danielchipolesch.application.dtos.documentoDtos.DocumentoResponseSemAnexoTextualDto;
+import br.com.danielchipolesch.application.dtos.documentoDtos.DocumentoResumoResponseDto;
 import br.com.danielchipolesch.application.dtos.documentoDtos.DocumentoStatusRequestDto;
 import br.com.danielchipolesch.application.dtos.documentoDtos.PortariaPdfResponseDto;
 import br.com.danielchipolesch.application.dtos.documentoDtos.PortariaPublicacaoResponseDto;
@@ -18,6 +19,9 @@ import br.com.danielchipolesch.application.dtos.itemAnexoParteNormativaDtos.Seco
 import br.com.danielchipolesch.application.dtos.usuarioDtos.CompartilharDocumentoRequestDto;
 import br.com.danielchipolesch.application.dtos.usuarioDtos.CompartilhamentoResponseDto;
 import br.com.danielchipolesch.domain.entities.auditoria.AcaoAuditoriaEnum;
+import br.com.danielchipolesch.domain.entities.estruturaDocumento.Documento;
+import br.com.danielchipolesch.domain.entities.estruturaDocumento.DocumentoStatusEnum;
+import br.com.danielchipolesch.domain.entities.usuario.Usuario;
 import br.com.danielchipolesch.domain.mappers.DocumentoMapper;
 import br.com.danielchipolesch.domain.services.DocumentoCompartilhamentoService;
 import br.com.danielchipolesch.domain.services.DocumentoHistoricoService;
@@ -31,9 +35,11 @@ import br.com.danielchipolesch.domain.services.ImagemService;
 import br.com.danielchipolesch.domain.services.LogAuditoriaService;
 import br.com.danielchipolesch.domain.services.MapaAlteracaoPdfService;
 import br.com.danielchipolesch.domain.services.PortariaPublicacaoService;
+import br.com.danielchipolesch.infrastructure.security.UsuarioPrincipal;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -43,6 +49,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
@@ -144,18 +151,43 @@ public class DocumentoController {
         return ResponseEntity.ok(models);
     }
 
+    // Paginação de verdade: até aqui, o frontend chamava isso uma vez com size=200 e
+    // filtrava/paginava tudo no navegador (HomePage.vue) -- acima de 200 documentos no
+    // acervo, o resto simplesmente nunca aparecia. Devolve Page<T> direto (sem
+    // EntityModel por item, igual a AuditoriaController.filtrar) -- o frontend nunca leu
+    // _links dos itens da listagem, só os campos planos do DTO, que o Jackson já
+    // serializava assim mesmo dentro de EntityModel.
     @GetMapping("/obter-todos")
-    public ResponseEntity<List<EntityModel<DocumentoResponseSemAnexoTextualDto>>> getAll(
+    public ResponseEntity<Page<DocumentoResponseSemAnexoTextualDto>> getAll(
+            @RequestParam(required = false) String aba,
+            @RequestParam(required = false) String busca,
+            @RequestParam(required = false) String especieSigla,
+            @RequestParam(required = false) DocumentoStatusEnum status,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size,
-            @RequestParam(defaultValue = "id") String sortBy) throws RuntimeException {
-        Pageable pageable = PageRequest.of(page, size, Sort.by(sortBy));
-        List<EntityModel<DocumentoResponseSemAnexoTextualDto>> models = documentoService
-                .getAll(pageable).stream()
-                .map(DocumentoMapper::documentoToDocumentoSemAnexoTextualResponseDto)
-                .map(this::toModel)
-                .toList();
-        return ResponseEntity.ok(models);
+            @RequestParam(defaultValue = "15") int size,
+            @RequestParam(defaultValue = "dtCriacao") String sortBy,
+            @RequestParam(defaultValue = "true") boolean descending,
+            Authentication authentication) throws RuntimeException {
+        Usuario usuario = ((UsuarioPrincipal) authentication.getPrincipal()).getUsuario();
+        Sort sort = descending ? Sort.by(sortBy).descending() : Sort.by(sortBy).ascending();
+        Page<Documento> resultado = documentoService.getAllPaginado(
+                usuario.getId(), usuario.getOm().getId(), aba, busca, especieSigla, status,
+                PageRequest.of(page, size, sort));
+        return ResponseEntity.ok(resultado.map(DocumentoMapper::documentoToDocumentoSemAnexoTextualResponseDto));
+    }
+
+    // Contagens pros badges das 4 abas e pros chips de situação da HomePage -- ver
+    // DocumentoService.getResumo. Mesmos filtros de busca/espécie do getAll acima, pra
+    // ficar em sincronia com o que a listagem principal está mostrando no momento.
+    @GetMapping("/resumo")
+    public ResponseEntity<DocumentoResumoResponseDto> resumo(
+            @RequestParam(required = false) String aba,
+            @RequestParam(required = false) String busca,
+            @RequestParam(required = false) String especieSigla,
+            Authentication authentication) {
+        Usuario usuario = ((UsuarioPrincipal) authentication.getPrincipal()).getUsuario();
+        return ResponseEntity.ok(documentoService.getResumo(
+                usuario.getId(), usuario.getOm().getId(), aba, busca, especieSigla));
     }
 
     @PreAuthorize("@documentoAcessoService.podeMudarStatus(#id, #request.status, authentication)")

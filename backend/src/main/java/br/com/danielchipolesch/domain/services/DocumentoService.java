@@ -3,6 +3,7 @@ package br.com.danielchipolesch.domain.services;
 import br.com.danielchipolesch.application.dtos.documentoDtos.DocumentoRequestCreateDto;
 import br.com.danielchipolesch.application.dtos.documentoDtos.DocumentoRequestUpdateDto;
 import br.com.danielchipolesch.application.dtos.documentoDtos.DocumentoResponseSemAnexoTextualDto;
+import br.com.danielchipolesch.application.dtos.documentoDtos.DocumentoResumoResponseDto;
 import br.com.danielchipolesch.domain.builders.DocumentoBuilder;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.Documento;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.DocumentoStatusEnum;
@@ -32,10 +33,13 @@ import br.com.danielchipolesch.infrastructure.repositories.ItemPartePreliminarRe
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 
 @Service
@@ -109,13 +113,44 @@ public class DocumentoService {
         return documents.stream().map(DocumentoMapper::documentoToDocumentoSemAnexoTextualResponseDto).toList();
     }
 
-    public List<Documento> getAll(Pageable pageable) throws RuntimeException {
-        try{
-            Page<Documento> documents = documentoRepository.findAll(pageable);
-            return documents.stream().toList();
-        } catch (Exception e) {
-            throw new ResourceNotFoundException(DocumentoException.NOT_FOUND.getMessage());
+    // Substitui o antigo getAll(Pageable) (que descartava a metadados de paginação,
+    // devolvendo só List<Documento> -- olho no findAll(pageable) só pra bater com a
+    // assinatura, sem nunca expor totalElements pro frontend). Agora devolve o Page
+    // inteiro, e aceita os mesmos filtros que a HomePage já mostrava (mas calculava
+    // no navegador, sobre um array carregado uma vez) -- ver DocumentoSpecifications.
+    public Page<Documento> getAllPaginado(Long usuarioId, Long omId, String aba, String busca,
+                                           String especieSigla, DocumentoStatusEnum status,
+                                           Pageable pageable) {
+        Specification<Documento> spec = DocumentoSpecifications.aba(aba, usuarioId, omId)
+                .and(DocumentoSpecifications.busca(busca))
+                .and(DocumentoSpecifications.especieSigla(especieSigla))
+                .and(DocumentoSpecifications.status(status));
+        return documentoRepository.findAll(spec, pageable);
+    }
+
+    // Contagens pros badges das 4 abas (porAba -- ignora busca/espécie/status de
+    // propósito, é uma referência estável que não muda enquanto o usuário filtra, mesmo
+    // comportamento de contagemAbas em HomePage.vue) e pros chips de situação da aba
+    // ativa (porStatus, com aba/busca/espécie aplicados, um count() por valor de
+    // DocumentoStatusEnum -- mesmo comportamento de statusSummary). Um
+    // Specification.count() por número, sem GROUP BY: mantém tudo dentro do que
+    // JpaSpecificationExecutor já oferece, sem query nativa.
+    public DocumentoResumoResponseDto getResumo(Long usuarioId, Long omId, String aba, String busca, String especieSigla) {
+        Map<String, Long> porAba = new LinkedHashMap<>();
+        for (String nomeAba : List.of("meus", "minha_om", "outras_oms", "revogados")) {
+            porAba.put(nomeAba, documentoRepository.count(DocumentoSpecifications.aba(nomeAba, usuarioId, omId)));
         }
+
+        Specification<Documento> comAbaBuscaEEspecie = DocumentoSpecifications.aba(aba, usuarioId, omId)
+                .and(DocumentoSpecifications.busca(busca))
+                .and(DocumentoSpecifications.especieSigla(especieSigla));
+        Map<String, Long> porStatus = new LinkedHashMap<>();
+        for (DocumentoStatusEnum statusEnum : DocumentoStatusEnum.values()) {
+            long total = documentoRepository.count(comAbaBuscaEEspecie.and(DocumentoSpecifications.status(statusEnum)));
+            if (total > 0) porStatus.put(statusEnum.name(), total);
+        }
+
+        return new DocumentoResumoResponseDto(porAba, porStatus);
     }
 
     @Transactional
