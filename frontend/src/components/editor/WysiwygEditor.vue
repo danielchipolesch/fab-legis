@@ -133,7 +133,13 @@ const props = defineProps({
   elementoId:  { type: [String, Number], default: null },
 })
 
-const emit = defineEmits(['update:modelValue'])
+// sync-status: só emitido no modo colaborativo -- reflete se o Y.Doc deste elemento
+// tem alterações locais ainda não confirmadas pelo servidor (`saving`), já
+// confirmadas (`synced`) ou se a conexão caiu (`offline`). DocumentoEditorPage.vue usa
+// isso pra alimentar o indicador "Salvo"/"Salvando" no topo, que sem isso nunca mudava
+// pra elementos já colaborativos (o autosave antigo, debounce+PATCH /secoes, não
+// dispara mais pra conteúdo -- ver Fase 6 do plano de colaboração em tempo real).
+const emit = defineEmits(['update:modelValue', 'sync-status'])
 
 const $q = useQuasar()
 const authStore = useAuthStore()
@@ -177,6 +183,18 @@ if (colaborativo) {
     // tenta de novo sozinho), pega o token MAIS RECENTE da store -- importante porque
     // o access token expira em 15min e é renovado via refresh em client.js.
     token: () => authStore.token,
+    onStatus: ({ status }) => {
+      // 'connected' | 'connecting' | 'disconnected' (WebSocketStatus do provider) --
+      // só reclassifica pra "saving" se também tiver mudança pendente; senão uma
+      // reconexão rápida piscaria "salvando" à toa.
+      emit('sync-status', status === 'connected' ? (provider.unsyncedChanges > 0 ? 'saving' : 'synced') : 'offline')
+    },
+  })
+  // unsyncedChanges: contador de alterações locais no Y.Doc ainda não confirmadas
+  // pelo servidor (ver onStoreDocument em collab/server.js) -- é o equivalente, no
+  // mundo Yjs, do isDirty do autosave antigo.
+  provider.on('unsyncedChanges', (n) => {
+    emit('sync-status', n > 0 ? 'saving' : 'synced')
   })
 
   editor = useEditor({
@@ -307,5 +325,36 @@ async function onFileSelected(event) {
 }
 .tiptap-editor .ProseMirror-focused {
   outline: none;
+}
+
+/* Cursor de colaboração (CollaborationCursor) -- badge colado acima do cursor da outra
+   pessoa, igual Google Docs. Sem isso, a extensão ainda funciona (os spans são
+   inseridos), mas ficam sem posição/estilo nenhum -- é só CSS, a extensão não traz o
+   dela própria de propósito (para cada app estilizar do seu jeito). Cor vem inline via
+   style (definida pela extensão a partir de CollaborationCursor.configure({ user })),
+   aqui só a forma/posição. */
+.tiptap-editor .collaboration-cursor__caret {
+  position: relative;
+  margin-left: -1px;
+  margin-right: -1px;
+  border-left: 1px solid;
+  border-right: 1px solid;
+  word-break: normal;
+  pointer-events: none;
+}
+.tiptap-editor .collaboration-cursor__label {
+  position: absolute;
+  top: -1.4em;
+  left: -1px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: normal;
+  color: #fff;
+  padding: 1px 6px;
+  border-radius: 4px 4px 4px 0;
+  white-space: nowrap;
+  user-select: none;
+  pointer-events: none;
+  z-index: 20;
 }
 </style>

@@ -66,15 +66,22 @@
           <q-breadcrumbs-el v-if="selectedElement" :label="selectedElementLabel" />
         </q-breadcrumbs>
 
-        <!-- Indicador de salvamento -->
+        <!-- Indicador de salvamento -- ver indicadorEfetivo: no elemento selecionado ser
+             colaborativo, reflete o Y.Doc (colabSyncStatus, via WysiwygEditor), não o
+             saveStatus do autosave antigo (que não dispara mais pra conteúdo já
+             colaborativo -- Fase 6 do plano de colaboração em tempo real). -->
         <div class="save-indicator" :class="saveIndicatorClass">
-          <template v-if="saveStatus === 'saving'">
+          <template v-if="indicadorEfetivo === 'saving'">
             <q-circular-progress indeterminate size="13px" :thickness="0.35" />
             <span>Salvando…</span>
           </template>
-          <template v-else-if="saveStatus === 'error'">
+          <template v-else-if="indicadorEfetivo === 'error'">
             <q-icon size="15px" name="mdi-alert-circle-outline" />
             <span>Não salvo</span>
+          </template>
+          <template v-else-if="indicadorEfetivo === 'offline'">
+            <q-icon size="15px" name="mdi-wifi-off" />
+            <span>Sem conexão</span>
           </template>
           <template v-else>
             <q-icon size="15px" name="mdi-check-circle-outline" />
@@ -208,6 +215,7 @@
               :documento-id="documentoId"
               :elemento-id="elementoIdColaborativo"
               @update:model-value="onContentUpdate"
+              @sync-status="v => colabSyncStatus = v"
             />
 
             <!-- Add child element shortcuts -->
@@ -402,9 +410,21 @@ onUnmounted(() => {
 })
 // ─────────────────────────────────────────────────────────────────────────────
 
+// Estado de sincronização do elemento colaborativo atual (Y.Doc via Hocuspocus) --
+// 'saving' | 'synced' | 'offline', emitido pelo WysiwygEditor (ver @sync-status no
+// template). Só existe enquanto o elemento selecionado tiver sala Yjs; sem isso, o
+// indicador do topo nunca refletiria a digitação em conteúdo já colaborativo, porque
+// o autosave antigo (saveStatus abaixo) não dispara mais pra esse caso -- Fase 6.
+const colabSyncStatus = ref('synced')
+
+// O que o indicador do topo realmente mostra: o estado do Y.Doc quando o elemento
+// selecionado é colaborativo, senão o autosave clássico (estrutura/título, ou
+// conteúdo de um elemento ainda sem sala -- ver elementoIdColaborativo).
+const indicadorEfetivo = computed(() => elementoIdColaborativo.value ? colabSyncStatus.value : saveStatus.value)
+
 const saveIndicatorClass = computed(() => {
-  if (saveStatus.value === 'saving') return 'save-indicator--saving'
-  if (saveStatus.value === 'error')  return 'save-indicator--dirty'
+  if (indicadorEfetivo.value === 'saving') return 'save-indicator--saving'
+  if (indicadorEfetivo.value === 'error' || indicadorEfetivo.value === 'offline') return 'save-indicator--dirty'
   return 'save-indicator--saved'
 })
 
