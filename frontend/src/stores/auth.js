@@ -36,8 +36,12 @@ export const useAuthStore = defineStore('auth', {
 
   getters: {
     isAuthenticated: (state) => !!state.token,
+    // ADMIN é puramente administrativo (usuários/OMs) -- não implica EDIT/APROV/PUBLIC
+    // nenhum, ver PapelEnum no backend.
     isAdmin: (state) => state.usuario?.papeis?.includes('ADMIN') ?? false,
-    isAprovador: (state) => state.usuario?.papeis?.includes('APROVADOR') ?? false,
+    isEditor: (state) => state.usuario?.papeis?.includes('EDIT') ?? false,
+    isAprovador: (state) => state.usuario?.papeis?.includes('APROV') ?? false,
+    isPublicador: (state) => state.usuario?.papeis?.includes('PUBLIC') ?? false,
     // Espelha o backend (hasRole('AUDITOR') -- ver AuditoriaController): papel
     // independente de ADMIN, precisa estar marcado no próprio cadastro.
     isAuditor: (state) => state.usuario?.papeis?.includes('AUDITOR') ?? false,
@@ -113,7 +117,7 @@ export const useAuthStore = defineStore('auth', {
         postoGraduacaoBigrama: dados.postoGraduacaoBigrama ?? null,
         omId: dados.omId ?? this.usuario.omId,
         omNome: dados.omNome ?? this.usuario.omNome,
-        papeis: dados.papeis ? Array.from(new Set(['REDATOR', ...dados.papeis])) : this.usuario.papeis,
+        papeis: dados.papeis ?? this.usuario.papeis,
       }
       const salvo = lerArmazenado()
       if (salvo) {

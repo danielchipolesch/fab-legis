@@ -10,6 +10,7 @@
         </p>
       </div>
       <q-btn
+        v-if="auth.isEditor"
         color="primary"
         unelevated
         size="lg"
@@ -441,189 +442,40 @@
       </q-card>
     </q-dialog>
 
-    <!-- Confirm status change dialog -->
+    <!-- Confirm status change dialog -- só para transições sem escolha de pessoa
+         (Enviar para Minuta, Iniciar Alteração). Enviar para Revisão/Revogação abre
+         SelecionarPessoaDialog abaixo; publicar/revogar de fato (com portaria/BCA)
+         mudou para PublicacaoPage.vue, que é quem tem a atribuição pra isso. -->
     <q-dialog v-model="dialog.status" :persistent="alterandoStatus">
-      <q-card :style="dialog.statusOpt?.requiresRefs ? 'min-width:420px;max-width:760px;width:100%' : 'min-width:420px;max-width:500px;width:100%'">
+      <q-card style="min-width:420px;max-width:500px;width:100%">
         <q-card-section class="text-h6">{{ dialog.statusOpt?.label }}?</q-card-section>
         <q-card-section class="q-pt-none">
           O documento
           <strong>{{ dialog.target?.especie }} {{ dialog.target?.numero_basico }}<template v-if="dialog.target?.numero_secundario">-{{ dialog.target?.numero_secundario }}</template></strong>
           terá sua situação alterada para <strong>{{ dialog.statusOpt?.status }}</strong>.
         </q-card-section>
-        <!-- Campos obrigatórios para republicação após alteração -->
-        <template v-if="dialog.statusOpt?.requiresRefs">
-          <q-separator />
-          <q-card-section class="q-pt-md q-pb-sm column q-gutter-y-md">
-            <div class="text-caption text-grey-7">
-              {{ dialog.statusOpt?.isRevogacao
-                ? 'Informe os dados da Portaria e do BCA que revogam este documento:'
-                : 'Informe os dados da Portaria e do BCA que registram esta alteração:' }}
-            </div>
-            <div class="row q-col-gutter-md">
-              <q-input
-                v-model="dialog.orgaoPortaria"
-                label="Órgão *"
-                outlined dense class="col-3"
-                placeholder="Ex: DIRAD"
-                lazy-rules
-                :rules="[v => !!v?.trim() || 'Informe o órgão']"
-                :disable="alterandoStatus"
-              />
-              <q-input
-                v-model="dialog.setorPortaria"
-                label="Setor(es) *"
-                outlined dense class="col-3"
-                placeholder="Ex: PP6"
-                lazy-rules
-                :rules="[v => !!v?.trim() || 'Informe o setor']"
-                :disable="alterandoStatus"
-              />
-              <q-input
-                v-model="dialog.numeroPortaria"
-                label="Número *"
-                outlined dense class="col-2"
-                placeholder="Ex: 1.731"
-                lazy-rules
-                :rules="[v => !!v?.trim() || 'Obrigatório']"
-                :disable="alterandoStatus"
-              />
-              <q-input
-                v-model="dialog.dataPortaria"
-                type="date"
-                label="Data *"
-                outlined dense class="col-4"
-                lazy-rules
-                :rules="[
-                  v => !!v || 'Informe a data',
-                  v => !dialog.target?.data_portaria_referencia || v >= dialog.target.data_portaria_referencia
-                    || 'Anterior à alteração anterior',
-                ]"
-                :disable="alterandoStatus"
-              />
-            </div>
-            <div class="row q-col-gutter-md">
-              <q-input
-                v-model="dialog.numeroBca"
-                type="number" min="1" max="366"
-                label="Número do BCA *"
-                outlined dense class="col-4"
-                lazy-rules
-                :rules="[
-                  v => (v !== '' && v !== null && v !== undefined) || 'Informe o número',
-                  v => (v >= 1 && v <= 366) || 'Deve estar entre 1 e 366',
-                ]"
-                :disable="alterandoStatus"
-              />
-              <q-input
-                v-model="dialog.dataBca"
-                type="date"
-                label="Data *"
-                outlined dense class="col-4"
-                lazy-rules
-                :rules="[
-                  v => !!v || 'Informe a data',
-                  v => !dialog.target?.data_bca_referencia || v >= dialog.target.data_bca_referencia
-                    || 'Anterior à alteração anterior',
-                ]"
-                :disable="alterandoStatus"
-              />
-            </div>
-            <template v-if="dialog.statusOpt?.isRepublicacao">
-              <q-separator />
-              <div class="text-caption text-grey-7">Prévia da cláusula:</div>
-              <div class="text-body2 text-italic">{{ previewClausula }}</div>
-            </template>
-
-            <!-- Parte preliminar do documento -- só existe de fato a partir da
-                 publicação, então é coletada aqui, não durante a edição. Não se
-                 aplica à revogação, que não republica o conteúdo do documento. -->
-            <template v-if="!dialog.statusOpt?.isRevogacao">
-              <q-separator />
-              <div class="text-caption text-grey-7">
-                Parte preliminar do documento publicado:
-              </div>
-              <q-input
-                v-model="dialog.epigrafe"
-                label="Epígrafe *"
-                outlined dense
-                placeholder="Ex: Portaria DIRAD/PP6 n° 1.731, de 24 de agosto de 2026"
-                lazy-rules
-                :rules="[v => !!v?.trim() || 'Informe a epígrafe']"
-                :disable="alterandoStatus"
-              />
-              <q-input
-                v-model="dialog.ementa"
-                type="textarea" autogrow
-                label="Ementa *"
-                outlined dense
-                lazy-rules
-                :rules="[v => !!v?.trim() || 'Informe a ementa']"
-                :disable="alterandoStatus"
-              />
-              <q-input
-                v-model="dialog.preambulo"
-                type="textarea" autogrow
-                label="Preâmbulo *"
-                outlined dense
-                lazy-rules
-                :rules="[v => !!v?.trim() || 'Informe o preâmbulo']"
-                :disable="alterandoStatus"
-              />
-              <q-input
-                v-model="dialog.fecho"
-                type="textarea" autogrow
-                label="Fecho *"
-                outlined dense
-                lazy-rules
-                :rules="[v => !!v?.trim() || 'Informe o fecho']"
-                :disable="alterandoStatus"
-              />
-              <q-input
-                v-model="dialog.assinatura"
-                type="textarea" autogrow
-                label="Assinatura *"
-                outlined dense
-                lazy-rules
-                :rules="[v => !!v?.trim() || 'Informe a assinatura']"
-                :disable="alterandoStatus"
-              />
-            </template>
-
-            <q-separator />
-            <div class="text-caption text-grey-7">
-              PDF da portaria *
-            </div>
-            <q-uploader
-              ref="portariaUploaderRef"
-              :url="portariaUploadUrl"
-              :headers="portariaUploadHeaders"
-              field-name="arquivo"
-              label="Portaria (PDF)"
-              accept="application/pdf"
-              :multiple="false"
-              :max-files="1"
-              auto-upload
-              :disable="alterandoStatus"
-              flat bordered
-              style="max-height:200px;width:100%"
-              @uploading="portariaUploadando = true"
-              @uploaded="onPortariaPdfUploaded"
-              @failed="onPortariaPdfFailed"
-              @removed="dialog.portariaPdfUrl = ''"
-            />
-          </q-card-section>
-        </template>
         <q-card-actions align="right" class="q-pb-md q-px-md">
           <q-btn flat label="Cancelar" :disable="alterandoStatus" v-close-popup />
           <q-btn
             unelevated color="primary" label="Confirmar"
             :loading="alterandoStatus"
-            :disable="dialog.statusOpt?.requiresRefs && (errosRefs.length > 0 || portariaUploadando)"
             @click="executarMudancaStatus"
           />
         </q-card-actions>
       </q-card>
     </q-dialog>
+
+    <!-- Enviar para revisão/revogação: exige escolher a pessoa (papel APROV) --
+         ver SelecionarPessoaDialog.vue. -->
+    <SelecionarPessoaDialog
+      v-model="dialog.pessoa"
+      papel="APROV"
+      :titulo="dialog.statusOpt?.label ?? ''"
+      :descricao="dialog.target ? `Documento ${dialog.target.especie} ${dialog.target.numero_basico}${dialog.target.numero_secundario ? '-' + dialog.target.numero_secundario : ''}` : ''"
+      acao-label="Enviar"
+      :enviando="alterandoStatus"
+      @confirmar="executarEnvioPessoa"
+    />
 
     <!-- Confirm clone dialog -->
     <q-dialog v-model="dialog.clone">
@@ -647,12 +499,12 @@
 <script setup>
 import { ref, computed, reactive, onMounted, watch } from 'vue'
 import { useQuasar } from 'quasar'
-import { useDocumentosStore, jDoc, jPara, jText } from '@/stores/documentos.js'
+import { useDocumentosStore } from '@/stores/documentos.js'
 import { useAuthStore } from '@/stores/auth.js'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import NovoDocumentoDialog from '@/components/common/NovoDocumentoDialog.vue'
+import SelecionarPessoaDialog from '@/components/editor/SelecionarPessoaDialog.vue'
 import { gerarPdf } from '@/services/pdfService.js'
-import { BASE_URL } from '@/api/client.js'
 
 const $q = useQuasar()
 const store = useDocumentosStore()
@@ -665,7 +517,10 @@ const filtros = reactive({ busca: '', especie: null, status: null })
 const pdfLoading = reactive({})
 
 const especies = ['ICA', 'NSCA', 'Portaria', 'Resolução', 'Decreto', 'Aviso']
-const statusOptions = ['RASCUNHO', 'MINUTA', 'APROVADO', 'PUBLICADO', 'EM_ALTERACAO', 'ALTERADO', 'ARQUIVADO', 'CANCELADO', 'REVOGADO']
+const statusOptions = [
+  'RASCUNHO', 'MINUTA', 'EM_REVISAO', 'APROVADO', 'EM_PUBLICACAO', 'PUBLICADO',
+  'EM_ALTERACAO', 'ALTERADO', 'ANALISE_REVOGACAO', 'EM_REVOGACAO', 'CANCELADO', 'REVOGADO',
+]
 
 const columns = [
   { name: 'especie',        label: 'Espécie',        field: 'especie',        align: 'center', sortable: true,  style: 'width: 100px' },
@@ -758,15 +613,18 @@ watch([abaAtiva, () => filtros.especie, () => filtros.status], () => {
 onMounted(() => carregar())
 
 const STATUS_CFG = {
-  RASCUNHO:     { bg: 'grey-3',        fg: 'grey-9',          label: 'Rascunho'     },
-  MINUTA:       { bg: 'orange-2',      fg: 'orange-10',       label: 'Minuta'       },
-  APROVADO:     { bg: 'green-2',       fg: 'green-10',        label: 'Aprovado'     },
-  PUBLICADO:    { bg: 'blue-2',        fg: 'primary',         label: 'Publicado'    },
-  EM_ALTERACAO: { bg: 'deep-orange-2', fg: 'deep-orange-10',  label: 'Em Alteração' },
-  ALTERADO:     { bg: 'teal-2',        fg: 'teal-10',         label: 'Alterado'     },
-  ARQUIVADO:    { bg: 'blue-grey-2',   fg: 'blue-grey-10',    label: 'Arquivado'    },
-  CANCELADO:    { bg: 'red-2',         fg: 'red-10',          label: 'Cancelado'    },
-  REVOGADO:     { bg: 'brown-2',       fg: 'brown-10',        label: 'Revogado'     },
+  RASCUNHO:          { bg: 'grey-3',        fg: 'grey-9',         label: 'Rascunho'             },
+  MINUTA:            { bg: 'orange-2',      fg: 'orange-10',      label: 'Minuta'                },
+  EM_REVISAO:        { bg: 'orange-2',      fg: 'orange-10',      label: 'Em Revisão'            },
+  APROVADO:          { bg: 'green-2',       fg: 'green-10',       label: 'Aprovado'              },
+  EM_PUBLICACAO:     { bg: 'blue-2',        fg: 'primary',        label: 'Em Publicação'         },
+  PUBLICADO:         { bg: 'blue-2',        fg: 'primary',        label: 'Publicado'             },
+  EM_ALTERACAO:      { bg: 'deep-orange-2', fg: 'deep-orange-10', label: 'Em Alteração'          },
+  ALTERADO:          { bg: 'teal-2',        fg: 'teal-10',        label: 'Alterado'              },
+  ANALISE_REVOGACAO: { bg: 'brown-2',       fg: 'brown-10',       label: 'Análise de Revogação'  },
+  EM_REVOGACAO:      { bg: 'brown-2',       fg: 'brown-10',       label: 'Em Revogação'          },
+  CANCELADO:         { bg: 'red-2',         fg: 'red-10',         label: 'Cancelado'             },
+  REVOGADO:          { bg: 'brown-2',       fg: 'brown-10',       label: 'Revogado'              },
 }
 
 // store.resumoStatus já vem do servidor com aba/busca/espécie aplicados (ver
@@ -783,6 +641,7 @@ const statusSummary = computed(() =>
 )
 
 function canEdit(doc) {
+  if (doc.status === 'EM_REVISAO') return doc.revisor_atribuido_id === String(auth.usuario?.id)
   return ['RASCUNHO', 'MINUTA', 'EM_ALTERACAO'].includes(doc.status)
 }
 
@@ -796,26 +655,27 @@ function docRoute(doc) {
     : { name: 'documento-visualizar', params: { id: doc.id } }
 }
 
+// Só as ações que o Editor conduz sozinho (sem escolher pessoa) ou a única
+// exceção sem atribuição prévia (Iniciar Alteração, papel APROV da própria OM --
+// ver DocumentoAcessoService.podeMudarStatus). Revisar/aprovar/publicar/revogar
+// de fato viraram telas dedicadas (RevisaoPage.vue/PublicacaoPage.vue), cada
+// uma restrita a quem tem a atribuição pessoal daquela etapa -- por isso não
+// aparecem mais aqui.
 function statusActions(doc) {
-  // ALTERADO é um status distinto de APROVADO — nunca reaproveitá-lo aqui. Um
-  // documento pós-alteração jamais deve poder "Retornar p/ Minuta": ele carrega
-  // numeração com sufixo de letra e elementos INCLUIDO/ALTERADO/REVOGADO que a
-  // renumeração simples de MINUTA não entende e corromperia.
   const transitions = {
-    RASCUNHO:     [{ status: 'MINUTA',        label: 'Enviar para Minuta',   icon: 'mdi-file-edit-outline' }],
-    MINUTA:       [{ status: 'APROVADO',      label: 'Aprovar',              icon: 'mdi-check-circle-outline' },
-                   { status: 'RASCUNHO',      label: 'Retornar p/ Rascunho', icon: 'mdi-undo' }],
-    APROVADO:     [{ status: 'PUBLICADO',     label: 'Publicar',             icon: 'mdi-publish', requiresRefs: true },
-                   { status: 'MINUTA',        label: 'Retornar p/ Minuta',   icon: 'mdi-undo' }],
-    PUBLICADO:    [{ status: 'EM_ALTERACAO',  label: 'Iniciar Alteração',    icon: 'mdi-pencil-lock-outline' },
-                   { status: 'ARQUIVADO',     label: 'Arquivar',             icon: 'mdi-archive-outline' },
-                   { status: 'REVOGADO',      label: 'Revogar',             icon: 'mdi-file-remove-outline', requiresRefs: true, isRevogacao: true }],
-    EM_ALTERACAO: [{ status: 'ALTERADO', label: 'Aprovar Alteração', icon: 'mdi-check-circle-outline' }],
-    ALTERADO:     [{ status: 'PUBLICADO',    label: 'Republicar',           icon: 'mdi-publish', requiresRefs: true, isRepublicacao: true },
-                   { status: 'EM_ALTERACAO', label: 'Retornar p/ Alteração', icon: 'mdi-undo' }],
-    ARQUIVADO: [],
-    CANCELADO: [],
-    REVOGADO:  [],
+    RASCUNHO: auth.isEditor
+      ? [{ status: 'MINUTA', label: 'Enviar para Minuta', icon: 'mdi-file-edit-outline' }]
+      : [],
+    MINUTA: auth.isEditor
+      ? [{ status: 'EM_REVISAO', label: 'Enviar para Revisão', icon: 'mdi-account-arrow-right-outline', escolherPessoa: true }]
+      : [],
+    EM_ALTERACAO: auth.isEditor
+      ? [{ status: 'EM_REVISAO', label: 'Enviar Alteração para Revisão', icon: 'mdi-account-arrow-right-outline', escolherPessoa: true }]
+      : [],
+    PUBLICADO: [
+      ...(auth.isAprovador ? [{ status: 'EM_ALTERACAO', label: 'Iniciar Alteração', icon: 'mdi-pencil-lock-outline' }] : []),
+      ...(auth.isEditor ? [{ status: 'ANALISE_REVOGACAO', label: 'Enviar para Revogação', icon: 'mdi-file-remove-outline', escolherPessoa: true }] : []),
+    ],
   }
   return transitions[doc.status] ?? []
 }
@@ -823,7 +683,11 @@ function statusActions(doc) {
 function confirmarMudancaStatus(doc, opt) {
   dialog.target = doc
   dialog.statusOpt = opt
-  dialog.status = true
+  if (opt.escolherPessoa) {
+    dialog.pessoa = true
+  } else {
+    dialog.status = true
+  }
 }
 
 const alterandoStatus = ref(false)
@@ -833,53 +697,51 @@ async function executarMudancaStatus() {
   // chegaria depois da primeira já ter mudado o status no banco e seria rejeitada
   // (403), mesmo com a primeira tendo funcionado normalmente.
   if (alterandoStatus.value) return
-  if (dialog.statusOpt?.requiresRefs && errosRefs.value.length) return
   const alvo = dialog.target
   const opt  = dialog.statusOpt
-  const refs = opt?.requiresRefs ? {
-    orgaoPortaria:  dialog.orgaoPortaria.trim(),
-    setorPortaria:  dialog.setorPortaria.trim(),
-    numeroPortaria: dialog.numeroPortaria.trim(),
-    dataPortaria:   dialog.dataPortaria,
-    numeroBca:      parseInt(dialog.numeroBca, 10),
-    dataBca:        dialog.dataBca,
-    epigrafe:       jDoc(jPara(jText(dialog.epigrafe.trim()))),
-    ementa:         jDoc(jPara(jText(dialog.ementa.trim()))),
-    preambulo:      jDoc(jPara(jText(dialog.preambulo.trim()))),
-    fecho:          jDoc(jPara(jText(dialog.fecho.trim()))),
-    assinatura:     jDoc(jPara(jText(dialog.assinatura.trim()))),
-    portariaPdfUrl: dialog.portariaPdfUrl,
-  } : undefined
   if (!alvo || !opt) return
 
   alterandoStatus.value = true
   try {
-    await store.changeStatus(alvo.id, opt.status, refs)
-    // Mudar a situação afeta as contagens das abas/chips (ex.: revogar tira o
-    // documento do total normal e o soma em "Revogados") -- store.changeStatus já
-    // atualiza a linha em si, mas resumo/total só refletem isso com um recarregamento.
-    await carregar()
-    dialog.status = false
-    dialog.target = null
-    dialog.statusOpt = null
-    dialog.orgaoPortaria = ''
-    dialog.setorPortaria = ''
-    dialog.numeroPortaria = ''
-    dialog.dataPortaria = ''
-    dialog.numeroBca = ''
-    dialog.dataBca = ''
-    dialog.epigrafe = ''
-    dialog.ementa = ''
-    dialog.preambulo = ''
-    dialog.fecho = ''
-    dialog.assinatura = ''
-    dialog.portariaPdfUrl = ''
-    portariaUploaderRef.value?.reset()
+    await store.changeStatus(alvo.id, opt.status)
+    await fecharDialogStatus()
   } catch (e) {
     $q.notify({ type: 'negative', message: `Erro ao mudar situação: ${e?.message ?? 'erro desconhecido'}` })
   } finally {
     alterandoStatus.value = false
   }
+}
+
+// Enviar para revisão/revogação -- mesma mudança de status acima, só que com a
+// pessoa escolhida no SelecionarPessoaDialog (sempre revisorId aqui: as duas
+// transições que passam por esse diálogo, EM_REVISAO e ANALISE_REVOGACAO, são de
+// atribuir um revisor -- ver DocumentoStatusRequestDto).
+async function executarEnvioPessoa(usuarioId) {
+  if (alterandoStatus.value) return
+  const alvo = dialog.target
+  const opt  = dialog.statusOpt
+  if (!alvo || !opt) return
+
+  alterandoStatus.value = true
+  try {
+    await store.changeStatus(alvo.id, opt.status, { revisorId: usuarioId })
+    dialog.pessoa = false
+    await fecharDialogStatus()
+  } catch (e) {
+    $q.notify({ type: 'negative', message: `Erro ao enviar: ${e?.message ?? 'erro desconhecido'}` })
+  } finally {
+    alterandoStatus.value = false
+  }
+}
+
+// Mudar a situação afeta as contagens das abas/chips (ex.: revogar tira o
+// documento do total normal e o soma em "Revogados") -- store.changeStatus já
+// atualiza a linha em si, mas resumo/total só refletem isso com um recarregamento.
+async function fecharDialogStatus() {
+  await carregar()
+  dialog.status = false
+  dialog.target = null
+  dialog.statusOpt = null
 }
 
 async function baixarPdf(doc) {
@@ -917,106 +779,8 @@ async function executarClone() {
 }
 
 const dialog = reactive({
-  delete: false, status: false, clone: false,
+  delete: false, status: false, clone: false, pessoa: false,
   target: null, statusOpt: null,
-  orgaoPortaria: '', setorPortaria: '',
-  numeroPortaria: '', dataPortaria: '',
-  numeroBca: '', dataBca: '',
-  // Parte preliminar do documento -- só coletada aqui, na publicação (ver
-  // plano desta mudança). portariaPdfUrl é preenchida pelo upload do
-  // q-uploader abaixo, antes do usuário confirmar a publicação.
-  epigrafe: '', ementa: '', preambulo: '', fecho: '', assinatura: '',
-  portariaPdfUrl: '',
-})
-
-const portariaUploaderRef = ref(null)
-const portariaUploadando = ref(false)
-const portariaUploadUrl = computed(() => `${BASE_URL}/documentos/${dialog.target?.id}/portaria-pdf`)
-// q-uploader não passa pelo client.js (http.js), então não herda a injeção
-// automática do Authorization -- precisa ser passado explicitamente aqui.
-const portariaUploadHeaders = computed(() => [{ name: 'Authorization', value: `Bearer ${auth.token}` }])
-
-function onPortariaPdfUploaded(info) {
-  portariaUploadando.value = false
-  try {
-    const resposta = JSON.parse(info.xhr.responseText)
-    dialog.portariaPdfUrl = resposta.url
-  } catch {
-    $q.notify({ type: 'negative', message: 'Erro ao processar a resposta do upload da portaria.' })
-  }
-}
-
-function onPortariaPdfFailed() {
-  portariaUploadando.value = false
-  dialog.portariaPdfUrl = ''
-  $q.notify({ type: 'negative', message: 'Erro ao enviar o PDF da portaria.' })
-}
-
-const MESES_EXTENSO = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
-  'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro']
-
-function dataPorExtenso(isoStr) {
-  if (!isoStr) return null
-  const [y, m, d] = isoStr.split('-')
-  return `${parseInt(d, 10)} de ${MESES_EXTENSO[parseInt(m, 10) - 1]} de ${y}`
-}
-
-// Prévia da cláusula "Portaria X/Y n° Z, de D, publica no BCA n° W, de D" — só faz
-// sentido para republicação, já que é o único momento em que essa cláusula é gerada.
-const previewClausula = computed(() => {
-  const orgao = dialog.orgaoPortaria?.trim() || 'ÓRGÃO'
-  const setor = dialog.setorPortaria?.trim() || 'SETOR'
-  const numeroPortaria = dialog.numeroPortaria?.trim() || 'XYZ'
-  const dataPortariaExt = dataPorExtenso(dialog.dataPortaria) || 'DD de MÊS de AAAA'
-  const numeroBca = dialog.numeroBca !== '' && dialog.numeroBca != null ? dialog.numeroBca : 'ABC'
-  const dataBcaExt = dataPorExtenso(dialog.dataBca) || 'DD de mês de AAAA'
-  return `Portaria ${orgao}/${setor} n° ${numeroPortaria}, de ${dataPortariaExt}, `
-    + `publica no BCA n° ${numeroBca}, de ${dataBcaExt}.`
-})
-
-// Espelha a validação exibida por campo (via :rules nos q-inputs) para saber se o
-// formulário está completo e habilitar o botão Confirmar — não é mais renderizada
-// como lista de erros, cada input mostra sua própria mensagem nativamente.
-// Datas são strings ISO "YYYY-MM-DD" (tanto as do formulário quanto as vindas do
-// backend), então comparação de string já basta para checar ordem cronológica.
-const errosRefs = computed(() => {
-  if (!dialog.statusOpt?.requiresRefs) return []
-  const errs = []
-  if (!dialog.orgaoPortaria?.trim()) errs.push('Informe o órgão da portaria.')
-  if (!dialog.setorPortaria?.trim()) errs.push('Informe o setor da portaria.')
-  if (!dialog.numeroPortaria?.trim()) errs.push('Informe o número da portaria.')
-  if (!dialog.dataPortaria) errs.push('Informe a data da portaria.')
-
-  const bcaNum = parseInt(dialog.numeroBca, 10)
-  if (dialog.numeroBca === '' || isNaN(bcaNum)) {
-    errs.push('Informe o número do BCA.')
-  } else if (bcaNum < 1 || bcaNum > 366) {
-    // O BCA é publicado apenas em dias úteis, então nunca passa de 366 (dias do ano).
-    errs.push('O número do BCA deve estar entre 1 e 366.')
-  }
-  if (!dialog.dataBca) errs.push('Informe a data do BCA.')
-
-  // A data de cada alteração não pode ser anterior à alteração anterior.
-  if (dialog.dataPortaria && dialog.target?.data_portaria_referencia
-      && dialog.dataPortaria < dialog.target.data_portaria_referencia) {
-    errs.push('A data da portaria não pode ser anterior à da alteração anterior.')
-  }
-  if (dialog.dataBca && dialog.target?.data_bca_referencia
-      && dialog.dataBca < dialog.target.data_bca_referencia) {
-    errs.push('A data do BCA não pode ser anterior à da alteração anterior.')
-  }
-
-  // Revogar não republica o conteúdo do documento -- não exige a parte preliminar.
-  if (!dialog.statusOpt?.isRevogacao) {
-    if (!dialog.epigrafe?.trim()) errs.push('Informe a epígrafe.')
-    if (!dialog.ementa?.trim()) errs.push('Informe a ementa.')
-    if (!dialog.preambulo?.trim()) errs.push('Informe o preâmbulo.')
-    if (!dialog.fecho?.trim()) errs.push('Informe o fecho.')
-    if (!dialog.assinatura?.trim()) errs.push('Informe a assinatura.')
-  }
-  if (!dialog.portariaPdfUrl) errs.push('Envie o PDF da portaria.')
-
-  return errs
 })
 
 function confirmarExclusao(doc) {

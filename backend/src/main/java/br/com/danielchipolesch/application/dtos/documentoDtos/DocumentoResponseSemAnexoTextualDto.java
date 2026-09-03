@@ -32,9 +32,6 @@ public record DocumentoResponseSemAnexoTextualDto(
         Timestamp dtPublicacao,
 
         @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss", timezone = "America/Sao_Paulo")
-        Timestamp dtArquivamento,
-
-        @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss", timezone = "America/Sao_Paulo")
         Timestamp dtRevogacao,
 
         @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss", timezone = "America/Sao_Paulo")
@@ -64,6 +61,14 @@ public record DocumentoResponseSemAnexoTextualDto(
         Long autorId,
         String autorNome,
         Long omId,
-        String omNome
+        String omNome,
+
+        // Ver Documento.revisorAtribuido/publicadorAtribuido -- o frontend usa isso
+        // pra saber se O USUÁRIO ATUAL pode agir/editar neste momento (ex.: editar
+        // durante EM_REVISAO só se revisorAtribuidoId == id de quem está logado).
+        Long revisorAtribuidoId,
+        String revisorAtribuidoNome,
+        Long publicadorAtribuidoId,
+        String publicadorAtribuidoNome
 ) {
 }

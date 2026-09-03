@@ -111,6 +111,10 @@ public class DocumentoController {
         );
     }
 
+    // Criar (e clonar, que cria uma cópia nova) exige o papel EDIT -- ver PapelEnum.
+    // Nenhuma outra regra de posse se aplica aqui (não há documento prévio do
+    // usuário a checar), então a authority sozinha já basta.
+    @PreAuthorize("hasRole('EDIT')")
     @PostMapping
     public ResponseEntity<EntityModel<DocumentoResponseSemAnexoTextualDto>> post(
             @RequestBody @Valid DocumentoRequestCreateDto request) throws RuntimeException {
@@ -119,6 +123,7 @@ public class DocumentoController {
         return ResponseEntity.status(HttpStatus.CREATED).body(toModel(dto));
     }
 
+    @PreAuthorize("hasRole('EDIT')")
     @PostMapping("{id}/clonar")
     public ResponseEntity<EntityModel<DocumentoResponseSemAnexoTextualDto>> clone(
             @PathVariable(value = "id") Long id) throws RuntimeException {
@@ -174,6 +179,19 @@ public class DocumentoController {
                 usuario.getId(), usuario.getOm().getId(), aba, busca, especieSigla, status,
                 PageRequest.of(page, size, sort));
         return ResponseEntity.ok(resultado.map(DocumentoMapper::documentoToDocumentoSemAnexoTextualResponseDto));
+    }
+
+    // Fila pessoal das telas de Revisão/Publicação -- ver DocumentoService.
+    @GetMapping("/minha-revisao")
+    public ResponseEntity<List<DocumentoResponseSemAnexoTextualDto>> getMinhaRevisao(Authentication authentication) {
+        Usuario usuario = ((UsuarioPrincipal) authentication.getPrincipal()).getUsuario();
+        return ResponseEntity.ok(documentoService.getMinhaRevisao(usuario.getId()));
+    }
+
+    @GetMapping("/minha-publicacao")
+    public ResponseEntity<List<DocumentoResponseSemAnexoTextualDto>> getMinhaPublicacao(Authentication authentication) {
+        Usuario usuario = ((UsuarioPrincipal) authentication.getPrincipal()).getUsuario();
+        return ResponseEntity.ok(documentoService.getMinhaPublicacao(usuario.getId()));
     }
 
     // Contagens pros badges das 4 abas e pros chips de situação da HomePage -- ver

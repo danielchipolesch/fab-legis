@@ -108,7 +108,7 @@ frontend/src
 
 **Estado com Pinia — três stores complementares:**
 
-- **`auth`** — sessão. Guarda o access token e o usuário logado (persistidos em `localStorage`), expõe getters de papel (`isAdmin`/`isAprovador`/`isAuditor` — `isAuditor` depende exclusivamente do papel Auditor, independente de Admin) e o fluxo de renovação via refresh token, chamado automaticamente pelo `client.js` num 401.
+- **`auth`** — sessão. Guarda o access token e o usuário logado (persistidos em `localStorage`), expõe getters de papel (`isEditor`/`isAprovador`/`isPublicador`/`isAdmin`/`isAuditor`, todos independentes entre si — nenhum papel implica outro) e o fluxo de renovação via refresh token, chamado automaticamente pelo `client.js` num 401.
 - **`documents`** — o acervo. Busca, cria, clona, salva e transiciona documentos; gera o *template* inicial de seções ao criar um novo ato; também busca as portarias e o mapa de alteração de um documento.
 - **`editor`** — o documento aberto. Mantém uma cópia profunda para edição isolada, controla o elemento selecionado, o flag `isDirty` (salvamento automático), a versão esperada para o bloqueio otimista e todas as operações de árvore, disparando a renumeração após cada mutação. `reload()` sempre busca a versão real no servidor (nunca do cache local) — importante após um `409` de conflito de edição. `aplicarEventosEstrutura()` faz o mesmo tipo de mutação de árvore, mas a partir de eventos recebidos via SSE (mudança feita por outra pessoa, ver [Autenticação e Colaboração](autenticacao.md)) — sempre um *patch* incremental (criar/reparentear/renomear/excluir um nó), nunca um `reload()`, porque isso preservaria a identidade local de todo elemento já aberto por quem estiver editando ao vivo no momento.
 

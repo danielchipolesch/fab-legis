@@ -13,8 +13,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
-import java.util.stream.Stream;
-
 @Service
 public class AuthService {
 
@@ -69,7 +67,7 @@ public class AuthService {
     private LoginResponseDto montarResposta(Usuario usuario, UsuarioPrincipal principal) {
         String token = jwtService.gerarToken(principal);
         String refreshToken = refreshTokenService.gerar(usuario);
-        var papeis = Stream.concat(Stream.of("REDATOR"), principal.getPapeis().stream().map(Enum::name)).toList();
+        var papeis = principal.getPapeis().stream().map(Enum::name).toList();
 
         return new LoginResponseDto(
                 token,

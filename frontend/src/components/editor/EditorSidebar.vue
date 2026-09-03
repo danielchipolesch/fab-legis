@@ -503,11 +503,6 @@
               <q-input :model-value="formatarData(props.documento?.data_publicacao)" label="Publicação" outlined dense disable />
             </div>
           </template>
-          <template v-if="props.documento?.data_arquivamento">
-            <div class="col-6">
-              <q-input :model-value="formatarData(props.documento?.data_arquivamento)" label="Arquivamento" outlined dense disable />
-            </div>
-          </template>
           <template v-if="props.documento?.data_revogacao">
             <div class="col-6">
               <q-input :model-value="formatarData(props.documento?.data_revogacao)" label="Revogação" outlined dense disable />

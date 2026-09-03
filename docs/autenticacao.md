@@ -13,13 +13,17 @@ Fase 0 de um plano de autenticação que evolui depois para SSO institucional (K
 
 ## Papéis e posse de documento
 
-Todo usuário autenticado já é, implicitamente, **Redator**: cria documentos, edita e exclui (em Rascunho/Minuta) os que autorou ou dos quais é coautor, e **visualiza/baixa qualquer documento do acervo**, de qualquer OM, em qualquer situação. Por cima disso, papéis adicionais (atribuídos na tela **Manter Usuários**, restrita a Admin) concedem mais:
+Nenhum poder sobre o ciclo de vida de um documento é implícito — todos os papéis são atribuídos explicitamente na tela **Manter Usuários** (restrita a Admin), em `PapelEnum`. Uma pessoa sem papel nenhum só visualiza/baixa qualquer documento do acervo, de qualquer OM, em qualquer situação.
 
 | Papel | Concede |
 |---|---|
-| **Aprovador** | Aprova, publica e demais transições sensíveis (ver [Ciclo de Vida do Documento](ciclo-de-vida.md)) — só de documentos da própria OM |
-| **Admin** | Aprova/publica em qualquer OM, gerencia usuários e organizações militares |
+| **Editor** (`EDIT`) | Cria documentos e edita/exclui (em Rascunho/Minuta) os que autorou ou dos quais é coautor; move o documento entre as etapas do fluxo escolhendo, pessoalmente, quem revisa ou quem publica a seguir (ver abaixo) |
+| **Aprovador** (`APROV`) | Age só nos documentos que lhe foram atribuídos pessoalmente como revisor (`EM_REVISAO`/`ANALISE_REVOGACAO`): aprova (escolhendo o Publicador) ou devolve. Também pode, livremente, reabrir para alteração qualquer documento publicado da própria OM (`PUBLICADO → EM_ALTERACAO`) |
+| **Publicador** (`PUBLIC`) | Age só nos documentos que lhe foram atribuídos pessoalmente como publicador (`EM_PUBLICACAO`/`EM_REVOGACAO`): publica ou revoga (com portaria/BCA) ou devolve |
+| **Admin** | Papel puramente administrativo — gerencia usuários e organizações militares. Não edita, revisa nem publica documento nenhum, mesmo o próprio |
 | **Auditor** | Acesso de leitura à trilha de auditoria completa (tela **Auditoria**) — papel independente: Admin **não** enxerga a auditoria automaticamente, precisa ter o papel Auditor atribuído |
+
+**Atribuição pessoal, não um pool por OM:** ao enviar um documento para revisão (ou para análise de revogação), o Editor escolhe uma pessoa específica com papel Aprovador da mesma OM (`GET /usuarios/elegiveis?papel=APROV`) — só ela pode agir naquele documento a partir daí, não qualquer Aprovador da OM. Da mesma forma, ao aprovar, o Aprovador escolhe pessoalmente o Publicador. Essa escolha fica registrada em `Documento.revisorAtribuido`/`publicadorAtribuido` e é o que autoriza (`DocumentoAcessoService.podeMudarStatus`) cada passo seguinte — ver [Ciclo de Vida do Documento](ciclo-de-vida.md) para o fluxo completo.
 
 **Coautoria:** o autor de um documento pode adicionar outros CPFs como coautores (`DocumentoCompartilhamentoService`) — um coautor ganha os mesmos direitos de edição/exclusão do autor sobre aquele documento específico, mas só o autor pode gerenciar a lista de coautores.
 
@@ -37,5 +41,5 @@ Em RASCUNHO/MINUTA, duas peças complementares — uma para o *conteúdo* de cad
 
 ## Notificações e auditoria
 
-- **Notificações em tempo real** (sino no topbar, via SSE) — gravadas na mesma transação da ação que as gera e entregues ao vivo a quem estiver conectado: documento compartilhado com você, ou documento da sua OM entrando em situação que aguarda aprovação.
+- **Notificações em tempo real** (sino no topbar, via SSE) — gravadas na mesma transação da ação que as gera e entregues ao vivo a quem estiver conectado: documento compartilhado com você, ou documento atribuído pessoalmente a você para revisar ou publicar (ver papéis acima).
 - **Trilha de auditoria** (`LogAuditoria`) — quem visualizou, criou, editou, excluiu, clonou, mudou situação ou (des)compartilhou cada documento, e quando; consultável e filtrável por quem tem o papel Auditor na tela **Auditoria**. O registro sobrevive à exclusão do documento (guarda um retrato do código/descrição no momento da ação, não uma referência viva).

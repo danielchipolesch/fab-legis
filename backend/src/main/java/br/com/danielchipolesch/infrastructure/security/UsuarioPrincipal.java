@@ -8,13 +8,12 @@ import org.springframework.security.core.userdetails.UserDetails;
 
 import java.util.Collection;
 import java.util.List;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 // Adapter entre Usuario (entidade JPA) e o contrato do Spring Security --
-// mantém a entidade livre de detalhes de autenticação. REDATOR não é uma
-// authority explícita: é o que todo Usuario autenticado já tem, então vira
-// "ROLE_REDATOR" incondicionalmente aqui, nunca lido de t_usuario_papel.
+// mantém a entidade livre de detalhes de autenticação. Nenhuma authority é
+// concedida incondicionalmente: EDIT/APROV/PUBLIC/ADMIN/AUDITOR (ver PapelEnum)
+// são todos explícitos, lidos de t_usuario_papel -- sem papel nenhum, a pessoa
+// só visualiza o acervo (DocumentoAcessoService não exige authority pra isso).
 public class UsuarioPrincipal implements UserDetails {
 
     private final Usuario usuario;
@@ -29,10 +28,9 @@ public class UsuarioPrincipal implements UserDetails {
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        return Stream.concat(
-                Stream.of("ROLE_REDATOR"),
-                usuario.getPapeis().stream().map(p -> "ROLE_" + p.name())
-        ).map(SimpleGrantedAuthority::new).collect(Collectors.toList());
+        return usuario.getPapeis().stream()
+                .map(p -> (GrantedAuthority) new SimpleGrantedAuthority("ROLE_" + p.name()))
+                .toList();
     }
 
     public List<PapelEnum> getPapeis() {

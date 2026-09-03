@@ -19,6 +19,10 @@ import java.util.Set;
 // aqui: são liberados para qualquer usuário autenticado, em qualquer OM, em
 // qualquer situação (basta estar logado, o que o SecurityConfig já exige).
 // Só editar, compartilhar e excluir precisam de posse.
+//
+// ADMIN nunca aparece aqui como bypass: sob o modelo atual de papéis, Admin é
+// puramente administrativo (usuários/OMs) e não tem poder nenhum sobre o
+// ciclo de vida de um documento -- ver PapelEnum.
 @Service
 public class DocumentoAcessoService {
 
@@ -31,10 +35,22 @@ public class DocumentoAcessoService {
     @Autowired
     private DocumentoCompartilhamentoRepository compartilhamentoRepository;
 
+    // Autor/coautor com papel EDIT -- exceto durante EM_REVISAO, onde a pessoa
+    // ATRIBUÍDA como revisora (papel APROV) também pode editar (ver
+    // DocumentoStatusEnum.EM_REVISAO). Fora daí (EM_PUBLICACAO em diante, ou o
+    // fluxo de revogação inteiro) ninguém edita, nem o autor.
     public boolean podeEditar(Long documentoId, Authentication auth) {
         Usuario usuario = usuarioDe(auth);
         Documento doc = documentoRepository.findById(documentoId).orElse(null);
         if (doc == null) return false;
+
+        if (doc.getDocumentoStatus() == DocumentoStatusEnum.EM_REVISAO
+                && doc.getRevisorAtribuido() != null
+                && doc.getRevisorAtribuido().getId().equals(usuario.getId())) {
+            return true;
+        }
+
+        if (!usuario.getPapeis().contains(PapelEnum.EDIT)) return false;
         return ehAutor(doc, usuario) || compartilhamentoRepository.existsByDocumentoIdAndUsuarioId(documentoId, usuario.getId());
     }
 
@@ -57,31 +73,51 @@ public class DocumentoAcessoService {
         return podeEditar(documentoId, auth);
     }
 
-    // APROVADOR só aprova/publica documentos da própria OM -- ver a pergunta
-    // em aberto no design doc sobre se essa restrição deve mesmo se manter
-    // agora que visualizar é universal; por ora, mantida.
-    public boolean podeAprovarNaOm(Long documentoId, Authentication auth) {
-        Usuario usuario = usuarioDe(auth);
-        if (!usuario.getPapeis().contains(PapelEnum.ADMIN) && !usuario.getPapeis().contains(PapelEnum.APROVADOR)) {
-            return false;
-        }
-        if (usuario.getPapeis().contains(PapelEnum.ADMIN)) return true;
-        Documento doc = documentoRepository.findById(documentoId).orElse(null);
-        return doc != null && doc.getOm().getId().equals(usuario.getOm().getId());
-    }
+    private static final Set<DocumentoStatusEnum> STATUS_ENTRADA_REVISOR = EnumSet.of(
+            DocumentoStatusEnum.EM_REVISAO, DocumentoStatusEnum.ANALISE_REVOGACAO);
+    private static final Set<DocumentoStatusEnum> STATUS_ACAO_REVISOR = EnumSet.of(
+            DocumentoStatusEnum.APROVADO, DocumentoStatusEnum.ALTERADO, DocumentoStatusEnum.EM_REVOGACAO,
+            DocumentoStatusEnum.MINUTA, DocumentoStatusEnum.EM_ALTERACAO, DocumentoStatusEnum.PUBLICADO);
+    private static final Set<DocumentoStatusEnum> STATUS_ACAO_PUBLICADOR = EnumSet.of(
+            DocumentoStatusEnum.PUBLICADO, DocumentoStatusEnum.REVOGADO,
+            DocumentoStatusEnum.MINUTA, DocumentoStatusEnum.EM_ALTERACAO);
 
-    // Transições que representam aprovar/publicar/consolidar o documento
-    // exigem APROVADOR (ou ADMIN) da mesma OM; as demais (ex.: RASCUNHO ->
-    // MINUTA, ou CANCELADO) seguem a mesma posse de editar -- o próprio
-    // REDATOR conduz o rascunho até pedir aprovação.
-    private static final Set<DocumentoStatusEnum> STATUS_REQUER_APROVADOR = EnumSet.of(
-            DocumentoStatusEnum.APROVADO, DocumentoStatusEnum.PUBLICADO, DocumentoStatusEnum.ALTERADO,
-            DocumentoStatusEnum.EM_ALTERACAO, DocumentoStatusEnum.ARQUIVADO, DocumentoStatusEnum.REVOGADO);
-
+    // Cada transição do fluxo de revisão/publicação tem um dono diferente,
+    // dependendo de ONDE o documento está agora e para ONDE está indo -- ver
+    // DocumentoStatusEnum/DocumentoStatusService para a tabela completa.
     public boolean podeMudarStatus(Long documentoId, DocumentoStatusEnum novoStatus, Authentication auth) {
-        if (STATUS_REQUER_APROVADOR.contains(novoStatus)) {
-            return podeAprovarNaOm(documentoId, auth);
+        Usuario usuario = usuarioDe(auth);
+        Documento doc = documentoRepository.findById(documentoId).orElse(null);
+        if (doc == null) return false;
+        DocumentoStatusEnum statusAtual = doc.getDocumentoStatus();
+
+        // Enviar para revisão/análise de revogação: quem tem posse de editar.
+        if (STATUS_ENTRADA_REVISOR.contains(novoStatus)) {
+            return podeEditar(documentoId, auth);
         }
+
+        // Única transição sem atribuição pessoal prévia: qualquer papel APROV
+        // da mesma OM pode reabrir um documento publicado para alteração.
+        if (novoStatus == DocumentoStatusEnum.EM_ALTERACAO && statusAtual == DocumentoStatusEnum.PUBLICADO) {
+            return usuario.getPapeis().contains(PapelEnum.APROV) && doc.getOm().getId().equals(usuario.getOm().getId());
+        }
+
+        // A partir de EM_REVISAO/ANALISE_REVOGACAO, só quem foi atribuído como
+        // revisor decide o próximo passo (aprovar, aprovar revogação ou devolver).
+        if (statusAtual == DocumentoStatusEnum.EM_REVISAO || statusAtual == DocumentoStatusEnum.ANALISE_REVOGACAO) {
+            if (!STATUS_ACAO_REVISOR.contains(novoStatus)) return false;
+            return doc.getRevisorAtribuido() != null && doc.getRevisorAtribuido().getId().equals(usuario.getId());
+        }
+
+        // A partir de EM_PUBLICACAO/EM_REVOGACAO, só quem foi atribuído como
+        // publicador decide o próximo passo (publicar, revogar ou devolver).
+        if (statusAtual == DocumentoStatusEnum.EM_PUBLICACAO || statusAtual == DocumentoStatusEnum.EM_REVOGACAO) {
+            if (!STATUS_ACAO_PUBLICADOR.contains(novoStatus)) return false;
+            return doc.getPublicadorAtribuido() != null && doc.getPublicadorAtribuido().getId().equals(usuario.getId());
+        }
+
+        // Demais transições (ex.: RASCUNHO/MINUTA -> CANCELADO) seguem a mesma
+        // posse de editar -- quem conduz o rascunho decide cancelá-lo.
         return podeEditar(documentoId, auth);
     }
 

@@ -10,6 +10,16 @@ public record DocumentoStatusRequestDto(
         @NotNull
         DocumentoStatusEnum status,
 
+        // Obrigatório só ao enviar para revisão/análise de revogação (destino
+        // EM_REVISAO/ANALISE_REVOGACAO) -- id de quem, com papel APROV na mesma OM, vai
+        // revisar. Ver DocumentoStatusService/DocumentoAcessoService.
+        Long revisorId,
+
+        // Obrigatório só ao aprovar (destino APROVADO/ALTERADO, que já cascata para
+        // EM_PUBLICACAO) ou ao aprovar uma revogação (destino EM_REVOGACAO) -- id de
+        // quem, com papel PUBLIC na mesma OM, vai publicar/formalizar.
+        Long publicadorId,
+
         // Obrigatórios apenas ao publicar (transição para PUBLICADO)
         String orgaoPortaria,
         String setorPortaria,

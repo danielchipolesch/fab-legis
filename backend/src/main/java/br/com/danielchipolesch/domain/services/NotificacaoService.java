@@ -3,7 +3,6 @@ package br.com.danielchipolesch.domain.services;
 import br.com.danielchipolesch.application.dtos.notificacaoDtos.NotificacaoResponseDto;
 import br.com.danielchipolesch.domain.entities.notificacao.Notificacao;
 import br.com.danielchipolesch.domain.entities.notificacao.TipoNotificacaoEnum;
-import br.com.danielchipolesch.domain.entities.usuario.PapelEnum;
 import br.com.danielchipolesch.domain.entities.usuario.Usuario;
 import br.com.danielchipolesch.domain.handlers.exceptions.ResourceNotFoundException;
 import br.com.danielchipolesch.infrastructure.notificacao.NotificacaoEmitterRegistry;
@@ -54,16 +53,15 @@ public class NotificacaoService {
         agendarPushAposCommit(destinatario.getId(), salva);
     }
 
-    // Notifica todo APROVADOR da OM do documento (mais ADMIN, que aprova em
-    // qualquer OM) -- usado quando um documento entra em MINUTA ou
-    // EM_ALTERACAO, situações que aguardam uma ação de aprovação.
+    // Notifica a pessoa especificamente atribuída (revisor ou publicador, ver
+    // Documento.revisorAtribuido/publicadorAtribuido) quando o documento passa a
+    // depender de uma ação dela -- o modelo de atribuição pessoal (ver PapelEnum)
+    // substitui o antigo aviso pra toda a OM.
     @Transactional
-    public void notificarAprovadoresPendencia(Long omId, Long documentoId, String documentoDescricao, String mensagem) {
-        List<Usuario> aprovadores = usuarioRepository.findAprovadoresDaOmOuAdmins(
-                omId, List.of(PapelEnum.APROVADOR, PapelEnum.ADMIN));
-        for (Usuario aprovador : aprovadores) {
-            criar(aprovador, TipoNotificacaoEnum.APROVACAO_PENDENTE, mensagem, documentoId, documentoDescricao);
-        }
+    public void notificarAtribuicao(Long destinatarioId, Long documentoId, String documentoDescricao, String mensagem) {
+        Usuario destinatario = usuarioRepository.findById(destinatarioId)
+                .orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado."));
+        criar(destinatario, TipoNotificacaoEnum.APROVACAO_PENDENTE, mensagem, documentoId, documentoDescricao);
     }
 
     private void agendarPushAposCommit(Long destinatarioId, Notificacao notificacao) {

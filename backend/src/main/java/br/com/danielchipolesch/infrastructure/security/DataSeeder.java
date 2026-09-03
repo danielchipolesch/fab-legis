@@ -67,7 +67,7 @@ public class DataSeeder implements ApplicationRunner {
         admin.setOm(omSistema);
         admin.setAtivo(true);
         admin.setSistema(false);
-        admin.setPapeis(EnumSet.of(PapelEnum.ADMIN, PapelEnum.APROVADOR));
+        admin.setPapeis(EnumSet.of(PapelEnum.ADMIN));
         usuarioRepository.save(admin);
 
         log.warn("Usuário administrador padrão criado (CPF {}). Troque a senha padrão assim que possível.", cpf);

@@ -151,12 +151,18 @@ export function backendParaFrontend(doc) {
     data_minuta:       parseDtCriacao(doc.dtMinuta),
     data_aprovacao:    parseDtCriacao(doc.dtAprovacao),
     data_publicacao:   parseDtCriacao(doc.dtPublicacao),
-    data_arquivamento: parseDtCriacao(doc.dtArquivamento),
     data_revogacao:    parseDtCriacao(doc.dtRevogacao),
     data_cancelamento: parseDtCriacao(doc.dtCancelamento),
     data_em_alteracao: parseDtCriacao(doc.dtEmAlteracao),
     data_alterado:     parseDtCriacao(doc.dtAlterado),
     status: doc.statusDocumento,
+    // Ver Documento.revisorAtribuido/publicadorAtribuido no backend -- quem pode
+    // agir/editar o documento agora, enquanto ele estiver em EM_REVISAO/
+    // EM_PUBLICACAO/ANALISE_REVOGACAO/EM_REVOGACAO.
+    revisor_atribuido_id: doc.revisorAtribuidoId != null ? String(doc.revisorAtribuidoId) : null,
+    revisor_atribuido_nome: doc.revisorAtribuidoNome ?? null,
+    publicador_atribuido_id: doc.publicadorAtribuidoId != null ? String(doc.publicadorAtribuidoId) : null,
+    publicador_atribuido_nome: doc.publicadorAtribuidoNome ?? null,
     url_pdf: doc.urlPdf ?? null,
     qtd_replicas: doc.qtdReplicas ?? 0,
     portaria_referencia: doc.portariaReferencia ?? null,
@@ -216,6 +222,18 @@ export async function getResumoDocumentos({ aba, busca, especieSigla } = {}) {
   return http.get(`/documentos/resumo?${params.toString()}`)
 }
 
+// Fila pessoal das telas de Revisão/Publicação -- documentos atribuídos a QUEM
+// está chamando (ver Documento.revisorAtribuido/publicadorAtribuido no backend).
+export async function listMinhaRevisao() {
+  const resp = await http.get('/documentos/minha-revisao')
+  return (resp ?? []).map(backendParaFrontend)
+}
+
+export async function listMinhaPublicacao() {
+  const resp = await http.get('/documentos/minha-publicacao')
+  return (resp ?? []).map(backendParaFrontend)
+}
+
 export async function listDocumentosComHistoricoEmenda() {
   const data = await http.get('/documentos/com-historico-emenda')
   return Array.isArray(data) ? data.map(String) : []
@@ -249,6 +267,12 @@ export async function updateDocumento(id, data) {
 export async function changeDocumentoStatus(id, novoStatus, refs) {
   const body = { status: novoStatus }
   if (refs) {
+    // revisorId: quem vai revisar (destino EM_REVISAO/ANALISE_REVOGACAO), escolhido
+    // pelo Editor. publicadorId: quem vai publicar (destino APROVADO/ALTERADO, que já
+    // cascateia pra EM_PUBLICACAO no backend, ou EM_REVOGACAO), escolhido pelo
+    // Aprovador -- ver SelecionarPessoaDialog.vue/DocumentoStatusRequestDto.
+    body.revisorId       = refs.revisorId ?? null
+    body.publicadorId    = refs.publicadorId ?? null
     body.orgaoPortaria   = refs.orgaoPortaria ?? null
     body.setorPortaria   = refs.setorPortaria ?? null
     body.numeroPortaria  = refs.numeroPortaria ?? null

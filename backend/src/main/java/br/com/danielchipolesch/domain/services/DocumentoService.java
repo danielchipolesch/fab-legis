@@ -103,6 +103,22 @@ public class DocumentoService {
         return documentoRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException(DocumentoException.NOT_FOUND.getMessage()));
     }
 
+    // Fila pessoal de RevisaoPage.vue -- documentos atribuídos a ESTE usuário como
+    // revisor, tanto no fluxo normal (EM_REVISAO) quanto na revogação (ANALISE_REVOGACAO).
+    public List<DocumentoResponseSemAnexoTextualDto> getMinhaRevisao(Long usuarioId) {
+        return documentoRepository.findByRevisorAtribuidoIdAndDocumentoStatusIn(usuarioId,
+                        List.of(DocumentoStatusEnum.EM_REVISAO, DocumentoStatusEnum.ANALISE_REVOGACAO))
+                .stream().map(DocumentoMapper::documentoToDocumentoSemAnexoTextualResponseDto).toList();
+    }
+
+    // Fila pessoal de PublicacaoPage.vue -- documentos atribuídos a ESTE usuário como
+    // publicador, tanto no fluxo normal (EM_PUBLICACAO) quanto na revogação (EM_REVOGACAO).
+    public List<DocumentoResponseSemAnexoTextualDto> getMinhaPublicacao(Long usuarioId) {
+        return documentoRepository.findByPublicadorAtribuidoIdAndDocumentoStatusIn(usuarioId,
+                        List.of(DocumentoStatusEnum.EM_PUBLICACAO, DocumentoStatusEnum.EM_REVOGACAO))
+                .stream().map(DocumentoMapper::documentoToDocumentoSemAnexoTextualResponseDto).toList();
+    }
+
     public List<DocumentoResponseSemAnexoTextualDto> getByEspecieNormativaAndAssuntoBasico(Long especieNormativaId, Long assuntoBasicoId) throws ResourceNotFoundException {
 
         var especieNormativa = especieNormativaRepository.findById(especieNormativaId).orElseThrow(() -> new ResourceNotFoundException(EspecieNormativaException.NOT_FOUND.getMessage()));

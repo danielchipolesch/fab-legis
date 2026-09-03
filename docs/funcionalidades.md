@@ -48,6 +48,15 @@ Ações disponíveis na topbar: baixar PDF (rascunho gerado sob demanda), ver te
 
 A `HomePage` organiza o acervo em três abas — **Meus Documentos**, **Documentos da Minha OM** e **Documentos de Outras OMs** — cada uma com paginação e busca próprias e um contador de quantos documentos ela contém; a visualização em si é universal (qualquer usuário autenticado vê e baixa qualquer documento, independente de autoria, OM ou situação — ver [Autenticação e Colaboração](autenticacao.md)), as abas são só uma forma de navegar esse mesmo conjunto.
 
-Dentro de cada aba: visão em tabela (ordenada por data de criação decrescente por padrão) ou cards, filtros por espécie, situação e busca textual, resumo quantitativo por situação e ações contextuais — editar (Rascunho/Minuta/Em Alteração), clonar, comparar (habilitado só quando o documento tem emendas registradas), exportar em PDF e transicionar de situação (algumas transições exigem o papel Aprovador).
+Dentro de cada aba: visão em tabela (ordenada por data de criação decrescente por padrão) ou cards, filtros por espécie, situação e busca textual, resumo quantitativo por situação e ações contextuais — editar (Rascunho/Minuta/Em Alteração), clonar, comparar (habilitado só quando o documento tem emendas registradas) e exportar em PDF. As transições de situação que dependem só de posse (enviar para Minuta, enviar para Revisão/Revogação escolhendo a pessoa, cancelar) ficam aqui; revisar/aprovar/publicar/revogar de fato saíram da `HomePage` e viraram as telas dedicadas abaixo — ver [Papéis e posse de documento](autenticacao.md#papeis-e-posse-de-documento).
 
 **Excluir** só aparece no menu de ações para documentos próprios (ou compartilhados) em Rascunho ou Minuta — outras combinações já são bloqueadas no backend (`DocumentoAcessoService.podeExcluir()`), e a opção nem é oferecida na interface.
+
+## Revisão e Publicação
+
+Duas telas dedicadas, cada uma restrita a quem tem o papel correspondente e mostrando só a **fila pessoal** de quem está logado (documentos atribuídos a ela, nunca o acervo inteiro):
+
+- **Revisão** (`/revisao`, `RevisaoPage.vue`, papel Aprovador) — documentos em `EM_REVISAO`/`ANALISE_REVOGACAO` atribuídos ao usuário. Abrir (editável enquanto `EM_REVISAO`), Aprovar (escolhendo pessoalmente quem publica) e Devolver.
+- **Publicação** (`/publicacao`, `PublicacaoPage.vue`, papel Publicador) — documentos em `EM_PUBLICACAO`/`EM_REVOGACAO` atribuídos ao usuário. Abrir (só leitura), Publicar/Revogar (formulário de Portaria/BCA, `PublicarDialog.vue`) e Devolver.
+
+Ver [Ciclo de Vida do Documento](ciclo-de-vida.md) para o fluxo completo de atribuição pessoal.

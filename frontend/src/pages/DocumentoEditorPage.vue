@@ -435,9 +435,19 @@ const selectedElement = computed(() => editorStore.selectedElement)
 
 const isEmAlteracao = computed(() => documento.value?.status === 'EM_ALTERACAO')
 
-const isReadonly = computed(() =>
-  ['PUBLICADO', 'EM_ALTERACAO', 'ALTERADO', 'ARQUIVADO', 'CANCELADO', 'REVOGADO'].includes(documento.value?.status)
-)
+// Editável por posse (RASCUNHO/MINUTA/EM_ALTERACAO) OU por quem foi atribuído
+// como revisor enquanto o documento estiver EM_REVISAO (ver
+// Documento.revisorAtribuido no backend/roadmap "revisar e editar"). Todos os
+// demais status (aprovação/publicação/revogação em andamento, já publicado,
+// cancelado) são sempre somente-leitura -- em especial EM_PUBLICACAO em diante,
+// onde ninguém mais edita o conteúdo.
+const isReadonly = computed(() => {
+  const status = documento.value?.status
+  if (status === 'EM_REVISAO') {
+    return documento.value?.revisor_atribuido_id !== String(auth.usuario?.id)
+  }
+  return !['RASCUNHO', 'MINUTA', 'EM_ALTERACAO'].includes(status)
+})
 
 // Elemento ALTERADO por emenda: o texto vigente fica em conteudoEmenda, não em
 // conteudo (que preserva o original para o tachado no preview). Demais status

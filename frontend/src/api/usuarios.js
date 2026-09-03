@@ -38,6 +38,13 @@ export async function redefinirSenha(id, novaSenha) {
   return http.patch(`/usuarios/${id}/senha`, { novaSenha })
 }
 
+// Candidatos pro seletor de "escolher pessoa" (enviar para revisão/revogação,
+// aprovar escolhendo o publicador) -- sempre restrito à própria OM de quem
+// pede, resolvida no backend a partir do token (ver UsuarioController.elegiveis).
+export async function listUsuariosElegiveis(papel) {
+  return http.get(`/usuarios/elegiveis?papel=${papel}`)
+}
+
 export async function listOrganizacoesMilitares() {
   return http.get('/organizacoes-militares')
 }

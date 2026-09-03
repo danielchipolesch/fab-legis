@@ -51,7 +51,6 @@
         <template #body-cell-papeis="props">
           <q-td :props="props">
             <div class="row justify-center q-gutter-xs">
-              <q-chip dense square size="sm" color="blue-2" text-color="secondary">Redator</q-chip>
               <q-chip
                 v-for="p in props.row.papeis"
                 :key="p"
@@ -191,9 +190,11 @@
             />
 
             <div>
-              <div class="text-caption text-grey-7 q-mb-xs">Papéis adicionais (todo usuário já pode criar/editar seus documentos)</div>
+              <div class="text-caption text-grey-7 q-mb-xs">Papéis (sem nenhum, a pessoa só consegue visualizar o acervo)</div>
               <div class="row q-gutter-md">
+                <q-checkbox v-model="form.editor" label="Editor" :disable="salvando" />
                 <q-checkbox v-model="form.aprovador" label="Aprovador" :disable="salvando" />
+                <q-checkbox v-model="form.publicador" label="Publicador" :disable="salvando" />
                 <q-checkbox v-model="form.admin" label="Administrador" :disable="salvando" />
                 <q-checkbox v-model="form.auditor" label="Auditor" :disable="salvando" />
               </div>
@@ -297,9 +298,11 @@ const omOptions = computed(() => oms.value.map(om => ({ label: `${om.nome} (${om
 const postoOptions = computed(() => postos.value.map(p => ({ label: `${p.bigrama} — ${p.nome}`, value: p.id })))
 
 const PAPEL_CHIP = {
-  ADMIN:     { label: 'Admin',     color: 'deep-orange-2', textColor: 'deep-orange-10' },
-  APROVADOR: { label: 'Aprovador', color: 'teal-2',        textColor: 'teal-10' },
-  AUDITOR:   { label: 'Auditor',   color: 'indigo-2',      textColor: 'indigo-10' },
+  EDIT:    { label: 'Editor',     color: 'blue-2',        textColor: 'secondary' },
+  APROV:   { label: 'Aprovador',  color: 'teal-2',        textColor: 'teal-10' },
+  PUBLIC:  { label: 'Publicador', color: 'purple-2',      textColor: 'purple-10' },
+  ADMIN:   { label: 'Admin',      color: 'deep-orange-2', textColor: 'deep-orange-10' },
+  AUDITOR: { label: 'Auditor',    color: 'indigo-2',      textColor: 'indigo-10' },
 }
 
 async function carregar() {
@@ -338,13 +341,13 @@ const mostrarSenha = ref(false)
 
 const form = reactive({
   nome: '', nomeGuerra: '', cpf: '', email: '', postoGraduacaoId: null, senha: '',
-  omId: null, aprovador: false, admin: false, auditor: false, ativo: true,
+  omId: null, editor: false, aprovador: false, publicador: false, admin: false, auditor: false, ativo: true,
 })
 
 function resetForm() {
   Object.assign(form, {
     nome: '', nomeGuerra: '', cpf: '', email: '', postoGraduacaoId: null, senha: '',
-    omId: null, aprovador: false, admin: false, auditor: false, ativo: true,
+    omId: null, editor: false, aprovador: false, publicador: false, admin: false, auditor: false, ativo: true,
   })
   formRef.value?.resetValidation()
 }
@@ -365,7 +368,9 @@ function abrirEdicao(usuario) {
     postoGraduacaoId: usuario.postoGraduacaoId ?? null,
     senha: '',
     omId: usuario.omId,
-    aprovador: usuario.papeis.includes('APROVADOR'),
+    editor: usuario.papeis.includes('EDIT'),
+    aprovador: usuario.papeis.includes('APROV'),
+    publicador: usuario.papeis.includes('PUBLIC'),
     admin: usuario.papeis.includes('ADMIN'),
     auditor: usuario.papeis.includes('AUDITOR'),
     ativo: usuario.ativo,
@@ -376,7 +381,9 @@ function abrirEdicao(usuario) {
 
 function papeisSelecionados() {
   const papeis = []
-  if (form.aprovador) papeis.push('APROVADOR')
+  if (form.editor) papeis.push('EDIT')
+  if (form.aprovador) papeis.push('APROV')
+  if (form.publicador) papeis.push('PUBLIC')
   if (form.admin) papeis.push('ADMIN')
   if (form.auditor) papeis.push('AUDITOR')
   return papeis

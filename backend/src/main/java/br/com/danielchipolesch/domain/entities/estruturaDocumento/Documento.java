@@ -61,9 +61,6 @@ public class Documento extends RepresentationModel<Documento> {
     @Column(name = "dt_publicacao")
     private Timestamp dtPublicacao;
 
-    @Column(name = "dt_arquivamento")
-    private Timestamp dtArquivamento;
-
     @Column(name = "dt_revogacao")
     private Timestamp dtRevogacao;
 
@@ -107,4 +104,31 @@ public class Documento extends RepresentationModel<Documento> {
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "om_id", nullable = false)
     private OrganizacaoMilitar om;
+
+    // Pessoa específica (papel APROV) escolhida por quem enviou para revisão -- só ela
+    // pode agir no documento enquanto ele estiver em EM_REVISAO/ANALISE_REVOGACAO (ver
+    // DocumentoAcessoService.podeMudarStatus). Reaproveitado nas duas etapas de revisão
+    // (fluxo normal e revogação), sempre sobrescrito a cada novo envio.
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "revisor_atribuido_id")
+    private Usuario revisorAtribuido;
+
+    // Pessoa específica (papel PUBLIC) escolhida pelo APROV ao aprovar -- só ela pode
+    // agir no documento enquanto ele estiver em EM_PUBLICACAO/EM_REVOGACAO. Mesmo
+    // padrão de revisorAtribuido, reaproveitado nas duas etapas de publicação.
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "publicador_atribuido_id")
+    private Usuario publicadorAtribuido;
+
+    @Column(name = "dt_em_revisao")
+    private Timestamp dtEmRevisao;
+
+    @Column(name = "dt_em_publicacao")
+    private Timestamp dtEmPublicacao;
+
+    @Column(name = "dt_analise_revogacao")
+    private Timestamp dtAnaliseRevogacao;
+
+    @Column(name = "dt_em_revogacao")
+    private Timestamp dtEmRevogacao;
 }

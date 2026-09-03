@@ -334,7 +334,7 @@ const expanded = reactive({
   versoes:   false,
 })
 
-const STATUS_COM_PDF = new Set(['APROVADO', 'ALTERADO', 'PUBLICADO', 'ARQUIVADO', 'REVOGADO'])
+const STATUS_COM_PDF = new Set(['APROVADO', 'ALTERADO', 'PUBLICADO', 'REVOGADO'])
 
 const documentoId = computed(() => route.params.id)
 const documento   = computed(() => docStore.getById(documentoId.value))
@@ -373,15 +373,18 @@ const podeEditar = computed(() => ['RASCUNHO', 'MINUTA'].includes(documento.valu
 // várias vezes até a republicação, então o histórico vem do log de transições
 // (t_historico_documento), não de um timestamp único por status.
 const STATUS_META = {
-  RASCUNHO:     { titulo: 'Rascunho',     icon: 'mdi-pencil-outline',       color: 'grey'        },
-  MINUTA:       { titulo: 'Minuta',       icon: 'mdi-file-edit-outline',    color: 'orange'      },
-  APROVADO:     { titulo: 'Aprovado',     icon: 'mdi-check-circle-outline', color: 'green'       },
-  PUBLICADO:    { titulo: 'Publicado',    icon: 'mdi-publish',              color: 'primary'     },
-  EM_ALTERACAO: { titulo: 'Em Alteração', icon: 'mdi-pencil-lock-outline',  color: 'deep-orange' },
-  ALTERADO:     { titulo: 'Alterado',     icon: 'mdi-check-circle-outline', color: 'teal'        },
-  ARQUIVADO:    { titulo: 'Arquivado',    icon: 'mdi-archive-outline',      color: 'blue-grey'   },
-  REVOGADO:     { titulo: 'Revogado',     icon: 'mdi-file-remove-outline',  color: 'brown'       },
-  CANCELADO:    { titulo: 'Cancelado',    icon: 'mdi-close-circle-outline', color: 'negative'    },
+  RASCUNHO:          { titulo: 'Rascunho',              icon: 'mdi-pencil-outline',        color: 'grey'        },
+  MINUTA:            { titulo: 'Minuta',                icon: 'mdi-file-edit-outline',     color: 'orange'      },
+  EM_REVISAO:        { titulo: 'Em Revisão',            icon: 'mdi-account-search-outline', color: 'orange'     },
+  APROVADO:          { titulo: 'Aprovado',              icon: 'mdi-check-circle-outline',  color: 'green'       },
+  EM_PUBLICACAO:     { titulo: 'Em Publicação',         icon: 'mdi-timer-sand',            color: 'blue'        },
+  PUBLICADO:         { titulo: 'Publicado',             icon: 'mdi-publish',               color: 'primary'    },
+  EM_ALTERACAO:      { titulo: 'Em Alteração',          icon: 'mdi-pencil-lock-outline',   color: 'deep-orange' },
+  ALTERADO:          { titulo: 'Alterado',              icon: 'mdi-check-circle-outline',  color: 'teal'        },
+  ANALISE_REVOGACAO: { titulo: 'Análise de Revogação',  icon: 'mdi-file-search-outline',   color: 'brown'       },
+  EM_REVOGACAO:      { titulo: 'Em Revogação',          icon: 'mdi-timer-sand',            color: 'brown'       },
+  REVOGADO:          { titulo: 'Revogado',              icon: 'mdi-file-remove-outline',   color: 'brown'       },
+  CANCELADO:         { titulo: 'Cancelado',             icon: 'mdi-close-circle-outline',  color: 'negative'    },
 }
 
 const historico = computed(() => docStore.historicoPorDocumento[String(documentoId.value)] ?? [])

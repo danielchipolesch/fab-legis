@@ -39,6 +39,18 @@ const routes = [
     meta: { title: 'Comparar Versões' },
   },
   {
+    path: '/revisao',
+    name: 'revisao',
+    component: () => import('@/pages/RevisaoPage.vue'),
+    meta: { title: 'Revisão', requiresAprovador: true },
+  },
+  {
+    path: '/publicacao',
+    name: 'publicacao',
+    component: () => import('@/pages/PublicacaoPage.vue'),
+    meta: { title: 'Publicação', requiresPublicador: true },
+  },
+  {
     path: '/usuarios',
     name: 'usuarios',
     component: () => import('@/pages/UsuariosPage.vue'),
@@ -70,6 +82,12 @@ router.beforeEach((to) => {
     return { name: 'home' }
   }
   if (to.meta.requiresAuditor && !auth.isAuditor) {
+    return { name: 'home' }
+  }
+  if (to.meta.requiresAprovador && !auth.isAprovador) {
+    return { name: 'home' }
+  }
+  if (to.meta.requiresPublicador && !auth.isPublicador) {
     return { name: 'home' }
   }
   return true

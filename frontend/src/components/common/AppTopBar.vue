@@ -90,6 +90,18 @@
               </q-item-section>
               <q-item-section>Início</q-item-section>
             </q-item>
+            <q-item v-if="auth.isAprovador" clickable v-close-popup :to="{ name: 'revisao' }">
+              <q-item-section avatar>
+                <q-icon name="mdi-account-search-outline" color="primary" />
+              </q-item-section>
+              <q-item-section>Revisão</q-item-section>
+            </q-item>
+            <q-item v-if="auth.isPublicador" clickable v-close-popup :to="{ name: 'publicacao' }">
+              <q-item-section avatar>
+                <q-icon name="mdi-publish" color="primary" />
+              </q-item-section>
+              <q-item-section>Publicação</q-item-section>
+            </q-item>
             <q-item v-if="auth.isAdmin" clickable v-close-popup :to="{ name: 'usuarios' }">
               <q-item-section avatar>
                 <q-icon name="mdi-account-multiple-outline" color="primary" />
