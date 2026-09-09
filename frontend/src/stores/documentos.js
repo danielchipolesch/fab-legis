@@ -82,6 +82,14 @@ export const useDocumentosStore = defineStore('documents', {
     historicoPorDocumento: {},
     mapaAlteracaoPorDocumento: {},
     documentosComHistorico: [],
+    // Incrementado quando algo fora da própria tela (ex.: alguém te adicionou
+    // como coautor -- ver notificação DOCUMENTO_COMPARTILHADO em
+    // AppTopBar.vue) deveria mudar a listagem/contagem da HomePage sem
+    // esperar o usuário trocar de aba ou recarregar a página. HomePage.vue
+    // observa esse contador (watch) e refaz carregar() quando ele muda; um
+    // número simples em vez de um evento porque Pinia não tem barramento de
+    // eventos embutido, e o valor em si não importa, só a mudança.
+    refreshSignal: 0,
   }),
 
   getters: {
@@ -90,6 +98,10 @@ export const useDocumentosStore = defineStore('documents', {
   },
 
   actions: {
+    sinalizarRefresh() {
+      this.refreshSignal++
+    },
+
     // Busca a página atual do acervo (filtrada por aba/busca/espécie/situação) --
     // substitui o antigo fetchAll(), que carregava tudo de uma vez e filtrava no
     // navegador. Chamada pela HomePage a cada troca de aba/filtro/página (ver

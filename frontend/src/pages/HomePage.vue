@@ -239,22 +239,6 @@
                   <q-tooltip anchor="top middle" self="bottom middle">Visualizar</q-tooltip>
                 </q-btn>
 
-                <!-- Comparar versões -->
-                <q-btn
-                  icon="mdi-source-branch"
-                  size="sm"
-                  flat
-                  round
-                  dense
-                  color="primary"
-                  :disable="!store.temVersoesComparaveis(props.row.id)"
-                  :to="store.temVersoesComparaveis(props.row.id) ? { name: 'documento-comparar', params: { id: props.row.id } } : undefined"
-                >
-                  <q-tooltip anchor="top middle" self="bottom middle">
-                    {{ store.temVersoesComparaveis(props.row.id) ? 'Comparar versões' : 'Sem versões anteriores para comparar' }}
-                  </q-tooltip>
-                </q-btn>
-
                 <!-- Clonar -->
                 <q-btn
                   icon="mdi-content-copy"
@@ -282,7 +266,18 @@
                   <q-tooltip anchor="top middle" self="bottom middle">Baixar PDF</q-tooltip>
                 </q-btn>
 
-                <q-btn icon="mdi-dots-vertical" size="sm" flat round dense color="primary">
+                <q-btn
+                  icon="mdi-dots-vertical"
+                  size="sm"
+                  flat
+                  round
+                  dense
+                  color="primary"
+                  :disable="!temAcoesExtras(props.row)"
+                >
+                  <q-tooltip anchor="top middle" self="bottom middle">
+                    {{ temAcoesExtras(props.row) ? 'Mais ações' : 'Nenhuma ação disponível' }}
+                  </q-tooltip>
                   <q-menu>
                     <q-list dense style="min-width:200px">
                       <q-item
@@ -505,6 +500,7 @@ import StatusBadge from '@/components/common/StatusBadge.vue'
 import NovoDocumentoDialog from '@/components/common/NovoDocumentoDialog.vue'
 import SelecionarPessoaDialog from '@/components/editor/SelecionarPessoaDialog.vue'
 import { gerarPdf } from '@/services/pdfService.js'
+import { listEspeciesNormativas, normalizeEspecie } from '@/api/referencias.js'
 
 const $q = useQuasar()
 const store = useDocumentosStore()
@@ -516,7 +512,18 @@ const abaAtiva = ref('meus')
 const filtros = reactive({ busca: '', especie: null, status: null })
 const pdfLoading = reactive({})
 
-const especies = ['ICA', 'NSCA', 'Portaria', 'Resolução', 'Decreto', 'Aviso']
+// Siglas do catálogo real de espécies normativas (t_especie_normativa), não mais
+// uma lista fixa que já ficou desatualizada em relação ao que existe no banco
+// (ver EspecieNormativaEnum) -- ver carregarEspecies() no onMounted abaixo.
+const especies = ref([])
+async function carregarEspecies() {
+  try {
+    const lista = await listEspeciesNormativas()
+    especies.value = lista.map(normalizeEspecie).map(e => e.sigla).sort()
+  } catch (e) {
+    $q.notify({ type: 'negative', message: `Erro ao carregar espécies normativas: ${e?.message ?? 'erro desconhecido'}` })
+  }
+}
 const statusOptions = [
   'RASCUNHO', 'MINUTA', 'EM_REVISAO', 'APROVADO', 'EM_PUBLICACAO', 'PUBLICADO',
   'EM_ALTERACAO', 'ALTERADO', 'ANALISE_REVOGACAO', 'EM_REVOGACAO', 'CANCELADO', 'REVOGADO',
@@ -610,7 +617,12 @@ watch([abaAtiva, () => filtros.especie, () => filtros.status], () => {
   carregar()
 })
 
-onMounted(() => carregar())
+// Alguém te adicionou como coautor em outro documento (ver notificação
+// DOCUMENTO_COMPARTILHADO tratada em AppTopBar.vue) -- refaz a busca da aba
+// atual sem esperar o usuário trocar de aba ou recarregar a página.
+watch(() => store.refreshSignal, () => { carregar() })
+
+onMounted(() => { carregar(); carregarEspecies() })
 
 const STATUS_CFG = {
   RASCUNHO:          { bg: 'grey-3',        fg: 'grey-9',         label: 'Rascunho'             },
@@ -640,13 +652,23 @@ const statusSummary = computed(() =>
   })).filter(s => s.count > 0)
 )
 
+// O ícone da HomePage sempre abre em modo leitura (visualizar), mesmo para o
+// revisor atribuído durante EM_REVISAO -- ele entra no editor de propósito, pelo
+// link "Editar" da tela de visualização (mesmo padrão de Rascunho/Minuta) ou
+// pela fila de Revisão, nunca direto por aqui.
 function canEdit(doc) {
-  if (doc.status === 'EM_REVISAO') return doc.revisor_atribuido_id === String(auth.usuario?.id)
   return ['RASCUNHO', 'MINUTA', 'EM_ALTERACAO'].includes(doc.status)
 }
 
 function canDelete(doc) {
   return ['RASCUNHO', 'MINUTA'].includes(doc.status)
+}
+
+// Mesmo critério que decide o que aparece dentro do menu "⋮" -- se nada
+// aparecer (nenhuma transição de status disponível pro papel do usuário nem
+// exclusão), o botão fica desabilitado em vez de abrir um menu vazio.
+function temAcoesExtras(doc) {
+  return statusActions(doc).length > 0 || canDelete(doc)
 }
 
 function docRoute(doc) {

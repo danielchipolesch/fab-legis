@@ -1,5 +1,6 @@
 package br.com.danielchipolesch.domain.services;
 
+import br.com.danielchipolesch.application.dtos.documentoDtos.DocumentoFilaResponseDto;
 import br.com.danielchipolesch.application.dtos.documentoDtos.DocumentoRequestCreateDto;
 import br.com.danielchipolesch.application.dtos.documentoDtos.DocumentoRequestUpdateDto;
 import br.com.danielchipolesch.application.dtos.documentoDtos.DocumentoResponseSemAnexoTextualDto;
@@ -24,6 +25,7 @@ import br.com.danielchipolesch.domain.entities.estruturaDocumento.Anexo;
 import br.com.danielchipolesch.infrastructure.security.AutenticacaoUtil;
 import br.com.danielchipolesch.infrastructure.repositories.AnexoRepository;
 import br.com.danielchipolesch.infrastructure.repositories.AssuntoBasicoRepository;
+import br.com.danielchipolesch.infrastructure.repositories.DocumentoCompartilhamentoRepository;
 import br.com.danielchipolesch.infrastructure.repositories.DocumentoRepository;
 import br.com.danielchipolesch.infrastructure.repositories.EspecieNormativaRepository;
 import br.com.danielchipolesch.infrastructure.repositories.ItemAnexoParteNormativaRepository;
@@ -37,6 +39,8 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -47,6 +51,9 @@ public class DocumentoService {
 
     @Autowired
     DocumentoRepository documentoRepository;
+
+    @Autowired
+    DocumentoCompartilhamentoRepository documentoCompartilhamentoRepository;
 
     @Autowired
     EspecieNormativaRepository especieNormativaRepository;
@@ -105,18 +112,36 @@ public class DocumentoService {
 
     // Fila pessoal de RevisaoPage.vue -- documentos atribuídos a ESTE usuário como
     // revisor, tanto no fluxo normal (EM_REVISAO) quanto na revogação (ANALISE_REVOGACAO).
-    public List<DocumentoResponseSemAnexoTextualDto> getMinhaRevisao(Long usuarioId) {
+    public List<DocumentoFilaResponseDto> getMinhaRevisao(Long usuarioId) {
         return documentoRepository.findByRevisorAtribuidoIdAndDocumentoStatusIn(usuarioId,
                         List.of(DocumentoStatusEnum.EM_REVISAO, DocumentoStatusEnum.ANALISE_REVOGACAO))
-                .stream().map(DocumentoMapper::documentoToDocumentoSemAnexoTextualResponseDto).toList();
+                .stream().map(this::toFilaResponseDto).toList();
     }
 
     // Fila pessoal de PublicacaoPage.vue -- documentos atribuídos a ESTE usuário como
     // publicador, tanto no fluxo normal (EM_PUBLICACAO) quanto na revogação (EM_REVOGACAO).
-    public List<DocumentoResponseSemAnexoTextualDto> getMinhaPublicacao(Long usuarioId) {
+    public List<DocumentoFilaResponseDto> getMinhaPublicacao(Long usuarioId) {
         return documentoRepository.findByPublicadorAtribuidoIdAndDocumentoStatusIn(usuarioId,
                         List.of(DocumentoStatusEnum.EM_PUBLICACAO, DocumentoStatusEnum.EM_REVOGACAO))
-                .stream().map(DocumentoMapper::documentoToDocumentoSemAnexoTextualResponseDto).toList();
+                .stream().map(this::toFilaResponseDto).toList();
+    }
+
+    private DocumentoFilaResponseDto toFilaResponseDto(Documento documento) {
+        List<String> autores = new ArrayList<>();
+        autores.add(documento.getAutor().getNome());
+        documentoCompartilhamentoRepository.findByDocumentoId(documento.getId())
+                .forEach(c -> autores.add(c.getUsuario().getNome()));
+        return new DocumentoFilaResponseDto(
+                documento.getId(),
+                String.format("%s %s-%d",
+                        documento.getEspecieNormativa().getSigla(),
+                        documento.getAssuntoBasico().getCodigo(),
+                        documento.getNumeroSecundario()),
+                documento.getTituloDocumento(),
+                documento.getDocumentoStatus(),
+                autores,
+                documento.getDtPublicacao() != null
+        );
     }
 
     public List<DocumentoResponseSemAnexoTextualDto> getByEspecieNormativaAndAssuntoBasico(Long especieNormativaId, Long assuntoBasicoId) throws ResourceNotFoundException {
@@ -175,8 +200,18 @@ public class DocumentoService {
         Documento documento = documentoRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException(DocumentoException.NOT_FOUND.getMessage()));
 
-        if (documento.getDocumentoStatus() != DocumentoStatusEnum.RASCUNHO
-                && documento.getDocumentoStatus() != DocumentoStatusEnum.MINUTA) {
+        // Checagem de status redundante à de posse (@PreAuthorize podeEditar no
+        // controller já garante QUEM pode chamar isto -- inclusive o revisor
+        // atribuído durante EM_REVISAO); aqui só barra status que nunca deveriam
+        // aceitar edição nem por quem tem posse. RASCUNHO/MINUTA/EM_ALTERACAO
+        // batem com isReadonly do editor (DocumentoEditorPage.vue); EM_REVISAO
+        // porque o autosave estrutural (editorStore.save() -> este endpoint, ver
+        // stores/documentos.js) roda pra qualquer alteração de árvore -- inclusive
+        // as feitas pelo revisor atribuído, que já pode editar essa etapa.
+        var statusPermiteAtualizacao = EnumSet.of(
+                DocumentoStatusEnum.RASCUNHO, DocumentoStatusEnum.MINUTA,
+                DocumentoStatusEnum.EM_ALTERACAO, DocumentoStatusEnum.EM_REVISAO);
+        if (!statusPermiteAtualizacao.contains(documento.getDocumentoStatus())) {
             throw new StatusCannotBeUpdatedException(DocumentoException.CANNOT_BE_UPDATED.getMessage());
         }
 

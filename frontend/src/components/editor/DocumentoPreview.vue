@@ -348,7 +348,16 @@ const ESPECIE_COMPLETA = {
   Mensagem:  'MENSAGEM',
 }
 
-const WM_COLOR = { RASCUNHO: '#b50000', MINUTA: '#b50000', APROVADO: '#1a6b1a' }
+// Espelha DocumentoFoContext.buildStaticContentWatermark() (backend) -- mesmos
+// status mostram marca d'água, mesmo texto, cor equivalente.
+const WM_TEXT = {
+  RASCUNHO: 'RASCUNHO', MINUTA: 'MINUTA', EM_ALTERACAO: 'EM ALTERAÇÃO',
+  EM_REVISAO: 'EM REVISÃO', APROVADO: 'APROVADO', ALTERADO: 'APROVADO',
+}
+const WM_COLOR = {
+  RASCUNHO: '#b50000', MINUTA: '#b50000', EM_ALTERACAO: '#b57a00',
+  EM_REVISAO: '#3a5bb5', APROVADO: '#1a6b1a', ALTERADO: '#1a6b1a',
+}
 
 // ─── Helpers ─────────────────────────────────────────────
 function stripHtml(html) {
@@ -449,10 +458,7 @@ const orgLabel = computed(() =>
     .toUpperCase()
 )
 
-const wmText  = computed(() => {
-  const s = props.documento?.status
-  return ['RASCUNHO', 'MINUTA', 'APROVADO'].includes(s) ? s : ''
-})
+const wmText  = computed(() => WM_TEXT[props.documento?.status] ?? '')
 const wmColor = computed(() => WM_COLOR[props.documento?.status] ?? '#888')
 
 // Acesso direto às seções por tipo

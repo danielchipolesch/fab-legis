@@ -110,6 +110,16 @@
   </div>
 </template>
 
+<script>
+// Módulo (fora do <script setup>, que é escopo por instância): sobrevive à troca
+// de instância no remount local->colaborativo (ver :key em DocumentoEditorPage.vue).
+// onBeforeUnmount do editor local marca aqui se estava focado; o próximo editor
+// (colaborativo, mesmo elemento) consome a flag pra devolver o foco -- sem isso o
+// usuário perde o cursor no meio da digitação e as teclas seguintes vão para
+// lugar nenhum (document.activeElement volta a ser <body>).
+let focoPendente = false
+</script>
+
 <script setup>
 import { ref, watch, onBeforeUnmount } from 'vue'
 import { useEditor, EditorContent } from '@tiptap/vue-3'
@@ -225,6 +235,31 @@ if (colaborativo) {
       else emit('sync-status', 'offline')
     },
   })
+  // Reconcilia a transição local->colaborativo: entre o snapshot que gerou o
+  // primeiro id persistido (ver DocumentoEditorPage.vue) e este remount, o
+  // usuário pode ter continuado digitando no editor local antigo -- esse texto
+  // só existe em modelValue/editorStore (atualizado a cada tecla via
+  // onContentUpdate), nunca chegou ao Y.Doc. Sem isto, o primeiro sync carrega
+  // o snapshot mais antigo do Postgres e descarta essas teclas silenciosamente.
+  // Roda só uma vez (no primeiro sync) para não sobrescrever edições reais de
+  // outra pessoa em reconexões futuras -- e nunca se o usuário já começou a
+  // digitar no editor novo (usuarioEditouAntesDoSync, setado no onUpdate
+  // abaixo): sobrescrever o Y.Doc por cima de uma digitação em andamento
+  // intercala as duas transações e embaralha o texto (pior que perder as
+  // teclas de antes do remount, que é o caso raro que este reconcile cobre).
+  let reconciliadoInicial = false
+  let usuarioEditouAntesDoSync = false
+  provider.on('synced', () => {
+    if (reconciliadoInicial) return
+    reconciliadoInicial = true
+    if (usuarioEditouAntesDoSync) return
+    const localParsed = parseContent(props.modelValue)
+    if (!localParsed || !editor.value) return
+    const atual = JSON.stringify(editor.value.getJSON())
+    if (atual !== JSON.stringify(localParsed)) {
+      editor.value.commands.setContent(localParsed, false)
+    }
+  })
   // 'saving' | 'saved' | 'error' -- emitido pelo collab/server.js (avisarStatus em
   // onChange/onStoreDocument). unsyncedChanges (contador de updates locais ainda
   // não confirmados pelo WebSocket) NÃO serve pra isso: o ACK do WS é quase
@@ -254,8 +289,15 @@ if (colaborativo) {
     emit('content-live', JSON.stringify(editor.getJSON()))
   }, 400)
 
+  // Consome a flag deixada pelo onBeforeUnmount do editor anterior (ver
+  // declaração de focoPendente acima) -- devolve o cursor pro editor recém-criado
+  // se o usuário estava digitando bem no instante da transição local->colaborativo.
+  const deveDevolverFoco = focoPendente
+  focoPendente = false
+
   editor = useEditor({
     editable: !props.readonly,
+    autofocus: deveDevolverFoco ? 'end' : false,
     extensions: [
       ...editorExtensionsColaborativas,
       Collaboration.configure({ document: provider.document, field: 'default' }),
@@ -267,15 +309,32 @@ if (colaborativo) {
         },
       }),
     ],
-    onUpdate: emitirContentLive,
+    onUpdate(payload) {
+      usuarioEditouAntesDoSync = true
+      emitirContentLive(payload)
+    },
   })
 } else {
+  // Guarda o último valor que O PRÓPRIO editor emitiu -- ver watch abaixo: sem
+  // isso, cada tecla digitada ecoa modelValue de volta pra cá (via
+  // onContentUpdate no pai -> editorStore -> prop), e comparar via
+  // getJSON()/JSON.stringify (que não é estável: TipTap às vezes inclui/omite
+  // `attrs` default como {"textAlign":null} de formas diferentes do JSON
+  // recebido) fazia esse eco parecer uma mudança "externa" e chamar
+  // setContent() no meio da digitação -- o que derruba o foco do ProseMirror,
+  // perdendo qualquer tecla seguinte (o editor fica com o cursor em lugar
+  // nenhum). Comparando string-a-string contra o que a gente mesmo emitiu, o
+  // eco nunca dispara setContent.
+  let ultimoValorEmitido = null
+
   editor = useEditor({
     content: parseContent(props.modelValue),
     editable: !props.readonly,
     extensions: editorExtensions,
     onUpdate({ editor }) {
-      emit('update:modelValue', JSON.stringify(editor.getJSON()))
+      const json = JSON.stringify(editor.getJSON())
+      ultimoValorEmitido = json
+      emit('update:modelValue', json)
     },
   })
 
@@ -284,12 +343,10 @@ if (colaborativo) {
   // sobrescrever o que está sendo digitado ao vivo por outra pessoa.
   watch(() => props.modelValue, (val) => {
     if (!editor.value) return
+    if (val === ultimoValorEmitido) return
     const parsed = parseContent(val)
     if (!parsed) return
-    const currentJson = JSON.stringify(editor.value.getJSON())
-    if (currentJson !== JSON.stringify(parsed)) {
-      editor.value.commands.setContent(parsed, false)
-    }
+    editor.value.commands.setContent(parsed, false)
   })
 }
 
@@ -298,6 +355,11 @@ watch(() => props.readonly, (val) => {
 })
 
 onBeforeUnmount(() => {
+  // Só marca a intenção quando este é o modo local -- o próximo mount só existe
+  // por causa da transição local->colaborativo (ver :key em DocumentoEditorPage.vue);
+  // no colaborativo->colaborativo (troca de elemento selecionado) o foco explícito
+  // do usuário em cada clique já resolve isso, sem precisar da flag.
+  if (!colaborativo) focoPendente = !!editor.value?.isFocused
   emitirContentLive?.cancel()
   editor.value?.destroy()
   provider?.destroy()

@@ -1,5 +1,13 @@
 <template>
   <q-page class="q-pa-xl">
+    <q-breadcrumbs active-color="primary" style="font-size:13px" class="q-mb-md">
+      <template v-slot:separator>
+        <q-icon name="mdi-chevron-right" size="16px" color="primary" />
+      </template>
+      <q-breadcrumbs-el :to="{ name: 'home' }" icon="mdi-home" />
+      <q-breadcrumbs-el label="Revisão" />
+    </q-breadcrumbs>
+
     <div class="row items-center justify-between q-mb-xl">
       <div>
         <h1 class="text-h5 text-weight-bold text-primary q-my-none">Revisão</h1>
@@ -18,6 +26,10 @@
         :rows-per-page-options="[15, 25, 50]"
         class="legis-table"
       >
+        <template #body-cell-autores="props">
+          <q-td :props="props">{{ props.row.autores.join(', ') }}</q-td>
+        </template>
+
         <template #body-cell-status="props">
           <q-td :props="props">
             <StatusBadge :status="props.row.status" />
@@ -69,7 +81,7 @@
       v-model="dialogAprovar"
       papel="PUBLIC"
       :titulo="alvo?.status === 'ANALISE_REVOGACAO' ? 'Aprovar revogação' : 'Aprovar'"
-      :descricao="alvo ? `Escolha quem vai publicar ${alvo.especie} ${alvo.numero_basico}${alvo.numero_secundario ? '-' + alvo.numero_secundario : ''}` : ''"
+      :descricao="alvo ? `Escolha quem vai publicar ${alvo.codigo_documento}` : ''"
       acao-label="Aprovar"
       :enviando="enviando"
       @confirmar="confirmarAprovacao"
@@ -92,11 +104,11 @@ const documentos = ref([])
 const carregando = ref(false)
 
 const columns = [
-  { name: 'especie',        label: 'Espécie',        field: 'especie',        align: 'center', style: 'width: 100px' },
-  { name: 'numero',         label: 'Número',         field: 'numero_basico',  align: 'center' },
-  { name: 'titulo',         label: 'Título',         field: 'titulo',         align: 'center' },
-  { name: 'status',         label: 'Situação',       field: 'status',         align: 'center', style: 'width: 160px' },
-  { name: 'actions',        label: 'Ações',          field: 'actions',        align: 'center', style: 'width: 140px' },
+  { name: 'codigo',   label: 'Código',   field: 'codigo_documento', align: 'center', style: 'width: 120px' },
+  { name: 'titulo',   label: 'Título',   field: 'titulo',           align: 'center' },
+  { name: 'autores',  label: 'Autores',  field: 'autores',          align: 'center' },
+  { name: 'status',   label: 'Situação', field: 'status',           align: 'center', style: 'width: 160px' },
+  { name: 'actions',  label: 'Ações',    field: 'actions',          align: 'center', style: 'width: 140px' },
 ]
 
 async function carregar() {
@@ -111,10 +123,15 @@ async function carregar() {
 }
 onMounted(carregar)
 
+// EM_REVISAO abre direto no editor -- é onde o revisor atribuído revisa E edita
+// na mesma tela (ver isReadonly em DocumentoEditorPage.vue). ANALISE_REVOGACAO
+// não tem conteúdo editável em etapa nenhuma (a revogação nunca reabre o
+// documento), então continua indo pra visualização. As duas preservam a
+// origem pro breadcrumb voltar pra cá.
 function rotaAbrir(doc) {
   return doc.status === 'EM_REVISAO'
-    ? { name: 'documento-editar', params: { id: doc.id } }
-    : { name: 'documento-visualizar', params: { id: doc.id } }
+    ? { name: 'documento-editar', params: { id: doc.id }, query: { origem: 'revisao' } }
+    : { name: 'documento-visualizar', params: { id: doc.id }, query: { origem: 'revisao' } }
 }
 
 // EM_REVISAO resolve pra APROVADO (fluxo normal) ou ALTERADO (ciclo de alteração)
@@ -122,12 +139,12 @@ function rotaAbrir(doc) {
 // backend (ver DocumentoStatusService.jaPublicadoAntes), pra mandar o status certo.
 function alvoAprovacao(doc) {
   if (doc.status === 'ANALISE_REVOGACAO') return 'EM_REVOGACAO'
-  return doc.data_publicacao ? 'ALTERADO' : 'APROVADO'
+  return doc.ja_publicado_antes ? 'ALTERADO' : 'APROVADO'
 }
 
 function alvoDevolucao(doc) {
   if (doc.status === 'ANALISE_REVOGACAO') return 'PUBLICADO'
-  return doc.data_publicacao ? 'EM_ALTERACAO' : 'MINUTA'
+  return doc.ja_publicado_antes ? 'EM_ALTERACAO' : 'MINUTA'
 }
 
 const dialogAprovar = ref(false)

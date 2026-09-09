@@ -9,13 +9,13 @@
             <q-icon name="mdi-chevron-right" size="16px" color="primary" />
           </template>
           <q-breadcrumbs-el :to="{ name: 'home' }" icon="mdi-home" />
-          <q-breadcrumbs-el label="Documentos" />
+          <q-breadcrumbs-el :label="origemCrumb.label" :to="origemCrumb.to" />
           <q-breadcrumbs-el :label="docLabel" />
           <q-breadcrumbs-el
             v-if="podeEditar"
             label="Editar"
             icon="mdi-pencil-outline"
-            :to="{ name: 'documento-editar', params: { id: documentoId } }"
+            :to="{ name: 'documento-editar', params: { id: documentoId }, query: route.query }"
           />
         </q-breadcrumbs>
         <div v-if="documento?.titulo" class="text-body2 text-grey-7 q-mt-xs">{{ documento.titulo }}</div>
@@ -32,7 +32,7 @@
       </q-btn>
 
       <q-btn
-        v-if="documento?.status === 'ALTERADO'"
+        v-if="documento?.status === 'EM_PUBLICACAO' && !!documento?.data_publicacao"
         outline color="primary" size="sm"
         @click="abrirTextoSugerido"
       >
@@ -314,8 +314,9 @@ import { ref, computed, reactive, watch, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { useDocumentosStore } from '@/stores/documentos.js'
+import { useAuthStore } from '@/stores/auth.js'
 import StatusBadge from '@/components/common/StatusBadge.vue'
-import { gerarPdf, pdfUrl } from '@/services/pdfService.js'
+import { gerarPdf } from '@/services/pdfService.js'
 import { gerarTextoSugeridoPortaria } from '@/utils/textoSugeridoPortaria.js'
 import { resolveMinioUrl, resolveMinioUrls } from '@/utils/minioUrls.js'
 
@@ -323,6 +324,7 @@ const route    = useRoute()
 const router   = useRouter()
 const $q       = useQuasar()
 const docStore = useDocumentosStore()
+const auth     = useAuthStore()
 
 const pdfLoading = ref(false)
 
@@ -334,7 +336,18 @@ const expanded = reactive({
   versoes:   false,
 })
 
-const STATUS_COM_PDF = new Set(['APROVADO', 'ALTERADO', 'PUBLICADO', 'REVOGADO'])
+// Só mostra o PDF quando existe uma cópia ARMAZENADA e confiável no MinIO
+// (DocumentoPdfService.STATUS_COM_PDF_ARMAZENADO) -- nunca renderiza ao vivo
+// aqui. Renderização ao vivo (Apache FOP) é pesada, e ligá-la à navegação da
+// tela de visualização (que qualquer usuário abre a qualquer momento) chegou a
+// sobrecarregar o backend inteiro; quem precisa ver o conteúdo current de um
+// documento ainda editável (EM_REVISAO etc.) usa o editor, que já tem uma
+// prévia própria (DocumentoPreview.vue, renderizada no próprio navegador, sem
+// tocar o backend). Fora dessas situações, a seção mostra "PDF indisponível".
+// APROVADO/ALTERADO nunca ficam parados como status atual (cascateiam direto
+// pra EM_PUBLICACAO) -- é esse quem carrega a cópia gerada com a marca d'água
+// "APROVADO" enquanto aguarda a publicação de fato.
+const STATUS_COM_PDF = new Set(['APROVADO', 'ALTERADO', 'EM_PUBLICACAO', 'PUBLICADO', 'REVOGADO'])
 
 const documentoId = computed(() => route.params.id)
 const documento   = computed(() => docStore.getById(documentoId.value))
@@ -342,8 +355,7 @@ const documento   = computed(() => docStore.getById(documentoId.value))
 const iframePdfSrcBruto = computed(() => {
   const doc = documento.value
   if (!doc) return null
-  if (doc.url_pdf) return doc.url_pdf
-  if (STATUS_COM_PDF.has(doc.status)) return pdfUrl(documentoId.value)
+  if (STATUS_COM_PDF.has(doc.status)) return doc.url_pdf || null
   return null
 })
 
@@ -364,10 +376,26 @@ const docLabel = computed(() => {
   return [d.especie, num].filter(Boolean).join(' ') || 'Documento'
 })
 
-// Só Rascunho/Minuta oferecem o atalho de voltar para o editor pelo
-// breadcrumb -- as demais situações não têm edição direta de conteúdo (ver
-// "Regra de imutabilidade" no README).
-const podeEditar = computed(() => ['RASCUNHO', 'MINUTA'].includes(documento.value?.status))
+// Rascunho/Minuta oferecem o atalho de voltar para o editor pelo breadcrumb
+// por posse; EM_REVISAO oferece o mesmo atalho só para o revisor atribuído
+// (ver DocumentoAcessoService.podeEditar/isReadonly em DocumentoEditorPage.vue)
+// -- as demais situações não têm edição direta de conteúdo (ver "Regra de
+// imutabilidade" no README).
+const podeEditar = computed(() => {
+  const doc = documento.value
+  if (!doc) return false
+  if (doc.status === 'EM_REVISAO') return doc.revisor_atribuido_id === String(auth.usuario?.id)
+  return ['RASCUNHO', 'MINUTA'].includes(doc.status)
+})
+
+// Ver comentário equivalente em DocumentoEditorPage.vue -- quando aberto a
+// partir da fila pessoal de Revisão/Publicação (query `origem`), o breadcrumb
+// do meio volta pra lá em vez de pro acervo geral.
+const ORIGEM_CRUMB = {
+  revisao:    { label: 'Revisão',    to: { name: 'revisao' } },
+  publicacao: { label: 'Publicação', to: { name: 'publicacao' } },
+}
+const origemCrumb = computed(() => ORIGEM_CRUMB[route.query.origem] ?? { label: 'Documentos', to: { name: 'home' } })
 
 // Metadados visuais por status — os ciclos EM_ALTERACAO <-> ALTERADO podem se repetir
 // várias vezes até a republicação, então o histórico vem do log de transições

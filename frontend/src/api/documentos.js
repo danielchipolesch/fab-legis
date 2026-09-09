@@ -222,16 +222,30 @@ export async function getResumoDocumentos({ aba, busca, especieSigla } = {}) {
   return http.get(`/documentos/resumo?${params.toString()}`)
 }
 
+// Formato enxuto de DocumentoFilaResponseDto (backend) -- só o que as telas de
+// fila pessoal mostram (código/título/autores/situação), não o documento
+// inteiro como backendParaFrontend espera.
+function filaParaFrontend(doc) {
+  return {
+    id: doc.idDocumento,
+    codigo_documento: doc.codigoDocumento,
+    titulo: doc.tituloDocumento,
+    status: doc.statusDocumento,
+    autores: doc.autores ?? [],
+    ja_publicado_antes: !!doc.jaPublicadoAntes,
+  }
+}
+
 // Fila pessoal das telas de Revisão/Publicação -- documentos atribuídos a QUEM
 // está chamando (ver Documento.revisorAtribuido/publicadorAtribuido no backend).
 export async function listMinhaRevisao() {
   const resp = await http.get('/documentos/minha-revisao')
-  return (resp ?? []).map(backendParaFrontend)
+  return (resp ?? []).map(filaParaFrontend)
 }
 
 export async function listMinhaPublicacao() {
   const resp = await http.get('/documentos/minha-publicacao')
-  return (resp ?? []).map(backendParaFrontend)
+  return (resp ?? []).map(filaParaFrontend)
 }
 
 export async function listDocumentosComHistoricoEmenda() {

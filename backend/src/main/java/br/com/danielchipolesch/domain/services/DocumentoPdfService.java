@@ -37,9 +37,15 @@ public class DocumentoPdfService {
     // MinIO (gerado por DocumentoStatusService nas transições correspondentes) —
     // nesses casos o PDF é sempre servido do MinIO, nunca renderizado de novo,
     // independente da tela/botão que disparou a exportação (PUBLICADO cobre tanto
-    // a primeira publicação quanto qualquer republicação).
+    // a primeira publicação quanto qualquer república). APROVADO/ALTERADO nunca
+    // ficam parados como status atual do documento (DocumentoStatusService
+    // cascateia direto para EM_PUBLICACAO na mesma transação que gera o PDF) —
+    // seguem aqui só porque o enum de doc.getDocumentoStatus() nunca vai
+    // realmente valer isso; é EM_PUBLICACAO quem carrega a cópia armazenada com
+    // a marca d'água "APROVADO" enquanto aguarda a publicação de fato.
     private static final Set<DocumentoStatusEnum> STATUS_COM_PDF_ARMAZENADO = EnumSet.of(
-            DocumentoStatusEnum.APROVADO, DocumentoStatusEnum.ALTERADO, DocumentoStatusEnum.PUBLICADO);
+            DocumentoStatusEnum.APROVADO, DocumentoStatusEnum.ALTERADO, DocumentoStatusEnum.EM_PUBLICACAO,
+            DocumentoStatusEnum.PUBLICADO, DocumentoStatusEnum.REVOGADO);
 
     private static final FopFactory FOP_FACTORY = FopFactoryProvider.get();
 

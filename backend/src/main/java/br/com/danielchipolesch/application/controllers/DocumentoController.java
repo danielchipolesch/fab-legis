@@ -1,5 +1,6 @@
 package br.com.danielchipolesch.application.controllers;
 
+import br.com.danielchipolesch.application.dtos.documentoDtos.DocumentoFilaResponseDto;
 import br.com.danielchipolesch.application.dtos.documentoDtos.DocumentoHistoricoResponseDto;
 import br.com.danielchipolesch.application.dtos.documentoDtos.DocumentoRequestCreateDto;
 import br.com.danielchipolesch.application.dtos.documentoDtos.DocumentoRequestUpdateDto;
@@ -183,13 +184,13 @@ public class DocumentoController {
 
     // Fila pessoal das telas de Revisão/Publicação -- ver DocumentoService.
     @GetMapping("/minha-revisao")
-    public ResponseEntity<List<DocumentoResponseSemAnexoTextualDto>> getMinhaRevisao(Authentication authentication) {
+    public ResponseEntity<List<DocumentoFilaResponseDto>> getMinhaRevisao(Authentication authentication) {
         Usuario usuario = ((UsuarioPrincipal) authentication.getPrincipal()).getUsuario();
         return ResponseEntity.ok(documentoService.getMinhaRevisao(usuario.getId()));
     }
 
     @GetMapping("/minha-publicacao")
-    public ResponseEntity<List<DocumentoResponseSemAnexoTextualDto>> getMinhaPublicacao(Authentication authentication) {
+    public ResponseEntity<List<DocumentoFilaResponseDto>> getMinhaPublicacao(Authentication authentication) {
         Usuario usuario = ((UsuarioPrincipal) authentication.getPrincipal()).getUsuario();
         return ResponseEntity.ok(documentoService.getMinhaPublicacao(usuario.getId()));
     }

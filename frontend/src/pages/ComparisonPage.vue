@@ -146,7 +146,7 @@
           </div>
           <div class="row justify-end q-gutter-x-sm">
             <q-btn
-              v-if="documento?.status === 'ALTERADO'"
+              v-if="documento?.status === 'EM_PUBLICACAO' && !!documento?.data_publicacao"
               size="sm"
               outline
               color="primary"

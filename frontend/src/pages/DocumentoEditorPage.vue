@@ -61,7 +61,7 @@
             <q-icon name="mdi-chevron-right" size="16px" color="primary" />
           </template>
           <q-breadcrumbs-el :to="{ name: 'home' }" icon="mdi-home" />
-          <q-breadcrumbs-el label="Documentos" />
+          <q-breadcrumbs-el :label="origemCrumb.label" :to="origemCrumb.to" />
           <q-breadcrumbs-el :label="docLabel" />
           <q-breadcrumbs-el v-if="selectedElement" :label="selectedElementLabel" />
         </q-breadcrumbs>
@@ -511,6 +511,16 @@ async function onReordenarIncluido(elementoId, direcao) {
   }
 }
 
+// Quando o documento foi aberto a partir da fila pessoal de Revisão/Publicação
+// (ver RevisaoPage.vue/PublicacaoPage.vue, query `origem`), o breadcrumb do meio
+// volta pra lá em vez de pro acervo geral -- é de lá que quem está revisando/
+// publicando veio, e é pra lá que faz sentido voltar.
+const ORIGEM_CRUMB = {
+  revisao:    { label: 'Revisão',    to: { name: 'revisao' } },
+  publicacao: { label: 'Publicação', to: { name: 'publicacao' } },
+}
+const origemCrumb = computed(() => ORIGEM_CRUMB[route.query.origem] ?? { label: 'Documentos', to: { name: 'home' } })
+
 const docLabel = computed(() => {
   const d = documento.value
   if (!d) return 'Novo Documento'
@@ -588,8 +598,12 @@ onMounted(async () => {
       return
     }
 
-    if (!['RASCUNHO', 'MINUTA', 'EM_ALTERACAO'].includes(doc.status)) {
-      router.replace({ name: 'documento-visualizar', params: { id: documentoId.value } })
+    // Mesma regra de isReadonly: editável por posse (RASCUNHO/MINUTA/EM_ALTERACAO)
+    // ou pelo revisor atribuído enquanto EM_REVISAO -- fora daí, manda pro viewer.
+    const editavelAgora = ['RASCUNHO', 'MINUTA', 'EM_ALTERACAO'].includes(doc.status)
+      || (doc.status === 'EM_REVISAO' && doc.revisor_atribuido_id === String(auth.usuario?.id))
+    if (!editavelAgora) {
+      router.replace({ name: 'documento-visualizar', params: { id: documentoId.value }, query: route.query })
       return
     }
 
