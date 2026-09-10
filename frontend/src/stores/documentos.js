@@ -184,10 +184,10 @@ export const useDocumentosStore = defineStore('documents', {
       return atualizado
     },
 
-    async updateMetadados(id, { titulo, numero_secundario }) {
+    async updateMetadados(id, { titulo, numero_secundario, om_id }) {
       const idx = this.documentos.findIndex(d => String(d.id) === String(id))
       if (idx === -1) return
-      const atualizado = await api.updateDocumento(id, { titulo, numero_secundario })
+      const atualizado = await api.updateDocumento(id, { titulo, numero_secundario, om_id })
       if (atualizado) {
         this.documentos[idx] = { ...this.documentos[idx], ...atualizado, secoes: this.documentos[idx].secoes }
       }

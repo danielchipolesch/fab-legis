@@ -126,7 +126,9 @@ final class DocumentoFoFrontMatterBuilder {
         sb.append("<fo:flow flow-name=\"xsl-region-body\">\n");
 
         sb.append(block("MINISTÉRIO DA DEFESA", "center", "17pt", "bold", "0", "2pt"));
-        sb.append(block("COMANDO DA AERONÁUTICA", "center", "17pt", "bold", "0", "35mm"));
+        sb.append(block("COMANDO DA AERONÁUTICA", "center", "17pt", "bold", "0", "8pt"));
+        // NSCA 5-3, Art. 17, II — nome da OM que elaborou o ato.
+        sb.append(block(foEsc(ctx.doc.getOm().getNome().toUpperCase()), "center", "15pt", "normal", "0", "35mm"));
 
         if (!brasaoFab.isBlank()) {
             sb.append("<fo:block text-align=\"center\" space-after=\"35mm\">")
@@ -135,10 +137,12 @@ final class DocumentoFoFrontMatterBuilder {
               .append("</fo:block>\n");
         }
 
+        // NSCA 5-3, Art. 17, IV — corpo de texto 19.
         String assunto = ctx.doc.getAssuntoBasico().getNome().toUpperCase();
-        sb.append(block(assunto, "center", "21pt", "bold", "0", "15mm"));
+        sb.append(block(assunto, "center", "19pt", "bold", "0", "15mm"));
 
-        // Legenda box: espécie+número no topo, título no meio, ano na base
+        // Legenda box: espécie+número no topo, título no meio, ano na base --
+        // NSCA 5-3, Art. 17, V: corpo de texto 14 pras três linhas.
         // Tabela externa centra horizontalmente a caixa (3.5 | 10 | 3.5 cm)
         // Tabela interna divide a célula em 3 linhas de altura fixa (1.2+2.6+1.2=5cm)
         String titulo = ctx.doc.getTituloDocumento() != null
@@ -158,21 +162,21 @@ final class DocumentoFoFrontMatterBuilder {
         // Linha 1 — espécie e número (topo)
         sb.append("          <fo:table-row height=\"1.2cm\">\n");
         sb.append("            <fo:table-cell display-align=\"center\" padding=\"0.1cm 0.5cm\">\n");
-        sb.append("              <fo:block text-align=\"center\" font-size=\"12pt\" font-weight=\"bold\">")
+        sb.append("              <fo:block text-align=\"center\" font-size=\"14pt\" font-weight=\"bold\">")
           .append(foEsc(ctx.docId())).append("</fo:block>\n");
         sb.append("            </fo:table-cell>\n");
         sb.append("          </fo:table-row>\n");
         // Linha 2 — título (meio)
         sb.append("          <fo:table-row height=\"2.6cm\">\n");
         sb.append("            <fo:table-cell display-align=\"center\" padding=\"0 0.5cm\">\n");
-        sb.append("              <fo:block text-align=\"center\" font-size=\"12pt\" font-weight=\"bold\">")
+        sb.append("              <fo:block text-align=\"center\" font-size=\"14pt\" font-weight=\"bold\">")
           .append(foEsc(titulo)).append("</fo:block>\n");
         sb.append("            </fo:table-cell>\n");
         sb.append("          </fo:table-row>\n");
         // Linha 3 — ano (base)
         sb.append("          <fo:table-row height=\"1.2cm\">\n");
         sb.append("            <fo:table-cell display-align=\"center\" padding=\"0.1cm 0.5cm\">\n");
-        sb.append("              <fo:block text-align=\"center\" font-size=\"12pt\" font-weight=\"bold\">")
+        sb.append("              <fo:block text-align=\"center\" font-size=\"14pt\" font-weight=\"bold\">")
           .append(ano).append("</fo:block>\n");
         sb.append("            </fo:table-cell>\n");
         sb.append("          </fo:table-row>\n");

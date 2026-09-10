@@ -15,6 +15,7 @@ import br.com.danielchipolesch.domain.entities.estruturaDocumento.ItemPartePreli
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.ItemParteFinal;
 import br.com.danielchipolesch.domain.entities.numeracaoDocumento.AssuntoBasico;
 import br.com.danielchipolesch.domain.entities.numeracaoDocumento.EspecieNormativa;
+import br.com.danielchipolesch.domain.entities.usuario.OrganizacaoMilitar;
 import br.com.danielchipolesch.domain.handlers.exceptions.ResourceNotFoundException;
 import br.com.danielchipolesch.domain.handlers.exceptions.enums.AssuntoBasicoException;
 import br.com.danielchipolesch.domain.handlers.exceptions.enums.DocumentoException;
@@ -32,6 +33,7 @@ import br.com.danielchipolesch.infrastructure.repositories.ItemAnexoParteNormati
 import br.com.danielchipolesch.infrastructure.repositories.DocumentoHistoricoRepository;
 import br.com.danielchipolesch.infrastructure.repositories.ItemParteFinalRepository;
 import br.com.danielchipolesch.infrastructure.repositories.ItemPartePreliminarRepository;
+import br.com.danielchipolesch.infrastructure.repositories.OrganizacaoMilitarRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -78,6 +80,9 @@ public class DocumentoService {
 
     @Autowired
     AnexoRepository anexoRepository;
+
+    @Autowired
+    OrganizacaoMilitarRepository organizacaoMilitarRepository;
 
 
     @Transactional
@@ -220,6 +225,30 @@ public class DocumentoService {
         if (request.numeroSecundario() != null) {
             documento.setNumeroSecundario(request.numeroSecundario());
         }
+
+        // OM impressa na capa (NSCA 5-3, Art. 17, II) -- por padrão a do autor no
+        // momento da criação (ver create() abaixo), mas alterável enquanto o
+        // documento ainda não avançou no fluxo. Mais restrito que
+        // statusPermiteAtualizacao acima de propósito: uma vez em EM_ALTERACAO/
+        // EM_REVISAO o documento já saiu das mãos de quem só edita conteúdo, não
+        // faz sentido trocar a OM que assina o ato nesse ponto. Só age quando o
+        // valor difere do atual -- o autosave estrutural do editor também passa
+        // por aqui reenviando o documento inteiro (om_id incluso), mas sempre
+        // com o valor já vigente, então essa checagem o torna um no-op ali.
+        boolean omAlterada = false;
+        if (request.omId() != null && !request.omId().equals(documento.getOm().getId())) {
+            var statusPermiteAlterarOm = documento.getDocumentoStatus() == DocumentoStatusEnum.RASCUNHO
+                    || documento.getDocumentoStatus() == DocumentoStatusEnum.MINUTA;
+            if (!statusPermiteAlterarOm) {
+                throw new StatusCannotBeUpdatedException(
+                        "A organização militar só pode ser alterada enquanto o documento está em Rascunho ou Minuta.");
+            }
+            OrganizacaoMilitar novaOm = organizacaoMilitarRepository.findById(request.omId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Organização militar não encontrada."));
+            documento.setOm(novaOm);
+            omAlterada = true;
+        }
+
         // saveAndFlush, não save: o @Version só é incrementado no INSTANTE do
         // flush, que por padrão só aconteceria no commit da transação -- DEPOIS
         // deste método já ter retornado. Sem o flush explícito aqui, quando o
@@ -231,6 +260,10 @@ public class DocumentoService {
         if (tituloAlterado) {
             documentoHistoricoService.registrar(atualizado, TipoAlteracaoEnum.ALTERACAO_METADADOS,
                     "Título atualizado", null, null);
+        }
+        if (omAlterada) {
+            documentoHistoricoService.registrar(atualizado, TipoAlteracaoEnum.ALTERACAO_METADADOS,
+                    "Organização militar atualizada para " + atualizado.getOm().getNome(), null, null);
         }
         return DocumentoMapper.documentoToDocumentoSemAnexoTextualResponseDto(atualizado);
     }

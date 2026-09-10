@@ -273,6 +273,12 @@ export async function updateDocumento(id, data) {
   const body = {
     tituloDocumento: data.titulo ?? data.tituloDocumento,
     ...(data.numero_secundario != null && { numeroSecundario: parseInt(data.numero_secundario, 10) || undefined }),
+    // O autosave estrutural do editor também passa por aqui com o documento
+    // inteiro (ver saveDocumento em stores/documentos.js), incluindo om_id --
+    // sem efeito nesse caso, porque o backend só troca a OM quando o valor
+    // difere da atual (ver DocumentoService.update); só a tela de metadados
+    // efetivamente muda esse valor.
+    ...(data.om_id != null && { omId: parseInt(data.om_id, 10) || undefined }),
   }
   const result = await http.put(`/documentos/${id}`, body)
   return backendParaFrontend(result)

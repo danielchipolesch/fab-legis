@@ -453,8 +453,7 @@ const dataFormatada = computed(() => formatarDataBR(props.documento?.data_criaca
 const anoAtual      = new Date().getFullYear()
 
 const orgLabel = computed(() =>
-  (props.documento?.organizacao ?? '')
-    .replace(/^[A-Z]+ — /, '')
+  (props.documento?.om_nome ?? '')
     .toUpperCase()
 )
 
@@ -752,9 +751,9 @@ const anexosDocumento = computed(() =>
 .gladio-star  { font-size: 70px; line-height: 1; }
 .gladio-label { font-size: 12px; text-align: center; line-height: 1.3; margin-top: 6px; font-family: 'Calibri', 'Carlito', 'Segoe UI', Arial, sans-serif; }
 
-/* ASSUNTO BÁSICO — negrito, maiúsculo, grande */
+/* ASSUNTO BÁSICO — negrito, maiúsculo, grande (Art. 17 IV — corpo 19 ≈ 26px) */
 .capa-assunto {
-  font-size:   28px;
+  font-size:   26px;
   font-weight: bold;
   text-transform: uppercase;
   margin: 0;
@@ -774,9 +773,9 @@ const anexosDocumento = computed(() =>
   justify-content: space-between;
   box-sizing: border-box;
 }
-.legenda-sigla  { font-size: 16px; font-weight: bold; margin: 0; }
-.legenda-titulo { font-size: 16px; font-weight: bold; margin: 0; text-transform: uppercase; }
-.legenda-ano    { font-size: 16px; font-weight: bold; margin: 0; }
+.legenda-sigla  { font-size: 19px; font-weight: bold; margin: 0; }
+.legenda-titulo { font-size: 19px; font-weight: bold; margin: 0; text-transform: uppercase; }
+.legenda-ano    { font-size: 19px; font-weight: bold; margin: 0; }
 
 /* ═══════════════════════════════════════════════════════════
    CABEÇALHO  (NSCA 5-3 Art. 18)

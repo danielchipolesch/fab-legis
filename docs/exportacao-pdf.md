@@ -7,6 +7,7 @@ Geração de PDF **server-side** via **Apache FOP 2.10 / XSL-FO**, seguindo o pa
 - margens A4 oficiais;
 - cabeçalho com brasão da República (Portaria de Aprovação) e brasão da FAB (Capa);
 - estrutura de três páginas: **Portaria de Aprovação → Capa → Sumário + Corpo normativo**;
+- **capa conforme NSCA 5-3, Art. 17**: Ministério da Defesa/Comando da Aeronáutica, nome por extenso da organização militar que elaborou o ato (`Documento.om` — por padrão a OM do autor na criação, mas alterável na tela de Metadados do editor enquanto o documento estiver em `RASCUNHO`/`MINUTA`, ver `DocumentoService.update`), gládio alado, assunto básico e legenda com sigla/número/título/ano (`DocumentoFoFrontMatterBuilder.buildCapaSequence`); a prévia do editor (`DocumentoPreview.vue`) espelha o mesmo layout;
 - **sumário automático** com intervalos de artigos por capítulo/seção/subseção e hiperlinks internos;
 - **marca d'água por status** — `RASCUNHO`/`MINUTA` em vermelho ("RASCUNHO"/"MINUTA"), `EM_ALTERACAO` em laranja ("EM ALTERAÇÃO"), `EM_REVISAO` em azul ("EM REVISÃO"), `APROVADO`/`ALTERADO` em verde ("APROVADO") — nas demais situações (`PUBLICADO`, `REVOGADO`...) o PDF final não leva marca d'água nenhuma (`DocumentoFoContext.buildStaticContentWatermark`); a prévia aproximada do editor (`DocumentoPreview.vue`) espelha as mesmas cores/textos;
 - renderização de imagens embutidas via MinIO, tabelas e figuras.

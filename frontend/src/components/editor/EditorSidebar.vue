@@ -449,6 +449,27 @@
           <div class="col-12">
             <q-input :model-value="props.documento?.codigo_documento" label="Código do documento" outlined dense disable />
           </div>
+          <div class="col-12">
+            <q-select
+              v-if="omEditavel"
+              v-model="metaForm.om_id"
+              :options="omOptions"
+              option-label="label"
+              option-value="value"
+              emit-value
+              map-options
+              label="Organização Militar"
+              outlined dense
+              hint="Impressa na capa do ato normativo (NSCA 5-3, Art. 17)."
+            />
+            <q-input
+              v-else
+              :model-value="props.documento?.om_nome"
+              label="Organização Militar"
+              outlined dense disable
+              hint="Só pode ser alterada enquanto o documento está em Rascunho ou Minuta."
+            />
+          </div>
         </div>
 
         <!-- Conteúdo -->
@@ -598,6 +619,7 @@ import { useEditorStore } from '@/stores/editor.js'
 import { useDocumentosStore } from '@/stores/documentos.js'
 import { useAuthStore } from '@/stores/auth.js'
 import { BASE_URL } from '@/api/client.js'
+import { listOrganizacoesMilitares } from '@/api/usuarios.js'
 
 const $q = useQuasar()
 const editorStore = useEditorStore()
@@ -633,17 +655,37 @@ function formatarData(iso) {
 
 const metaDialogOpen = ref(false)
 const metaSalvando   = ref(false)
-const metaForm = reactive({ titulo: '', numero_secundario: '' })
+const metaForm = reactive({ titulo: '', numero_secundario: '', om_id: null })
 // Espelha a regra do backend (DocumentoService.update só aceita
 // RASCUNHO/MINUTA -- ver GlobalExceptionHandler, StatusCannotBeUpdatedException
 // mapeada para 403): dentro do editor, o único outro status possível é
 // EM_ALTERACAO, então basta essa checagem.
 const metaEditavel = computed(() => !props.isEmAlteracao)
+// OM impressa na capa (NSCA 5-3, Art. 17, II) -- mais restrito que metaEditavel
+// de propósito: só faz sentido trocar a OM que assina o ato enquanto o
+// documento ainda não avançou pra revisão (ver DocumentoService.update).
+const omEditavel = computed(() => ['RASCUNHO', 'MINUTA'].includes(props.documento?.status))
+
+const omOptions = ref([])
+let omOptionsCarregadas = false
+async function carregarOmOptions() {
+  if (omOptionsCarregadas) return
+  try {
+    const lista = await listOrganizacoesMilitares()
+    omOptions.value = lista.map(om => ({ label: om.nome, value: String(om.id) }))
+    omOptionsCarregadas = true
+  } catch {
+    // Sem lista, o seletor só fica vazio -- o valor atual (om_id) ainda aparece
+    // desabilitado no campo, não impede o resto do dialog de funcionar.
+  }
+}
 
 function abrirDialogMeta() {
   metaForm.titulo           = props.documento?.titulo ?? ''
   metaForm.numero_secundario = props.documento?.numero_secundario ?? ''
+  metaForm.om_id             = props.documento?.om_id ?? null
   metaDialogOpen.value = true
+  if (omEditavel.value) carregarOmOptions()
 }
 
 async function salvarMeta() {
@@ -653,11 +695,17 @@ async function salvarMeta() {
     await documentsStore.updateMetadados(props.documento.id, {
       titulo:            metaForm.titulo,
       numero_secundario: metaForm.numero_secundario !== '' ? metaForm.numero_secundario : null,
+      om_id:             omEditavel.value ? metaForm.om_id : undefined,
     })
+    // props.documento vem de editorStore.documento (árvore própria do editor,
+    // separada de documentsStore.documentos usado acima) -- sem isso, título/OM
+    // recém-salvos não aparecem na prévia (DocumentoPreview.vue) nem no resto
+    // do editor até a página ser recarregada.
+    await editorStore.reload()
     metaDialogOpen.value = false
     $q.notify({ type: 'positive', message: 'Metadados salvos com sucesso.' })
   } catch (e) {
-    $q.notify({ type: 'negative', message: 'Erro ao salvar metadados.' })
+    $q.notify({ type: 'negative', message: `Erro ao salvar metadados: ${e?.message ?? 'erro desconhecido'}` })
   } finally {
     metaSalvando.value = false
   }
