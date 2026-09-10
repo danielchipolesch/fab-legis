@@ -20,6 +20,7 @@ graph LR
     SS --> AR[Artigo]
     AR --> PA["Parágrafo / § único"]
     AR --> IN[Inciso]
+    PA --> IN
     IN --> AL[Alínea]
     AL --> SA[Subalínea]
 
