@@ -12,8 +12,10 @@ import org.springframework.data.jpa.domain.Specification;
 
 // Predicados dinâmicos pra listagem paginada de documentos (ver
 // DocumentoService.getAllPaginado) -- mesmo padrão de LogAuditoriaService.filtrar: cada
-// filtro só entra na consulta se foi realmente informado (Specification.where(null) casa
-// com tudo), nunca "(:param IS NULL OR campo = :param)".
+// filtro só entra na consulta se foi realmente informado (um Predicate nulo casa
+// com tudo -- é o que o JPA Criteria API entende como "sem restrição"; substitui
+// Specification.where(null), removido no Spring Data JPA 4/Boot 4), nunca
+// "(:param IS NULL OR campo = :param)".
 public class DocumentoSpecifications {
 
     private DocumentoSpecifications() {
@@ -30,7 +32,7 @@ public class DocumentoSpecifications {
     // quem é autor/coautor dele, só decide em qual das outras duas abas ele cai pra quem
     // não é. Mesmo comentário já existente em HomePage.vue.
     public static Specification<Documento> aba(String aba, Long usuarioId, Long omId) {
-        if (aba == null) return Specification.where(null);
+        if (aba == null) return (root, query, cb) -> null;
         return switch (aba) {
             case "meus" -> (root, query, cb) -> cb.or(
                     cb.equal(root.get("autor").get("id"), usuarioId),
@@ -39,7 +41,7 @@ public class DocumentoSpecifications {
             case "minha_om" -> (root, query, cb) -> cb.equal(root.get("om").get("id"), omId);
             case "outras_oms" -> (root, query, cb) -> cb.notEqual(root.get("om").get("id"), omId);
             case "revogados" -> (root, query, cb) -> cb.equal(root.get("documentoStatus"), DocumentoStatusEnum.REVOGADO);
-            default -> Specification.where(null);
+            default -> (root, query, cb) -> null;
         };
     }
 
@@ -57,7 +59,7 @@ public class DocumentoSpecifications {
     // (HomePage.vue, documentosDaAbaFiltrados) antes de virar filtro de servidor: nome e
     // código do assunto básico, e sigla da espécie.
     public static Specification<Documento> busca(String texto) {
-        if (texto == null || texto.isBlank()) return Specification.where(null);
+        if (texto == null || texto.isBlank()) return (root, query, cb) -> null;
         String termo = "%" + texto.toLowerCase() + "%";
         return (root, query, cb) -> cb.or(
                 cb.like(cb.lower(root.get("assuntoBasico").get("nome")), termo),
@@ -67,12 +69,12 @@ public class DocumentoSpecifications {
     }
 
     public static Specification<Documento> especieSigla(String sigla) {
-        if (sigla == null || sigla.isBlank()) return Specification.where(null);
+        if (sigla == null || sigla.isBlank()) return (root, query, cb) -> null;
         return (root, query, cb) -> cb.equal(root.get("especieNormativa").get("sigla"), sigla);
     }
 
     public static Specification<Documento> status(DocumentoStatusEnum status) {
-        if (status == null) return Specification.where(null);
+        if (status == null) return (root, query, cb) -> null;
         return (root, query, cb) -> cb.equal(root.get("documentoStatus"), status);
     }
 }

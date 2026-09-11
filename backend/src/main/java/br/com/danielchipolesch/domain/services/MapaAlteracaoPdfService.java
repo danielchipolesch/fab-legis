@@ -3,7 +3,7 @@ package br.com.danielchipolesch.domain.services;
 import br.com.danielchipolesch.application.dtos.emendaDtos.MapaAlteracaoPdfRequestDto;
 import br.com.danielchipolesch.domain.util.tiptap.TipTapNode;
 import br.com.danielchipolesch.domain.util.tiptap.XslFoContentRenderer;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import org.apache.fop.apps.Fop;
 import org.apache.fop.apps.FopFactory;
 import org.apache.fop.apps.MimeConstants;

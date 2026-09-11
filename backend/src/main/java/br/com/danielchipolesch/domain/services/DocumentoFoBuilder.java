@@ -5,7 +5,7 @@ import br.com.danielchipolesch.application.dtos.itemAnexoParteNormativaDtos.Item
 import br.com.danielchipolesch.application.dtos.itemPartePreliminarDtos.ItemPartePreliminarResponseDto;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.Documento;
 import br.com.danielchipolesch.domain.util.tiptap.XslFoContentRenderer;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;

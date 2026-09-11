@@ -39,7 +39,9 @@ public class LogAuditoriaService {
     public Page<LogAuditoriaResponseDto> filtrar(
             Long documentoId, Long usuarioId, AcaoAuditoriaEnum acao,
             Timestamp dataInicio, Timestamp dataFim, Pageable pageable) {
-        Specification<LogAuditoria> spec = Specification.where(null);
+        // Predicate nulo == "sem restrição" pro JPA Criteria API -- substitui
+        // Specification.where(null), removido no Spring Data JPA 4/Boot 4.
+        Specification<LogAuditoria> spec = (root, query, cb) -> null;
         if (documentoId != null) {
             spec = spec.and((root, query, cb) -> cb.equal(root.get("documentoId"), documentoId));
         }

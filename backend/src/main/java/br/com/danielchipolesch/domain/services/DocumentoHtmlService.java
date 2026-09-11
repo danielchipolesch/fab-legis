@@ -7,7 +7,7 @@ import br.com.danielchipolesch.domain.entities.estruturaDocumento.ElementoEmenda
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.ItemAnexoParteNormativaTipoEnum;
 import br.com.danielchipolesch.domain.util.tiptap.TipTapHtmlSerializer;
 import br.com.danielchipolesch.domain.util.tiptap.TipTapNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;

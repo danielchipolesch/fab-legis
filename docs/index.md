@@ -42,11 +42,11 @@ Hoje, boa parte disso é feita à mão em editores de texto genéricos — o que
     | Tecnologia | Versão | Papel |
     |---|---|---|
     | Java | 25 | Linguagem |
-    | Spring Boot | 3.5.0 | Framework de aplicação |
-    | Spring Data JPA / Hibernate | — | Persistência e mapeamento objeto-relacional |
+    | Spring Boot | 4.1.1 | Framework de aplicação |
+    | Spring Data JPA / Hibernate | 4.1.1 / 7.4.5 | Persistência e mapeamento objeto-relacional |
     | Spring Web (MVC) | — | API REST, incluindo *streams* SSE (notificações e presença) |
     | Spring HATEOAS | — | Links de navegação nos recursos |
-    | Spring Security | 6.5 | Autenticação stateless via JWT, autorização por método (`@PreAuthorize`) |
+    | Spring Security | 7.1.1 | Autenticação stateless via JWT, autorização por método (`@PreAuthorize`) |
     | jjwt | 0.12.6 | Emissão e validação do access token JWT |
     | PostgreSQL | 16 | Banco de dados relacional |
     | MinIO SDK | 8.5.12 | Armazenamento de objetos (imagens e PDFs) on-premise |
@@ -54,7 +54,7 @@ Hoje, boa parte disso é feita à mão em editores de texto genéricos — o que
     | Apache PDFBox | 3.x | Utilitário de manipulação de PDF (dependência disponível para usos futuros) |
     | Flyway | — | Migrações de banco versionadas e auditáveis |
     | Lombok | 1.18.38 | Redução de boilerplate nas *entities* (os DTOs de `application/dtos/**` são **records** Java, imutáveis, sem Lombok) |
-    | SpringDoc OpenAPI | 2.6.0 | Documentação Swagger |
+    | SpringDoc OpenAPI | 3.1.1 | Documentação Swagger |
     | Maven | Wrapper | Build |
 
 === "Frontend"

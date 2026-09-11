@@ -6,7 +6,7 @@ import br.com.danielchipolesch.domain.entities.estruturaDocumento.DocumentoStatu
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.ItemAnexoParteNormativaTipoEnum;
 import br.com.danielchipolesch.domain.util.tiptap.TipTapNode;
 import br.com.danielchipolesch.domain.util.tiptap.XslFoContentRenderer;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 
 import java.sql.Timestamp;
 import java.time.LocalDate;
