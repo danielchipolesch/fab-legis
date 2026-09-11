@@ -221,7 +221,26 @@ function extractNodeText(conteudo) {
   } catch { return '' }
 }
 
-const isNodeFilled = (node) => extractNodeText(node?.conteudo).length > 0
+// Nem todo conteúdo é texto -- um elemento só com uma figura ou uma tabela (sem
+// nenhuma célula preenchida) já está preenchido, mas extractNodeText() devolve
+// '' porque só soma nós de texto. Sem isto, um artigo cujo conteúdo inteiro é
+// uma imagem aparecia com o alerta de "vazio" mesmo depois de preenchido (ver
+// mesma correção em EditorSidebar.vue).
+function nodeHasContent(conteudo) {
+  if (!conteudo) return false
+  try {
+    const visit = (node) => {
+      if (!node) return false
+      if (node.type === 'figure' || node.type === 'table') return true
+      if (node.text && node.text.trim().length > 0) return true
+      if (node.content) return node.content.some(visit)
+      return false
+    }
+    return visit(JSON.parse(conteudo))
+  } catch { return false }
+}
+
+const isNodeFilled = (node) => nodeHasContent(node?.conteudo)
 
 const nodePreview = (node) => {
   const text = extractNodeText(node?.conteudo)

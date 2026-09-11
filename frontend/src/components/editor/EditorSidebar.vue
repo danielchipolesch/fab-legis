@@ -770,13 +770,49 @@ function extractText(conteudo) {
   } catch { return '' }
 }
 
+// Nem todo conteúdo é texto -- um elemento só com uma figura ou uma tabela (sem
+// nenhuma célula preenchida) já está preenchido, mas extractText() devolve ''
+// porque só soma nós de texto. Sem isto, um artigo cujo conteúdo inteiro é uma
+// imagem aparecia com o alerta de "Vazio" mesmo depois de preenchido.
+function hasContent(conteudo) {
+  if (!conteudo) return false
+  try {
+    const visit = (node) => {
+      if (!node) return false
+      if (node.type === 'figure' || node.type === 'table') return true
+      if (node.text && node.text.trim().length > 0) return true
+      if (node.content) return node.content.some(visit)
+      return false
+    }
+    return visit(JSON.parse(conteudo))
+  } catch { return false }
+}
+
 const isNodeFilled = (node) => isGroupingType(node?.tipo)
   ? (node?.titulo ?? '').trim().length > 0
-  : extractText(node?.conteudo).length > 0
+  : hasContent(node?.conteudo)
+
+// Achado usado só quando não há texto nenhum (ver hasContent) -- indica pra
+// quem está navegando a árvore que o conteúdo existe, mesmo sem prévia textual.
+function nonTextHint(conteudo) {
+  if (!conteudo) return ''
+  try {
+    let achado = ''
+    const visit = (node) => {
+      if (!node || achado) return
+      if (node.type === 'figure') { achado = '[Figura]'; return }
+      if (node.type === 'table') { achado = '[Tabela]'; return }
+      node.content?.forEach(visit)
+    }
+    visit(JSON.parse(conteudo))
+    return achado
+  } catch { return '' }
+}
 
 const nodePreview = (node) => {
   const text = extractText(node?.conteudo)
-  return text.length > 28 ? text.slice(0, 28) + '…' : text
+  if (text) return text.length > 28 ? text.slice(0, 28) + '…' : text
+  return nonTextHint(node?.conteudo)
 }
 
 // ── Estado das seções colapsadas ─────────────────────────────────────────────
