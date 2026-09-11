@@ -87,6 +87,45 @@
         Tabela
       </q-btn>
 
+      <!-- Edição de estrutura da tabela: só aparece com o cursor dentro de uma
+           tabela -- os comandos (addRowAfter, deleteTable etc.) são nativos do
+           @tiptap/extension-table, a UI é a única parte que faltava. Também
+           checa !readonly explicitamente (os outros botões da toolbar não
+           checam, um gap pré-existente fora do escopo desta mudança) porque
+           comandos do editor rodam mesmo com a view não-editável -- `editable`
+           só bloqueia digitação/clique nativos no ProseMirror, não uma
+           chamada direta a editor.commands.*, então sem isto alguém em modo
+           leitura conseguiria excluir linha/coluna/tabela pela toolbar. -->
+      <template v-if="editor.isActive('table') && !props.readonly">
+        <q-btn-group outline>
+          <q-btn outline color="primary" size="sm" icon="mdi-table-row-plus-before" @click="editor.chain().focus().addRowBefore().run()" :disable="!editor.can().addRowBefore()">
+            <q-tooltip anchor="top middle" self="bottom middle">Inserir linha acima</q-tooltip>
+          </q-btn>
+          <q-btn outline color="primary" size="sm" icon="mdi-table-row-plus-after" @click="editor.chain().focus().addRowAfter().run()" :disable="!editor.can().addRowAfter()">
+            <q-tooltip anchor="top middle" self="bottom middle">Inserir linha abaixo</q-tooltip>
+          </q-btn>
+          <q-btn outline color="negative" size="sm" icon="mdi-table-row-remove" @click="editor.chain().focus().deleteRow().run()" :disable="!editor.can().deleteRow()">
+            <q-tooltip anchor="top middle" self="bottom middle">Excluir linha</q-tooltip>
+          </q-btn>
+        </q-btn-group>
+
+        <q-btn-group outline>
+          <q-btn outline color="primary" size="sm" icon="mdi-table-column-plus-before" @click="editor.chain().focus().addColumnBefore().run()" :disable="!editor.can().addColumnBefore()">
+            <q-tooltip anchor="top middle" self="bottom middle">Inserir coluna à esquerda</q-tooltip>
+          </q-btn>
+          <q-btn outline color="primary" size="sm" icon="mdi-table-column-plus-after" @click="editor.chain().focus().addColumnAfter().run()" :disable="!editor.can().addColumnAfter()">
+            <q-tooltip anchor="top middle" self="bottom middle">Inserir coluna à direita</q-tooltip>
+          </q-btn>
+          <q-btn outline color="negative" size="sm" icon="mdi-table-column-remove" @click="editor.chain().focus().deleteColumn().run()" :disable="!editor.can().deleteColumn()">
+            <q-tooltip anchor="top middle" self="bottom middle">Excluir coluna</q-tooltip>
+          </q-btn>
+        </q-btn-group>
+
+        <q-btn outline color="negative" size="sm" icon="mdi-table-remove" @click="editor.chain().focus().deleteTable().run()">
+          <q-tooltip anchor="top middle" self="bottom middle">Excluir tabela</q-tooltip>
+        </q-btn>
+      </template>
+
       <q-separator vertical class="q-mx-xs" style="height:24px" />
 
       <!-- Image insertion -->
