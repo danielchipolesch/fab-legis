@@ -290,23 +290,36 @@ if (colaborativo) {
   // onContentUpdate), nunca chegou ao Y.Doc. Sem isto, o primeiro sync carrega
   // o snapshot mais antigo do Postgres e descarta essas teclas silenciosamente.
   // Roda só uma vez (no primeiro sync) para não sobrescrever edições reais de
-  // outra pessoa em reconexões futuras -- e nunca se o usuário já começou a
-  // digitar no editor novo (usuarioEditouAntesDoSync, setado no onUpdate
-  // abaixo): sobrescrever o Y.Doc por cima de uma digitação em andamento
-  // intercala as duas transações e embaralha o texto (pior que perder as
-  // teclas de antes do remount, que é o caso raro que este reconcile cobre).
+  // outra pessoa em reconexões futuras -- e nunca se alguém (outra pessoa já
+  // na sala) alterou o Y.Doc antes do reconcile (usuarioEditouAntesDoSync,
+  // setado no onUpdate abaixo): sobrescrever o Y.Doc por cima de uma edição
+  // concorrente intercala as duas transações e embaralha o texto. O editor
+  // nasce `editable: false` (ver useEditor abaixo) exatamente para que a
+  // digitação do PRÓPRIO usuário nunca dispare esse onUpdate antes daqui --
+  // sem isso, era o caso comum (não o raro): o usuário emenda a digitação do
+  // editor local direto no novo editor colaborativo, ainda dentro da janela
+  // de conexão da sala, e o reconcile via de que "já tem edição" e desistia,
+  // perdendo tudo que foi digitado antes do remount.
   let reconciliadoInicial = false
   let usuarioEditouAntesDoSync = false
   provider.on('synced', () => {
     if (reconciliadoInicial) return
     reconciliadoInicial = true
-    if (usuarioEditouAntesDoSync) return
-    const localParsed = parseContent(props.modelValue)
-    if (!localParsed || !editor.value) return
-    const atual = JSON.stringify(editor.value.getJSON())
-    if (atual !== JSON.stringify(localParsed)) {
-      editor.value.commands.setContent(localParsed, false)
+    if (!usuarioEditouAntesDoSync && editor.value) {
+      const localParsed = parseContent(props.modelValue)
+      if (localParsed) {
+        const atual = JSON.stringify(editor.value.getJSON())
+        if (atual !== JSON.stringify(localParsed)) {
+          editor.value.commands.setContent(localParsed, false)
+        }
+      }
     }
+    // Libera a edição (travada até aqui) e só agora devolve o foco -- fazer
+    // isso a cada 'synced' (inclusive reconexões futuras) roubaria o cursor de
+    // quem já está digitando havia tempo; reconciliadoInicial acima garante
+    // que só acontece nesta primeira vez.
+    editor.value?.setEditable(!props.readonly)
+    if (deveDevolverFoco) editor.value?.commands.focus('end')
   })
   // 'saving' | 'saved' | 'error' -- emitido pelo collab/server.js (avisarStatus em
   // onChange/onStoreDocument). unsyncedChanges (contador de updates locais ainda
@@ -344,8 +357,12 @@ if (colaborativo) {
   focoPendente = false
 
   editor = useEditor({
-    editable: !props.readonly,
-    autofocus: deveDevolverFoco ? 'end' : false,
+    // Trancado até o primeiro 'synced' (ver handler acima) -- fecha a janela
+    // de corrida em que a digitação do usuário chegaria ao Y.Doc antes da
+    // reconciliação rodar, o que fazia o reconcile desistir e perder o texto
+    // digitado no editor local antes deste remount.
+    editable: false,
+    autofocus: false,
     extensions: [
       ...editorExtensionsColaborativas,
       Collaboration.configure({ document: provider.document, field: 'default' }),
