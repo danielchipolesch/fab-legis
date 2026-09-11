@@ -6,7 +6,7 @@ import br.com.danielchipolesch.domain.entities.estruturaDocumento.DocumentoStatu
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.ItemAnexoParteNormativaTipoEnum;
 import br.com.danielchipolesch.domain.util.tiptap.TipTapNode;
 import br.com.danielchipolesch.domain.util.tiptap.XslFoContentRenderer;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 
 import java.sql.Timestamp;
 import java.time.LocalDate;
@@ -63,12 +63,29 @@ final class DocumentoFoContext {
         DocumentoStatusEnum status = doc.getDocumentoStatus();
         boolean showWm = status == DocumentoStatusEnum.RASCUNHO
                       || status == DocumentoStatusEnum.MINUTA
-                      || status == DocumentoStatusEnum.EM_ALTERACAO;
+                      || status == DocumentoStatusEnum.EM_ALTERACAO
+                      || status == DocumentoStatusEnum.EM_REVISAO
+                      || status == DocumentoStatusEnum.APROVADO
+                      || status == DocumentoStatusEnum.ALTERADO;
         if (!showWm) return open + "  <fo:block/>\n" + close;
 
-        String label = status == DocumentoStatusEnum.EM_ALTERACAO ? "EM ALTERAÇÃO" : foEsc(status.name());
-        // EM_ALTERACAO uses orange-toned color; draft/minuta use the existing pink
-        String color = status == DocumentoStatusEnum.EM_ALTERACAO ? "#DDCCAA" : "#DDBBBB";
+        // O PDF é regravado (com a marca d'água do momento) ao entrar em EM_REVISAO
+        // (revisor vê "em revisão" ao abrir) e ao aprovar/aprovar alteração (fica
+        // "aprovado" enquanto aguarda publicação -- ver DocumentoStatusService,
+        // gatilhos de regenerarPdf). PUBLICADO/REVOGADO não entram aqui: o ato
+        // definitivo não leva marca d'água nenhuma.
+        String label = switch (status) {
+            case EM_ALTERACAO -> "EM ALTERAÇÃO";
+            case EM_REVISAO -> "EM REVISÃO";
+            case APROVADO, ALTERADO -> "APROVADO";
+            default -> foEsc(status.name());
+        };
+        String color = switch (status) {
+            case EM_ALTERACAO -> "#DDCCAA"; // tom laranja
+            case EM_REVISAO -> "#BBCCEE";   // tom azul
+            case APROVADO, ALTERADO -> "#BBDDBB"; // tom verde
+            default -> "#DDBBBB";           // rascunho/minuta -- rosa já existente
+        };
         var sb = new StringBuilder();
         sb.append(open);
         sb.append("  <fo:block-container absolute-position=\"fixed\"");

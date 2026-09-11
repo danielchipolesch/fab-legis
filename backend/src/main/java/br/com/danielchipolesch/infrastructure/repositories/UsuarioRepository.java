@@ -15,15 +15,14 @@ public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
     Optional<Usuario> findByCpf(String cpf);
     boolean existsByCpf(String cpf);
 
-    // Quem deve ser avisado quando um documento da OM entra em situação que
-    // aguarda aprovação (ver NotificacaoService/DocumentoStatusService) --
-    // ADMIN também aprova em qualquer OM (ver DocumentoAcessoService),
-    // então também recebe.
+    // Candidatos elegíveis pra um seletor de "escolher pessoa" (revisor/publicador,
+    // ver UsuarioController/DocumentoStatusService) -- sempre restrito à mesma OM de
+    // quem está escolhendo, nunca cross-OM.
     @Query("""
             SELECT DISTINCT u FROM Usuario u JOIN u.papeis p
             WHERE u.ativo = true AND u.sistema = false
-              AND p IN :papeis
-              AND (p = br.com.danielchipolesch.domain.entities.usuario.PapelEnum.ADMIN OR u.om.id = :omId)
+              AND p = :papel AND u.om.id = :omId
+            ORDER BY u.nome
             """)
-    List<Usuario> findAprovadoresDaOmOuAdmins(@Param("omId") Long omId, @Param("papeis") List<PapelEnum> papeis);
+    List<Usuario> findByOmIdAndPapel(@Param("omId") Long omId, @Param("papel") PapelEnum papel);
 }

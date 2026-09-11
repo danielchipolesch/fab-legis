@@ -90,6 +90,18 @@
               </q-item-section>
               <q-item-section>Início</q-item-section>
             </q-item>
+            <q-item v-if="auth.isAprovador" clickable v-close-popup :to="{ name: 'revisao' }">
+              <q-item-section avatar>
+                <q-icon name="mdi-account-search-outline" color="primary" />
+              </q-item-section>
+              <q-item-section>Revisão</q-item-section>
+            </q-item>
+            <q-item v-if="auth.isPublicador" clickable v-close-popup :to="{ name: 'publicacao' }">
+              <q-item-section avatar>
+                <q-icon name="mdi-publish" color="primary" />
+              </q-item-section>
+              <q-item-section>Publicação</q-item-section>
+            </q-item>
             <q-item v-if="auth.isAdmin" clickable v-close-popup :to="{ name: 'usuarios' }">
               <q-item-section avatar>
                 <q-icon name="mdi-account-multiple-outline" color="primary" />
@@ -123,12 +135,14 @@ import { ref, computed, watch, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { useAuthStore } from '@/stores/auth.js'
+import { useDocumentosStore } from '@/stores/documentos.js'
 import { formatarCpf } from '@/utils/cpf.js'
 import * as notificacoesApi from '@/api/notificacoes.js'
 
 const router = useRouter()
 const $q = useQuasar()
 const auth = useAuthStore()
+const documentosStore = useDocumentosStore()
 
 // Servidores civis podem não ter posto/graduação nem nome de guerra
 // cadastrados (ver Usuario.java) -- nesse caso cai para o nome completo.
@@ -195,6 +209,13 @@ function conectarSse() {
       position: 'top-right',
       message: notificacao.mensagem,
     })
+    // Coautoria muda quem vê o quê em "Meus Documentos" (ver
+    // DocumentoSpecifications.aba no backend) -- sem isso, o documento só
+    // aparece pro novo coautor depois de trocar de aba ou recarregar a
+    // página, mesmo a notificação já tendo chegado na hora.
+    if (notificacao.tipo === 'DOCUMENTO_COMPARTILHADO') {
+      documentosStore.sinalizarRefresh()
+    }
   })
   // onerror não precisa de tratamento manual: o browser reconecta o
   // EventSource sozinho, a menos que o servidor feche a conexão de propósito.

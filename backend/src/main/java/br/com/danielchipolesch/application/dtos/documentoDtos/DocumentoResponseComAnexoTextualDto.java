@@ -36,9 +36,6 @@ public record DocumentoResponseComAnexoTextualDto(
         Timestamp dtPublicacao,
 
         @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss", timezone = "America/Sao_Paulo")
-        Timestamp dtArquivamento,
-
-        @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss", timezone = "America/Sao_Paulo")
         Timestamp dtRevogacao,
 
         @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss", timezone = "America/Sao_Paulo")
@@ -75,6 +72,11 @@ public record DocumentoResponseComAnexoTextualDto(
         Long autorId,
         String autorNome,
         Long omId,
-        String omNome
+        String omNome,
+
+        Long revisorAtribuidoId,
+        String revisorAtribuidoNome,
+        Long publicadorAtribuidoId,
+        String publicadorAtribuidoNome
 ) {
 }

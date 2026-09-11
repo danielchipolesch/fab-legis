@@ -65,7 +65,7 @@
 <script setup>
 import { ref, watch } from 'vue'
 import { useQuasar } from 'quasar'
-import * as api from '@/api/documents.js'
+import * as api from '@/api/documentos.js'
 import { validarCpf, mascaraCpf, formatarCpf, onlyDigits } from '@/utils/cpf.js'
 
 const props = defineProps({

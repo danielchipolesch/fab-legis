@@ -130,7 +130,7 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
 import { useQuasar } from 'quasar'
-import { useDocumentsStore } from '@/stores/documents.js'
+import { useDocumentosStore } from '@/stores/documentos.js'
 import { useEditorStore } from '@/stores/editor.js'
 import { formatLabel, bodyLabel } from '@/utils/numbering.js'
 import WysiwygEditor from '@/components/editor/WysiwygEditor.vue'
@@ -146,7 +146,7 @@ const props = defineProps({
 const emit = defineEmits(['update:model-value', 'confirmado'])
 
 const $q          = useQuasar()
-const docStore    = useDocumentsStore()
+const docStore    = useDocumentosStore()
 const editorStore = useEditorStore()
 
 const salvando      = ref(false)

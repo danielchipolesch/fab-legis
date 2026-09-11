@@ -1,5 +1,7 @@
 package br.com.danielchipolesch.infrastructure.notificacao;
 
+import br.com.danielchipolesch.application.dtos.itemAnexoParteNormativaDtos.EstruturaBroadcastDto;
+import br.com.danielchipolesch.application.dtos.itemAnexoParteNormativaDtos.EventoEstruturaDto;
 import br.com.danielchipolesch.application.dtos.usuarioDtos.PresencaResponseDto;
 import org.springframework.stereotype.Component;
 import org.springframework.http.MediaType;
@@ -58,6 +60,28 @@ public class DocumentoPresencaEmitterRegistry {
         for (Conexao conexao : lista) {
             try {
                 conexao.emitter().send(SseEmitter.event().name("presenca").data(presentes, MediaType.APPLICATION_JSON));
+            } catch (IOException | IllegalStateException e) {
+                // onError/onCompletion do próprio emitter cuida da remoção.
+            }
+        }
+    }
+
+    // Mesma conexão SSE da presença, evento diferente (event: estrutura) -- reaproveita
+    // a lista de quem está com o documento aberto para avisar, em tempo real, que
+    // PATCH /{id}/secoes criou/atualizou/excluiu elementos, sem precisar de
+    // infraestrutura de mensageria nova. Ver DocumentoParteNormativaService.
+    // Transmite pra TODO MUNDO conectado, inclusive quem originou a mudança
+    // (`origemClientId`) -- é o frontend quem decide ignorar o próprio eco, comparando
+    // com o id de cliente que ele mesmo gerou (ver EstruturaBroadcastDto). Não
+    // transmite nada se a lista de eventos vier vazia (autosave que só reafirmou
+    // conteúdo, sem mudança estrutural real).
+    public void transmitirEstrutura(Long documentoId, String origemClientId, List<EventoEstruturaDto> eventos) {
+        if (eventos == null || eventos.isEmpty()) return;
+        EstruturaBroadcastDto payload = new EstruturaBroadcastDto(origemClientId, eventos);
+        List<Conexao> lista = conexoesPorDocumento.getOrDefault(documentoId, List.of());
+        for (Conexao conexao : lista) {
+            try {
+                conexao.emitter().send(SseEmitter.event().name("estrutura").data(payload, MediaType.APPLICATION_JSON));
             } catch (IOException | IllegalStateException e) {
                 // onError/onCompletion do próprio emitter cuida da remoção.
             }

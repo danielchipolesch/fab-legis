@@ -29,7 +29,6 @@ public class DocumentoMapper {
                 documento.getDtMinuta(),
                 documento.getDtAprovacao(),
                 documento.getDtPublicacao(),
-                documento.getDtArquivamento(),
                 documento.getDtRevogacao(),
                 documento.getDtCancelamento(),
                 documento.getUrlPdf(),
@@ -44,7 +43,11 @@ public class DocumentoMapper {
                 documento.getAutor().getId(),
                 documento.getAutor().getNome(),
                 documento.getOm().getId(),
-                documento.getOm().getNome()
+                documento.getOm().getNome(),
+                documento.getRevisorAtribuido() != null ? documento.getRevisorAtribuido().getId() : null,
+                documento.getRevisorAtribuido() != null ? documento.getRevisorAtribuido().getNome() : null,
+                documento.getPublicadorAtribuido() != null ? documento.getPublicadorAtribuido().getId() : null,
+                documento.getPublicadorAtribuido() != null ? documento.getPublicadorAtribuido().getNome() : null
         );
     }
 
@@ -70,7 +73,6 @@ public class DocumentoMapper {
                 documento.getDtMinuta(),
                 documento.getDtAprovacao(),
                 documento.getDtPublicacao(),
-                documento.getDtArquivamento(),
                 documento.getDtRevogacao(),
                 documento.getDtCancelamento(),
                 documento.getUrlPdf(),
@@ -88,7 +90,11 @@ public class DocumentoMapper {
                 documento.getAutor().getId(),
                 documento.getAutor().getNome(),
                 documento.getOm().getId(),
-                documento.getOm().getNome()
+                documento.getOm().getNome(),
+                documento.getRevisorAtribuido() != null ? documento.getRevisorAtribuido().getId() : null,
+                documento.getRevisorAtribuido() != null ? documento.getRevisorAtribuido().getNome() : null,
+                documento.getPublicadorAtribuido() != null ? documento.getPublicadorAtribuido().getId() : null,
+                documento.getPublicadorAtribuido() != null ? documento.getPublicadorAtribuido().getNome() : null
         );
     }
 }

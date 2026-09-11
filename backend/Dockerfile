@@ -9,6 +9,11 @@ RUN mvn package -DskipTests -B -q
 
 # ── Estágio de runtime: apenas o JRE ──────────────────────────────────────────
 FROM eclipse-temurin:25-jre-alpine AS runtime
+# Carlito é metricamente compatível com Calibri (mesmas larguras de glifo) e,
+# ao contrário dela, é livremente redistribuível -- por isso o PDF é gerado
+# com Carlito registrada sob o nome "Calibri" (ver fop-config.xml), casando
+# com a fonte já usada no editor/prévia em tela (WysiwygEditor.vue).
+RUN apk add --no-cache font-carlito
 WORKDIR /app
 COPY --from=build /app/target/*.jar app.jar
 EXPOSE 8081

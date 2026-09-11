@@ -110,20 +110,82 @@
   </div>
 </template>
 
+<script>
+// Módulo (fora do <script setup>, que é escopo por instância): sobrevive à troca
+// de instância no remount local->colaborativo (ver :key em DocumentoEditorPage.vue).
+// onBeforeUnmount do editor local marca aqui se estava focado; o próximo editor
+// (colaborativo, mesmo elemento) consome a flag pra devolver o foco -- sem isso o
+// usuário perde o cursor no meio da digitação e as teclas seguintes vão para
+// lugar nenhum (document.activeElement volta a ser <body>).
+let focoPendente = false
+</script>
+
 <script setup>
 import { ref, watch, onBeforeUnmount } from 'vue'
 import { useEditor, EditorContent } from '@tiptap/vue-3'
-import { editorExtensions } from '@/editor/extensions.js'
+import Collaboration from '@tiptap/extension-collaboration'
+import CollaborationCursor from '@tiptap/extension-collaboration-cursor'
+import { HocuspocusProvider } from '@hocuspocus/provider'
+import { editorExtensions, editorExtensionsColaborativas } from '@/editor/extensions.js'
+import { useAuthStore } from '@/stores/auth.js'
 import { useQuasar } from 'quasar'
+import { primeMinioUrlCache } from '@/utils/minioUrls.js'
+
+// Throttle simples (leading+trailing): a primeira chamada roda na hora, chamadas
+// subsequentes dentro da janela viram uma única execução ao final dela -- garante
+// que o ÚLTIMO estado do editor sempre chega, mesmo que a digitação pare no meio
+// da janela.
+function throttle(fn, ms) {
+  let ultimaExecucao = 0
+  let timer = null
+  let argsPendentes = null
+  function disparar() {
+    ultimaExecucao = Date.now()
+    timer = null
+    fn(...argsPendentes)
+  }
+  const throttled = (...args) => {
+    argsPendentes = args
+    const decorrido = Date.now() - ultimaExecucao
+    if (decorrido >= ms) {
+      if (timer) { clearTimeout(timer); timer = null }
+      disparar()
+    } else if (!timer) {
+      timer = setTimeout(disparar, ms - decorrido)
+    }
+  }
+  throttled.cancel = () => { if (timer) { clearTimeout(timer); timer = null } }
+  return throttled
+}
 
 const props = defineProps({
   modelValue: { type: String, default: '' },
   readonly:   { type: Boolean, default: false },
+  // Presentes juntos => edição colaborativa ao vivo (Yjs/Hocuspocus) para este
+  // elemento; ausentes (elemento recém-criado, ainda sem id persistido) => modo local
+  // antigo, via modelValue/update:modelValue. A decisão é tomada uma vez, na criação
+  // do componente -- DocumentoEditorPage.vue força um remount (:key) exatamente na
+  // transição local->colaborativo, quando o elemento ganha o primeiro id real. Ver
+  // Fase 4 do plano de colaboração em tempo real.
+  documentoId: { type: [String, Number], default: null },
+  elementoId:  { type: [String, Number], default: null },
 })
 
-const emit = defineEmits(['update:modelValue'])
+// sync-status: só emitido no modo colaborativo -- reflete se o Y.Doc deste elemento
+// tem alterações locais ainda não confirmadas pelo servidor (`saving`), já
+// confirmadas (`synced`) ou se a conexão caiu (`offline`). DocumentoEditorPage.vue usa
+// isso pra alimentar o indicador "Salvo"/"Salvando" no topo, que sem isso nunca mudava
+// pra elementos já colaborativos (o autosave antigo, debounce+PATCH /secoes, não
+// dispara mais pra conteúdo -- ver Fase 6 do plano de colaboração em tempo real).
+// content-live: só emitido no modo colaborativo -- JSON do editor a cada mudança
+// (própria ou de outra pessoa, throttled), pra alimentar a prévia (DocumentoPreview)
+// em tempo real. update:modelValue continua reservado ao modo local antigo (onde
+// modelValue É a fonte de verdade); no colaborativo essa fonte é o Y.Doc, então
+// content-live é só um espelho pra exibição, nunca volta a escrever no Y.Doc.
+const emit = defineEmits(['update:modelValue', 'sync-status', 'content-live'])
 
 const $q = useQuasar()
+const authStore = useAuthStore()
 const fileInputRef = ref(null)
 const uploadando = ref(false)
 
@@ -132,30 +194,209 @@ function parseContent(val) {
   try { return JSON.parse(val) } catch { return null }
 }
 
-const editor = useEditor({
-  content: parseContent(props.modelValue),
-  editable: !props.readonly,
-  extensions: editorExtensions,
-  onUpdate({ editor }) {
-    emit('update:modelValue', JSON.stringify(editor.getJSON()))
-  },
-})
+// Mesmo cálculo em qualquer navegador para o mesmo usuário -- cor estável do cursor
+// de colaboração, sem precisar de um cadastro de cores por usuário.
+function corDoUsuario(usuarioId) {
+  const paleta = ['#0B3D91', '#B3261E', '#1B7A43', '#8E4EC6', '#C77700', '#0E7C86']
+  const indice = Math.abs(Number(usuarioId) || 0) % paleta.length
+  return paleta[indice]
+}
 
-watch(() => props.modelValue, (val) => {
-  if (!editor.value) return
-  const parsed = parseContent(val)
-  if (!parsed) return
-  const currentJson = JSON.stringify(editor.value.getJSON())
-  if (currentJson !== JSON.stringify(parsed)) {
-    editor.value.commands.setContent(parsed, false)
+// Mesmo formato do nome no topbar (ver AppTopBar.vue) -- "CP CHIPOLESCH" em vez do
+// nome completo, pra caber ao lado do cursor sem tomar a tela toda.
+function rotuloDoUsuario(usuario) {
+  if (!usuario) return 'Anônimo'
+  if (usuario.postoGraduacaoBigrama && usuario.nomeGuerra) {
+    return `${usuario.postoGraduacaoBigrama} ${usuario.nomeGuerra}`
   }
-})
+  return usuario.nome ?? 'Anônimo'
+}
+
+const colaborativo = !!(props.documentoId && props.elementoId)
+
+let provider = null
+let editor
+let emitirContentLive = null
+
+if (colaborativo) {
+  const collabUrl = import.meta.env.VITE_COLLAB_URL ?? 'ws://127.0.0.1:1234'
+  provider = new HocuspocusProvider({
+    url: collabUrl,
+    name: `documento:${props.documentoId}:elemento:${props.elementoId}`,
+    // Função, não string: em caso de reconexão (ex.: o WebSocket cai e o provider
+    // tenta de novo sozinho), pega o token MAIS RECENTE da store -- importante porque
+    // o access token expira em 15min e é renovado via refresh em client.js.
+    token: () => authStore.token,
+    onStatus: ({ status }) => {
+      // 'connected' | 'connecting' | 'disconnected' (WebSocketStatus do provider) --
+      // só cobre o estado da CONEXÃO; salvo/salvando vem das mensagens stateless
+      // abaixo, que refletem quando o servidor realmente persistiu no Postgres,
+      // não o ACK (quase instantâneo) do próprio WebSocket.
+      //
+      // 'connecting' NÃO é tratado como offline: como cada elemento é sua própria
+      // sala (novo HocuspocusProvider a cada troca -- ver comentário de `colaborativo`
+      // acima), toda abertura de elemento passa por 'connecting' antes de 'connected',
+      // mesmo com a rede perfeita e o documento já salvo. Tratar isso como offline
+      // fazia "Sem conexão" piscar a cada clique, mascarando o caso real (a conexão
+      // caiu DEPOIS de já ter conectado uma vez). Só 'disconnected' é offline de
+      // verdade.
+      if (status === 'connected') emit('sync-status', 'synced')
+      else if (status === 'disconnected') emit('sync-status', 'offline')
+    },
+  })
+  // Reconcilia a transição local->colaborativo: entre o snapshot que gerou o
+  // primeiro id persistido (ver DocumentoEditorPage.vue) e este remount, o
+  // usuário pode ter continuado digitando no editor local antigo -- esse texto
+  // só existe em modelValue/editorStore (atualizado a cada tecla via
+  // onContentUpdate), nunca chegou ao Y.Doc. Sem isto, o primeiro sync carrega
+  // o snapshot mais antigo do Postgres e descarta essas teclas silenciosamente.
+  // Roda só uma vez (no primeiro sync) para não sobrescrever edições reais de
+  // outra pessoa em reconexões futuras -- e nunca se o usuário já começou a
+  // digitar no editor novo (usuarioEditouAntesDoSync, setado no onUpdate
+  // abaixo): sobrescrever o Y.Doc por cima de uma digitação em andamento
+  // intercala as duas transações e embaralha o texto (pior que perder as
+  // teclas de antes do remount, que é o caso raro que este reconcile cobre).
+  let reconciliadoInicial = false
+  let usuarioEditouAntesDoSync = false
+  provider.on('synced', () => {
+    if (reconciliadoInicial) return
+    reconciliadoInicial = true
+    if (usuarioEditouAntesDoSync) return
+    const localParsed = parseContent(props.modelValue)
+    if (!localParsed || !editor.value) return
+    const atual = JSON.stringify(editor.value.getJSON())
+    if (atual !== JSON.stringify(localParsed)) {
+      editor.value.commands.setContent(localParsed, false)
+    }
+  })
+  // 'saving' | 'saved' | 'error' -- emitido pelo collab/server.js (avisarStatus em
+  // onChange/onStoreDocument). unsyncedChanges (contador de updates locais ainda
+  // não confirmados pelo WebSocket) NÃO serve pra isso: o ACK do WS é quase
+  // instantâneo, bem antes do debounce (2-10s) que realmente grava no banco --
+  // usá-lo fazia o indicador "Salvando" piscar tão rápido que ficava
+  // imperceptível. A mensagem stateless dispara a cada alteração de QUALQUER
+  // pessoa conectada (onChange roda pro Y.Doc inteiro, não só pro autor local),
+  // então todo mundo na sala vê o mesmo estado de salvamento.
+  provider.on('stateless', ({ payload }) => {
+    try {
+      const { status } = JSON.parse(payload)
+      if (status === 'saving' || status === 'saved' || status === 'error') {
+        emit('sync-status', status === 'saved' ? 'synced' : status)
+      }
+    } catch {
+      // mensagem stateless de outra finalidade (ex.: preview de histórico) -- ignora
+    }
+  })
+
+  // Espelha o conteúdo (próprio ou de outra pessoa, já mesclado pelo CRDT) pra
+  // prévia -- sem isso o DocumentoPreview só via o `conteudo` de quando o
+  // elemento foi carregado, porque nada mais escreve em editorStore fora deste
+  // evento (ver comentário de updateContent em stores/editor.js). Throttled:
+  // a prévia refaz a numeração de figuras/artigos inteira a cada chamada, cara
+  // demais pra rodar em todo keystroke.
+  emitirContentLive = throttle(({ editor }) => {
+    emit('content-live', JSON.stringify(editor.getJSON()))
+  }, 400)
+
+  // Consome a flag deixada pelo onBeforeUnmount do editor anterior (ver
+  // declaração de focoPendente acima) -- devolve o cursor pro editor recém-criado
+  // se o usuário estava digitando bem no instante da transição local->colaborativo.
+  const deveDevolverFoco = focoPendente
+  focoPendente = false
+
+  editor = useEditor({
+    editable: !props.readonly,
+    autofocus: deveDevolverFoco ? 'end' : false,
+    extensions: [
+      ...editorExtensionsColaborativas,
+      Collaboration.configure({ document: provider.document, field: 'default' }),
+      CollaborationCursor.configure({
+        provider,
+        user: {
+          name: rotuloDoUsuario(authStore.usuario),
+          color: corDoUsuario(authStore.usuario?.id),
+          usuarioId: authStore.usuario?.id ?? null,
+        },
+        // O y-prosemirror por baixo só filtra o cursor pelo clientID da própria
+        // conexão Yjs -- não pelo usuário autenticado. Uma conexão antiga do MESMO
+        // usuário que não fechou direito (ex.: outra aba, ou reload em dev/HMR
+        // enquanto uma sala estava aberta) ainda aparece como "outra pessoa" com
+        // clientID diferente, então o navegador mostra o próprio nome de volta.
+        // Filtrando aqui por usuarioId (não só clientID) o cursor nunca aparece
+        // pra quem já é o dono dele, venha de onde vier a conexão duplicada.
+        render(user) {
+          if (user.usuarioId != null && user.usuarioId === authStore.usuario?.id) {
+            const vazio = document.createElement('span')
+            vazio.style.display = 'none'
+            return vazio
+          }
+          const cursor = document.createElement('span')
+          cursor.classList.add('collaboration-cursor__caret')
+          cursor.setAttribute('style', `border-color: ${user.color}`)
+          const label = document.createElement('div')
+          label.classList.add('collaboration-cursor__label')
+          label.setAttribute('style', `background-color: ${user.color}`)
+          label.insertBefore(document.createTextNode(user.name), null)
+          cursor.insertBefore(label, null)
+          return cursor
+        },
+      }),
+    ],
+    onUpdate(payload) {
+      usuarioEditouAntesDoSync = true
+      emitirContentLive(payload)
+    },
+  })
+} else {
+  // Guarda o último valor que O PRÓPRIO editor emitiu -- ver watch abaixo: sem
+  // isso, cada tecla digitada ecoa modelValue de volta pra cá (via
+  // onContentUpdate no pai -> editorStore -> prop), e comparar via
+  // getJSON()/JSON.stringify (que não é estável: TipTap às vezes inclui/omite
+  // `attrs` default como {"textAlign":null} de formas diferentes do JSON
+  // recebido) fazia esse eco parecer uma mudança "externa" e chamar
+  // setContent() no meio da digitação -- o que derruba o foco do ProseMirror,
+  // perdendo qualquer tecla seguinte (o editor fica com o cursor em lugar
+  // nenhum). Comparando string-a-string contra o que a gente mesmo emitiu, o
+  // eco nunca dispara setContent.
+  let ultimoValorEmitido = null
+
+  editor = useEditor({
+    content: parseContent(props.modelValue),
+    editable: !props.readonly,
+    extensions: editorExtensions,
+    onUpdate({ editor }) {
+      const json = JSON.stringify(editor.getJSON())
+      ultimoValorEmitido = json
+      emit('update:modelValue', json)
+    },
+  })
+
+  // Só faz sentido nesse modo -- no colaborativo o Y.Doc é a única fonte de verdade
+  // e sincroniza sozinho; reagir a modelValue aqui reintroduziria a possibilidade de
+  // sobrescrever o que está sendo digitado ao vivo por outra pessoa.
+  watch(() => props.modelValue, (val) => {
+    if (!editor.value) return
+    if (val === ultimoValorEmitido) return
+    const parsed = parseContent(val)
+    if (!parsed) return
+    editor.value.commands.setContent(parsed, false)
+  })
+}
 
 watch(() => props.readonly, (val) => {
   editor.value?.setEditable(!val)
 })
 
-onBeforeUnmount(() => editor.value?.destroy())
+onBeforeUnmount(() => {
+  // Só marca a intenção quando este é o modo local -- o próximo mount só existe
+  // por causa da transição local->colaborativo (ver :key em DocumentoEditorPage.vue);
+  // no colaborativo->colaborativo (troca de elemento selecionado) o foco explícito
+  // do usuário em cada clique já resolve isso, sem precisar da flag.
+  if (!colaborativo) focoPendente = !!editor.value?.isFocused
+  emitirContentLive?.cancel()
+  editor.value?.destroy()
+  provider?.destroy()
+})
 
 async function onFileSelected(event) {
   const arquivo = event.target.files?.[0]
@@ -171,13 +412,17 @@ async function onFileSelected(event) {
     const baseUrl = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8081/v1'
     const resp = await fetch(`${baseUrl}/imagens/upload`, {
       method: 'POST',
-      headers: { Accept: 'application/json' },
+      headers: {
+        Accept: 'application/json',
+        ...(authStore.token ? { Authorization: `Bearer ${authStore.token}` } : {}),
+      },
       body: form,
     })
 
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`)
 
-    const { url } = await resp.json()
+    const { url, urlAssinada } = await resp.json()
+    primeMinioUrlCache(url, urlAssinada)
     editor.value?.chain().focus().insertContent({
       type: 'figure',
       attrs: { src: url, alt: '', titulo: '', fonte: '' },
@@ -238,5 +483,36 @@ async function onFileSelected(event) {
 }
 .tiptap-editor .ProseMirror-focused {
   outline: none;
+}
+
+/* Cursor de colaboração (CollaborationCursor) -- badge colado acima do cursor da outra
+   pessoa, igual Google Docs. Sem isso, a extensão ainda funciona (os spans são
+   inseridos), mas ficam sem posição/estilo nenhum -- é só CSS, a extensão não traz o
+   dela própria de propósito (para cada app estilizar do seu jeito). Cor vem inline via
+   style (definida pela extensão a partir de CollaborationCursor.configure({ user })),
+   aqui só a forma/posição. */
+.tiptap-editor .collaboration-cursor__caret {
+  position: relative;
+  margin-left: -1px;
+  margin-right: -1px;
+  border-left: 1px solid;
+  border-right: 1px solid;
+  word-break: normal;
+  pointer-events: none;
+}
+.tiptap-editor .collaboration-cursor__label {
+  position: absolute;
+  top: -1.4em;
+  left: -1px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: normal;
+  color: #fff;
+  padding: 1px 6px;
+  border-radius: 4px 4px 4px 0;
+  white-space: nowrap;
+  user-select: none;
+  pointer-events: none;
+  z-index: 20;
 }
 </style>

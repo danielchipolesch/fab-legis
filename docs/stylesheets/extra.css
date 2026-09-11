@@ -1,0 +1,73 @@
+/*
+ * Cor primária "custom" = mesmo azul da barra superior do sistema
+ * (--color-primary em frontend/src/css/app.css e a cor `primary` do
+ * Quasar em frontend/src/main.js), no lugar do indigo padrão do Material.
+ */
+[data-md-color-primary="custom"] {
+  --md-primary-fg-color: #0b3d91;
+  --md-primary-fg-color--light: #3f66a8;
+  --md-primary-fg-color--dark: #082a66;
+  --md-primary-bg-color: #ffffff;
+  --md-primary-bg-color--light: rgba(255, 255, 255, 0.7);
+}
+
+[data-md-color-accent="custom"] {
+  --md-accent-fg-color: #3f66a8;
+  --md-accent-fg-color--transparent: rgba(11, 61, 145, 0.1);
+  --md-accent-bg-color: #ffffff;
+  --md-accent-bg-color--light: rgba(255, 255, 255, 0.7);
+}
+
+/*
+ * Diferencia, no sidebar esquerdo, o título do site e os rótulos de seção
+ * (não clicáveis, ex. "Guia de Uso") dos links de página de fato — no tema
+ * padrão do Material os três saem exatamente na mesma cor
+ * (--md-default-fg-color--light, ~54% de opacidade), diferindo só em
+ * peso/tamanho de fonte, o que na prática não é suficiente para
+ * diferenciar "isto é clicável" de "isto é só um rótulo". Aqui os três
+ * níveis usam opacidades bem distintas entre si, em vez da mesma.
+ */
+
+/* Título do site: o mais escuro/forte dos três — funciona como cabeçalho */
+.md-nav--primary > .md-nav__title {
+  color: var(--md-default-fg-color);
+  border-bottom: 1px solid var(--md-default-fg-color--lightest);
+}
+
+/* Rótulo de seção: o mais claro/apagado dos três — não é clicável */
+.md-nav--primary .md-nav__item--section > .md-nav__link {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--md-default-fg-color--lighter);
+  cursor: default;
+  pointer-events: none;
+}
+
+/* Espaçamento entre grupos de primeiro nível: aplicado a TODO item de
+   primeiro nível (seção ou link solto, ex. "Roadmap" depois de uma seção),
+   não só às seções — senão um link solto que sucede uma seção fica colado
+   nela em vez de manter a mesma respiração entre os demais grupos. */
+.md-nav--primary > .md-nav__list > .md-nav__item:not(:first-child) {
+  margin-top: 0.6em;
+}
+
+/* Links de página: contraste alto (cor normal do corpo do texto), para
+   ler claramente como "clicável" — com destaque de cor no hover/foco */
+.md-nav--primary .md-nav__item:not(.md-nav__item--section) > .md-nav__link {
+  color: var(--md-default-fg-color);
+  font-weight: 400;
+}
+
+.md-nav--primary .md-nav__item:not(.md-nav__item--section) > .md-nav__link:hover,
+.md-nav--primary .md-nav__item:not(.md-nav__item--section) > .md-nav__link:focus {
+  color: var(--md-accent-fg-color);
+}
+
+/* Página atual: cor de destaque + negrito, para se diferenciar tanto dos
+   links normais quanto dos rótulos de seção */
+.md-nav--primary .md-nav__link--active {
+  color: var(--md-primary-fg-color) !important;
+  font-weight: 700;
+}

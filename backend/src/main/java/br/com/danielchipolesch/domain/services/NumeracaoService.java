@@ -198,7 +198,7 @@ public class NumeracaoService {
         }
     }
 
-    private static String letterFor(int idx) {
+    public static String letterFor(int idx) {
         return String.valueOf((char) ('A' + idx));
     }
 
@@ -206,11 +206,19 @@ public class NumeracaoService {
         return toRoman(n) + (letra != null ? "-" + letra : "");
     }
 
-    private static String artigoLabel(int n, String letra) {
+    // Sufixo de letra para elemento inserido por emenda entre dois já em vigor
+    // (Art. 7º-A, § 2º-A…): com letra, o ponto do cardinal (a partir do 10º)
+    // migra para o final, depois da letra — nunca fica entre o número e o
+    // hífen. Usado tanto para artigo (aqui) quanto para parágrafo
+    // (DocumentoFoCorpoBuilder — parágrafo é numerado local ao artigo, fora
+    // do escopo desta classe).
+    public static String comSufixoLetra(int n, String letra) {
         if (letra == null) return ordinalOrCardinal(n);
-        // Com sufixo de letra, o ponto do cardinal (a partir do 10°) migra para o
-        // final, depois da letra — nunca fica entre o número e o hífen.
         return n <= 9 ? n + "º-" + letra : comSeparadorMilhar(n) + "-" + letra + ".";
+    }
+
+    private static String artigoLabel(int n, String letra) {
+        return comSufixoLetra(n, letra);
     }
 
     private int numeroDe(ItemAnexoParteNormativaResponseDto item, Map<Long, ElementoNumeracao> numeracao) {

@@ -10,6 +10,7 @@
         </p>
       </div>
       <q-btn
+        v-if="auth.isEditor"
         color="primary"
         unelevated
         size="lg"
@@ -20,12 +21,13 @@
       </q-btn>
     </div>
 
-    <NewDocumentDialog v-model="dialogNovoDoc" />
+    <NovoDocumentoDialog v-model="dialogNovoDoc" />
 
     <!-- Abas (ownership) + filtros/resumo — tudo dentro do MESMO card de propósito:
          os filtros e as chips abaixo operam só sobre a aba selecionada acima, nunca
          sobre o acervo inteiro, e agrupar visualmente sem nenhum espaço/separador
-         entre as duas coisas deixa essa relação óbvia (ver ABA_FILTROS/documentosDaAba). -->
+         entre as duas coisas deixa essa relação óbvia (busca paginada no backend, ver
+         carregar()/DocumentoSpecifications.aba). -->
     <q-card flat bordered class="q-mb-lg">
       <q-tabs
         v-model="abaAtiva"
@@ -40,25 +42,25 @@
         <q-tab name="meus" icon="mdi-account-outline">
           <div class="row items-center no-wrap" style="gap:6px">
             <span>Meus Documentos</span>
-            <q-badge rounded color="primary">{{ contagemAbas.meus }}</q-badge>
+            <q-badge rounded color="primary">{{ store.resumoAbas.meus }}</q-badge>
           </div>
         </q-tab>
         <q-tab name="minha_om" icon="mdi-office-building-outline">
           <div class="row items-center no-wrap" style="gap:6px">
             <span>Documentos da Minha OM</span>
-            <q-badge rounded color="primary">{{ contagemAbas.minha_om }}</q-badge>
+            <q-badge rounded color="primary">{{ store.resumoAbas.minha_om }}</q-badge>
           </div>
         </q-tab>
         <q-tab name="outras_oms" icon="mdi-domain">
           <div class="row items-center no-wrap" style="gap:6px">
             <span>Documentos de Outras OMs</span>
-            <q-badge rounded color="primary">{{ contagemAbas.outras_oms }}</q-badge>
+            <q-badge rounded color="primary">{{ store.resumoAbas.outras_oms }}</q-badge>
           </div>
         </q-tab>
         <q-tab name="revogados" icon="mdi-file-remove-outline">
           <div class="row items-center no-wrap" style="gap:6px">
             <span>Documentos Revogados</span>
-            <q-badge rounded color="primary">{{ contagemAbas.revogados }}</q-badge>
+            <q-badge rounded color="primary">{{ store.resumoAbas.revogados }}</q-badge>
           </div>
         </q-tab>
       </q-tabs>
@@ -151,11 +153,13 @@
     <template v-if="viewMode === 'tabela'">
       <q-card flat bordered>
         <q-table
-          :rows="documentosFiltrados"
+          :rows="store.documentos"
           :columns="columns"
           row-key="id"
+          :loading="store.loading"
           :rows-per-page-options="[15, 25, 50]"
           v-model:pagination="tablePagination"
+          @request="onRequest"
           flat
           class="legis-table"
         >
@@ -235,22 +239,6 @@
                   <q-tooltip anchor="top middle" self="bottom middle">Visualizar</q-tooltip>
                 </q-btn>
 
-                <!-- Comparar versões -->
-                <q-btn
-                  icon="mdi-source-branch"
-                  size="sm"
-                  flat
-                  round
-                  dense
-                  color="primary"
-                  :disable="!store.temVersoesComparaveis(props.row.id)"
-                  :to="store.temVersoesComparaveis(props.row.id) ? { name: 'documento-comparar', params: { id: props.row.id } } : undefined"
-                >
-                  <q-tooltip anchor="top middle" self="bottom middle">
-                    {{ store.temVersoesComparaveis(props.row.id) ? 'Comparar versões' : 'Sem versões anteriores para comparar' }}
-                  </q-tooltip>
-                </q-btn>
-
                 <!-- Clonar -->
                 <q-btn
                   icon="mdi-content-copy"
@@ -278,7 +266,18 @@
                   <q-tooltip anchor="top middle" self="bottom middle">Baixar PDF</q-tooltip>
                 </q-btn>
 
-                <q-btn icon="mdi-dots-vertical" size="sm" flat round dense color="primary">
+                <q-btn
+                  icon="mdi-dots-vertical"
+                  size="sm"
+                  flat
+                  round
+                  dense
+                  color="primary"
+                  :disable="!temAcoesExtras(props.row)"
+                >
+                  <q-tooltip anchor="top middle" self="bottom middle">
+                    {{ temAcoesExtras(props.row) ? 'Mais ações' : 'Nenhuma ação disponível' }}
+                  </q-tooltip>
                   <q-menu>
                     <q-list dense style="min-width:200px">
                       <q-item
@@ -323,7 +322,7 @@
     <template v-else>
       <div class="row q-col-gutter-md">
         <div
-          v-for="doc in documentosFiltrados"
+          v-for="doc in store.documentos"
           :key="doc.id"
           class="col-12 col-sm-6 col-md-4 col-lg-3"
         >
@@ -399,12 +398,26 @@
             </q-card-actions>
           </q-card>
         </div>
-        <div v-if="!documentosFiltrados.length" class="col-12">
+        <div v-if="!store.documentos.length" class="col-12">
           <div class="column items-center q-py-xl text-grey-7">
             <q-icon size="64px" class="q-mb-md" name="mdi-file-search-outline" />
             <p>Nenhum documento encontrado.</p>
           </div>
         </div>
+      </div>
+
+      <!-- Paginação própria -- a q-table cuida disso sozinha (@request), mas o modo
+           cartões não usa q-table, então precisa do próprio controle pra navegar pelas
+           páginas que agora vêm do servidor (antes, o array inteiro já filtrado vinha
+           de uma vez, sem precisar de paginação aqui). -->
+      <div v-if="totalPaginas > 1" class="row justify-center q-mt-lg">
+        <q-pagination
+          v-model="tablePagination.page"
+          :max="totalPaginas"
+          direction-links
+          boundary-links
+          @update:model-value="carregar"
+        />
       </div>
     </template>
 
@@ -424,185 +437,40 @@
       </q-card>
     </q-dialog>
 
-    <!-- Confirm status change dialog -->
+    <!-- Confirm status change dialog -- só para transições sem escolha de pessoa
+         (Enviar para Minuta, Iniciar Alteração). Enviar para Revisão/Revogação abre
+         SelecionarPessoaDialog abaixo; publicar/revogar de fato (com portaria/BCA)
+         mudou para PublicacaoPage.vue, que é quem tem a atribuição pra isso. -->
     <q-dialog v-model="dialog.status" :persistent="alterandoStatus">
-      <q-card :style="dialog.statusOpt?.requiresRefs ? 'min-width:420px;max-width:760px;width:100%' : 'min-width:420px;max-width:500px;width:100%'">
+      <q-card style="min-width:420px;max-width:500px;width:100%">
         <q-card-section class="text-h6">{{ dialog.statusOpt?.label }}?</q-card-section>
         <q-card-section class="q-pt-none">
           O documento
           <strong>{{ dialog.target?.especie }} {{ dialog.target?.numero_basico }}<template v-if="dialog.target?.numero_secundario">-{{ dialog.target?.numero_secundario }}</template></strong>
           terá sua situação alterada para <strong>{{ dialog.statusOpt?.status }}</strong>.
         </q-card-section>
-        <!-- Campos obrigatórios para republicação após alteração -->
-        <template v-if="dialog.statusOpt?.requiresRefs">
-          <q-separator />
-          <q-card-section class="q-pt-md q-pb-sm column q-gutter-y-md">
-            <div class="text-caption text-grey-7">
-              Informe os dados da Portaria e do BCA que registram esta alteração:
-            </div>
-            <div class="row q-col-gutter-md">
-              <q-input
-                v-model="dialog.orgaoPortaria"
-                label="Órgão *"
-                outlined dense class="col-3"
-                placeholder="Ex: DIRAD"
-                lazy-rules
-                :rules="[v => !!v?.trim() || 'Informe o órgão']"
-                :disable="alterandoStatus"
-              />
-              <q-input
-                v-model="dialog.setorPortaria"
-                label="Setor(es) *"
-                outlined dense class="col-3"
-                placeholder="Ex: PP6"
-                lazy-rules
-                :rules="[v => !!v?.trim() || 'Informe o setor']"
-                :disable="alterandoStatus"
-              />
-              <q-input
-                v-model="dialog.numeroPortaria"
-                label="Número *"
-                outlined dense class="col-2"
-                placeholder="Ex: 1.731"
-                lazy-rules
-                :rules="[v => !!v?.trim() || 'Obrigatório']"
-                :disable="alterandoStatus"
-              />
-              <q-input
-                v-model="dialog.dataPortaria"
-                type="date"
-                label="Data *"
-                outlined dense class="col-4"
-                lazy-rules
-                :rules="[
-                  v => !!v || 'Informe a data',
-                  v => !dialog.target?.data_portaria_referencia || v >= dialog.target.data_portaria_referencia
-                    || 'Anterior à alteração anterior',
-                ]"
-                :disable="alterandoStatus"
-              />
-            </div>
-            <div class="row q-col-gutter-md">
-              <q-input
-                v-model="dialog.numeroBca"
-                type="number" min="1" max="366"
-                label="Número do BCA *"
-                outlined dense class="col-4"
-                lazy-rules
-                :rules="[
-                  v => (v !== '' && v !== null && v !== undefined) || 'Informe o número',
-                  v => (v >= 1 && v <= 366) || 'Deve estar entre 1 e 366',
-                ]"
-                :disable="alterandoStatus"
-              />
-              <q-input
-                v-model="dialog.dataBca"
-                type="date"
-                label="Data *"
-                outlined dense class="col-4"
-                lazy-rules
-                :rules="[
-                  v => !!v || 'Informe a data',
-                  v => !dialog.target?.data_bca_referencia || v >= dialog.target.data_bca_referencia
-                    || 'Anterior à alteração anterior',
-                ]"
-                :disable="alterandoStatus"
-              />
-            </div>
-            <template v-if="dialog.statusOpt?.isRepublicacao">
-              <q-separator />
-              <div class="text-caption text-grey-7">Prévia da cláusula:</div>
-              <div class="text-body2 text-italic">{{ previewClausula }}</div>
-            </template>
-
-            <!-- Parte preliminar do documento -- só existe de fato a partir da
-                 publicação (ver plano desta mudança), então é coletada aqui, não
-                 durante a edição. -->
-            <q-separator />
-            <div class="text-caption text-grey-7">
-              Parte preliminar do documento publicado:
-            </div>
-            <q-input
-              v-model="dialog.epigrafe"
-              label="Epígrafe *"
-              outlined dense
-              placeholder="Ex: Portaria DIRAD/PP6 n° 1.731, de 24 de agosto de 2026"
-              lazy-rules
-              :rules="[v => !!v?.trim() || 'Informe a epígrafe']"
-              :disable="alterandoStatus"
-            />
-            <q-input
-              v-model="dialog.ementa"
-              type="textarea" autogrow
-              label="Ementa *"
-              outlined dense
-              lazy-rules
-              :rules="[v => !!v?.trim() || 'Informe a ementa']"
-              :disable="alterandoStatus"
-            />
-            <q-input
-              v-model="dialog.preambulo"
-              type="textarea" autogrow
-              label="Preâmbulo *"
-              outlined dense
-              lazy-rules
-              :rules="[v => !!v?.trim() || 'Informe o preâmbulo']"
-              :disable="alterandoStatus"
-            />
-            <q-input
-              v-model="dialog.fecho"
-              type="textarea" autogrow
-              label="Fecho *"
-              outlined dense
-              lazy-rules
-              :rules="[v => !!v?.trim() || 'Informe o fecho']"
-              :disable="alterandoStatus"
-            />
-            <q-input
-              v-model="dialog.assinatura"
-              type="textarea" autogrow
-              label="Assinatura *"
-              outlined dense
-              lazy-rules
-              :rules="[v => !!v?.trim() || 'Informe a assinatura']"
-              :disable="alterandoStatus"
-            />
-
-            <q-separator />
-            <div class="text-caption text-grey-7">
-              PDF da portaria (será concatenado ao documento) *
-            </div>
-            <q-uploader
-              ref="portariaUploaderRef"
-              :url="portariaUploadUrl"
-              :headers="portariaUploadHeaders"
-              field-name="arquivo"
-              label="Portaria (PDF)"
-              accept="application/pdf"
-              :multiple="false"
-              :max-files="1"
-              auto-upload
-              :disable="alterandoStatus"
-              flat bordered
-              style="max-height:200px;width:100%"
-              @uploading="portariaUploadando = true"
-              @uploaded="onPortariaPdfUploaded"
-              @failed="onPortariaPdfFailed"
-              @removed="dialog.portariaPdfUrl = ''"
-            />
-          </q-card-section>
-        </template>
         <q-card-actions align="right" class="q-pb-md q-px-md">
           <q-btn flat label="Cancelar" :disable="alterandoStatus" v-close-popup />
           <q-btn
             unelevated color="primary" label="Confirmar"
             :loading="alterandoStatus"
-            :disable="dialog.statusOpt?.requiresRefs && (errosRefs.length > 0 || portariaUploadando)"
             @click="executarMudancaStatus"
           />
         </q-card-actions>
       </q-card>
     </q-dialog>
+
+    <!-- Enviar para revisão/revogação: exige escolher a pessoa (papel APROV) --
+         ver SelecionarPessoaDialog.vue. -->
+    <SelecionarPessoaDialog
+      v-model="dialog.pessoa"
+      papel="APROV"
+      :titulo="dialog.statusOpt?.label ?? ''"
+      :descricao="dialog.target ? `Documento ${dialog.target.especie} ${dialog.target.numero_basico}${dialog.target.numero_secundario ? '-' + dialog.target.numero_secundario : ''}` : ''"
+      acao-label="Enviar"
+      :enviando="alterandoStatus"
+      @confirmar="executarEnvioPessoa"
+    />
 
     <!-- Confirm clone dialog -->
     <q-dialog v-model="dialog.clone">
@@ -626,18 +494,17 @@
 <script setup>
 import { ref, computed, reactive, onMounted, watch } from 'vue'
 import { useQuasar } from 'quasar'
-import { useDocumentsStore, jDoc, jPara, jText } from '@/stores/documents.js'
+import { useDocumentosStore } from '@/stores/documentos.js'
 import { useAuthStore } from '@/stores/auth.js'
 import StatusBadge from '@/components/common/StatusBadge.vue'
-import NewDocumentDialog from '@/components/common/NewDocumentDialog.vue'
+import NovoDocumentoDialog from '@/components/common/NovoDocumentoDialog.vue'
+import SelecionarPessoaDialog from '@/components/editor/SelecionarPessoaDialog.vue'
 import { gerarPdf } from '@/services/pdfService.js'
-import { BASE_URL } from '@/api/client.js'
+import { listEspeciesNormativas, normalizeEspecie } from '@/api/referencias.js'
 
 const $q = useQuasar()
-const store = useDocumentsStore()
+const store = useDocumentosStore()
 const auth = useAuthStore()
-
-onMounted(() => store.fetchAll())
 
 const dialogNovoDoc = ref(false)
 const viewMode = ref('tabela')
@@ -645,8 +512,22 @@ const abaAtiva = ref('meus')
 const filtros = reactive({ busca: '', especie: null, status: null })
 const pdfLoading = reactive({})
 
-const especies = ['ICA', 'NSCA', 'Portaria', 'Resolução', 'Decreto', 'Aviso']
-const statusOptions = ['RASCUNHO', 'MINUTA', 'APROVADO', 'PUBLICADO', 'EM_ALTERACAO', 'ALTERADO', 'ARQUIVADO', 'CANCELADO', 'REVOGADO']
+// Siglas do catálogo real de espécies normativas (t_especie_normativa), não mais
+// uma lista fixa que já ficou desatualizada em relação ao que existe no banco
+// (ver EspecieNormativaEnum) -- ver carregarEspecies() no onMounted abaixo.
+const especies = ref([])
+async function carregarEspecies() {
+  try {
+    const lista = await listEspeciesNormativas()
+    especies.value = lista.map(normalizeEspecie).map(e => e.sigla).sort()
+  } catch (e) {
+    $q.notify({ type: 'negative', message: `Erro ao carregar espécies normativas: ${e?.message ?? 'erro desconhecido'}` })
+  }
+}
+const statusOptions = [
+  'RASCUNHO', 'MINUTA', 'EM_REVISAO', 'APROVADO', 'EM_PUBLICACAO', 'PUBLICADO',
+  'EM_ALTERACAO', 'ALTERADO', 'ANALISE_REVOGACAO', 'EM_REVOGACAO', 'CANCELADO', 'REVOGADO',
+]
 
 const columns = [
   { name: 'especie',        label: 'Espécie',        field: 'especie',        align: 'center', sortable: true,  style: 'width: 100px' },
@@ -659,27 +540,23 @@ const columns = [
   { name: 'actions',        label: 'Ações',          field: 'actions',        align: 'center', sortable: false, style: 'width: 220px' },
 ]
 
+// Nome da coluna (frontend, snake_case) -> propriedade Java que o backend ordena (ver
+// DocumentoController.getAll) -- os dois lados usam nomenclaturas diferentes de
+// propósito (ver convenção do projeto), então a ordenação por servidor precisa dessa
+// tradução explícita.
+const SORT_FIELD_MAP = {
+  especie: 'especieNormativa.sigla',
+  titulo: 'tituloDocumento',
+  assunto_basico: 'assuntoBasico.nome',
+  data_criacao: 'dtCriacao',
+  status: 'documentoStatus',
+  replicas: 'qtdReplicas',
+}
+
 function formatarData(isoStr) {
   if (!isoStr) return '—'
   const [y, m, d] = String(isoStr).slice(0, 10).split('-')
   return `${d}/${m}/${y}`
-}
-
-// A listagem em si já vem completa do backend para qualquer usuário
-// autenticado (visualizar é universal -- ver DocumentoAcessoService); estas
-// abas são só uma forma de navegar esse mesmo conjunto, não uma restrição de
-// acesso. A restrição de verdade (editar/excluir) é sempre checada no
-// backend, nunca aqui.
-const ABA_FILTROS = {
-  meus:       (doc) => doc.autor_id === String(auth.usuario?.id),
-  minha_om:   (doc) => doc.om_id === String(auth.usuario?.omId) && doc.autor_id !== String(auth.usuario?.id),
-  outras_oms: (doc) => doc.om_id !== String(auth.usuario?.omId),
-  // Cruza a divisão por posse das outras 3 abas -- mostra os revogados de
-  // qualquer OM/autor, já que a visualização já é universal. Um documento
-  // revogado que você mesmo autorou aparece tanto aqui quanto em "Meus
-  // Documentos": as abas não são uma partição estrita, cada uma é só um
-  // recorte útil sobre o mesmo acervo.
-  revogados:  (doc) => doc.status === 'REVOGADO',
 }
 
 const ABA_LABELS = {
@@ -690,71 +567,95 @@ const ABA_LABELS = {
 }
 const abaAtivaLabel = computed(() => ABA_LABELS[abaAtiva.value])
 
-// Documentos da aba ativa, já com busca/espécie aplicados mas SEM o filtro de
-// situação -- serve de base tanto para a tabela (que aplica a situação por
-// cima) quanto para o resumo por chip (que precisa contar cada situação
-// possível dentro da aba, não só a que estiver selecionada no momento).
-const documentosDaAbaFiltrados = computed(() => {
-  const passaAba = ABA_FILTROS[abaAtiva.value] ?? (() => true)
-  return store.documentos.filter(doc => {
-    if (!passaAba(doc)) return false
-    if (filtros.especie && doc.especie !== filtros.especie) return false
-    if (filtros.busca) {
-      const q = filtros.busca.toLowerCase()
-      const match = doc.assunto_basico?.toLowerCase().includes(q)
-        || doc.numero_basico?.toString().includes(q)
-        || doc.especie?.toLowerCase().includes(q)
-      if (!match) return false
-    }
-    return true
-  })
-})
+// Paginação real no backend (ver DocumentoController.getAll/DocumentoService --
+// antes disso, um único fetch de até 200 documentos vinha pro navegador, e aba, busca,
+// espécie/situação e a própria paginação da tabela eram calculadas em JS por cima desse
+// array fixo -- acima de 200 documentos no acervo o resto simplesmente não aparecia).
+const totalPaginas = computed(() => Math.max(1, Math.ceil(store.totalElements / tablePagination.value.rowsPerPage)))
 
-const documentosFiltrados = computed(() =>
-  documentosDaAbaFiltrados.value.filter(doc => !filtros.status || doc.status === filtros.status)
-)
-
-// Indicador de quantidade por aba -- conta o total de documentos de cada aba
-// (sem aplicar busca/espécie/status, que são filtros sobre a aba já ativa),
-// para servir como referência estável mesmo enquanto o usuário está filtrando.
-const contagemAbas = computed(() => ({
-  meus:        store.documentos.filter(ABA_FILTROS.meus).length,
-  minha_om:    store.documentos.filter(ABA_FILTROS.minha_om).length,
-  outras_oms:  store.documentos.filter(ABA_FILTROS.outras_oms).length,
-  revogados:   store.documentos.filter(ABA_FILTROS.revogados).length,
-}))
-
-// A tabela pagina/busca dentro do conjunto já restrito à aba ativa
-// (documentosFiltrados) -- ao trocar de aba ou de filtro, volta pra página 1
-// pra não ficar numa página que não existe mais no novo conjunto.
-const tablePagination = ref({ page: 1, rowsPerPage: 15, sortBy: 'data_criacao', descending: true })
-watch([abaAtiva, filtros], () => { tablePagination.value.page = 1 }, { deep: true })
-
-const STATUS_CFG = {
-  RASCUNHO:     { bg: 'grey-3',        fg: 'grey-9',          label: 'Rascunho'     },
-  MINUTA:       { bg: 'orange-2',      fg: 'orange-10',       label: 'Minuta'       },
-  APROVADO:     { bg: 'green-2',       fg: 'green-10',        label: 'Aprovado'     },
-  PUBLICADO:    { bg: 'blue-2',        fg: 'primary',         label: 'Publicado'    },
-  EM_ALTERACAO: { bg: 'deep-orange-2', fg: 'deep-orange-10',  label: 'Em Alteração' },
-  ALTERADO:     { bg: 'teal-2',        fg: 'teal-10',         label: 'Alterado'     },
-  ARQUIVADO:    { bg: 'blue-grey-2',   fg: 'blue-grey-10',    label: 'Arquivado'    },
-  CANCELADO:    { bg: 'red-2',         fg: 'red-10',          label: 'Cancelado'    },
-  REVOGADO:     { bg: 'brown-2',       fg: 'brown-10',        label: 'Revogado'     },
+async function carregar() {
+  const params = {
+    aba: abaAtiva.value,
+    busca: filtros.busca || undefined,
+    especieSigla: filtros.especie || undefined,
+    status: filtros.status || undefined,
+    page: tablePagination.value.page - 1,
+    size: tablePagination.value.rowsPerPage,
+    sortBy: SORT_FIELD_MAP[tablePagination.value.sortBy] ?? 'dtCriacao',
+    descending: tablePagination.value.descending,
+  }
+  await Promise.all([
+    store.fetchPagina(params),
+    store.fetchResumo({ aba: params.aba, busca: params.busca, especieSigla: params.especieSigla }),
+  ])
 }
 
-// Contado sobre documentosDaAbaFiltrados (aba ativa + busca/espécie), não
-// sobre o acervo inteiro -- é o que estava confundindo: o número no chip
-// precisa bater com o que aparece na tabela ao clicar nele.
+// Disparado pela q-table (clique de página/ordenação/linhas-por-página) -- a própria
+// tabela já atualiza tablePagination via v-model antes de chamar isso (padrão Quasar de
+// paginação por servidor, mesmo usado em AuditoriaPage.vue).
+function onRequest(props) {
+  tablePagination.value.page = props.pagination.page
+  tablePagination.value.rowsPerPage = props.pagination.rowsPerPage
+  tablePagination.value.sortBy = props.pagination.sortBy
+  tablePagination.value.descending = props.pagination.descending
+  carregar()
+}
+
+const tablePagination = ref({ page: 1, rowsPerPage: 15, sortBy: 'data_criacao', descending: true, rowsNumber: 0 })
+watch(() => store.totalElements, (v) => { tablePagination.value.rowsNumber = v })
+
+// Trocar de aba/espécie/situação busca de novo na hora; busca por texto livre tem um
+// debounce curto (a q-table não dispara @request por digitação, então sem isso cada
+// tecla viraria uma requisição).
+let buscaTimer = null
+watch(() => filtros.busca, () => {
+  clearTimeout(buscaTimer)
+  buscaTimer = setTimeout(() => { tablePagination.value.page = 1; carregar() }, 350)
+})
+watch([abaAtiva, () => filtros.especie, () => filtros.status], () => {
+  tablePagination.value.page = 1
+  carregar()
+})
+
+// Alguém te adicionou como coautor em outro documento (ver notificação
+// DOCUMENTO_COMPARTILHADO tratada em AppTopBar.vue) -- refaz a busca da aba
+// atual sem esperar o usuário trocar de aba ou recarregar a página.
+watch(() => store.refreshSignal, () => { carregar() })
+
+onMounted(() => { carregar(); carregarEspecies() })
+
+const STATUS_CFG = {
+  RASCUNHO:          { bg: 'grey-3',        fg: 'grey-9',         label: 'Rascunho'             },
+  MINUTA:            { bg: 'orange-2',      fg: 'orange-10',      label: 'Minuta'                },
+  EM_REVISAO:        { bg: 'orange-2',      fg: 'orange-10',      label: 'Em Revisão'            },
+  APROVADO:          { bg: 'green-2',       fg: 'green-10',       label: 'Aprovado'              },
+  EM_PUBLICACAO:     { bg: 'blue-2',        fg: 'primary',        label: 'Em Publicação'         },
+  PUBLICADO:         { bg: 'blue-2',        fg: 'primary',        label: 'Publicado'             },
+  EM_ALTERACAO:      { bg: 'deep-orange-2', fg: 'deep-orange-10', label: 'Em Alteração'          },
+  ALTERADO:          { bg: 'teal-2',        fg: 'teal-10',        label: 'Alterado'              },
+  ANALISE_REVOGACAO: { bg: 'brown-2',       fg: 'brown-10',       label: 'Análise de Revogação'  },
+  EM_REVOGACAO:      { bg: 'brown-2',       fg: 'brown-10',       label: 'Em Revogação'          },
+  CANCELADO:         { bg: 'red-2',         fg: 'red-10',         label: 'Cancelado'             },
+  REVOGADO:          { bg: 'brown-2',       fg: 'brown-10',       label: 'Revogado'              },
+}
+
+// store.resumoStatus já vem do servidor com aba/busca/espécie aplicados (ver
+// DocumentoService.getResumo) -- o número no chip bate com o que aparece na tabela ao
+// clicar nele, mesma garantia de antes, só que calculada no backend agora.
 const statusSummary = computed(() =>
   Object.entries(STATUS_CFG).map(([status, cfg]) => ({
     status,
     label: cfg.label,
     bg: cfg.bg,
     fg: cfg.fg,
-    count: documentosDaAbaFiltrados.value.filter(d => d.status === status).length,
+    count: store.resumoStatus[status] ?? 0,
   })).filter(s => s.count > 0)
 )
 
+// O ícone da HomePage sempre abre em modo leitura (visualizar), mesmo para o
+// revisor atribuído durante EM_REVISAO -- ele entra no editor de propósito, pelo
+// link "Editar" da tela de visualização (mesmo padrão de Rascunho/Minuta) ou
+// pela fila de Revisão, nunca direto por aqui.
 function canEdit(doc) {
   return ['RASCUNHO', 'MINUTA', 'EM_ALTERACAO'].includes(doc.status)
 }
@@ -763,32 +664,40 @@ function canDelete(doc) {
   return ['RASCUNHO', 'MINUTA'].includes(doc.status)
 }
 
+// Mesmo critério que decide o que aparece dentro do menu "⋮" -- se nada
+// aparecer (nenhuma transição de status disponível pro papel do usuário nem
+// exclusão), o botão fica desabilitado em vez de abrir um menu vazio.
+function temAcoesExtras(doc) {
+  return statusActions(doc).length > 0 || canDelete(doc)
+}
+
 function docRoute(doc) {
   return canEdit(doc)
     ? { name: 'documento-editar',    params: { id: doc.id } }
     : { name: 'documento-visualizar', params: { id: doc.id } }
 }
 
+// Só as ações que o Editor conduz sozinho (sem escolher pessoa) ou a única
+// exceção sem atribuição prévia (Iniciar Alteração, papel APROV da própria OM --
+// ver DocumentoAcessoService.podeMudarStatus). Revisar/aprovar/publicar/revogar
+// de fato viraram telas dedicadas (RevisaoPage.vue/PublicacaoPage.vue), cada
+// uma restrita a quem tem a atribuição pessoal daquela etapa -- por isso não
+// aparecem mais aqui.
 function statusActions(doc) {
-  // ALTERADO é um status distinto de APROVADO — nunca reaproveitá-lo aqui. Um
-  // documento pós-alteração jamais deve poder "Retornar p/ Minuta": ele carrega
-  // numeração com sufixo de letra e elementos INCLUIDO/ALTERADO/REVOGADO que a
-  // renumeração simples de MINUTA não entende e corromperia.
   const transitions = {
-    RASCUNHO:     [{ status: 'MINUTA',        label: 'Enviar para Minuta',   icon: 'mdi-file-edit-outline' }],
-    MINUTA:       [{ status: 'APROVADO',      label: 'Aprovar',              icon: 'mdi-check-circle-outline' },
-                   { status: 'RASCUNHO',      label: 'Retornar p/ Rascunho', icon: 'mdi-undo' }],
-    APROVADO:     [{ status: 'PUBLICADO',     label: 'Publicar',             icon: 'mdi-publish', requiresRefs: true },
-                   { status: 'MINUTA',        label: 'Retornar p/ Minuta',   icon: 'mdi-undo' }],
-    PUBLICADO:    [{ status: 'EM_ALTERACAO',  label: 'Iniciar Alteração',    icon: 'mdi-pencil-lock-outline' },
-                   { status: 'ARQUIVADO',     label: 'Arquivar',             icon: 'mdi-archive-outline' },
-                   { status: 'REVOGADO',      label: 'Revogar',             icon: 'mdi-file-remove-outline' }],
-    EM_ALTERACAO: [{ status: 'ALTERADO', label: 'Aprovar Alteração', icon: 'mdi-check-circle-outline' }],
-    ALTERADO:     [{ status: 'PUBLICADO',    label: 'Republicar',           icon: 'mdi-publish', requiresRefs: true, isRepublicacao: true },
-                   { status: 'EM_ALTERACAO', label: 'Retornar p/ Alteração', icon: 'mdi-undo' }],
-    ARQUIVADO: [],
-    CANCELADO: [],
-    REVOGADO:  [],
+    RASCUNHO: auth.isEditor
+      ? [{ status: 'MINUTA', label: 'Enviar para Minuta', icon: 'mdi-file-edit-outline' }]
+      : [],
+    MINUTA: auth.isEditor
+      ? [{ status: 'EM_REVISAO', label: 'Enviar para Revisão', icon: 'mdi-account-arrow-right-outline', escolherPessoa: true }]
+      : [],
+    EM_ALTERACAO: auth.isEditor
+      ? [{ status: 'EM_REVISAO', label: 'Enviar Alteração para Revisão', icon: 'mdi-account-arrow-right-outline', escolherPessoa: true }]
+      : [],
+    PUBLICADO: [
+      ...(auth.isAprovador ? [{ status: 'EM_ALTERACAO', label: 'Iniciar Alteração', icon: 'mdi-pencil-lock-outline' }] : []),
+      ...(auth.isEditor ? [{ status: 'ANALISE_REVOGACAO', label: 'Enviar para Revogação', icon: 'mdi-file-remove-outline', escolherPessoa: true }] : []),
+    ],
   }
   return transitions[doc.status] ?? []
 }
@@ -796,7 +705,11 @@ function statusActions(doc) {
 function confirmarMudancaStatus(doc, opt) {
   dialog.target = doc
   dialog.statusOpt = opt
-  dialog.status = true
+  if (opt.escolherPessoa) {
+    dialog.pessoa = true
+  } else {
+    dialog.status = true
+  }
 }
 
 const alterandoStatus = ref(false)
@@ -806,49 +719,51 @@ async function executarMudancaStatus() {
   // chegaria depois da primeira já ter mudado o status no banco e seria rejeitada
   // (403), mesmo com a primeira tendo funcionado normalmente.
   if (alterandoStatus.value) return
-  if (dialog.statusOpt?.requiresRefs && errosRefs.value.length) return
   const alvo = dialog.target
   const opt  = dialog.statusOpt
-  const refs = opt?.requiresRefs ? {
-    orgaoPortaria:  dialog.orgaoPortaria.trim(),
-    setorPortaria:  dialog.setorPortaria.trim(),
-    numeroPortaria: dialog.numeroPortaria.trim(),
-    dataPortaria:   dialog.dataPortaria,
-    numeroBca:      parseInt(dialog.numeroBca, 10),
-    dataBca:        dialog.dataBca,
-    epigrafe:       jDoc(jPara(jText(dialog.epigrafe.trim()))),
-    ementa:         jDoc(jPara(jText(dialog.ementa.trim()))),
-    preambulo:      jDoc(jPara(jText(dialog.preambulo.trim()))),
-    fecho:          jDoc(jPara(jText(dialog.fecho.trim()))),
-    assinatura:     jDoc(jPara(jText(dialog.assinatura.trim()))),
-    portariaPdfUrl: dialog.portariaPdfUrl,
-  } : undefined
   if (!alvo || !opt) return
 
   alterandoStatus.value = true
   try {
-    await store.changeStatus(alvo.id, opt.status, refs)
-    dialog.status = false
-    dialog.target = null
-    dialog.statusOpt = null
-    dialog.orgaoPortaria = ''
-    dialog.setorPortaria = ''
-    dialog.numeroPortaria = ''
-    dialog.dataPortaria = ''
-    dialog.numeroBca = ''
-    dialog.dataBca = ''
-    dialog.epigrafe = ''
-    dialog.ementa = ''
-    dialog.preambulo = ''
-    dialog.fecho = ''
-    dialog.assinatura = ''
-    dialog.portariaPdfUrl = ''
-    portariaUploaderRef.value?.reset()
+    await store.changeStatus(alvo.id, opt.status)
+    await fecharDialogStatus()
   } catch (e) {
     $q.notify({ type: 'negative', message: `Erro ao mudar situação: ${e?.message ?? 'erro desconhecido'}` })
   } finally {
     alterandoStatus.value = false
   }
+}
+
+// Enviar para revisão/revogação -- mesma mudança de status acima, só que com a
+// pessoa escolhida no SelecionarPessoaDialog (sempre revisorId aqui: as duas
+// transições que passam por esse diálogo, EM_REVISAO e ANALISE_REVOGACAO, são de
+// atribuir um revisor -- ver DocumentoStatusRequestDto).
+async function executarEnvioPessoa(usuarioId) {
+  if (alterandoStatus.value) return
+  const alvo = dialog.target
+  const opt  = dialog.statusOpt
+  if (!alvo || !opt) return
+
+  alterandoStatus.value = true
+  try {
+    await store.changeStatus(alvo.id, opt.status, { revisorId: usuarioId })
+    dialog.pessoa = false
+    await fecharDialogStatus()
+  } catch (e) {
+    $q.notify({ type: 'negative', message: `Erro ao enviar: ${e?.message ?? 'erro desconhecido'}` })
+  } finally {
+    alterandoStatus.value = false
+  }
+}
+
+// Mudar a situação afeta as contagens das abas/chips (ex.: revogar tira o
+// documento do total normal e o soma em "Revogados") -- store.changeStatus já
+// atualiza a linha em si, mas resumo/total só refletem isso com um recarregamento.
+async function fecharDialogStatus() {
+  await carregar()
+  dialog.status = false
+  dialog.target = null
+  dialog.statusOpt = null
 }
 
 async function baixarPdf(doc) {
@@ -873,110 +788,21 @@ function confirmarClone(doc) {
   dialog.clone = true
 }
 
-function executarClone() {
-  if (dialog.target) store.cloneDocumento(dialog.target.id)
+// Antes, o clone só entrava direto no array local (store.documentos.unshift) porque
+// esse array já era "o acervo inteiro" -- agora que é só a página atual, precisa
+// recarregar de verdade pra refletir o total/ordenação corretos (ver carregar()).
+async function executarClone() {
+  if (dialog.target) {
+    await store.cloneDocumento(dialog.target.id)
+    await carregar()
+  }
   dialog.clone = false
   dialog.target = null
 }
 
 const dialog = reactive({
-  delete: false, status: false, clone: false,
+  delete: false, status: false, clone: false, pessoa: false,
   target: null, statusOpt: null,
-  orgaoPortaria: '', setorPortaria: '',
-  numeroPortaria: '', dataPortaria: '',
-  numeroBca: '', dataBca: '',
-  // Parte preliminar do documento -- só coletada aqui, na publicação (ver
-  // plano desta mudança). portariaPdfUrl é preenchida pelo upload do
-  // q-uploader abaixo, antes do usuário confirmar a publicação.
-  epigrafe: '', ementa: '', preambulo: '', fecho: '', assinatura: '',
-  portariaPdfUrl: '',
-})
-
-const portariaUploaderRef = ref(null)
-const portariaUploadando = ref(false)
-const portariaUploadUrl = computed(() => `${BASE_URL}/documentos/${dialog.target?.id}/portaria-pdf`)
-// q-uploader não passa pelo client.js (http.js), então não herda a injeção
-// automática do Authorization -- precisa ser passado explicitamente aqui.
-const portariaUploadHeaders = computed(() => [{ name: 'Authorization', value: `Bearer ${auth.token}` }])
-
-function onPortariaPdfUploaded(info) {
-  portariaUploadando.value = false
-  try {
-    const resposta = JSON.parse(info.xhr.responseText)
-    dialog.portariaPdfUrl = resposta.url
-  } catch {
-    $q.notify({ type: 'negative', message: 'Erro ao processar a resposta do upload da portaria.' })
-  }
-}
-
-function onPortariaPdfFailed() {
-  portariaUploadando.value = false
-  dialog.portariaPdfUrl = ''
-  $q.notify({ type: 'negative', message: 'Erro ao enviar o PDF da portaria.' })
-}
-
-const MESES_EXTENSO = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
-  'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro']
-
-function dataPorExtenso(isoStr) {
-  if (!isoStr) return null
-  const [y, m, d] = isoStr.split('-')
-  return `${parseInt(d, 10)} de ${MESES_EXTENSO[parseInt(m, 10) - 1]} de ${y}`
-}
-
-// Prévia da cláusula "Portaria X/Y n° Z, de D, publica no BCA n° W, de D" — só faz
-// sentido para republicação, já que é o único momento em que essa cláusula é gerada.
-const previewClausula = computed(() => {
-  const orgao = dialog.orgaoPortaria?.trim() || 'ÓRGÃO'
-  const setor = dialog.setorPortaria?.trim() || 'SETOR'
-  const numeroPortaria = dialog.numeroPortaria?.trim() || 'XYZ'
-  const dataPortariaExt = dataPorExtenso(dialog.dataPortaria) || 'DD de MÊS de AAAA'
-  const numeroBca = dialog.numeroBca !== '' && dialog.numeroBca != null ? dialog.numeroBca : 'ABC'
-  const dataBcaExt = dataPorExtenso(dialog.dataBca) || 'DD de mês de AAAA'
-  return `Portaria ${orgao}/${setor} n° ${numeroPortaria}, de ${dataPortariaExt}, `
-    + `publica no BCA n° ${numeroBca}, de ${dataBcaExt}.`
-})
-
-// Espelha a validação exibida por campo (via :rules nos q-inputs) para saber se o
-// formulário está completo e habilitar o botão Confirmar — não é mais renderizada
-// como lista de erros, cada input mostra sua própria mensagem nativamente.
-// Datas são strings ISO "YYYY-MM-DD" (tanto as do formulário quanto as vindas do
-// backend), então comparação de string já basta para checar ordem cronológica.
-const errosRefs = computed(() => {
-  if (!dialog.statusOpt?.requiresRefs) return []
-  const errs = []
-  if (!dialog.orgaoPortaria?.trim()) errs.push('Informe o órgão da portaria.')
-  if (!dialog.setorPortaria?.trim()) errs.push('Informe o setor da portaria.')
-  if (!dialog.numeroPortaria?.trim()) errs.push('Informe o número da portaria.')
-  if (!dialog.dataPortaria) errs.push('Informe a data da portaria.')
-
-  const bcaNum = parseInt(dialog.numeroBca, 10)
-  if (dialog.numeroBca === '' || isNaN(bcaNum)) {
-    errs.push('Informe o número do BCA.')
-  } else if (bcaNum < 1 || bcaNum > 366) {
-    // O BCA é publicado apenas em dias úteis, então nunca passa de 366 (dias do ano).
-    errs.push('O número do BCA deve estar entre 1 e 366.')
-  }
-  if (!dialog.dataBca) errs.push('Informe a data do BCA.')
-
-  // A data de cada alteração não pode ser anterior à alteração anterior.
-  if (dialog.dataPortaria && dialog.target?.data_portaria_referencia
-      && dialog.dataPortaria < dialog.target.data_portaria_referencia) {
-    errs.push('A data da portaria não pode ser anterior à da alteração anterior.')
-  }
-  if (dialog.dataBca && dialog.target?.data_bca_referencia
-      && dialog.dataBca < dialog.target.data_bca_referencia) {
-    errs.push('A data do BCA não pode ser anterior à da alteração anterior.')
-  }
-
-  if (!dialog.epigrafe?.trim()) errs.push('Informe a epígrafe.')
-  if (!dialog.ementa?.trim()) errs.push('Informe a ementa.')
-  if (!dialog.preambulo?.trim()) errs.push('Informe o preâmbulo.')
-  if (!dialog.fecho?.trim()) errs.push('Informe o fecho.')
-  if (!dialog.assinatura?.trim()) errs.push('Informe a assinatura.')
-  if (!dialog.portariaPdfUrl) errs.push('Envie o PDF da portaria.')
-
-  return errs
 })
 
 function confirmarExclusao(doc) {
@@ -984,8 +810,11 @@ function confirmarExclusao(doc) {
   dialog.delete = true
 }
 
-function excluir() {
-  if (dialog.target) store.deleteDocumento(dialog.target.id)
+async function excluir() {
+  if (dialog.target) {
+    await store.deleteDocumento(dialog.target.id)
+    await carregar()
+  }
   dialog.delete = false
   dialog.target = null
 }

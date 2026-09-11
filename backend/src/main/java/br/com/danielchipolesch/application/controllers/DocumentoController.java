@@ -1,23 +1,33 @@
 package br.com.danielchipolesch.application.controllers;
 
+import br.com.danielchipolesch.application.dtos.documentoDtos.DocumentoFilaResponseDto;
 import br.com.danielchipolesch.application.dtos.documentoDtos.DocumentoHistoricoResponseDto;
 import br.com.danielchipolesch.application.dtos.documentoDtos.DocumentoRequestCreateDto;
 import br.com.danielchipolesch.application.dtos.documentoDtos.DocumentoRequestUpdateDto;
 import br.com.danielchipolesch.application.dtos.documentoDtos.DocumentoResponseComAnexoTextualDto;
 import br.com.danielchipolesch.application.dtos.documentoDtos.DocumentoResponseSemAnexoTextualDto;
+import br.com.danielchipolesch.application.dtos.documentoDtos.DocumentoResumoResponseDto;
 import br.com.danielchipolesch.application.dtos.documentoDtos.DocumentoStatusRequestDto;
 import br.com.danielchipolesch.application.dtos.documentoDtos.PortariaPdfResponseDto;
+import br.com.danielchipolesch.application.dtos.documentoDtos.PortariaPublicacaoResponseDto;
 import br.com.danielchipolesch.application.dtos.emendaDtos.MapaAlteracaoItemResponseDto;
 import br.com.danielchipolesch.application.dtos.emendaDtos.MapaAlteracaoPdfRequestDto;
+import br.com.danielchipolesch.application.dtos.itemAnexoParteNormativaDtos.ElementoConteudoRequestDto;
+import br.com.danielchipolesch.application.dtos.itemAnexoParteNormativaDtos.ElementoConteudoResponseDto;
 import br.com.danielchipolesch.application.dtos.itemAnexoParteNormativaDtos.ItemAnexoParteNormativaRequestDto;
+import br.com.danielchipolesch.application.dtos.itemAnexoParteNormativaDtos.ItemAnexoParteNormativaResponseDto;
 import br.com.danielchipolesch.application.dtos.itemAnexoParteNormativaDtos.NumeracaoElementoResponseDto;
 import br.com.danielchipolesch.application.dtos.itemAnexoParteNormativaDtos.SecoesSaveRequestDto;
 import br.com.danielchipolesch.application.dtos.usuarioDtos.CompartilharDocumentoRequestDto;
 import br.com.danielchipolesch.application.dtos.usuarioDtos.CompartilhamentoResponseDto;
 import br.com.danielchipolesch.domain.entities.auditoria.AcaoAuditoriaEnum;
+import br.com.danielchipolesch.domain.entities.estruturaDocumento.Documento;
+import br.com.danielchipolesch.domain.entities.estruturaDocumento.DocumentoStatusEnum;
+import br.com.danielchipolesch.domain.entities.usuario.Usuario;
 import br.com.danielchipolesch.domain.mappers.DocumentoMapper;
 import br.com.danielchipolesch.domain.services.DocumentoCompartilhamentoService;
 import br.com.danielchipolesch.domain.services.DocumentoHistoricoService;
+import br.com.danielchipolesch.domain.services.DocumentoHtmlService;
 import br.com.danielchipolesch.domain.services.DocumentoParteNormativaService;
 import br.com.danielchipolesch.domain.services.DocumentoPdfService;
 import br.com.danielchipolesch.domain.services.DocumentoPresencaService;
@@ -27,9 +37,12 @@ import br.com.danielchipolesch.domain.services.EmendaService;
 import br.com.danielchipolesch.domain.services.ImagemService;
 import br.com.danielchipolesch.domain.services.LogAuditoriaService;
 import br.com.danielchipolesch.domain.services.MapaAlteracaoPdfService;
+import br.com.danielchipolesch.domain.services.PortariaPublicacaoService;
+import br.com.danielchipolesch.infrastructure.security.UsuarioPrincipal;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -39,6 +52,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
@@ -70,6 +84,9 @@ public class DocumentoController {
     private DocumentoPdfService documentoPdfService;
 
     @Autowired
+    private DocumentoHtmlService documentoHtmlService;
+
+    @Autowired
     private EmendaService emendaService;
 
     @Autowired
@@ -87,6 +104,9 @@ public class DocumentoController {
     @Autowired
     private ImagemService imagemService;
 
+    @Autowired
+    private PortariaPublicacaoService portariaPublicacaoService;
+
     private EntityModel<DocumentoResponseSemAnexoTextualDto> toModel(DocumentoResponseSemAnexoTextualDto dto) {
         Long id = dto.idDocumento();
         return EntityModel.of(dto,
@@ -97,6 +117,10 @@ public class DocumentoController {
         );
     }
 
+    // Criar (e clonar, que cria uma cópia nova) exige o papel EDIT -- ver PapelEnum.
+    // Nenhuma outra regra de posse se aplica aqui (não há documento prévio do
+    // usuário a checar), então a authority sozinha já basta.
+    @PreAuthorize("hasRole('EDIT')")
     @PostMapping
     public ResponseEntity<EntityModel<DocumentoResponseSemAnexoTextualDto>> post(
             @RequestBody @Valid DocumentoRequestCreateDto request) throws RuntimeException {
@@ -105,6 +129,7 @@ public class DocumentoController {
         return ResponseEntity.status(HttpStatus.CREATED).body(toModel(dto));
     }
 
+    @PreAuthorize("hasRole('EDIT')")
     @PostMapping("{id}/clonar")
     public ResponseEntity<EntityModel<DocumentoResponseSemAnexoTextualDto>> clone(
             @PathVariable(value = "id") Long id) throws RuntimeException {
@@ -128,27 +153,65 @@ public class DocumentoController {
     }
 
     @GetMapping("filtrar")
-    public ResponseEntity<List<EntityModel<DocumentoResponseSemAnexoTextualDto>>> getByDocumentationTypeAndBasicSubject(
-            @RequestParam(value = "especie-normativa") Long documentTypeId,
-            @RequestParam(value = "assunto-basico") Long basicSubjectId) throws RuntimeException {
+    public ResponseEntity<List<EntityModel<DocumentoResponseSemAnexoTextualDto>>> getByEspecieNormativaAndAssuntoBasico(
+            @RequestParam(value = "especie-normativa") Long especieNormativaId,
+            @RequestParam(value = "assunto-basico") Long assuntoBasicoId) throws RuntimeException {
         List<EntityModel<DocumentoResponseSemAnexoTextualDto>> models = documentoService
-                .getByDocumentationTypeAndBasicSubject(documentTypeId, basicSubjectId)
+                .getByEspecieNormativaAndAssuntoBasico(especieNormativaId, assuntoBasicoId)
                 .stream().map(this::toModel).toList();
         return ResponseEntity.ok(models);
     }
 
+    // Paginação de verdade: até aqui, o frontend chamava isso uma vez com size=200 e
+    // filtrava/paginava tudo no navegador (HomePage.vue) -- acima de 200 documentos no
+    // acervo, o resto simplesmente nunca aparecia. Devolve Page<T> direto (sem
+    // EntityModel por item, igual a AuditoriaController.filtrar) -- o frontend nunca leu
+    // _links dos itens da listagem, só os campos planos do DTO, que o Jackson já
+    // serializava assim mesmo dentro de EntityModel.
     @GetMapping("/obter-todos")
-    public ResponseEntity<List<EntityModel<DocumentoResponseSemAnexoTextualDto>>> getAll(
+    public ResponseEntity<Page<DocumentoResponseSemAnexoTextualDto>> getAll(
+            @RequestParam(required = false) String aba,
+            @RequestParam(required = false) String busca,
+            @RequestParam(required = false) String especieSigla,
+            @RequestParam(required = false) DocumentoStatusEnum status,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size,
-            @RequestParam(defaultValue = "id") String sortBy) throws RuntimeException {
-        Pageable pageable = PageRequest.of(page, size, Sort.by(sortBy));
-        List<EntityModel<DocumentoResponseSemAnexoTextualDto>> models = documentoService
-                .getAll(pageable).stream()
-                .map(DocumentoMapper::documentoToDocumentoSemAnexoTextualResponseDto)
-                .map(this::toModel)
-                .toList();
-        return ResponseEntity.ok(models);
+            @RequestParam(defaultValue = "15") int size,
+            @RequestParam(defaultValue = "dtCriacao") String sortBy,
+            @RequestParam(defaultValue = "true") boolean descending,
+            Authentication authentication) throws RuntimeException {
+        Usuario usuario = ((UsuarioPrincipal) authentication.getPrincipal()).getUsuario();
+        Sort sort = descending ? Sort.by(sortBy).descending() : Sort.by(sortBy).ascending();
+        Page<Documento> resultado = documentoService.getAllPaginado(
+                usuario.getId(), usuario.getOm().getId(), aba, busca, especieSigla, status,
+                PageRequest.of(page, size, sort));
+        return ResponseEntity.ok(resultado.map(DocumentoMapper::documentoToDocumentoSemAnexoTextualResponseDto));
+    }
+
+    // Fila pessoal das telas de Revisão/Publicação -- ver DocumentoService.
+    @GetMapping("/minha-revisao")
+    public ResponseEntity<List<DocumentoFilaResponseDto>> getMinhaRevisao(Authentication authentication) {
+        Usuario usuario = ((UsuarioPrincipal) authentication.getPrincipal()).getUsuario();
+        return ResponseEntity.ok(documentoService.getMinhaRevisao(usuario.getId()));
+    }
+
+    @GetMapping("/minha-publicacao")
+    public ResponseEntity<List<DocumentoFilaResponseDto>> getMinhaPublicacao(Authentication authentication) {
+        Usuario usuario = ((UsuarioPrincipal) authentication.getPrincipal()).getUsuario();
+        return ResponseEntity.ok(documentoService.getMinhaPublicacao(usuario.getId()));
+    }
+
+    // Contagens pros badges das 4 abas e pros chips de situação da HomePage -- ver
+    // DocumentoService.getResumo. Mesmos filtros de busca/espécie do getAll acima, pra
+    // ficar em sincronia com o que a listagem principal está mostrando no momento.
+    @GetMapping("/resumo")
+    public ResponseEntity<DocumentoResumoResponseDto> resumo(
+            @RequestParam(required = false) String aba,
+            @RequestParam(required = false) String busca,
+            @RequestParam(required = false) String especieSigla,
+            Authentication authentication) {
+        Usuario usuario = ((UsuarioPrincipal) authentication.getPrincipal()).getUsuario();
+        return ResponseEntity.ok(documentoService.getResumo(
+                usuario.getId(), usuario.getOm().getId(), aba, busca, especieSigla));
     }
 
     @PreAuthorize("@documentoAcessoService.podeMudarStatus(#id, #request.status, authentication)")
@@ -177,6 +240,15 @@ public class DocumentoController {
         return ResponseEntity.ok(new PortariaPdfResponseDto(url));
     }
 
+    // Sem @PreAuthorize: visualizar é liberado para qualquer usuário
+    // autenticado, mesmo raciocínio de DocumentoAcessoService para o resto da
+    // tela de visualização.
+    @GetMapping("{id}/portarias")
+    public ResponseEntity<List<PortariaPublicacaoResponseDto>> listarPortarias(
+            @PathVariable(value = "id") Long id) {
+        return ResponseEntity.ok(portariaPublicacaoService.listar(id));
+    }
+
     @PreAuthorize("@documentoAcessoService.podeEditar(#id, authentication)")
     @PutMapping("{id}")
     public ResponseEntity<EntityModel<DocumentoResponseSemAnexoTextualDto>> update(
@@ -200,15 +272,66 @@ public class DocumentoController {
         return ResponseEntity.ok(model);
     }
 
+    // PATCH, não PUT: salvarSecoes aplica um diff contra a árvore persistida (casando
+    // por id) em vez de apagar/reinserir tudo -- ver comentário em
+    // DocumentoParteNormativaService.salvarItensNormativos. Trocar só o verbo sem essa
+    // mudança de comportamento não protegeria nada; é a semântica de fato que importa.
+    // Retorna a árvore normativa persistida (com os ids reais dos elementos recém-
+    // criados) porque o frontend manda elementos novos sem id -- sem devolver o id
+    // atribuído, o próximo autosave os trataria como novos de novo, duplicando-os.
     @PreAuthorize("@documentoAcessoService.podeEditar(#id, authentication)")
-    @PutMapping("{id}/secoes")
-    public ResponseEntity<Void> saveSecoes(
+    @PatchMapping("{id}/secoes")
+    public ResponseEntity<List<ItemAnexoParteNormativaResponseDto>> saveSecoes(
             @PathVariable(value = "id") Long id,
-            @RequestBody SecoesSaveRequestDto request) throws RuntimeException {
-        documentoParteNormativaService.salvarSecoes(id, request);
+            @RequestBody SecoesSaveRequestDto request,
+            // Id de sessão gerado uma vez por aba no frontend (ver frontend/src/utils/
+            // clientId.js) -- devolvido no broadcast SSE (event: estrutura) pra quem
+            // originou a mudança poder ignorar o próprio eco. Opcional: sem ele, o
+            // broadcast simplesmente não tem como ser filtrado pelo emissor.
+            @RequestHeader(value = "X-Client-Id", required = false) String clientId) throws RuntimeException {
+        documentoParteNormativaService.salvarSecoes(id, request, clientId);
         DocumentoResponseSemAnexoTextualDto dto = DocumentoMapper.documentoToDocumentoSemAnexoTextualResponseDto(
                 documentoService.getById(id));
         logAuditoriaService.registrar(dto.idDocumento(), dto.codigoDocumento(), AcaoAuditoriaEnum.EDITOU, "Conteúdo do documento");
+        List<ItemAnexoParteNormativaResponseDto> normativos = documentoParteNormativaService
+                .getItensNormativosByDocumento(id).stream().map(ItemAnexoParteNormativaResponseDto::from).toList();
+        return ResponseEntity.ok(normativos);
+    }
+
+    // Lê só o conteudo de UM elemento (sem trazer a árvore inteira) -- usado pelo
+    // serviço de colaboração (Hocuspocus) em onLoadDocument, quando uma sala é aberta
+    // pela primeira vez. Antes, onLoadDocument chamava GET /{id} inteiro (a árvore
+    // completa, centenas de KB em documentos grandes) só pra achar um elemento --
+    // ver DocumentoParteNormativaService.obterConteudoElemento.
+    @PreAuthorize("@documentoAcessoService.podeEditar(#id, authentication)")
+    @GetMapping("{id}/elementos/{elementoId}/conteudo")
+    public ResponseEntity<ElementoConteudoResponseDto> obterConteudoElemento(
+            @PathVariable(value = "id") Long id,
+            @PathVariable(value = "elementoId") Long elementoId) {
+        String conteudo = documentoParteNormativaService.obterConteudoElemento(id, elementoId);
+        return ResponseEntity.ok(new ElementoConteudoResponseDto(conteudo));
+    }
+
+    // Grava só o conteudo de UM elemento -- ponto de escrita usado pelo serviço de
+    // colaboração (Hocuspocus) a cada persistência do Y.Doc, nunca pelo autosave
+    // estrutural acima. Ver plano de colaboração em tempo real (CRDT/Yjs).
+    @PreAuthorize("@documentoAcessoService.podeEditar(#id, authentication)")
+    @PatchMapping("{id}/elementos/{elementoId}/conteudo")
+    public ResponseEntity<Void> atualizarConteudoElemento(
+            @PathVariable(value = "id") Long id,
+            @PathVariable(value = "elementoId") Long elementoId,
+            @RequestBody ElementoConteudoRequestDto request) {
+        documentoParteNormativaService.atualizarConteudoElemento(id, elementoId, request.conteudo());
+        return ResponseEntity.noContent().build();
+    }
+
+    // Sem corpo de resposta -- existe só para o serviço de colaboração (Hocuspocus)
+    // perguntar, com o JWT de quem está se conectando, "esta pessoa pode editar este
+    // documento?" antes de aceitar a conexão a uma sala Yjs. 204 = pode; o
+    // @PreAuthorize barra com 403 antes mesmo de o método rodar, caso contrário.
+    @PreAuthorize("@documentoAcessoService.podeEditar(#id, authentication)")
+    @GetMapping("{id}/pode-editar")
+    public ResponseEntity<Void> podeEditar(@PathVariable(value = "id") Long id) {
         return ResponseEntity.noContent().build();
     }
 
@@ -251,6 +374,18 @@ public class DocumentoController {
         StreamingResponseBody body = documentoPdfService.streamPdf(id);
         return ResponseEntity.ok()
                 .header("Content-Disposition", "inline; filename=\"documento-" + id + ".pdf\"")
+                .header("Cache-Control", "no-store")
+                .body(body);
+    }
+
+    // Mesmo nível de acesso do PDF (sem @PreAuthorize -- visualização é universal,
+    // ver comentário no topo de SecurityConfig): qualquer usuário autenticado exporta
+    // qualquer documento, nos dois formatos.
+    @GetMapping(value = "{id}/html", produces = "text/html;charset=UTF-8")
+    public ResponseEntity<StreamingResponseBody> getHtml(@PathVariable(value = "id") Long id) {
+        StreamingResponseBody body = documentoHtmlService.streamHtml(id);
+        return ResponseEntity.ok()
+                .header("Content-Disposition", "inline; filename=\"documento-" + id + ".html\"")
                 .header("Cache-Control", "no-store")
                 .body(body);
     }

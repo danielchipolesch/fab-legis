@@ -1,44 +1,79 @@
 package br.com.danielchipolesch.domain.services;
 
+import br.com.danielchipolesch.application.dtos.anexoDtos.AnexoResponseDto;
 import br.com.danielchipolesch.application.dtos.itemAnexoParteNormativaDtos.ItemAnexoParteNormativaResponseDto;
 import br.com.danielchipolesch.application.dtos.itemPartePreliminarDtos.ItemPartePreliminarResponseDto;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.Documento;
+import br.com.danielchipolesch.domain.entities.estruturaDocumento.DocumentoStatusEnum;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.ElementoEmendaStatusEnum;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.ItemAnexoParteNormativaTipoEnum;
+import br.com.danielchipolesch.domain.handlers.exceptions.ResourceNotFoundException;
+import br.com.danielchipolesch.domain.handlers.exceptions.enums.DocumentoException;
 import br.com.danielchipolesch.domain.util.tiptap.TipTapHtmlSerializer;
 import br.com.danielchipolesch.domain.util.tiptap.TipTapNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import br.com.danielchipolesch.infrastructure.repositories.AnexoRepository;
+import br.com.danielchipolesch.infrastructure.repositories.DocumentoRepository;
+import tools.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
 import java.io.InputStream;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.sql.Timestamp;
 import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Base64;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.regex.Pattern;
 
 @Service
 public class DocumentoHtmlService {
 
+    // Mesmas situações em que o PDF tem cópia armazenada e confiável (ver
+    // DocumentoPdfService.STATUS_COM_PDF_ARMAZENADO) -- HTML e PDF são gerados e
+    // armazenados juntos, nas mesmas transições de status (DocumentoStatusService),
+    // então servidos da mesma forma: cópia do MinIO quando disponível, renderização
+    // ao vivo fora dessas situações (nunca em EM_REVISAO, pelo mesmo motivo: o
+    // revisor atribuído pode editar o conteúdo nessa etapa).
+    private static final Set<DocumentoStatusEnum> STATUS_COM_HTML_ARMAZENADO = EnumSet.of(
+            DocumentoStatusEnum.APROVADO, DocumentoStatusEnum.ALTERADO, DocumentoStatusEnum.EM_PUBLICACAO,
+            DocumentoStatusEnum.PUBLICADO, DocumentoStatusEnum.REVOGADO);
+
     @Autowired
     private ObjectMapper objectMapper;
 
+    @Autowired
+    private DocumentoRepository documentoRepository;
+
+    @Autowired
+    private DocumentoParteNormativaService documentoParteNormativaService;
+
+    @Autowired
+    private AnexoRepository anexoRepository;
+
+    @Autowired
+    private ImagemService imagemService;
+
+    // Só o Brasão da República: o Gládio Alado (brasaoFab) só aparecia na capa,
+    // dispensada em HTML (NSCA 5-3, Art. 17, V, §1º).
     private String brasaoRepublica = "";
-    private String brasaoFab       = "";
 
     @PostConstruct
     private void loadStaticImages() {
         brasaoRepublica = classpathDataUri("/images/brasao-do-brasil-republica-colorido.png", "image/png");
-        brasaoFab       = classpathDataUri("/images/brasao-fab.png", "image/png");
     }
 
     private static String classpathDataUri(String path, String mimeType) {
@@ -53,8 +88,66 @@ public class DocumentoHtmlService {
     public String gerarHtml(
             Documento doc,
             List<ItemPartePreliminarResponseDto> preliminares,
-            List<ItemAnexoParteNormativaResponseDto> normativos) {
-        return new Generator(doc, preliminares, normativos, brasaoRepublica, brasaoFab, objectMapper).gerar();
+            List<ItemAnexoParteNormativaResponseDto> normativos,
+            List<AnexoResponseDto> anexos) {
+        return new Generator(doc, preliminares, normativos, anexos, brasaoRepublica, objectMapper, imagemService).gerar();
+    }
+
+    // Espelha DocumentoPdfService.streamPdf -- mesmo padrão de cópia armazenada vs.
+    // renderização ao vivo, só que devolvendo os bytes UTF-8 do HTML direto (sem
+    // streaming incremental: ao contrário do PDF, que pode passar de 1MB com
+    // imagens embutidas, justificando StreamingResponseBody, o HTML deste tamanho
+    // não compensa a complexidade extra).
+    public StreamingResponseBody streamHtml(Long documentoId) {
+        Documento doc = documentoRepository.findById(documentoId)
+                .orElseThrow(() -> new ResourceNotFoundException(DocumentoException.NOT_FOUND.getMessage()));
+
+        if (STATUS_COM_HTML_ARMAZENADO.contains(doc.getDocumentoStatus()) && doc.getUrlHtml() != null) {
+            InputStream armazenado = imagemService.getObjectStream(doc.getUrlHtml());
+            if (armazenado != null) {
+                return outputStream -> {
+                    try (armazenado) {
+                        armazenado.transferTo(outputStream);
+                    }
+                };
+            }
+            // urlHtml presente mas não recuperável (objeto removido/inconsistência): recai
+            // na renderização ao vivo em vez de falhar a exportação.
+        }
+        byte[] renderizado = renderHtml(doc).getBytes(StandardCharsets.UTF_8);
+        return outputStream -> outputStream.write(renderizado);
+    }
+
+    // Espelha DocumentoPdfService.gerarEArmazenarPdf -- mesmo motivo pro
+    // readOnly=true (ver comentário lá: auto-flush no meio da travessia recursiva
+    // de getItensNormativosByDocumento quebra com "collection with orphan deletion
+    // was no longer referenced").
+    @Transactional(propagation = Propagation.REQUIRES_NEW, readOnly = true)
+    public String gerarEArmazenarHtml(Documento documento) {
+        try {
+            byte[] htmlBytes = renderHtml(documento).getBytes(StandardCharsets.UTF_8);
+            String filename = "documento-" + documento.getId() + "-" + Instant.now().toEpochMilli() + ".html";
+            return imagemService.uploadHtml(htmlBytes, filename);
+        } catch (Exception e) {
+            throw new RuntimeException("Erro ao gerar/armazenar HTML: " + e.getMessage(), e);
+        }
+    }
+
+    private String renderHtml(Documento doc) {
+        Long id = doc.getId();
+
+        List<ItemPartePreliminarResponseDto> preliminares =
+                documentoParteNormativaService.getItensPreliminaresByDocumento(id)
+                        .stream().map(ItemPartePreliminarResponseDto::from).toList();
+
+        List<ItemAnexoParteNormativaResponseDto> normativos =
+                documentoParteNormativaService.getItensNormativosByDocumento(id)
+                        .stream().map(ItemAnexoParteNormativaResponseDto::from).toList();
+
+        List<AnexoResponseDto> anexos = anexoRepository.findByDocumentoIdOrderByOrdemAsc(id)
+                .stream().map(AnexoResponseDto::from).toList();
+
+        return gerarHtml(doc, preliminares, normativos, anexos);
     }
 
     // ─── Stateful generator: one instance per call ───────────────────────────────
@@ -92,35 +185,40 @@ public class DocumentoHtmlService {
         private final Documento doc;
         private final List<ItemPartePreliminarResponseDto> preliminares;
         private final List<ItemAnexoParteNormativaResponseDto> normativos;
+        private final List<AnexoResponseDto> anexos;
         private final String brasaoRepublica;
-        private final String brasaoFab;
         private final ObjectMapper objectMapper;
+        private final ImagemService imagemService;
 
         private int artCount = 0;
 
         Generator(Documento doc,
                   List<ItemPartePreliminarResponseDto> preliminares,
                   List<ItemAnexoParteNormativaResponseDto> normativos,
+                  List<AnexoResponseDto> anexos,
                   String brasaoRepublica,
-                  String brasaoFab,
-                  ObjectMapper objectMapper) {
+                  ObjectMapper objectMapper,
+                  ImagemService imagemService) {
             this.doc = doc;
             this.preliminares    = preliminares != null ? preliminares : List.of();
             this.normativos      = normativos   != null ? normativos   : List.of();
+            this.anexos          = anexos       != null ? anexos       : List.of();
             this.brasaoRepublica = brasaoRepublica;
-            this.brasaoFab       = brasaoFab;
             this.objectMapper    = objectMapper;
+            this.imagemService   = imagemService;
         }
 
         // ─── Entry point ─────────────────────────────────────────────────────────
 
         String gerar() {
+            // NSCA 5-3, Art. 17, V, §1º: capa é dispensada na versão HTML -- só
+            // Portaria + Sumário/Corpo, sem a página de capa que o PDF tem.
             return "<!DOCTYPE html>\n<html>\n<head><meta charset=\"UTF-8\"/>\n<style>\n"
                     + buildCss()
                     + "\n</style>\n</head>\n<body>\n"
                     + buildPortaria()
-                    + buildCapa()
                     + buildSumarioECorpo()
+                    + buildAnexos()
                     + "\n</body>\n</html>";
         }
 
@@ -131,17 +229,48 @@ public class DocumentoHtmlService {
                 @page { size: A4; margin: 2cm; }
                 * { box-sizing: border-box; }
                 body {
-                    font-family: Arial, Helvetica, sans-serif;
+                    font-family: 'Calibri', 'Carlito', 'Segoe UI', Arial, sans-serif;
                     font-size: 12pt;
                     line-height: 1.2;
                     color: #000;
-                    text-align: justify;
+                    /* NSCA 5-3, Art. 8, XXI: texto do ato normativo alinhado à esquerda em
+                       HTML (não justificado como no PDF) -- exceção nos agrupamentos
+                       (capítulo/seção/subseção), que continuam centralizados (ver
+                       .capitulo-heading/.secao-heading, inalterados). */
+                    text-align: left;
                     margin: 0;
                 }
+                /* Respiro lateral só pra leitura direto no navegador -- @media screen
+                   nunca se aplica ao imprimir (Ctrl+P usa @page acima, que já está bom
+                   e fica intocado), então a impressão continua exatamente como antes. */
+                @media screen {
+                    body { padding: 0 16px; }
+                    /* page-break-after não produz nenhum espaço visual fora da impressão
+                       paginada -- sem isso, o fim de uma "página" (ex.: assinatura da
+                       Portaria) encosta direto no início da próxima (ex.: "ANEXO I") ao
+                       rolar a tela. Só aqui, não interfere no Ctrl+P (que já quebra a
+                       página certinho via page-break-after abaixo). */
+                    .page-break { margin-bottom: 40px; padding-bottom: 24px; border-bottom: 1px solid #ddd; }
+                }
                 .page-break { page-break-after: always; }
-                .cabecalho { text-align: center; margin-bottom: 10pt; }
-                .cabecalho p { margin: 0; text-align: center; font-size: 12pt; }
-                .cabecalho-brasao { width: 45pt; height: 45pt; display: block; margin: 0 auto 4pt; }
+                /* NSCA 5-3, Art. 18: cabeçalho antecede a epígrafe em HTML: Brasão da
+                   República alinhado à esquerda, verticalmente centralizado ao lado das
+                   3 linhas (não empilhado acima delas), demais elementos centralizados
+                   na página, entrelinhas simples (1,0) -- diferente do PDF, onde tudo é
+                   centralizado, brasão incluso. Grid de 3 colunas (brasão | texto | vazia
+                   do mesmo tamanho do brasão) centraliza o texto na página mesmo com o
+                   brasão ocupando espaço só do lado esquerdo. */
+                .cabecalho {
+                    display: grid;
+                    grid-template-columns: 45pt 1fr 45pt;
+                    align-items: center;
+                    column-gap: 10pt;
+                    margin-bottom: 10pt;
+                    line-height: 1.0;
+                }
+                .cabecalho-brasao { width: 45pt; height: 45pt; grid-column: 1; }
+                .cabecalho-textos { grid-column: 2; text-align: center; }
+                .cabecalho-textos p { margin: 0; text-align: center; font-size: 12pt; line-height: 1.0; }
                 .bold { font-weight: bold; }
                 .underline { text-decoration: underline; }
                 .epigrafe { text-align: center; text-transform: uppercase; font-weight: normal; margin: 10pt 0 0; }
@@ -149,7 +278,7 @@ public class DocumentoHtmlService {
                 .ementa-bloco { margin-left: 8cm; margin-top: 3pt; margin-bottom: 8pt; }
                 .ementa-txt { margin: 0; text-align: justify; }
                 .ementa-txt p { display: inline; margin: 0; }
-                .body-el { text-indent: 2.5cm; margin: 0 0 5pt; line-height: 1.2; text-align: justify; }
+                .body-el { text-indent: 2.5cm; margin: 0 0 5pt; line-height: 1.2; text-align: left; }
                 .body-el p { display: inline; margin: 0; }
                 .body-el p + p { display: block; margin-top: 5pt; text-indent: 2.5cm; }
                 .body-el strong { font-weight: bold; }
@@ -171,12 +300,6 @@ public class DocumentoHtmlService {
                 .assin-cargo { margin: 0; }
                 .corpo-assin { margin-top: 24pt; text-align: center; }
                 .corpo-assin p { margin: 0; display: block; text-indent: 0; }
-                .capa-header { text-align: center; }
-                .capa-inst { font-size: 17pt; font-weight: bold; text-transform: uppercase; margin: 2pt 0; text-align: center; }
-                .capa-om { font-size: 13pt; text-transform: uppercase; text-align: center; margin: 3pt 0 0; }
-                .capa-assunto { font-size: 21pt; font-weight: bold; text-transform: uppercase; text-align: center; margin: 0; }
-                .capa-legenda { width: 315pt; border: 1.5px solid #000; padding: 15pt 21pt; text-align: center; margin: 0 auto; }
-                .capa-legenda p { font-size: 12pt; font-weight: bold; margin: 0; text-transform: uppercase; line-height: 1.6; }
                 .sumario-label { font-weight: bold; text-align: center; margin: 0; }
                 .sumario-titulo { font-weight: bold; text-align: center; margin: 0 0 10pt; }
                 .toc-table { width: 100%; border-collapse: collapse; font-size: 10pt; }
@@ -187,6 +310,8 @@ public class DocumentoHtmlService {
                 td.toc-lbl { white-space: nowrap; max-width: 60%; }
                 td.toc-mid { width: 100%; border-bottom: 1px dotted #999; }
                 td.toc-pg { white-space: nowrap; text-align: right; padding-left: 6pt; min-width: 40pt; }
+                .toc-table a { color: inherit; text-decoration: none; }
+                .toc-table a:hover { text-decoration: underline; }
                 .sumario-sep { height: 1em; }
                 .capitulo-heading { text-align: center; margin: 15pt 0 3pt; }
                 .cap-numero { font-weight: bold; text-transform: uppercase; margin: 0; }
@@ -201,6 +326,9 @@ public class DocumentoHtmlService {
                 .emenda-strikethrough { text-decoration: line-through; color: #0000FF; }
                 .emenda-incluido { color: #0000FF; }
                 .emenda-ref-block { font-size: 10pt; font-style: italic; color: #0000FF; display: block; padding-left: 2.5cm; margin-bottom: 3pt; }
+                .anexo-titulo { text-align: center; font-weight: bold; margin: 0 0 12pt; }
+                .anexo-imagem { text-align: center; }
+                .anexo-imagem img { max-width: 100%; height: auto; }
                 """;
         }
 
@@ -210,14 +338,22 @@ public class DocumentoHtmlService {
             var sb = new StringBuilder();
             sb.append("<div class=\"page-break\">\n");
 
-            // Cabeçalho
+            // Cabeçalho (NSCA 5-3, Art. 18): Brasão à esquerda (parágrafo único),
+            // demais elementos centralizados -- inclui a OM que elaborou o ato como
+            // "órgão secundário" (IV), já que a capa (onde ela apareceria, Art. 17 II)
+            // é dispensada em HTML.
             sb.append("<div class=\"cabecalho\">");
             if (!brasaoRepublica.isBlank()) {
                 sb.append("<img src=\"").append(brasaoRepublica).append("\"")
                   .append(" class=\"cabecalho-brasao\" alt=\"\" />");
             }
+            sb.append("<div class=\"cabecalho-textos\">");
             sb.append("<p class=\"bold\">MINISTÉRIO DA DEFESA</p>");
             sb.append("<p class=\"bold\">COMANDO DA AERONÁUTICA</p>");
+            if (doc.getOm() != null && doc.getOm().getNome() != null) {
+                sb.append("<p class=\"bold\">").append(esc(doc.getOm().getNome().toUpperCase())).append("</p>");
+            }
+            sb.append("</div>\n");
             sb.append("</div>\n");
 
             // Epígrafe
@@ -278,46 +414,7 @@ public class DocumentoHtmlService {
             return sb.toString();
         }
 
-        // ─── Page 2: Capa ─────────────────────────────────────────────────────────
-
-        private String buildCapa() {
-            var sb = new StringBuilder();
-            sb.append("<div class=\"page-break\">\n");
-
-            sb.append("<div class=\"capa-header\">");
-            sb.append("<p class=\"capa-inst\">MINISTÉRIO DA DEFESA</p>");
-            sb.append("<p class=\"capa-inst\">COMANDO DA AERONÁUTICA</p>");
-            sb.append("</div>\n");
-
-            sb.append("<div style=\"height:50mm\"></div>\n");
-
-            if (!brasaoFab.isBlank()) {
-                sb.append("<div style=\"text-align:center\">");
-                sb.append("<img src=\"").append(brasaoFab).append("\"")
-                  .append(" style=\"width:180pt;height:180pt\" alt=\"\" />");
-                sb.append("</div>\n");
-            }
-
-            sb.append("<div style=\"height:20mm\"></div>\n");
-
-            sb.append("<p class=\"capa-assunto\">")
-              .append(esc(doc.getAssuntoBasico().getNome()).toUpperCase())
-              .append("</p>\n");
-
-            sb.append("<div style=\"height:15mm\"></div>\n");
-
-            String titulo = doc.getTituloDocumento() != null ? doc.getTituloDocumento() : especieCompleta();
-            sb.append("<div class=\"capa-legenda\">");
-            sb.append("<p>").append(esc(docId())).append("</p>");
-            sb.append("<p>").append(esc(titulo.toUpperCase())).append("</p>");
-            sb.append("<p>").append(LocalDate.now().getYear()).append("</p>");
-            sb.append("</div>\n");
-
-            sb.append("</div>\n");
-            return sb.toString();
-        }
-
-        // ─── Page 3+: Sumário + Corpo ─────────────────────────────────────────────
+        // ─── Sumário + Corpo (sem capa -- NSCA 5-3, Art. 17, V, §1º) ──────────────
 
         private String buildSumarioECorpo() {
             var sb = new StringBuilder();
@@ -337,9 +434,31 @@ public class DocumentoHtmlService {
             return sb.toString();
         }
 
+        // ─── Anexos (arquivos vinculados ao documento, uma página própria por anexo) ─
+
+        private String buildAnexos() {
+            var sb = new StringBuilder();
+            for (var anexo : anexos) {
+                String numRomano = toRoman(anexo.ordem() + 1);
+                sb.append("<div class=\"page-break\">\n");
+                sb.append("<p class=\"anexo-titulo\">ANEXO ").append(numRomano).append("</p>\n");
+                if (anexo.titulo() != null && !anexo.titulo().isBlank()) {
+                    sb.append("<p class=\"anexo-titulo\">").append(esc(anexo.titulo().toUpperCase())).append("</p>\n");
+                }
+                if (anexo.urlImagem() != null && !anexo.urlImagem().isBlank()) {
+                    String dataUri = resolveDataUri(anexo.urlImagem());
+                    if (dataUri != null && !dataUri.isBlank()) {
+                        sb.append("<div class=\"anexo-imagem\"><img src=\"").append(dataUri).append("\" alt=\"\" /></div>\n");
+                    }
+                }
+                sb.append("</div>\n");
+            }
+            return sb.toString();
+        }
+
         // ─── TOC ─────────────────────────────────────────────────────────────────
 
-        private record TocEntry(String label, String cssClass, String pg) {}
+        private record TocEntry(String label, String cssClass, String pg, String anchor) {}
 
         private String buildToc() {
             List<TocEntry> entries = new ArrayList<>();
@@ -364,9 +483,11 @@ public class DocumentoHtmlService {
             sb.append("<table class=\"toc-table\">\n");
             for (var e : entries) {
                 sb.append("<tr class=\"").append(e.cssClass()).append("\">");
-                sb.append("<td class=\"toc-lbl\">").append(esc(e.label())).append("</td>");
+                sb.append("<td class=\"toc-lbl\"><a href=\"#").append(e.anchor()).append("\">")
+                  .append(esc(e.label())).append("</a></td>");
                 sb.append("<td class=\"toc-mid\"></td>");
-                sb.append("<td class=\"toc-pg\">").append(esc(e.pg())).append("</td>");
+                sb.append("<td class=\"toc-pg\"><a href=\"#").append(e.anchor()).append("\">")
+                  .append(esc(e.pg())).append("</a></td>");
                 sb.append("</tr>\n");
             }
             sb.append("</table>\n");
@@ -392,21 +513,21 @@ public class DocumentoHtmlService {
                         cap[0]++; sec[0] = 0; sub[0] = 0;
                         String t = item.elementTitle() != null ? " - " + item.elementTitle().toUpperCase() : "";
                         entries.add(new TocEntry("CAPÍTULO " + toRoman(cap[0]) + t,
-                                "toc-capitulo", artRange(item.children(), artNums)));
+                                "toc-capitulo", artRange(item.children(), artNums), "norm-" + item.id()));
                         if (item.children() != null) walkToc(item.children(), entries, artNums, cap, sec, sub);
                     }
                     case SECAO_NORMATIVA -> {
                         sec[0]++; sub[0] = 0;
                         String t = item.elementTitle() != null ? " - " + item.elementTitle() : "";
                         entries.add(new TocEntry("Seção " + toRoman(sec[0]) + t,
-                                "toc-secao", artRange(item.children(), artNums)));
+                                "toc-secao", artRange(item.children(), artNums), "norm-" + item.id()));
                         if (item.children() != null) walkToc(item.children(), entries, artNums, cap, sec, sub);
                     }
                     case SUBSECAO_NORMATIVA -> {
                         sub[0]++;
                         String t = item.elementTitle() != null ? " - " + item.elementTitle() : "";
                         entries.add(new TocEntry("Subseção " + toRoman(sub[0]) + t,
-                                "toc-subsecao", artRange(item.children(), artNums)));
+                                "toc-subsecao", artRange(item.children(), artNums), "norm-" + item.id()));
                         if (item.children() != null) walkToc(item.children(), entries, artNums, cap, sec, sub);
                     }
                     default -> {}
@@ -419,7 +540,8 @@ public class DocumentoHtmlService {
             for (var item : items) {
                 if (item.elementType() == ItemAnexoParteNormativaTipoEnum.ARTIGO) {
                     idx[0]++;
-                    entries.add(new TocEntry("Art. " + ordinalOrCardinal(idx[0]), "toc-artigo", fmtNum(idx[0])));
+                    entries.add(new TocEntry("Art. " + ordinalOrCardinal(idx[0]), "toc-artigo",
+                            fmtNum(idx[0]), "norm-" + item.id()));
                 }
             }
         }
@@ -471,7 +593,7 @@ public class DocumentoHtmlService {
             switch (item.elementType()) {
                 case CAPITULO -> {
                     capNum[0]++; secNum[0] = 0; subSecNum[0] = 0;
-                    sb.append("<div class=\"capitulo-heading\">");
+                    sb.append("<div class=\"capitulo-heading\" id=\"norm-").append(item.id()).append("\">");
                     sb.append("<p class=\"cap-numero\">CAPÍTULO ").append(toRoman(capNum[0])).append("</p>");
                     if (item.elementTitle() != null && !item.elementTitle().isBlank())
                         sb.append("<p class=\"cap-titulo\">").append(esc(item.elementTitle().toUpperCase())).append("</p>");
@@ -480,7 +602,7 @@ public class DocumentoHtmlService {
                 }
                 case SECAO_NORMATIVA -> {
                     secNum[0]++; subSecNum[0] = 0;
-                    sb.append("<div class=\"secao-heading\">");
+                    sb.append("<div class=\"secao-heading\" id=\"norm-").append(item.id()).append("\">");
                     sb.append("<p class=\"sec-numero\"><strong>Seção ").append(toRoman(secNum[0])).append("</strong></p>");
                     if (item.elementTitle() != null && !item.elementTitle().isBlank())
                         sb.append("<p class=\"sec-titulo\"><strong>").append(esc(item.elementTitle())).append("</strong></p>");
@@ -489,7 +611,7 @@ public class DocumentoHtmlService {
                 }
                 case SUBSECAO_NORMATIVA -> {
                     subSecNum[0]++;
-                    sb.append("<div class=\"secao-heading\">");
+                    sb.append("<div class=\"secao-heading\" id=\"norm-").append(item.id()).append("\">");
                     sb.append("<p class=\"sec-numero\"><strong>Subseção ").append(toRoman(subSecNum[0])).append("</strong></p>");
                     if (item.elementTitle() != null && !item.elementTitle().isBlank())
                         sb.append("<p class=\"sec-titulo\"><strong>").append(esc(item.elementTitle())).append("</strong></p>");
@@ -498,6 +620,7 @@ public class DocumentoHtmlService {
                 }
                 case ARTIGO -> {
                     artCount++;
+                    sb.append("<a id=\"norm-").append(item.id()).append("\"></a>");
                     renderBodyEl(sb, "Art. " + ordinalOrCardinal(artCount) + S2, true,
                             item.elementContent(), item.emendaStatus(), item.conteudoEmenda());
                     renderArtigoChildren(item.children(), sb);
@@ -671,13 +794,28 @@ public class DocumentoHtmlService {
             }
         }
 
-        // Substitui src="http://..." por data URIs — garante imagens no PDF independente de rede/Docker
-        private static String embedImgDataUris(String html) {
+        // Substitui src="http://..." por data URIs -- garante imagens independente de
+        // rede/Docker. Mesma ordem de resolução que XslFoContentRenderer usa pro PDF:
+        // MinIO autenticado primeiro (imagemService.getImageAsDataUri), HTTP cru só
+        // como fallback pra imagem genuinamente externa (fora do MinIO deste sistema).
+        // O fallback HTTP sozinho NUNCA funciona pra imagem do MinIO: minio.public-url
+        // (http://localhost:9000) é o endereço que o NAVEGADOR do usuário usa, não
+        // resolve de dentro do container do backend (cada container tem seu próprio
+        // "localhost") -- é exatamente por isso que o resolvedor MinIO existe.
+        private String embedImgDataUris(String html) {
             return IMG_SRC_HTTP.matcher(html).replaceAll(mr -> {
                 String q   = mr.group(1);
                 String url = mr.group(2);
-                return "src=" + q + fetchDataUri(url) + q;
+                return "src=" + q + resolveDataUri(url) + q;
             });
+        }
+
+        private String resolveDataUri(String url) {
+            if (imagemService != null) {
+                String viaMinio = imagemService.getImageAsDataUri(url);
+                if (viaMinio != null && !viaMinio.isBlank()) return viaMinio;
+            }
+            return fetchDataUri(url);
         }
 
         private static String fetchDataUri(String url) {

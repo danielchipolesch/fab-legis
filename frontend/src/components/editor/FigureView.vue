@@ -14,7 +14,7 @@
     </div>
 
     <img
-      :src="node.attrs.src"
+      :src="srcResolvido"
       :alt="node.attrs.alt"
       class="figura-img"
       @error="onImgError"
@@ -36,14 +36,24 @@
 </template>
 
 <script setup>
+import { ref, watch } from 'vue'
 import { NodeViewWrapper } from '@tiptap/vue-3'
+import { resolveMinioUrl } from '@/utils/minioUrls.js'
 
-defineProps({
+const props = defineProps({
   node:             { type: Object, required: true },
   updateAttributes: { type: Function, required: true },
   selected:         { type: Boolean, default: false },
   editor:           { type: Object, default: null },
 })
+
+// O bucket do MinIO é privado -- a URL armazenada não é diretamente buscável pelo
+// navegador, precisa ser trocada por uma URL assinada de curta duração antes de
+// virar src (ver utils/minioUrls.js).
+const srcResolvido = ref(props.node.attrs.src)
+watch(() => props.node.attrs.src, async (src) => {
+  srcResolvido.value = await resolveMinioUrl(src)
+}, { immediate: true })
 
 function onImgError(e) {
   e.target.style.display = 'none'
@@ -108,10 +118,18 @@ function onImgError(e) {
   color: inherit;
   padding: 2px 4px;
   border-radius: 3px;
-  min-width: 100px;
-  width: auto;
-  flex: 1;
-  max-width: 320px;
+  /* flex-grow:0 (em vez do "flex: 1" anterior) -- com grow, o campo consumia todo
+     o espaço livre da linha e anulava o justify-content:center do container (o
+     prefixo ficava "grudado" à esquerda em vez do par prefixo+campo centralizar
+     como bloco). width fixa mantém o campo com tamanho prático de digitação e
+     deixa o centering do container realmente centralizar o conjunto. */
+  flex: 0 0 auto;
+  width: 220px;
+  max-width: 60%;
+  /* O conjunto prefixo+campo fica centralizado na linha (justify-content:center
+     do container); o texto dentro do campo continua alinhado à esquerda -- mais
+     natural para digitar (cursor não "pula" pro meio a cada tecla) do que
+     centralizar o texto dentro de uma caixa estreita. */
   text-align: left;
 }
 

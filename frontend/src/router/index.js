@@ -17,19 +17,19 @@ const routes = [
   {
     path: '/documento/novo',
     name: 'documento-novo',
-    component: () => import('@/pages/DocumentEditorPage.vue'),
+    component: () => import('@/pages/DocumentoEditorPage.vue'),
     meta: { title: 'Novo Documento' },
   },
   {
     path: '/documento/:id/editar',
     name: 'documento-editar',
-    component: () => import('@/pages/DocumentEditorPage.vue'),
+    component: () => import('@/pages/DocumentoEditorPage.vue'),
     meta: { title: 'Editar Documento' },
   },
   {
     path: '/documento/:id/visualizar',
     name: 'documento-visualizar',
-    component: () => import('@/pages/DocumentViewerPage.vue'),
+    component: () => import('@/pages/DocumentoViewerPage.vue'),
     meta: { title: 'Visualizar Documento' },
   },
   {
@@ -39,9 +39,21 @@ const routes = [
     meta: { title: 'Comparar Versões' },
   },
   {
+    path: '/revisao',
+    name: 'revisao',
+    component: () => import('@/pages/RevisaoPage.vue'),
+    meta: { title: 'Revisão', requiresAprovador: true },
+  },
+  {
+    path: '/publicacao',
+    name: 'publicacao',
+    component: () => import('@/pages/PublicacaoPage.vue'),
+    meta: { title: 'Publicação', requiresPublicador: true },
+  },
+  {
     path: '/usuarios',
     name: 'usuarios',
-    component: () => import('@/pages/UsersPage.vue'),
+    component: () => import('@/pages/UsuariosPage.vue'),
     meta: { title: 'Gestão de Usuários', requiresAdmin: true },
   },
   {
@@ -70,6 +82,12 @@ router.beforeEach((to) => {
     return { name: 'home' }
   }
   if (to.meta.requiresAuditor && !auth.isAuditor) {
+    return { name: 'home' }
+  }
+  if (to.meta.requiresAprovador && !auth.isAprovador) {
+    return { name: 'home' }
+  }
+  if (to.meta.requiresPublicador && !auth.isPublicador) {
     return { name: 'home' }
   }
   return true

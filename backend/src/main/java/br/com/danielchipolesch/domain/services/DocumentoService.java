@@ -1,8 +1,10 @@
 package br.com.danielchipolesch.domain.services;
 
+import br.com.danielchipolesch.application.dtos.documentoDtos.DocumentoFilaResponseDto;
 import br.com.danielchipolesch.application.dtos.documentoDtos.DocumentoRequestCreateDto;
 import br.com.danielchipolesch.application.dtos.documentoDtos.DocumentoRequestUpdateDto;
 import br.com.danielchipolesch.application.dtos.documentoDtos.DocumentoResponseSemAnexoTextualDto;
+import br.com.danielchipolesch.application.dtos.documentoDtos.DocumentoResumoResponseDto;
 import br.com.danielchipolesch.domain.builders.DocumentoBuilder;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.Documento;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.DocumentoStatusEnum;
@@ -13,29 +15,37 @@ import br.com.danielchipolesch.domain.entities.estruturaDocumento.ItemPartePreli
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.ItemParteFinal;
 import br.com.danielchipolesch.domain.entities.numeracaoDocumento.AssuntoBasico;
 import br.com.danielchipolesch.domain.entities.numeracaoDocumento.EspecieNormativa;
+import br.com.danielchipolesch.domain.entities.usuario.OrganizacaoMilitar;
 import br.com.danielchipolesch.domain.handlers.exceptions.ResourceNotFoundException;
-import br.com.danielchipolesch.domain.handlers.exceptions.enums.BasicSubjectException;
-import br.com.danielchipolesch.domain.handlers.exceptions.enums.DocumentException;
+import br.com.danielchipolesch.domain.handlers.exceptions.enums.AssuntoBasicoException;
+import br.com.danielchipolesch.domain.handlers.exceptions.enums.DocumentoException;
 import br.com.danielchipolesch.domain.handlers.exceptions.StatusCannotBeUpdatedException;
-import br.com.danielchipolesch.domain.handlers.exceptions.enums.DocumentationTypeException;
+import br.com.danielchipolesch.domain.handlers.exceptions.enums.EspecieNormativaException;
 import br.com.danielchipolesch.domain.mappers.DocumentoMapper;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.Anexo;
 import br.com.danielchipolesch.infrastructure.security.AutenticacaoUtil;
 import br.com.danielchipolesch.infrastructure.repositories.AnexoRepository;
 import br.com.danielchipolesch.infrastructure.repositories.AssuntoBasicoRepository;
+import br.com.danielchipolesch.infrastructure.repositories.DocumentoCompartilhamentoRepository;
 import br.com.danielchipolesch.infrastructure.repositories.DocumentoRepository;
 import br.com.danielchipolesch.infrastructure.repositories.EspecieNormativaRepository;
 import br.com.danielchipolesch.infrastructure.repositories.ItemAnexoParteNormativaRepository;
 import br.com.danielchipolesch.infrastructure.repositories.DocumentoHistoricoRepository;
 import br.com.danielchipolesch.infrastructure.repositories.ItemParteFinalRepository;
 import br.com.danielchipolesch.infrastructure.repositories.ItemPartePreliminarRepository;
+import br.com.danielchipolesch.infrastructure.repositories.OrganizacaoMilitarRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
+import java.util.EnumSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 
 @Service
@@ -43,6 +53,9 @@ public class DocumentoService {
 
     @Autowired
     DocumentoRepository documentoRepository;
+
+    @Autowired
+    DocumentoCompartilhamentoRepository documentoCompartilhamentoRepository;
 
     @Autowired
     EspecieNormativaRepository especieNormativaRepository;
@@ -68,12 +81,15 @@ public class DocumentoService {
     @Autowired
     AnexoRepository anexoRepository;
 
+    @Autowired
+    OrganizacaoMilitarRepository organizacaoMilitarRepository;
+
 
     @Transactional
     public DocumentoResponseSemAnexoTextualDto create(DocumentoRequestCreateDto request) throws RuntimeException {
 
-        EspecieNormativa especieNormativa = especieNormativaRepository.findById(request.idEspecieNormativa()).orElseThrow(() -> new ResourceNotFoundException(DocumentationTypeException.NOT_FOUND.getMessage()));
-        AssuntoBasico assuntoBasico = assuntoBasicoRepository.findById(request.idAssuntoBasico()).orElseThrow(() ->  new ResourceNotFoundException(BasicSubjectException.NOT_FOUND.getMessage()));
+        EspecieNormativa especieNormativa = especieNormativaRepository.findById(request.idEspecieNormativa()).orElseThrow(() -> new ResourceNotFoundException(EspecieNormativaException.NOT_FOUND.getMessage()));
+        AssuntoBasico assuntoBasico = assuntoBasicoRepository.findById(request.idAssuntoBasico()).orElseThrow(() ->  new ResourceNotFoundException(AssuntoBasicoException.NOT_FOUND.getMessage()));
 
         var secondaryNumber = this.calculateSecondaryNumber(especieNormativa, assuntoBasico);
         var usuarioAtual = AutenticacaoUtil.usuarioAtual();
@@ -96,44 +112,143 @@ public class DocumentoService {
 
     public Documento getById(Long id) throws RuntimeException{
 
-        return documentoRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException(DocumentException.NOT_FOUND.getMessage()));
+        return documentoRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException(DocumentoException.NOT_FOUND.getMessage()));
     }
 
-    public List<DocumentoResponseSemAnexoTextualDto> getByDocumentationTypeAndBasicSubject(Long documentationTypeId, Long basicSubjectId) throws ResourceNotFoundException {
+    // Fila pessoal de RevisaoPage.vue -- documentos atribuídos a ESTE usuário como
+    // revisor, tanto no fluxo normal (EM_REVISAO) quanto na revogação (ANALISE_REVOGACAO).
+    public List<DocumentoFilaResponseDto> getMinhaRevisao(Long usuarioId) {
+        return documentoRepository.findByRevisorAtribuidoIdAndDocumentoStatusIn(usuarioId,
+                        List.of(DocumentoStatusEnum.EM_REVISAO, DocumentoStatusEnum.ANALISE_REVOGACAO))
+                .stream().map(this::toFilaResponseDto).toList();
+    }
 
-        var especieNormativa = especieNormativaRepository.findById(documentationTypeId).orElseThrow(() -> new ResourceNotFoundException(DocumentationTypeException.NOT_FOUND.getMessage()));
-        var assuntoBasico = assuntoBasicoRepository.findById(basicSubjectId).orElseThrow(() -> new ResourceNotFoundException(BasicSubjectException.NOT_FOUND.getMessage()));
+    // Fila pessoal de PublicacaoPage.vue -- documentos atribuídos a ESTE usuário como
+    // publicador, tanto no fluxo normal (EM_PUBLICACAO) quanto na revogação (EM_REVOGACAO).
+    public List<DocumentoFilaResponseDto> getMinhaPublicacao(Long usuarioId) {
+        return documentoRepository.findByPublicadorAtribuidoIdAndDocumentoStatusIn(usuarioId,
+                        List.of(DocumentoStatusEnum.EM_PUBLICACAO, DocumentoStatusEnum.EM_REVOGACAO))
+                .stream().map(this::toFilaResponseDto).toList();
+    }
+
+    private DocumentoFilaResponseDto toFilaResponseDto(Documento documento) {
+        List<String> autores = new ArrayList<>();
+        autores.add(documento.getAutor().getNome());
+        documentoCompartilhamentoRepository.findByDocumentoId(documento.getId())
+                .forEach(c -> autores.add(c.getUsuario().getNome()));
+        return new DocumentoFilaResponseDto(
+                documento.getId(),
+                String.format("%s %s-%d",
+                        documento.getEspecieNormativa().getSigla(),
+                        documento.getAssuntoBasico().getCodigo(),
+                        documento.getNumeroSecundario()),
+                documento.getTituloDocumento(),
+                documento.getDocumentoStatus(),
+                autores,
+                documento.getDtPublicacao() != null
+        );
+    }
+
+    public List<DocumentoResponseSemAnexoTextualDto> getByEspecieNormativaAndAssuntoBasico(Long especieNormativaId, Long assuntoBasicoId) throws ResourceNotFoundException {
+
+        var especieNormativa = especieNormativaRepository.findById(especieNormativaId).orElseThrow(() -> new ResourceNotFoundException(EspecieNormativaException.NOT_FOUND.getMessage()));
+        var assuntoBasico = assuntoBasicoRepository.findById(assuntoBasicoId).orElseThrow(() -> new ResourceNotFoundException(AssuntoBasicoException.NOT_FOUND.getMessage()));
 
         List<Documento> documents = documentoRepository.findByEspecieNormativaAndAssuntoBasico(especieNormativa, assuntoBasico);
 
         return documents.stream().map(DocumentoMapper::documentoToDocumentoSemAnexoTextualResponseDto).toList();
     }
 
-    public List<Documento> getAll(Pageable pageable) throws RuntimeException {
-        try{
-            Page<Documento> documents = documentoRepository.findAll(pageable);
-            return documents.stream().toList();
-        } catch (Exception e) {
-            throw new ResourceNotFoundException(DocumentException.NOT_FOUND.getMessage());
+    // Substitui o antigo getAll(Pageable) (que descartava a metadados de paginação,
+    // devolvendo só List<Documento> -- olho no findAll(pageable) só pra bater com a
+    // assinatura, sem nunca expor totalElements pro frontend). Agora devolve o Page
+    // inteiro, e aceita os mesmos filtros que a HomePage já mostrava (mas calculava
+    // no navegador, sobre um array carregado uma vez) -- ver DocumentoSpecifications.
+    public Page<Documento> getAllPaginado(Long usuarioId, Long omId, String aba, String busca,
+                                           String especieSigla, DocumentoStatusEnum status,
+                                           Pageable pageable) {
+        Specification<Documento> spec = DocumentoSpecifications.aba(aba, usuarioId, omId)
+                .and(DocumentoSpecifications.busca(busca))
+                .and(DocumentoSpecifications.especieSigla(especieSigla))
+                .and(DocumentoSpecifications.status(status));
+        return documentoRepository.findAll(spec, pageable);
+    }
+
+    // Contagens pros badges das 4 abas (porAba -- ignora busca/espécie/status de
+    // propósito, é uma referência estável que não muda enquanto o usuário filtra, mesmo
+    // comportamento de contagemAbas em HomePage.vue) e pros chips de situação da aba
+    // ativa (porStatus, com aba/busca/espécie aplicados, um count() por valor de
+    // DocumentoStatusEnum -- mesmo comportamento de statusSummary). Um
+    // Specification.count() por número, sem GROUP BY: mantém tudo dentro do que
+    // JpaSpecificationExecutor já oferece, sem query nativa.
+    public DocumentoResumoResponseDto getResumo(Long usuarioId, Long omId, String aba, String busca, String especieSigla) {
+        Map<String, Long> porAba = new LinkedHashMap<>();
+        for (String nomeAba : List.of("meus", "minha_om", "outras_oms", "revogados")) {
+            porAba.put(nomeAba, documentoRepository.count(DocumentoSpecifications.aba(nomeAba, usuarioId, omId)));
         }
+
+        Specification<Documento> comAbaBuscaEEspecie = DocumentoSpecifications.aba(aba, usuarioId, omId)
+                .and(DocumentoSpecifications.busca(busca))
+                .and(DocumentoSpecifications.especieSigla(especieSigla));
+        Map<String, Long> porStatus = new LinkedHashMap<>();
+        for (DocumentoStatusEnum statusEnum : DocumentoStatusEnum.values()) {
+            long total = documentoRepository.count(comAbaBuscaEEspecie.and(DocumentoSpecifications.status(statusEnum)));
+            if (total > 0) porStatus.put(statusEnum.name(), total);
+        }
+
+        return new DocumentoResumoResponseDto(porAba, porStatus);
     }
 
     @Transactional
     public DocumentoResponseSemAnexoTextualDto update(Long id, DocumentoRequestUpdateDto request) throws RuntimeException {
 
-        Documento document = documentoRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException(DocumentException.NOT_FOUND.getMessage()));
+        Documento documento = documentoRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException(DocumentoException.NOT_FOUND.getMessage()));
 
-        if (document.getDocumentoStatus() != DocumentoStatusEnum.RASCUNHO
-                && document.getDocumentoStatus() != DocumentoStatusEnum.MINUTA) {
-            throw new StatusCannotBeUpdatedException(DocumentException.CANNOT_BE_UPDATED.getMessage());
+        // Checagem de status redundante à de posse (@PreAuthorize podeEditar no
+        // controller já garante QUEM pode chamar isto -- inclusive o revisor
+        // atribuído durante EM_REVISAO); aqui só barra status que nunca deveriam
+        // aceitar edição nem por quem tem posse. RASCUNHO/MINUTA/EM_ALTERACAO
+        // batem com isReadonly do editor (DocumentoEditorPage.vue); EM_REVISAO
+        // porque o autosave estrutural (editorStore.save() -> este endpoint, ver
+        // stores/documentos.js) roda pra qualquer alteração de árvore -- inclusive
+        // as feitas pelo revisor atribuído, que já pode editar essa etapa.
+        var statusPermiteAtualizacao = EnumSet.of(
+                DocumentoStatusEnum.RASCUNHO, DocumentoStatusEnum.MINUTA,
+                DocumentoStatusEnum.EM_ALTERACAO, DocumentoStatusEnum.EM_REVISAO);
+        if (!statusPermiteAtualizacao.contains(documento.getDocumentoStatus())) {
+            throw new StatusCannotBeUpdatedException(DocumentoException.CANNOT_BE_UPDATED.getMessage());
         }
 
-        boolean tituloAlterado = !document.getTituloDocumento().equals(request.tituloDocumento());
-        document.setTituloDocumento(request.tituloDocumento());
+        boolean tituloAlterado = !documento.getTituloDocumento().equals(request.tituloDocumento());
+        documento.setTituloDocumento(request.tituloDocumento());
         if (request.numeroSecundario() != null) {
-            document.setNumeroSecundario(request.numeroSecundario());
+            documento.setNumeroSecundario(request.numeroSecundario());
         }
+
+        // OM impressa na capa (NSCA 5-3, Art. 17, II) -- por padrão a do autor no
+        // momento da criação (ver create() abaixo), mas alterável enquanto o
+        // documento ainda não avançou no fluxo. Mais restrito que
+        // statusPermiteAtualizacao acima de propósito: uma vez em EM_ALTERACAO/
+        // EM_REVISAO o documento já saiu das mãos de quem só edita conteúdo, não
+        // faz sentido trocar a OM que assina o ato nesse ponto. Só age quando o
+        // valor difere do atual -- o autosave estrutural do editor também passa
+        // por aqui reenviando o documento inteiro (om_id incluso), mas sempre
+        // com o valor já vigente, então essa checagem o torna um no-op ali.
+        boolean omAlterada = false;
+        if (request.omId() != null && !request.omId().equals(documento.getOm().getId())) {
+            var statusPermiteAlterarOm = documento.getDocumentoStatus() == DocumentoStatusEnum.RASCUNHO
+                    || documento.getDocumentoStatus() == DocumentoStatusEnum.MINUTA;
+            if (!statusPermiteAlterarOm) {
+                throw new StatusCannotBeUpdatedException(
+                        "A organização militar só pode ser alterada enquanto o documento está em Rascunho ou Minuta.");
+            }
+            OrganizacaoMilitar novaOm = organizacaoMilitarRepository.findById(request.omId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Organização militar não encontrada."));
+            documento.setOm(novaOm);
+            omAlterada = true;
+        }
+
         // saveAndFlush, não save: o @Version só é incrementado no INSTANTE do
         // flush, que por padrão só aconteceria no commit da transação -- DEPOIS
         // deste método já ter retornado. Sem o flush explícito aqui, quando o
@@ -141,22 +256,26 @@ public class DocumentoService {
         // ANTIGA (pré-bump), e o próximo salvamento do editor usa essa versão
         // desatualizada como versaoEsperada -- gerando um 409 de "editado por
         // outra pessoa" mesmo sendo o mesmo usuário. Ver DocumentoConcorrenciaService.
-        Documento atualizado = documentoRepository.saveAndFlush(document);
+        Documento atualizado = documentoRepository.saveAndFlush(documento);
         if (tituloAlterado) {
             documentoHistoricoService.registrar(atualizado, TipoAlteracaoEnum.ALTERACAO_METADADOS,
                     "Título atualizado", null, null);
+        }
+        if (omAlterada) {
+            documentoHistoricoService.registrar(atualizado, TipoAlteracaoEnum.ALTERACAO_METADADOS,
+                    "Organização militar atualizada para " + atualizado.getOm().getNome(), null, null);
         }
         return DocumentoMapper.documentoToDocumentoSemAnexoTextualResponseDto(atualizado);
     }
 
     @Transactional
     public DocumentoResponseSemAnexoTextualDto delete(Long id) throws RuntimeException {
-        Documento document = documentoRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException(DocumentException.NOT_FOUND.getMessage()));
+        Documento documento = documentoRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException(DocumentoException.NOT_FOUND.getMessage()));
 
-        DocumentoStatusEnum status = document.getDocumentoStatus();
+        DocumentoStatusEnum status = documento.getDocumentoStatus();
         if (status != DocumentoStatusEnum.RASCUNHO && status != DocumentoStatusEnum.MINUTA) {
-            throw new StatusCannotBeUpdatedException(DocumentException.CANNOT_BE_DELETED.getMessage());
+            throw new StatusCannotBeUpdatedException(DocumentoException.CANNOT_BE_DELETED.getMessage());
         }
 
         documentoHistoricoRepository.deleteAllByDocumentoId(id);
@@ -165,36 +284,36 @@ public class DocumentoService {
         itemAnexoParteNormativaRepository.deleteAllByDocumentoId(id);
         itemParteFinalRepository.deleteAllByDocumentoId(id);
         anexoRepository.deleteAllByDocumentoId(id);
-        documentoRepository.delete(document);
-        return DocumentoMapper.documentoToDocumentoSemAnexoTextualResponseDto(document);
+        documentoRepository.delete(documento);
+        return DocumentoMapper.documentoToDocumentoSemAnexoTextualResponseDto(documento);
     }
 
     @Transactional
     public DocumentoResponseSemAnexoTextualDto clone(Long id) throws RuntimeException {
 
-        Documento documentOld = documentoRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException(DocumentException.NOT_FOUND.getMessage()));
+        Documento documentoAntigo = documentoRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException(DocumentoException.NOT_FOUND.getMessage()));
 
-        var secondaryNumber = this.calculateSecondaryNumber(documentOld.getEspecieNormativa(), documentOld.getAssuntoBasico());
+        var secondaryNumber = this.calculateSecondaryNumber(documentoAntigo.getEspecieNormativa(), documentoAntigo.getAssuntoBasico());
         var usuarioAtual = AutenticacaoUtil.usuarioAtual();
 
         // O clone é um documento novo (ver clonarNormItem): quem clona vira o
         // autor, não quem criou o original -- mesma regra de "criar" no resto
         // do sistema.
-        Documento documentNew = new DocumentoBuilder()
-                .especieNormativa(documentOld.getEspecieNormativa())
-                .assuntoBasico(documentOld.getAssuntoBasico())
+        Documento documentoNovo = new DocumentoBuilder()
+                .especieNormativa(documentoAntigo.getEspecieNormativa())
+                .assuntoBasico(documentoAntigo.getAssuntoBasico())
                 .numeroSecundario(secondaryNumber)
-                .tituloDocumento(documentOld.getTituloDocumento())
+                .tituloDocumento(documentoAntigo.getTituloDocumento())
                 .documentoStatus(DocumentoStatusEnum.RASCUNHO)
                 .autor(usuarioAtual)
                 .om(usuarioAtual.getOm())
                 .build();
 
-        documentOld.setQtdReplicas(documentOld.getQtdReplicas() + 1);
-        documentoRepository.save(documentOld);
+        documentoAntigo.setQtdReplicas(documentoAntigo.getQtdReplicas() + 1);
+        documentoRepository.save(documentoAntigo);
 
-        Documento clonado = documentoRepository.save(documentNew);
+        Documento clonado = documentoRepository.save(documentoNovo);
 
         for (ItemPartePreliminar orig : itemPartePreliminarRepository.findByDocumentoIdOrderByElementOrderAsc(id)) {
             ItemPartePreliminar copia = new ItemPartePreliminar();

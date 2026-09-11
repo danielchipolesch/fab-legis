@@ -100,7 +100,7 @@ function createBrasaoDataUrl() {
 
   // Texto inferior
   ctx.fillStyle = '#FFFFFF'
-  ctx.font = `bold ${Math.round(size * 0.12)}px Arial`
+  ctx.font = `bold ${Math.round(size * 0.12)}px Calibri, Carlito, Arial, sans-serif`
   ctx.textAlign = 'center'
   ctx.fillText('FORÇA AÉREA', cx, cy + 42)
   ctx.fillText('BRASILEIRA', cx, cy + 64)

@@ -6,15 +6,12 @@ import br.com.danielchipolesch.application.dtos.itemPartePreliminarDtos.ItemPart
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.Documento;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.DocumentoStatusEnum;
 import br.com.danielchipolesch.domain.handlers.exceptions.ResourceNotFoundException;
-import br.com.danielchipolesch.domain.handlers.exceptions.enums.DocumentException;
+import br.com.danielchipolesch.domain.handlers.exceptions.enums.DocumentoException;
 import br.com.danielchipolesch.infrastructure.repositories.AnexoRepository;
 import br.com.danielchipolesch.infrastructure.repositories.DocumentoRepository;
 import org.apache.fop.apps.Fop;
 import org.apache.fop.apps.FopFactory;
 import org.apache.fop.apps.MimeConstants;
-import org.apache.pdfbox.Loader;
-import org.apache.pdfbox.multipdf.PDFMergerUtility;
-import org.apache.pdfbox.pdmodel.PDDocument;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
@@ -26,7 +23,6 @@ import org.xml.sax.XMLReader;
 
 import javax.xml.parsers.SAXParserFactory;
 import java.io.ByteArrayOutputStream;
-import java.io.File;
 import java.io.InputStream;
 import java.io.StringReader;
 import java.time.Instant;
@@ -41,19 +37,17 @@ public class DocumentoPdfService {
     // MinIO (gerado por DocumentoStatusService nas transições correspondentes) —
     // nesses casos o PDF é sempre servido do MinIO, nunca renderizado de novo,
     // independente da tela/botão que disparou a exportação (PUBLICADO cobre tanto
-    // a primeira publicação quanto qualquer republicação).
+    // a primeira publicação quanto qualquer república). APROVADO/ALTERADO nunca
+    // ficam parados como status atual do documento (DocumentoStatusService
+    // cascateia direto para EM_PUBLICACAO na mesma transação que gera o PDF) —
+    // seguem aqui só porque o enum de doc.getDocumentoStatus() nunca vai
+    // realmente valer isso; é EM_PUBLICACAO quem carrega a cópia armazenada com
+    // a marca d'água "APROVADO" enquanto aguarda a publicação de fato.
     private static final Set<DocumentoStatusEnum> STATUS_COM_PDF_ARMAZENADO = EnumSet.of(
-            DocumentoStatusEnum.APROVADO, DocumentoStatusEnum.ALTERADO, DocumentoStatusEnum.PUBLICADO);
+            DocumentoStatusEnum.APROVADO, DocumentoStatusEnum.ALTERADO, DocumentoStatusEnum.EM_PUBLICACAO,
+            DocumentoStatusEnum.PUBLICADO, DocumentoStatusEnum.REVOGADO);
 
-    private static final FopFactory FOP_FACTORY;
-
-    static {
-        try {
-            FOP_FACTORY = FopFactory.newInstance(new File(".").toURI());
-        } catch (Exception e) {
-            throw new ExceptionInInitializerError(e);
-        }
-    }
+    private static final FopFactory FOP_FACTORY = FopFactoryProvider.get();
 
     @Autowired
     private DocumentoRepository documentoRepository;
@@ -80,7 +74,7 @@ public class DocumentoPdfService {
     // transmitir em stream nesse caminho sem reescrever a geração do FO.
     public StreamingResponseBody streamPdf(Long documentoId) {
         Documento doc = documentoRepository.findById(documentoId)
-                .orElseThrow(() -> new ResourceNotFoundException(DocumentException.NOT_FOUND.getMessage()));
+                .orElseThrow(() -> new ResourceNotFoundException(DocumentoException.NOT_FOUND.getMessage()));
 
         if (STATUS_COM_PDF_ARMAZENADO.contains(doc.getDocumentoStatus()) && doc.getUrlPdf() != null) {
             InputStream armazenado = imagemService.getObjectStream(doc.getUrlPdf());
@@ -110,38 +104,10 @@ public class DocumentoPdfService {
     public String gerarEArmazenarPdf(Documento documento) {
         try {
             byte[] pdfBytes = renderPdf(documento);
-            if (documento.getUrlPortariaPdf() != null) {
-                pdfBytes = concatenarComPortaria(pdfBytes, documento.getUrlPortariaPdf());
-            }
             String filename = "documento-" + documento.getId() + "-" + Instant.now().toEpochMilli() + ".pdf";
             return imagemService.uploadPdf(pdfBytes, filename);
         } catch (Exception e) {
             throw new RuntimeException("Erro ao gerar/armazenar PDF: " + e.getMessage(), e);
-        }
-    }
-
-    // A portaria só existe a partir da primeira publicação (ver
-    // DocumentoStatusService.changeStatus) -- documentos que só passaram por
-    // APROVADO/ALTERADO sem nunca terem sido publicados não chegam aqui.
-    // Portaria primeiro, documento gerado depois, na ordem que o PDF final
-    // deve ser lido.
-    private byte[] concatenarComPortaria(byte[] documentoPdf, String urlPortariaPdf) throws Exception {
-        byte[] portariaBytes;
-        try (InputStream portariaStream = imagemService.getObjectStream(urlPortariaPdf)) {
-            if (portariaStream == null) return documentoPdf;
-            portariaBytes = portariaStream.readAllBytes();
-        }
-
-        try (PDDocument portaria = Loader.loadPDF(portariaBytes);
-             PDDocument documento = Loader.loadPDF(documentoPdf);
-             PDDocument resultado = new PDDocument()) {
-            PDFMergerUtility merger = new PDFMergerUtility();
-            merger.appendDocument(resultado, portaria);
-            merger.appendDocument(resultado, documento);
-            try (var saida = new ByteArrayOutputStream()) {
-                resultado.save(saida);
-                return saida.toByteArray();
-            }
         }
     }
 
