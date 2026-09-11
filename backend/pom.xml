@@ -28,9 +28,12 @@
             <artifactId>postgresql</artifactId>
             <scope>runtime</scope>
         </dependency>
+        <!-- Boot 4 modulariza os starters: FlywayAutoConfiguration só ativa com este
+             starter explícito. flyway-core/flyway-database-postgresql sozinhos (como
+             antes) não bastam mais, mesmo estando no classpath (ver migration guide). -->
         <dependency>
-            <groupId>org.flywaydb</groupId>
-            <artifactId>flyway-core</artifactId>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-flyway</artifactId>
         </dependency>
         <dependency>
             <groupId>org.flywaydb</groupId>
