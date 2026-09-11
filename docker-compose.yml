@@ -59,7 +59,9 @@ services:
       MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin123}
       MINIO_BUCKET: ${MINIO_BUCKET:-fab-legis-imagens}
       MINIO_PUBLIC_URL: http://localhost:9000
-      JWT_SECRET: ${JWT_SECRET:-fab-legis-dev-secret-troque-em-producao-1234567890}
+      APP_OAUTH2_ISSUER: ${APP_OAUTH2_ISSUER:-http://127.0.0.1:8081}
+      APP_OAUTH2_REDIRECT_URI: ${APP_OAUTH2_REDIRECT_URI:-http://127.0.0.1:5173/callback}
+      APP_FRONTEND_LOGIN_URL: ${APP_FRONTEND_LOGIN_URL:-http://127.0.0.1:5173/login}
       APP_ADMIN_CPF: ${APP_ADMIN_CPF:-11144477735}
       APP_ADMIN_SENHA: ${APP_ADMIN_SENHA:-Admin@123}
       APP_ADMIN_NOME: ${APP_ADMIN_NOME:-Administrador}
@@ -88,6 +90,12 @@ services:
       VITE_USE_MOCK_API: ${VITE_USE_MOCK_API:-false}
       VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://127.0.0.1:8081/v1}
       VITE_COLLAB_URL: ${VITE_COLLAB_URL:-ws://127.0.0.1:1234}
+      # NÃO é VITE_* de propósito -- só o próprio processo do Vite (node, lado
+      # servidor) usa isto pra saber pra onde proxiar /oauth2/**, /login,
+      # /logout (ver vite.config.js); nunca vai pro bundle do navegador.
+      # http://backend:8081 (nome do serviço Docker) porque quem faz essa
+      # chamada é o container do frontend, não o navegador do usuário.
+      PROXY_BACKEND_TARGET: http://backend:8081
     depends_on:
       - backend
       - collab
@@ -119,7 +127,11 @@ services:
     ports:
       - "1234:1234"
     environment:
-      JWT_SECRET: ${JWT_SECRET:-fab-legis-dev-secret-troque-em-producao-1234567890}
+      # ISSUER precisa bater com o claim "iss" do token (o que o NAVEGADOR usa,
+      # ver APP_OAUTH2_ISSUER no backend) -- JWKS_URL é só o endereço INTERNO
+      # (rede Docker) de onde buscar as chaves públicas, pode ser diferente.
+      OAUTH2_ISSUER: ${APP_OAUTH2_ISSUER:-http://127.0.0.1:8081}
+      OAUTH2_JWKS_URL: http://backend:8081/oauth2/jwks
       BACKEND_URL: http://backend:8081/v1
     depends_on:
       - backend

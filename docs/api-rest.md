@@ -1,14 +1,19 @@
 # API REST
 
-Documentação interativa completa em **`/swagger-ui.html`**. Todas as rotas abaixo (exceto `/v1/auth/**`) exigem `Authorization: Bearer <token>`; as que alteram posse/situação também passam por `@PreAuthorize` (ver [Autenticação e Colaboração](autenticacao.md)). Resumo dos endpoints:
+Documentação interativa completa em **`/swagger-ui.html`**. Todas as rotas abaixo (exceto os endpoints de autenticação) exigem `Authorization: Bearer <token>`; as que alteram posse/situação também passam por `@PreAuthorize` (ver [Autenticação e Colaboração](autenticacao.md)). Resumo dos endpoints:
 
-## Autenticação — `/v1/auth` *(público)*
+## Autenticação — Authorization Server *(raiz do backend, não sob `/v1`, público)*
+
+Endpoints padrão do Spring Authorization Server (`AuthorizationServerConfig`), não específicos deste domínio — ver [Autenticação e Colaboração](autenticacao.md) para o fluxo completo (Authorization Code + PKCE).
 
 | Método | Rota | Descrição |
 |---|---|---|
-| `POST` | `/login` | Autentica por CPF + senha, devolve access token + refresh token |
-| `POST` | `/refresh` | Troca um refresh token válido por um novo par (rotação) |
-| `POST` | `/logout` | Revoga um refresh token |
+| `GET` | `/oauth2/authorize` | Início do fluxo de autorização (navegação de página, não fetch) |
+| `GET`/`POST` | `/login` | Formulário de login (submetido pela `LoginPage.vue` via POST HTML tradicional) |
+| `POST` | `/oauth2/token` | Troca o `code` (+ `code_verifier`) por um access token |
+| `GET` | `/oauth2/jwks` | Chaves públicas RSA para validação do token (backend e `collab` usam) |
+| `GET` | `/.well-known/openid-configuration` | Metadata OIDC do Authorization Server |
+| `GET`/`POST` | `/logout` | Encerra a sessão de login (navegação de página, não fetch — ver nota de `SameSite` em autenticacao.md) |
 
 ## Documentos — `/v1/documentos`
 

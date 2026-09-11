@@ -46,8 +46,8 @@ Hoje, boa parte disso é feita à mão em editores de texto genéricos — o que
     | Spring Data JPA / Hibernate | 4.1.1 / 7.4.5 | Persistência e mapeamento objeto-relacional |
     | Spring Web (MVC) | — | API REST, incluindo *streams* SSE (notificações e presença) |
     | Spring HATEOAS | — | Links de navegação nos recursos |
-    | Spring Security | 7.1.1 | Autenticação stateless via JWT, autorização por método (`@PreAuthorize`) |
-    | jjwt | 0.12.6 | Emissão e validação do access token JWT |
+    | Spring Security | 7.1.1 | Resource server (JWT/JWKS), autorização por método (`@PreAuthorize`) |
+    | Spring Authorization Server | 7.1.1 | Emissão de token via OAuth2 Authorization Code + PKCE (embutido no backend) |
     | PostgreSQL | 16 | Banco de dados relacional |
     | MinIO SDK | 8.5.12 | Armazenamento de objetos (imagens e PDFs) on-premise |
     | Apache FOP | 2.10 | Geração de PDF server-side via XSL-FO |

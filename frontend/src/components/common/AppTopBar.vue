@@ -155,9 +155,11 @@ const nomeExibicao = computed(() => {
   return usuario.nome
 })
 
+// auth.logout() já navega pro /logout do backend (window.location.href) e
+// volta sozinho pro /login (logoutSuccessUrl) -- nada a fazer depois daqui,
+// a página inteira está prestes a trocar.
 function sair() {
   auth.logout()
-  router.push({ name: 'login' })
 }
 
 // ── Notificações em tempo real (SSE) ────────────────────────────────────────

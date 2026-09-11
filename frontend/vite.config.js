@@ -85,6 +85,50 @@ export default defineConfig({
       usePolling: true,
       interval: 300,
     },
+    // Proxy dos endpoints do Authorization Server (não sob /v1) -- faz o
+    // navegador enxergar /oauth2/**, /login e /logout como MESMA ORIGEM do
+    // frontend (127.0.0.1:5173), nunca como uma chamada cross-origin pro
+    // backend (127.0.0.1:8081). Sem isso, o cookie de sessão do Spring
+    // Security (SameSite=Lax, padrão) só é enviado de volta em navegações de
+    // topo GET -- um POST cross-origin de /login (mesmo sendo uma navegação
+    // de página inteira, não fetch) não carrega o cookie em boa parte dos
+    // casos reais (Chrome só relaxa essa regra por uma janela curta logo
+    // após o cookie ser criado; digitar CPF/senha com calma já é tempo
+    // suficiente pra essa janela fechar). O login "funcionava" (POST 200/302)
+    // mas autenticava numa sessão nova, sem a authorization request salva,
+    // caindo de volta no /login sem erro nenhum -- exatamente o bug relatado.
+    // O proxy elimina o problema na raiz: não existe cross-origin nenhum do
+    // ponto de vista do navegador, então SameSite nunca entra em jogo.
+    // changeOrigin DESLIGADO de propósito -- ele reescreve o header Host da
+    // requisição encaminhada pro Host do TARGET (ex.: "backend:8081", o nome
+    // do serviço Docker), e o Spring usa esse Host pra reconstruir URLs
+    // absolutas em certos redirects (fora dos que já usam o "issuer" fixo).
+    // O resultado: o navegador recebia um Location apontando pra
+    // "http://backend:8081/...", um hostname que só existe dentro da rede
+    // Docker -- inacessível e não resolvível pelo navegador de verdade.
+    // Sem changeOrigin, o Host encaminhado é o que o navegador REALMENTE
+    // usou (127.0.0.1:5173) -- e como todo /oauth2, /login, /logout também é
+    // proxiado por aqui, qualquer URL que o Spring reconstrua nesse Host
+    // continua resolvível.
+    proxy: {
+      '/oauth2':      { target: process.env.PROXY_BACKEND_TARGET ?? 'http://127.0.0.1:8081' },
+      '/.well-known': { target: process.env.PROXY_BACKEND_TARGET ?? 'http://127.0.0.1:8081' },
+      // /login é AMBOS: rota do Vue Router (GET, exibe a LoginPage) e endpoint
+      // de processamento do Spring Security (POST, só esse precisa ir pro
+      // backend). bypass devolve o próprio req.url pro Vite quando não é
+      // POST -- sinaliza "não proxiar isso", deixa cair no fallback de SPA
+      // normal (serve o index.html/router cuida do resto). Sem essa
+      // distinção por método, todo GET /login (inclusive o clique em "Sair"
+      // te trazendo de volta pra cá) ia parar no backend, que só entende
+      // POST nessa rota -- "No endpoint GET /login" (400), SPA inteira quebrada.
+      '/login': {
+        target: process.env.PROXY_BACKEND_TARGET ?? 'http://127.0.0.1:8081',
+        bypass(req) {
+          if (req.method !== 'POST') return req.url
+        },
+      },
+      '/logout': { target: process.env.PROXY_BACKEND_TARGET ?? 'http://127.0.0.1:8081' },
+    },
   },
 
   preview: {

@@ -9,6 +9,12 @@ const routes = [
     meta: { title: 'Entrar', public: true, paginaAvulsa: true },
   },
   {
+    path: '/callback',
+    name: 'oauth-callback',
+    component: () => import('@/pages/OAuthCallbackPage.vue'),
+    meta: { title: 'Entrando…', public: true, paginaAvulsa: true },
+  },
+  {
     path: '/',
     name: 'home',
     component: () => import('@/pages/HomePage.vue'),

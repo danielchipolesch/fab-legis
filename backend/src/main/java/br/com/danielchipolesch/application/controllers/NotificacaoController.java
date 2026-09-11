@@ -30,7 +30,8 @@ public class NotificacaoController {
 
     // EventSource (API nativa do browser para SSE) não permite header
     // customizado -- a autenticação deste request chega via query param
-    // (ver JwtAuthenticationFilter), único endpoint com essa exceção.
+    // (ver SseBearerTokenResolver), único endpoint (com presenca/stream) com
+    // essa exceção.
     @GetMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter stream() {
         return emitterRegistry.registrar(AutenticacaoUtil.usuarioAtual().getId());
