@@ -302,6 +302,7 @@ public class DocumentoHtmlService {
                 .corpo-assin p { margin: 0; display: block; text-indent: 0; }
                 .sumario-label { font-weight: bold; text-align: center; margin: 0; }
                 .sumario-titulo { font-weight: bold; text-align: center; margin: 0 0 10pt; }
+                .sumario-art-hdr { display: block; text-align: right; font-weight: bold; font-size: 10pt; margin: 0 0 2pt; }
                 .toc-table { width: 100%; border-collapse: collapse; font-size: 10pt; }
                 .toc-table tr.toc-capitulo td { font-weight: bold; text-transform: uppercase; padding-top: 5pt; }
                 .toc-table tr.toc-secao td { padding-left: 12pt; }
@@ -480,6 +481,11 @@ public class DocumentoHtmlService {
             if (entries.isEmpty()) return "";
 
             var sb = new StringBuilder();
+            // Rótulo da coluna de número de artigo -- ver mesmo cabeçalho no PDF
+            // (DocumentoFoCorpoBuilder.buildToc) e na prévia (DocumentoPreview.vue
+            // .sumario-header-row); sem isto o número solto na coluna direita do
+            // sumário fica sem indicar o que representa.
+            sb.append("<p class=\"sumario-art-hdr\">Art.</p>\n");
             sb.append("<table class=\"toc-table\">\n");
             for (var e : entries) {
                 sb.append("<tr class=\"").append(e.cssClass()).append("\">");
