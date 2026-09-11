@@ -232,8 +232,16 @@ if (colaborativo) {
       // só cobre o estado da CONEXÃO; salvo/salvando vem das mensagens stateless
       // abaixo, que refletem quando o servidor realmente persistiu no Postgres,
       // não o ACK (quase instantâneo) do próprio WebSocket.
+      //
+      // 'connecting' NÃO é tratado como offline: como cada elemento é sua própria
+      // sala (novo HocuspocusProvider a cada troca -- ver comentário de `colaborativo`
+      // acima), toda abertura de elemento passa por 'connecting' antes de 'connected',
+      // mesmo com a rede perfeita e o documento já salvo. Tratar isso como offline
+      // fazia "Sem conexão" piscar a cada clique, mascarando o caso real (a conexão
+      // caiu DEPOIS de já ter conectado uma vez). Só 'disconnected' é offline de
+      // verdade.
       if (status === 'connected') emit('sync-status', 'synced')
-      else emit('sync-status', 'offline')
+      else if (status === 'disconnected') emit('sync-status', 'offline')
     },
   })
   // Reconcilia a transição local->colaborativo: entre o snapshot que gerou o
