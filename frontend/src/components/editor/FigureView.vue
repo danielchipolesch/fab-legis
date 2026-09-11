@@ -118,10 +118,18 @@ function onImgError(e) {
   color: inherit;
   padding: 2px 4px;
   border-radius: 3px;
-  min-width: 100px;
-  width: auto;
-  flex: 1;
-  max-width: 320px;
+  /* flex-grow:0 (em vez do "flex: 1" anterior) -- com grow, o campo consumia todo
+     o espaço livre da linha e anulava o justify-content:center do container (o
+     prefixo ficava "grudado" à esquerda em vez do par prefixo+campo centralizar
+     como bloco). width fixa mantém o campo com tamanho prático de digitação e
+     deixa o centering do container realmente centralizar o conjunto. */
+  flex: 0 0 auto;
+  width: 220px;
+  max-width: 60%;
+  /* O conjunto prefixo+campo fica centralizado na linha (justify-content:center
+     do container); o texto dentro do campo continua alinhado à esquerda -- mais
+     natural para digitar (cursor não "pula" pro meio a cada tecla) do que
+     centralizar o texto dentro de uma caixa estreita. */
   text-align: left;
 }
 

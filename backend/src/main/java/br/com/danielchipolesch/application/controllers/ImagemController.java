@@ -16,12 +16,20 @@ public class ImagemController {
     @Autowired
     private ImagemService imagemService;
 
+    // "urlAssinada" evita o round-trip extra a /urls-assinadas logo após o upload --
+    // quem exibe a imagem pela primeira vez (ex. FigureView) já recebe uma URL pronta
+    // pra usar, em vez de ter que resolver a "url" canônica antes de poder mostrar
+    // algo. A "url" continua sendo a única persistida no documento (a assinada expira
+    // em ImagemService.EXPIRY_MINUTES).
     @PostMapping(value = "/upload", produces = "application/json")
     public ResponseEntity<Map<String, String>> upload(
             @RequestParam("arquivo") MultipartFile arquivo) {
         try {
             String url = imagemService.uploadImagem(arquivo);
-            return ResponseEntity.ok(Map.of("url", url));
+            String urlAssinada = imagemService.gerarUrlAssinada(url);
+            return ResponseEntity.ok(urlAssinada != null
+                    ? Map.of("url", url, "urlAssinada", urlAssinada)
+                    : Map.of("url", url));
         } catch (Exception e) {
             return ResponseEntity.internalServerError()
                     .body(Map.of("erro", e.getMessage()));

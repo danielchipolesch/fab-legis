@@ -51,3 +51,11 @@ export async function resolveMinioUrl(url) {
   const mapa = await resolveMinioUrls([url])
   return mapa.get(url) ?? url
 }
+
+// Alimenta o cache com uma URL assinada já conhecida (ex.: devolvida junto da
+// canônica pelo próprio POST /imagens/upload) -- evita o round-trip de
+// resolveMinioUrl(s) na primeira exibição da imagem recém-enviada.
+export function primeMinioUrlCache(url, assinada) {
+  if (!precisaResolver(url) || !assinada) return
+  cache.set(url, { assinada, expiraEm: Date.now() + TTL_MS })
+}

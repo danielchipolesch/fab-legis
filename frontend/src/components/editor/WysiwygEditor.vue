@@ -129,6 +129,7 @@ import { HocuspocusProvider } from '@hocuspocus/provider'
 import { editorExtensions, editorExtensionsColaborativas } from '@/editor/extensions.js'
 import { useAuthStore } from '@/stores/auth.js'
 import { useQuasar } from 'quasar'
+import { primeMinioUrlCache } from '@/utils/minioUrls.js'
 
 // Throttle simples (leading+trailing): a primeira chamada roda na hora, chamadas
 // subsequentes dentro da janela viram uma única execução ao final dela -- garante
@@ -306,6 +307,30 @@ if (colaborativo) {
         user: {
           name: rotuloDoUsuario(authStore.usuario),
           color: corDoUsuario(authStore.usuario?.id),
+          usuarioId: authStore.usuario?.id ?? null,
+        },
+        // O y-prosemirror por baixo só filtra o cursor pelo clientID da própria
+        // conexão Yjs -- não pelo usuário autenticado. Uma conexão antiga do MESMO
+        // usuário que não fechou direito (ex.: outra aba, ou reload em dev/HMR
+        // enquanto uma sala estava aberta) ainda aparece como "outra pessoa" com
+        // clientID diferente, então o navegador mostra o próprio nome de volta.
+        // Filtrando aqui por usuarioId (não só clientID) o cursor nunca aparece
+        // pra quem já é o dono dele, venha de onde vier a conexão duplicada.
+        render(user) {
+          if (user.usuarioId != null && user.usuarioId === authStore.usuario?.id) {
+            const vazio = document.createElement('span')
+            vazio.style.display = 'none'
+            return vazio
+          }
+          const cursor = document.createElement('span')
+          cursor.classList.add('collaboration-cursor__caret')
+          cursor.setAttribute('style', `border-color: ${user.color}`)
+          const label = document.createElement('div')
+          label.classList.add('collaboration-cursor__label')
+          label.setAttribute('style', `background-color: ${user.color}`)
+          label.insertBefore(document.createTextNode(user.name), null)
+          cursor.insertBefore(label, null)
+          return cursor
         },
       }),
     ],
@@ -379,13 +404,17 @@ async function onFileSelected(event) {
     const baseUrl = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8081/v1'
     const resp = await fetch(`${baseUrl}/imagens/upload`, {
       method: 'POST',
-      headers: { Accept: 'application/json' },
+      headers: {
+        Accept: 'application/json',
+        ...(authStore.token ? { Authorization: `Bearer ${authStore.token}` } : {}),
+      },
       body: form,
     })
 
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`)
 
-    const { url } = await resp.json()
+    const { url, urlAssinada } = await resp.json()
+    primeMinioUrlCache(url, urlAssinada)
     editor.value?.chain().focus().insertContent({
       type: 'figure',
       attrs: { src: url, alt: '', titulo: '', fonte: '' },
