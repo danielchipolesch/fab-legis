@@ -287,7 +287,7 @@ public class DocumentoHtmlService {
                 .norm-lbl { font-weight: normal; }
                 .norm-lbl-bold { font-weight: bold; }
                 .norm-content-block { display: inline; text-indent: 0; }
-                .norm-content-block table { border-collapse: collapse; width: 100%; margin: 4pt 0; font-size: 10pt; }
+                .norm-content-block table { border-collapse: collapse; table-layout: fixed; width: 100%; margin: 4pt 0; font-size: 10pt; }
                 .norm-content-block td, .norm-content-block th { border: 1px solid #999; padding: 3pt 6pt; vertical-align: top; }
                 .norm-content-block th { background: rgba(11,61,145,0.06); font-weight: bold; text-align: center; }
                 .norm-content-block p { margin: 0; text-indent: 0; }

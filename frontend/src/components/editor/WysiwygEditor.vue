@@ -524,6 +524,13 @@ async function onFileSelected(event) {
 }
 .tiptap-editor .ProseMirror table {
   border-collapse: collapse;
+  /* Sem isto, a largura da coluna (colwidth do redimensionamento, ver
+     extensions.js Table.configure({resizable:true})) é só uma sugestão: o
+     table-layout automático (padrão do navegador) ainda encolhe/estica colunas
+     pelo conteúdo, e uma imagem inserida na célula (max-width:100% relativo a
+     uma célula cujo tamanho final o navegador ainda está calculando) ignora o
+     limite e estoura a borda -- ver .figura-img abaixo e FigureView.vue. */
+  table-layout: fixed;
   width: 100%;
   margin: 12px 0;
 }

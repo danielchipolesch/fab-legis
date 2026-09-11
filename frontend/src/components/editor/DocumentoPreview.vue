@@ -929,6 +929,12 @@ const anexosDocumento = computed(() =>
 }
 .norm-content-block :deep(table) {
   border-collapse: collapse;
+  /* Ver mesmo comentário em WysiwygEditor.vue -- sem table-layout:fixed, uma
+     imagem inserida numa célula (max-width:100% do .figura-img abaixo) ignora
+     o limite da coluna e estoura a borda, porque o navegador ainda calcula a
+     largura da célula pelo conteúdo em vez de respeitar a proporção da
+     tabela. */
+  table-layout: fixed;
   width: 100%;
   margin: 4px 0;
   font-size: 14px;

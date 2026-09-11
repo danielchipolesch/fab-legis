@@ -27,6 +27,16 @@ public class XslFoContentRenderer {
     private static final Pattern BLOCK_PATTERN =
             Pattern.compile("(?i)^\\s*(table|bulletList|orderedList|heading|figure)$");
 
+    // Caixa máxima padrão de uma figura fora de tabela (largura útil do corpo,
+    // 17cm de A4 menos margens, com folga) -- ver renderFigure.
+    private static final double FIG_MAX_W = 450;
+    private static final double FIG_MAX_H = 350;
+    // padding="3pt 6pt" (block 3pt, inline 6pt) + border 1pt de cada lado da
+    // fo:table-cell (ver renderTable) -- descontado da largura da coluna antes de
+    // virar caixa máxima da figura, senão a imagem cabe na COLUNA mas estoura a
+    // CÉLULA (a coluna é só o espaço de conteúdo + padding + borda).
+    private static final double TABLE_CELL_OVERHEAD_W = 14;
+
     private int figCount = 0;
     private Function<String, String> imageResolver = null;
 
@@ -117,6 +127,15 @@ public class XslFoContentRenderer {
     // ─── Block rendering ──────────────────────────────────────────────────────
 
     private void renderBlock(TipTapNode node, StringBuilder sb) {
+        renderBlock(node, sb, FIG_MAX_W, FIG_MAX_H);
+    }
+
+    // figMaxW/figMaxH: caixa máxima disponível para uma figura encontrada dentro
+    // deste bloco -- FIG_MAX_W/H por padrão, ou a largura de uma coluna de tabela
+    // (já descontada de padding/borda) quando renderBlock é chamado a partir de
+    // renderTable, para uma figura dentro de uma célula nunca ultrapassar a
+    // própria célula (ver renderTable/renderFigure).
+    private void renderBlock(TipTapNode node, StringBuilder sb, double figMaxW, double figMaxH) {
         if (node == null || node.getType() == null) return;
         switch (node.getType()) {
             case "paragraph" -> {
@@ -148,11 +167,11 @@ public class XslFoContentRenderer {
                 sb.append("</fo:list-block>");
             }
             case "table"    -> renderTable(node, sb);
-            case "figure"   -> renderFigure(node, sb);
+            case "figure"   -> renderFigure(node, sb, figMaxW, figMaxH);
             case "blockquote" -> {
                 sb.append("<fo:block start-indent=\"1cm\" space-after=\"5pt\">");
                 if (node.getContent() != null)
-                    for (var c : node.getContent()) renderBlock(c, sb);
+                    for (var c : node.getContent()) renderBlock(c, sb, figMaxW, figMaxH);
                 sb.append("</fo:block>");
             }
             case "horizontalRule" ->
@@ -187,6 +206,12 @@ public class XslFoContentRenderer {
         if (firstRow.getContent() != null) colCount = firstRow.getContent().size();
         if (colCount == 0) colCount = 1;
 
+        // Colunas dividem FIG_MAX_W em partes iguais (proportional-column-width) --
+        // uma figura dentro de uma célula precisa da mesma conta, descontado o
+        // padding/borda da própria célula, senão cabe na COLUNA mas estoura a
+        // CÉLULA visualmente (ver TABLE_CELL_OVERHEAD_W e renderFigure).
+        double cellFigMaxW = Math.max(40, (FIG_MAX_W / colCount) - TABLE_CELL_OVERHEAD_W);
+
         sb.append("<fo:table table-layout=\"fixed\" width=\"100%\" border-collapse=\"separate\" space-after=\"5pt\">");
         for (int i = 0; i < colCount; i++) {
             sb.append("<fo:table-column column-width=\"proportional-column-width(1)\"/>");
@@ -216,7 +241,7 @@ public class XslFoContentRenderer {
                                 renderInlines(c.getContent(), sb);
                                 sb.append("</fo:block>");
                             } else {
-                                renderBlock(c, sb);
+                                renderBlock(c, sb, cellFigMaxW, FIG_MAX_H);
                             }
                         }
                     } else {
@@ -230,7 +255,7 @@ public class XslFoContentRenderer {
         sb.append("</fo:table-body></fo:table>");
     }
 
-    private void renderFigure(TipTapNode node, StringBuilder sb) {
+    private void renderFigure(TipTapNode node, StringBuilder sb, double maxW, double maxH) {
         figCount++;
         String src    = node.getAttrStr("src");
         String titulo = node.getAttrStr("titulo");
@@ -251,8 +276,10 @@ public class XslFoContentRenderer {
             // logo depois do bloco) parecia flutuar longe da imagem. Calculando aqui as
             // dimensões reais já escaladas (mesma lógica de scale-to-fit, mas aplicada
             // ao viewport também, não só ao conteúdo), o bloco fica do tamanho exato da
-            // imagem renderizada.
-            double[] dims = dimensoesEscaladas(imgSrc, 450, 350);
+            // imagem renderizada. maxW/maxH: caixa cheia (FIG_MAX_W/H) fora de tabela,
+            // ou a largura da coluna (já descontada de padding/borda) dentro de uma
+            // célula -- ver renderTable/renderBlock.
+            double[] dims = dimensoesEscaladas(imgSrc, maxW, maxH);
             sb.append("<fo:block text-align=\"center\" keep-with-next.within-page=\"always\">")
               .append("<fo:external-graphic src=\"url('").append(imgSrc).append("')\"")
               .append(" width=\"").append(fmtPt(dims[0])).append("pt\"")
