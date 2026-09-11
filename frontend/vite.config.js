@@ -4,6 +4,14 @@ import { quasar, transformAssetUrls } from '@quasar/vite-plugin'
 import { fileURLToPath, URL } from 'node:url'
 
 export default defineConfig({
+  // Lê o .env da raiz do monorepo (mesmo arquivo usado pelo docker-compose.yml
+  // para substituição de ${VAR:-padrão}), não o padrão do Vite (a própria pasta
+  // frontend/) -- consolida num único .env/.env.example em vez de manter dois.
+  // Só afeta a execução local (`npm run dev`/`build` fora do Docker): o
+  // container de dev já recebe VITE_* diretamente do docker-compose.yml via
+  // `environment:`, então nada muda para quem roda via `docker compose up`.
+  envDir: fileURLToPath(new URL('..', import.meta.url)),
+
   plugins: [
     vue({ template: { transformAssetUrls } }),
     quasar({

@@ -11,6 +11,10 @@
 git clone https://github.com/danielchipolesch/fab-legis.git
 cd fab-legis
 
+# Opcional: personaliza credenciais/portas sem tocar no docker-compose.yml --
+# sem este arquivo, o compose usa os mesmos valores de dev documentados abaixo
+cp .env.example .env
+
 # Sobe PostgreSQL, MinIO, backend, collab (colaboração em tempo real), frontend
 # e a documentação técnica
 docker compose up -d
@@ -18,6 +22,8 @@ docker compose up -d
 # Acompanhar os logs
 docker compose logs -f backend frontend
 ```
+
+O `.env` na raiz (fora do git, só o `.env.example` é versionado) é lido automaticamente pelo `docker compose` para preencher os `${VAR:-padrão}` do `docker-compose.yml` — sem ele, cada variável cai no próprio padrão já embutido no compose, então o comportamento é idêntico ao de antes deste arquivo existir. É o **mesmo arquivo** usado pela Opção 2 (frontend rodando fora do Docker via `npm run dev`) — ver nota na aba "Frontend" abaixo.
 
 **Serviços disponíveis:**
 
@@ -56,11 +62,16 @@ docker compose --profile production up -d
 
 === "Frontend"
     ```bash
+    cp .env.example .env            # na raiz do repo, se ainda não existir — ajuste
+                                     # VITE_API_BASE_URL se necessário (ver variáveis abaixo)
     cd frontend
-    cp .env.example .env.local      # ajuste VITE_API_BASE_URL se necessário
     npm install
     npm run dev                     # http://localhost:5173
     ```
+
+    O `.env` lido aqui é o mesmo da raiz do repositório (usado também pelo Docker
+    Compose) — `frontend/vite.config.js` aponta o `envDir` do Vite pra lá, então
+    não existe um `.env`/`.env.example` separado dentro de `frontend/`.
 
     Scripts disponíveis:
 
@@ -71,6 +82,8 @@ docker compose --profile production up -d
     | `npm run preview` | Pré-visualização do build |
 
 ## Variáveis de ambiente
+
+Via Docker Compose, todas as variáveis abaixo (exceto `PORT` do collab e as `JWT_EXPIRATION_MS`/`JWT_REFRESH_EXPIRATION_MS`, que não têm override no compose) podem ser ajustadas pelo `.env` na raiz do repositório (`cp .env.example .env`), sem editar `docker-compose.yml` — ver Opção 1 acima.
 
 **Backend**
 
@@ -99,9 +112,11 @@ docker compose --profile production up -d
 
 | Variável | Padrão | Descrição |
 |---|---|---|
-| `VITE_API_BASE_URL` | `http://localhost:8081/v1` | URL base da API |
+| `VITE_API_BASE_URL` | `http://127.0.0.1:8081/v1` | URL base da API |
 | `VITE_COLLAB_URL` | `ws://127.0.0.1:1234` | URL do serviço de colaboração em tempo real (WebSocket) |
-| `VITE_APP_ENV` | `development` | Ambiente (`development` \| `staging` \| `production`) |
+| `VITE_USE_MOCK_API` | `false` | Usa API mockada em vez do backend real |
+| `VITE_APP_ENV` | `development` | Ambiente (`development` \| `staging` \| `production`) — só afeta o build local (sourcemap em `staging`, ver `vite.config.js`); o build via Docker sempre roda como `development` |
+| `VITE_APP_VERSION` | `1.0.0` | Versão exibida em logs/telas de diagnóstico |
 
 !!! warning "Atenção"
     As credenciais acima são valores de desenvolvimento. Em produção, substitua todas por *secrets* gerenciados fora do repositório.

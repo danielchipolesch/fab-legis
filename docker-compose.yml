@@ -5,9 +5,9 @@ services:
     image: postgres:16-alpine
     container_name: fab-legis-postgres
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: "123456"
-      POSTGRES_DB: fab-legis-dev
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-123456}
+      POSTGRES_DB: ${POSTGRES_DB:-fab-legis-dev}
     ports:
       - "5432:5432"
     volumes:
@@ -28,8 +28,8 @@ services:
       - "9000:9000"   # API S3
       - "9001:9001"   # Console web
     environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin123
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin123}
     volumes:
       - minio_data:/data
     healthcheck:
@@ -51,15 +51,18 @@ services:
       SPRING_PROFILES_ACTIVE: dev
       DB_HOST: postgres
       DB_PORT: "5432"
-      DB_NAME: fab-legis-dev
-      SPRING_DATASOURCE_USERNAME: postgres
-      SPRING_DATASOURCE_PASSWORD: "123456"
+      DB_NAME: ${POSTGRES_DB:-fab-legis-dev}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-postgres}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-123456}
       MINIO_ENDPOINT: http://minio:9000
-      MINIO_ACCESS_KEY: minioadmin
-      MINIO_SECRET_KEY: minioadmin123
-      MINIO_BUCKET: fab-legis-imagens
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin123}
+      MINIO_BUCKET: ${MINIO_BUCKET:-fab-legis-imagens}
       MINIO_PUBLIC_URL: http://localhost:9000
       JWT_SECRET: ${JWT_SECRET:-fab-legis-dev-secret-troque-em-producao-1234567890}
+      APP_ADMIN_CPF: ${APP_ADMIN_CPF:-11144477735}
+      APP_ADMIN_SENHA: ${APP_ADMIN_SENHA:-Admin@123}
+      APP_ADMIN_NOME: ${APP_ADMIN_NOME:-Administrador}
     depends_on:
       postgres:
         condition: service_healthy
@@ -82,9 +85,9 @@ services:
       - ./frontend/index.html:/app/index.html
     environment:
       NODE_ENV: development
-      VITE_USE_MOCK_API: "false"
-      VITE_API_BASE_URL: "http://127.0.0.1:8081/v1"
-      VITE_COLLAB_URL: "ws://127.0.0.1:1234"
+      VITE_USE_MOCK_API: ${VITE_USE_MOCK_API:-false}
+      VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://127.0.0.1:8081/v1}
+      VITE_COLLAB_URL: ${VITE_COLLAB_URL:-ws://127.0.0.1:1234}
     depends_on:
       - backend
       - collab
