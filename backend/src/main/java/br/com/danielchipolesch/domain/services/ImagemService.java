@@ -70,6 +70,22 @@ public class ImagemService {
         return publicUrl + "/" + bucket + "/" + key;
     }
 
+    // Mesmo padrão de uploadPdf -- ver DocumentoHtmlService, que gera/armazena/serve o
+    // HTML pelas mesmas transições de status que o PDF (DocumentoStatusService).
+    public String uploadHtml(byte[] htmlBytes, String filename) throws Exception {
+        garantirBucket();
+        String key = "html/" + filename;
+        minioClient.putObject(
+            PutObjectArgs.builder()
+                .bucket(bucket)
+                .object(key)
+                .stream(new ByteArrayInputStream(htmlBytes), htmlBytes.length, -1)
+                .contentType("text/html; charset=UTF-8")
+                .build()
+        );
+        return publicUrl + "/" + bucket + "/" + key;
+    }
+
     // Bucket privado -- o navegador nunca acessa o MinIO diretamente; toda leitura
     // passa por uma URL assinada de curta duração (ver gerarUrlAssinada), emitida só
     // por quem já está autenticado no /v1/**. A política é removida incondicionalmente

@@ -22,7 +22,7 @@ Extensão TipTap customizada (`extensions/figure.js`) com *NodeView* em Vue: upl
 
 ## Exportação de documentos
 
-Geração de PDF **server-side** via **Apache FOP 2.10 / XSL-FO**. Detalhamento completo do pipeline, das regras da NSCA 5-3 e da configuração de fontes em [Geração de PDF e Portarias](exportacao-pdf.md).
+Geração de PDF **server-side** via **Apache FOP 2.10 / XSL-FO**, e de HTML **server-side** (`DocumentoHtmlService`) seguindo as regras específicas que a NSCA 5-3 dá para a versão eletrônica (capa dispensada, corpo alinhado à esquerda, cabeçalho com Brasão da República alinhado à esquerda). Botão **Exportar HTML** ao lado do botão de PDF em toda tela de edição/visualização de um documento. Detalhamento completo dos dois pipelines, das regras da NSCA 5-3 e da configuração de fontes em [Geração de PDF e Portarias](exportacao-pdf.md).
 
 ## Comparação de versões
 
@@ -39,7 +39,7 @@ A `DocumentViewerPage` exibe o documento em modo leitura com seções expansíve
 | **Informações do Documento** | Metadados (espécie, número, título, assunto, código, status) e linha do tempo de datas por status |
 | **Portarias** | Lista de todas as portarias registradas para o documento — edição, alterações (numeradas sequencialmente) e revogação — cada uma com órgão/setor, número, data, BCA e link de download do PDF |
 | **Visualização do Documento** | Iframe com o PDF armazenado (disponível a partir de `APROVADO`) ou mensagem de indisponibilidade; exibe `q-inner-loading` enquanto o PDF carrega |
-| **Anexos** | Upload/listagem/remoção de arquivos vinculados ao documento (`AnexoController`), incluídos como páginas próprias na exportação em PDF |
+| **Anexos** | Upload/listagem/remoção de arquivos vinculados ao documento (`AnexoController`), incluídos como páginas próprias na exportação em PDF e em HTML |
 | **Histórico de Versões** | Acesso direto à página de comparação de versões |
 
 Ações disponíveis na topbar: baixar PDF (rascunho gerado sob demanda), ver texto sugerido da portaria (quando `ALTERADO`), clonar e navegar para a comparação de versões.

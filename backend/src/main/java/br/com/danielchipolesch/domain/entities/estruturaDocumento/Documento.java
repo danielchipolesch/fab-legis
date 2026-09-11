@@ -70,6 +70,11 @@ public class Documento extends RepresentationModel<Documento> {
     @Column(name = "url_pdf")
     private String urlPdf;
 
+    // Mesmas transições de status geram/armazenam os dois (ver DocumentoStatusService) --
+    // HTML e PDF são sempre regenerados juntos, nunca um sem o outro.
+    @Column(name = "url_html")
+    private String urlHtml;
+
     @Column(name = "nr_replicas", nullable = false, columnDefinition = "INTEGER NOT NULL DEFAULT 0")
     private int qtdReplicas = 0;
 

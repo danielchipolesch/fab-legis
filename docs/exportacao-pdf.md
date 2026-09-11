@@ -1,11 +1,11 @@
-# Geração de PDF e Portarias
+# Exportação do Documento (PDF, HTML) e Portarias
 
 ## Pipeline de geração do PDF oficial
 
 Geração de PDF **server-side** via **Apache FOP 2.10 / XSL-FO**, seguindo o padrão da **NSCA 5-3**:
 
 - margens A4 oficiais;
-- cabeçalho com brasão da República (Portaria de Aprovação) e brasão da FAB (Capa);
+- cabeçalho com brasão da República (Portaria de Aprovação) e Gádio Alado (Capa);
 - estrutura de três páginas: **Portaria de Aprovação → Capa → Sumário + Corpo normativo**;
 - **capa conforme NSCA 5-3, Art. 17**: Ministério da Defesa/Comando da Aeronáutica, nome por extenso da organização militar que elaborou o ato (`Documento.om` — por padrão a OM do autor na criação, mas alterável na tela de Metadados do editor enquanto o documento estiver em `RASCUNHO`/`MINUTA`, ver `DocumentoService.update`), gládio alado, assunto básico e legenda com sigla/número/título/ano (`DocumentoFoFrontMatterBuilder.buildCapaSequence`); a prévia do editor (`DocumentoPreview.vue`) espelha o mesmo layout;
 - **sumário automático** com intervalos de artigos por capítulo/seção/subseção e hiperlinks internos;
@@ -15,6 +15,26 @@ Geração de PDF **server-side** via **Apache FOP 2.10 / XSL-FO**, seguindo o pa
 O pipeline de geração é: conteúdo JSON TipTap → `XslFoContentRenderer` (serializa inlines: negrito, itálico, cor, links, imagens) → `DocumentoFoBuilder` (monta o XSL-FO completo) → Apache FOP → bytes PDF. Ao entrar em `APROVADO`, `ALTERADO`, `PUBLICADO` ou `REVOGADO`, o PDF é gerado e armazenado no MinIO (`urlPdf`) — a prévia embutida na página de visualização usa essa cópia quando disponível (`DocumentoPdfService.STATUS_COM_PDF_ARMAZENADO`). `APROVADO`/`ALTERADO` nunca ficam parados como situação atual do documento (cascateiam direto para `EM_PUBLICACAO` na mesma transação que gera o PDF — ver [Ciclo de Vida do Documento](ciclo-de-vida.md)), então é `EM_PUBLICACAO` quem efetivamente carrega essa cópia (com a marca d'água "APROVADO") enquanto o documento aguarda a publicação de fato — por isso também consta no conjunto armazenado. **`EM_REVISAO` é deliberadamente excluído desse armazenamento**: como o revisor atribuído pode editar o conteúdo nessa etapa, uma cópia gravada ficaria desatualizada assim que ele digitasse algo — o documento é sempre renderizado **ao vivo** enquanto estiver nessa situação (e em qualquer outra fora do conjunto acima), sem persistir nada. O botão **Baixar PDF** também sempre chama a geração ao vivo (`GET /{id}/pdf`), independente de já existir uma cópia armazenada (ver [Roadmap](roadmap.md) — cache do PDF gerado).
 
 A portaria (PDF enviado pelo usuário no momento de publicar/alterar/revogar) **não é mesclada** ao PDF do documento — permanece um arquivo próprio e íntegro, registrado em `PortariaPublicacao` (ver [Portaria, BCA e registro de publicações](ciclo-de-vida.md#portaria-bca-e-registro-de-publicacoes)). O Apache PDFBox permanece como dependência do projeto (não usado no momento, mas mantido disponível para necessidades futuras, como manipulação de PDF em outros fluxos).
+
+## Exportação HTML
+
+Geração de HTML **server-side** (`DocumentoHtmlService.java`, a partir do mesmo conteúdo JSON TipTap que alimenta o PDF — nenhum dos dois é gerado a partir do outro, os dois partem em paralelo do mesmo dado, ver nota de consistência abaixo), seguindo as regras específicas que a **NSCA 5-3** dá para a versão eletrônica — diferentes do PDF em pontos que a própria norma distingue explicitamente:
+
+- **Art. 8, XXI** — corpo do ato normativo formatado para A4, **alinhado à esquerda** (não justificado como no PDF), exceto os agrupamentos de artigos (capítulo/seção/subseção), que continuam **centralizados**, igual ao PDF;
+- **Art. 17, V, §1º** — a **capa é dispensada** na versão HTML (o PDF continua tendo capa normalmente);
+- **Art. 18** — o cabeçalho antecede a epígrafe com **Brasão da República alinhado à esquerda** e os demais elementos (Ministério da Defesa, Comando da Aeronáutica, e a OM que elaborou o ato como "órgão secundário", já que ela não aparece mais na capa dispensada) **centralizados**, com entrelinhas simples (1,0) — no PDF, todo o cabeçalho/capa é centralizado, brasão incluso.
+
+Estrutura HTML: **Portaria de Aprovação → Sumário + Corpo normativo** (sem a página de Capa que o PDF tem). Botão **HTML** ao lado do botão **PDF** em toda tela que já tinha exportação de PDF do documento, exceto a página principal (acervo) — que nunca teve exportação por linha, só pelas telas de edição/visualização de um documento específico.
+
+Assim como no PDF (âncoras internas via `fo:basic-link`/`id`), cada linha do Sumário é um link (`<a href="#norm-<id>">`) para o elemento correspondente no corpo (`id="norm-<id>"` no `<div>` de capítulo/seção/subseção, ou numa âncora vazia logo antes do artigo) — clicar no capítulo/seção/artigo do sumário rola a página até lá.
+
+Os **Anexos** (arquivos vinculados ao documento, `AnexoController`) também viram páginas próprias no HTML, uma por anexo, numeradas em romano na sequência do Sumário (que é sempre "ANEXO I") — mesma numeração e mesma imagem (resolvida via `ImagemService.getImageAsDataUri`, cliente interno do MinIO) que o PDF já usava em `DocumentoFoFrontMatterBuilder.buildAnexoSequence`.
+
+**Geração/armazenamento seguem exatamente a mesma regra do PDF** (`DocumentoHtmlService.STATUS_COM_HTML_ARMAZENADO`, idêntico a `DocumentoPdfService.STATUS_COM_PDF_ARMAZENADO`): gerado e salvo no MinIO (`urlHtml`) nas mesmas transições de status (`APROVADO`/`ALTERADO`/`PUBLICADO`/`REVOGADO`, sempre junto com o PDF — ver `DocumentoStatusService.regenerarPdf`/`regenerarHtml`), servido dessa cópia quando disponível, renderizado ao vivo fora dessas situações (nunca em `EM_REVISAO`, pelo mesmo motivo do PDF: o revisor atribuído pode editar o conteúdo nessa etapa).
+
+## Consistência entre PDF, HTML e DOCX (planejado, ver [Roadmap](roadmap.md))
+
+**Qualquer mudança que altere elementos do documento exportado — estrutura, formatação, regra de negócio da técnica legislativa (NSCA 5-3/LC 95/1998/Decreto nº 12.002/2024) — deve ser averiguada nos 3 formatos (PDF, HTML e, quando implementado, DOCX), não só naquele em que a mudança foi originalmente pedida.** Os três nunca são gerados um a partir do outro (cada um tem seu próprio construtor: `DocumentoFoBuilder` para PDF, `DocumentoHtmlService` para HTML, e a Rota 1 planejada para DOCX é também um construtor próprio, direto do JSON TipTap, não uma conversão do HTML — ver Roadmap) — então uma regra corrigida em um não se propaga sozinha para os outros dois; cada um precisa da própria correção, ressalvadas as particularidades que a norma ou o próprio formato exigem (ex.: alinhamento do corpo e capa dispensada só valem para HTML, Art. 8 XXI/17 V §1º da NSCA 5-3).
 
 ## Fonte: Calibri (via Carlito)
 

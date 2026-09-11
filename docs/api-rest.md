@@ -27,6 +27,7 @@ Documentação interativa completa em **`/swagger-ui.html`**. Todas as rotas aba
 | `PUT` | `/{idDocumento}/adicionar-item-anexo-parte-textual` | Adiciona item à parte normativa |
 | `GET` | `/{id}/numeracao` | Numeração calculada da parte normativa |
 | `GET` | `/{id}/pdf` | Gera o PDF oficial do documento sob demanda (Apache FOP) |
+| `GET` | `/{id}/html` | Gera o HTML oficial do documento sob demanda (regras da NSCA 5-3 para a versão eletrônica — ver [Exportação HTML](exportacao-pdf.md#exportacao-html)) |
 | `GET` | `/{id}/portarias` | Lista todas as portarias registradas do documento (edição, alterações numeradas, revogação) |
 | `DELETE` | `/{id}` | Remove o documento e seus itens em cascata (somente Rascunho/Minuta, autor/coautor) |
 | `GET`/`POST` | `/{id}/compartilhamentos` | Lista ou adiciona um coautor (só o autor) |

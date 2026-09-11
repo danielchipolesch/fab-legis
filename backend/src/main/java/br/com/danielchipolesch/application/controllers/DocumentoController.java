@@ -27,6 +27,7 @@ import br.com.danielchipolesch.domain.entities.usuario.Usuario;
 import br.com.danielchipolesch.domain.mappers.DocumentoMapper;
 import br.com.danielchipolesch.domain.services.DocumentoCompartilhamentoService;
 import br.com.danielchipolesch.domain.services.DocumentoHistoricoService;
+import br.com.danielchipolesch.domain.services.DocumentoHtmlService;
 import br.com.danielchipolesch.domain.services.DocumentoParteNormativaService;
 import br.com.danielchipolesch.domain.services.DocumentoPdfService;
 import br.com.danielchipolesch.domain.services.DocumentoPresencaService;
@@ -81,6 +82,9 @@ public class DocumentoController {
 
     @Autowired
     private DocumentoPdfService documentoPdfService;
+
+    @Autowired
+    private DocumentoHtmlService documentoHtmlService;
 
     @Autowired
     private EmendaService emendaService;
@@ -370,6 +374,18 @@ public class DocumentoController {
         StreamingResponseBody body = documentoPdfService.streamPdf(id);
         return ResponseEntity.ok()
                 .header("Content-Disposition", "inline; filename=\"documento-" + id + ".pdf\"")
+                .header("Cache-Control", "no-store")
+                .body(body);
+    }
+
+    // Mesmo nível de acesso do PDF (sem @PreAuthorize -- visualização é universal,
+    // ver comentário no topo de SecurityConfig): qualquer usuário autenticado exporta
+    // qualquer documento, nos dois formatos.
+    @GetMapping(value = "{id}/html", produces = "text/html;charset=UTF-8")
+    public ResponseEntity<StreamingResponseBody> getHtml(@PathVariable(value = "id") Long id) {
+        StreamingResponseBody body = documentoHtmlService.streamHtml(id);
+        return ResponseEntity.ok()
+                .header("Content-Disposition", "inline; filename=\"documento-" + id + ".html\"")
                 .header("Cache-Control", "no-store")
                 .body(body);
     }

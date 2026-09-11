@@ -15,7 +15,9 @@ function sanitize(str) {
   return (str ?? '').replace(/[<>:"/\\|?*]/g, '').trim()
 }
 
-function buildFilename(documento) {
+// extensao: 'pdf' ou 'html' -- mesmo esquema de nome nos dois formatos, já que a
+// regra de geração/armazenamento é a mesma (ver DocumentoStatusService).
+function buildFilename(documento, extensao) {
   const numero = [documento.numero_basico, documento.numero_secundario].filter(Boolean).join('-')
   const ano = documento.data_criacao ? documento.data_criacao.slice(0, 4) : String(new Date().getFullYear())
   const partes = [
@@ -24,14 +26,18 @@ function buildFilename(documento) {
     sanitize(documento.titulo),
     sanitize(ano),
   ].filter(Boolean)
-  return partes.join('_') + '.pdf'
+  return partes.join('_') + '.' + extensao
 }
 
 export function pdfUrl(documentoId) {
   return `${API_BASE}/documentos/${documentoId}/pdf`
 }
 
-async function baixarPdf(response, filename) {
+export function htmlUrl(documentoId) {
+  return `${API_BASE}/documentos/${documentoId}/html`
+}
+
+async function baixarArquivo(response, filename) {
   if (!response.ok) {
     let msg = `Erro ${response.status}`
     try {
@@ -54,7 +60,12 @@ async function baixarPdf(response, filename) {
 
 export async function gerarPdf(documento) {
   const response = await fetch(pdfUrl(documento.id), { method: 'GET', headers: authHeaders() })
-  await baixarPdf(response, buildFilename(documento))
+  await baixarArquivo(response, buildFilename(documento, 'pdf'))
+}
+
+export async function gerarHtml(documento) {
+  const response = await fetch(htmlUrl(documento.id), { method: 'GET', headers: authHeaders() })
+  await baixarArquivo(response, buildFilename(documento, 'html'))
 }
 
 export async function gerarMapaAlteracaoPdf(documentoId, payload, filenameHint) {

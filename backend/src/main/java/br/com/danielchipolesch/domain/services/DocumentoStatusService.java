@@ -38,6 +38,7 @@ public class DocumentoStatusService {
     @Autowired DocumentoRepository documentoRepository;
     @Autowired DocumentoHistoricoService documentoHistoricoService;
     @Autowired DocumentoPdfService documentoPdfService;
+    @Autowired DocumentoHtmlService documentoHtmlService;
     @Autowired ItemAnexoParteNormativaRepository normativaRepository;
     @Autowired ItemPartePreliminarRepository preliminarRepository;
     @Autowired ItemParteFinalRepository finalRepository;
@@ -247,17 +248,20 @@ public class DocumentoStatusService {
             finalRepository.respacarElementOrders(id);
         }
 
-        // O PDF é gerado e salvo no MinIO nestas transições, e só nelas: exportações
-        // subsequentes (independente da tela/botão) sempre servem essa cópia em vez de
-        // renderizar de novo — ver DocumentoPdfService.streamPdf. PUBLICADO/REVOGADO
-        // precisam regenerar mesmo que ALTERADO já tenha uma cópia, pois é só aí que
-        // portaria/BCA reais substituem o placeholder e (na publicação)
-        // consolidarPublicacao acima congela as cláusulas de emenda — o conteúdo muda.
+        // O PDF e o HTML são gerados e salvos no MinIO nestas transições, e só nelas:
+        // exportações subsequentes (independente da tela/botão) sempre servem essa
+        // cópia em vez de renderizar de novo — ver DocumentoPdfService.streamPdf/
+        // DocumentoHtmlService.streamHtml. PUBLICADO/REVOGADO precisam regenerar
+        // mesmo que ALTERADO já tenha uma cópia, pois é só aí que portaria/BCA reais
+        // substituem o placeholder e (na publicação) consolidarPublicacao acima
+        // congela as cláusulas de emenda — o conteúdo muda. Os dois formatos são
+        // sempre regenerados juntos: nunca um sem o outro (ver docs/exportacao-pdf.md).
         if (novoStatus == DocumentoStatusEnum.APROVADO
                 || novoStatus == DocumentoStatusEnum.ALTERADO
                 || novoStatus == DocumentoStatusEnum.PUBLICADO
                 || novoStatus == DocumentoStatusEnum.REVOGADO) {
             regenerarPdf(documento, novoStatus);
+            regenerarHtml(documento, novoStatus);
         }
 
         String descricao = String.format("%s %s-%d",
@@ -302,6 +306,18 @@ public class DocumentoStatusService {
             // ausente. Mas o erro precisa ficar visível, senão a causa de um PDF
             // armazenado desatualizado/ausente é impossível de diagnosticar.
             log.error("Falha ao gerar/armazenar PDF do documento {} na transição para {}",
+                    documento.getId(), novoStatus, e);
+        }
+    }
+
+    // Espelha regenerarPdf -- mesma justificativa pro try/catch não-fatal.
+    private void regenerarHtml(Documento documento, DocumentoStatusEnum novoStatus) {
+        try {
+            String urlHtml = documentoHtmlService.gerarEArmazenarHtml(documento);
+            documento.setUrlHtml(urlHtml);
+            documentoRepository.saveAndFlush(documento);
+        } catch (Exception e) {
+            log.error("Falha ao gerar/armazenar HTML do documento {} na transição para {}",
                     documento.getId(), novoStatus, e);
         }
     }

@@ -45,6 +45,11 @@
         PDF
       </q-btn>
 
+      <q-btn outline color="deep-orange-7" size="sm" :loading="htmlLoading" @click="baixarHtml">
+        <q-icon left name="mdi-language-html5" />
+        HTML
+      </q-btn>
+
       <q-btn outline color="primary" size="sm" @click="clonar">
         <q-icon left name="mdi-content-copy" />
         Clonar
@@ -316,7 +321,7 @@ import { useQuasar } from 'quasar'
 import { useDocumentosStore } from '@/stores/documentos.js'
 import { useAuthStore } from '@/stores/auth.js'
 import StatusBadge from '@/components/common/StatusBadge.vue'
-import { gerarPdf } from '@/services/pdfService.js'
+import { gerarPdf, gerarHtml } from '@/services/pdfService.js'
 import { gerarTextoSugeridoPortaria } from '@/utils/textoSugeridoPortaria.js'
 import { resolveMinioUrl, resolveMinioUrls } from '@/utils/minioUrls.js'
 
@@ -327,6 +332,7 @@ const docStore = useDocumentosStore()
 const auth     = useAuthStore()
 
 const pdfLoading = ref(false)
+const htmlLoading = ref(false)
 
 // Só a primeira seção aberta por padrão
 const expanded = reactive({
@@ -488,6 +494,18 @@ async function baixarPdf() {
     $q.notify({ type: 'negative', message: `Erro ao gerar PDF: ${e?.message ?? 'erro desconhecido'}` })
   } finally {
     pdfLoading.value = false
+  }
+}
+
+async function baixarHtml() {
+  if (!documento.value) return
+  htmlLoading.value = true
+  try {
+    await gerarHtml(documento.value)
+  } catch (e) {
+    $q.notify({ type: 'negative', message: `Erro ao gerar HTML: ${e?.message ?? 'erro desconhecido'}` })
+  } finally {
+    htmlLoading.value = false
   }
 }
 

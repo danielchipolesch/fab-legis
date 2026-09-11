@@ -120,6 +120,16 @@
           <q-icon left name="mdi-file-pdf-box" />
           PDF
         </q-btn>
+
+        <q-btn
+          outline
+          color="deep-orange-7"
+          :loading="htmlLoading"
+          @click="baixarHtml"
+        >
+          <q-icon left name="mdi-language-html5" />
+          HTML
+        </q-btn>
       </div>
 
       <q-separator />
@@ -279,7 +289,7 @@ import { useEditorStore } from '@/stores/editor.js'
 import { useDocumentosStore } from '@/stores/documentos.js'
 import { useAuthStore } from '@/stores/auth.js'
 import { formatLabel, elementIcon, renumberElements } from '@/utils/numbering.js'
-import { gerarPdf } from '@/services/pdfService.js'
+import { gerarPdf, gerarHtml } from '@/services/pdfService.js'
 import EditorSidebar from '@/components/editor/EditorSidebar.vue'
 import WysiwygEditor from '@/components/editor/WysiwygEditor.vue'
 import DocumentoPreview from '@/components/editor/DocumentoPreview.vue'
@@ -299,6 +309,7 @@ const auth = useAuthStore()
 
 const previewMounted = ref(false)
 const pdfLoading    = ref(false)
+const htmlLoading   = ref(false)
 const lc95DialogOpen = ref(false)
 const compartilharDialogOpen = ref(false)
 
@@ -645,6 +656,28 @@ async function baixarPdf() {
     })
   } finally {
     pdfLoading.value = false
+  }
+}
+
+async function baixarHtml() {
+  if (!documento.value) return
+  htmlLoading.value = true
+  try {
+    if (editorStore.isDirty) {
+      clearTimeout(autoSaveTimer)
+      await autoSave()
+    }
+    await gerarHtml(documento.value)
+  } catch (e) {
+    console.error('[HTML]', e)
+    $q.notify({
+      type: 'negative',
+      message: `Erro ao gerar HTML: ${e?.message ?? 'erro desconhecido'}`,
+      position: 'bottom-right',
+      timeout: 6000,
+    })
+  } finally {
+    htmlLoading.value = false
   }
 }
 

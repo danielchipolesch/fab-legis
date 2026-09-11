@@ -128,10 +128,10 @@ final class DocumentoFoFrontMatterBuilder {
         sb.append(block("MINISTÉRIO DA DEFESA", "center", "17pt", "bold", "0", "2pt"));
         sb.append(block("COMANDO DA AERONÁUTICA", "center", "17pt", "bold", "0", "8pt"));
         // NSCA 5-3, Art. 17, II — nome da OM que elaborou o ato.
-        sb.append(block(foEsc(ctx.doc.getOm().getNome().toUpperCase()), "center", "15pt", "normal", "0", "35mm"));
+        sb.append(block(foEsc(ctx.doc.getOm().getNome().toUpperCase()), "center", "15pt", "normal", "0", "18mm"));
 
         if (!brasaoFab.isBlank()) {
-            sb.append("<fo:block text-align=\"center\" space-after=\"35mm\">")
+            sb.append("<fo:block text-align=\"center\" space-after=\"18mm\">")
               .append("<fo:external-graphic src=\"url('").append(brasaoFab).append("')\"")
               .append(" content-width=\"260pt\" content-height=\"260pt\" scaling=\"uniform\"/>")
               .append("</fo:block>\n");
