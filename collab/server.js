@@ -28,17 +28,6 @@ function conteudoPadrao() {
   return { type: 'doc', content: [{ type: 'paragraph' }] }
 }
 
-// Busca recursiva na árvore devolvida por GET /v1/documentos/{id} (itensNormativos,
-// cada um com `children`) -- mesmo formato usado no resto do frontend.
-function encontrarElemento(itens, elementoId) {
-  for (const item of itens ?? []) {
-    if (String(item.id) === String(elementoId)) return item
-    const achado = encontrarElemento(item.children, elementoId)
-    if (achado) return achado
-  }
-  return null
-}
-
 // onAuthenticate roda uma vez por conexão, antes de qualquer sync -- valida a
 // assinatura/expiração do MESMO JWT que o backend emite (HS384, ver
 // JwtService.java) e, em seguida, pergunta ao backend (com esse mesmo token,
@@ -78,17 +67,21 @@ async function onAuthenticate({ token, documentName }) {
 // Y.Doc a partir dele. O Postgres continua sendo a fonte de verdade entre
 // sessões colaborativas; o Y.Doc em memória só existe enquanto a sala tem
 // gente conectada.
+//
+// Lê só o elemento desta sala (GET .../elementos/{elementoId}/conteudo), não o
+// documento inteiro -- antes disso chamava GET /documentos/{id} (a árvore
+// completa, centenas de KB num documento grande) pra achar UM elemento a cada
+// sala aberta; com muita gente trocando de elemento ao mesmo tempo (produção),
+// isso vira uma amplificação O(tamanho do documento) por clique, não O(1).
 async function onLoadDocument({ documentName, context }) {
   const { documentoId, elementoId } = parseNomeSala(documentName)
 
-  const resposta = await fetch(`${BACKEND_URL}/documentos/${documentoId}`, {
+  const resposta = await fetch(`${BACKEND_URL}/documentos/${documentoId}/elementos/${elementoId}/conteudo`, {
     headers: { Authorization: `Bearer ${context.token}` },
   })
-  if (!resposta.ok) throw new Error(`Falha ao carregar documento ${documentoId}: HTTP ${resposta.status}`)
+  if (!resposta.ok) throw new Error(`Falha ao carregar elemento ${elementoId} do documento ${documentoId}: HTTP ${resposta.status}`)
 
-  const doc = await resposta.json()
-  const elemento = encontrarElemento(doc.itensNormativos, elementoId)
-  const conteudoBruto = elemento?.elementContent
+  const { conteudo: conteudoBruto } = await resposta.json()
   let json
   try {
     json = conteudoBruto ? JSON.parse(conteudoBruto) : conteudoPadrao()

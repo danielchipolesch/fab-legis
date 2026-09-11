@@ -272,6 +272,22 @@ public class DocumentoParteNormativaService {
 
     // ─── Conteúdo por elemento (colaboração ao vivo) ───────────────────────────────
 
+    // Leitura O(1) (findById direto, sem trazer nem percorrer a árvore inteira do
+    // documento) -- ponto de leitura usado pelo serviço de colaboração (Hocuspocus)
+    // em onLoadDocument, quando uma sala é aberta pela primeira vez. Antes disso,
+    // onLoadDocument chamava GET /documentos/{id} (a árvore inteira, com centenas de
+    // KB em documentos grandes) só para achar o conteúdo de UM elemento -- o mesmo
+    // desperdício que atualizarConteudoElemento já evitava do lado da escrita.
+    @Transactional(readOnly = true)
+    public String obterConteudoElemento(Long documentoId, Long elementoId) {
+        ItemAnexoParteNormativa item = itemAnexoParteNormativaRepository.findById(elementoId)
+                .orElseThrow(() -> new ResourceNotFoundException("Elemento não encontrado."));
+        if (!item.getDocumento().getId().equals(documentoId)) {
+            throw new ResourceNotFoundException("Elemento não encontrado.");
+        }
+        return item.getConteudo();
+    }
+
     // Único ponto de escrita do campo `conteudo` para um elemento já existente --
     // chamado pelo serviço de colaboração (Hocuspocus) a cada persistência do Y.Doc,
     // nunca pelo salvamento em massa acima. Ver plano de colaboração em tempo real.

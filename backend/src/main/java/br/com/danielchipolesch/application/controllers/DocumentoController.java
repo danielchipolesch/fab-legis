@@ -13,6 +13,7 @@ import br.com.danielchipolesch.application.dtos.documentoDtos.PortariaPublicacao
 import br.com.danielchipolesch.application.dtos.emendaDtos.MapaAlteracaoItemResponseDto;
 import br.com.danielchipolesch.application.dtos.emendaDtos.MapaAlteracaoPdfRequestDto;
 import br.com.danielchipolesch.application.dtos.itemAnexoParteNormativaDtos.ElementoConteudoRequestDto;
+import br.com.danielchipolesch.application.dtos.itemAnexoParteNormativaDtos.ElementoConteudoResponseDto;
 import br.com.danielchipolesch.application.dtos.itemAnexoParteNormativaDtos.ItemAnexoParteNormativaRequestDto;
 import br.com.danielchipolesch.application.dtos.itemAnexoParteNormativaDtos.ItemAnexoParteNormativaResponseDto;
 import br.com.danielchipolesch.application.dtos.itemAnexoParteNormativaDtos.NumeracaoElementoResponseDto;
@@ -291,6 +292,20 @@ public class DocumentoController {
         List<ItemAnexoParteNormativaResponseDto> normativos = documentoParteNormativaService
                 .getItensNormativosByDocumento(id).stream().map(ItemAnexoParteNormativaResponseDto::from).toList();
         return ResponseEntity.ok(normativos);
+    }
+
+    // Lê só o conteudo de UM elemento (sem trazer a árvore inteira) -- usado pelo
+    // serviço de colaboração (Hocuspocus) em onLoadDocument, quando uma sala é aberta
+    // pela primeira vez. Antes, onLoadDocument chamava GET /{id} inteiro (a árvore
+    // completa, centenas de KB em documentos grandes) só pra achar um elemento --
+    // ver DocumentoParteNormativaService.obterConteudoElemento.
+    @PreAuthorize("@documentoAcessoService.podeEditar(#id, authentication)")
+    @GetMapping("{id}/elementos/{elementoId}/conteudo")
+    public ResponseEntity<ElementoConteudoResponseDto> obterConteudoElemento(
+            @PathVariable(value = "id") Long id,
+            @PathVariable(value = "elementoId") Long elementoId) {
+        String conteudo = documentoParteNormativaService.obterConteudoElemento(id, elementoId);
+        return ResponseEntity.ok(new ElementoConteudoResponseDto(conteudo));
     }
 
     // Grava só o conteudo de UM elemento -- ponto de escrita usado pelo serviço de
