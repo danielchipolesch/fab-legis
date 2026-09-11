@@ -1,5 +1,8 @@
 package br.com.danielchipolesch.domain.util.tiptap;
 
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -7,6 +10,7 @@ import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.Base64;
 import java.util.List;
+import java.util.Locale;
 import java.util.function.Function;
 import java.util.regex.Pattern;
 
@@ -240,12 +244,19 @@ public class XslFoContentRenderer {
           .append("</fo:block>");
         if (imgSrc != null && !imgSrc.isBlank()) {
             // Viewport explícito (width + height) para que o FOP reserve espaço no layout
-            // antes de posicionar o próximo bloco — evita sobreposição de texto.
-            // scale-to-fit + scaling=uniform escala a imagem para caber no viewport
-            // mantendo a proporção original.
+            // antes de posicionar o próximo bloco -- evita sobreposição de texto. Antes
+            // isto era sempre 450x350pt fixo (a caixa máxima), e scale-to-fit só
+            // encolhia a IMAGEM dentro dela -- uma imagem com proporção diferente de
+            // 450:350 deixava a caixa maior que a imagem visível, e o "Fonte:" (que vem
+            // logo depois do bloco) parecia flutuar longe da imagem. Calculando aqui as
+            // dimensões reais já escaladas (mesma lógica de scale-to-fit, mas aplicada
+            // ao viewport também, não só ao conteúdo), o bloco fica do tamanho exato da
+            // imagem renderizada.
+            double[] dims = dimensoesEscaladas(imgSrc, 450, 350);
             sb.append("<fo:block text-align=\"center\" keep-with-next.within-page=\"always\">")
               .append("<fo:external-graphic src=\"url('").append(imgSrc).append("')\"")
-              .append(" width=\"450pt\" height=\"350pt\"")
+              .append(" width=\"").append(fmtPt(dims[0])).append("pt\"")
+              .append(" height=\"").append(fmtPt(dims[1])).append("pt\"")
               .append(" content-width=\"scale-to-fit\" content-height=\"scale-to-fit\"")
               .append(" scaling=\"uniform\"/>")
               .append("</fo:block>");
@@ -299,6 +310,31 @@ public class XslFoContentRenderer {
     private static List<TipTapNode> children(TipTapNode node) {
         var c = node.getContent();
         return c != null ? c : List.of();
+    }
+
+    // Lê as dimensões intrínsecas do data URI (só o cabeçalho, ImageIO não decodifica
+    // os pixels todos pra isso) e devolve [largura, altura] em pt já escaladas pra
+    // caber em maxW x maxH preservando a proporção -- mesmo cálculo que
+    // scale-to-fit faria no conteúdo, mas aplicado também ao viewport do bloco (ver
+    // renderFigure). Se não der pra ler (formato não suportado, data URI malformado),
+    // devolve a caixa máxima original como fallback seguro -- comportamento idêntico
+    // ao de antes desta mudança.
+    private static double[] dimensoesEscaladas(String dataUri, double maxW, double maxH) {
+        try {
+            int comma = dataUri.indexOf(',');
+            if (comma < 0 || !dataUri.startsWith("data:")) return new double[]{maxW, maxH};
+            byte[] bytes = Base64.getDecoder().decode(dataUri.substring(comma + 1));
+            BufferedImage img = ImageIO.read(new ByteArrayInputStream(bytes));
+            if (img == null || img.getWidth() <= 0 || img.getHeight() <= 0) return new double[]{maxW, maxH};
+            double escala = Math.min(maxW / img.getWidth(), maxH / img.getHeight());
+            return new double[]{img.getWidth() * escala, img.getHeight() * escala};
+        } catch (Exception e) {
+            return new double[]{maxW, maxH};
+        }
+    }
+
+    private static String fmtPt(double valor) {
+        return String.format(Locale.ROOT, "%.1f", valor);
     }
 
     private String resolveImageSrc(String src) {
