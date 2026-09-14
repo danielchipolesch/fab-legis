@@ -19,8 +19,6 @@ public interface NotificacaoRepository extends JpaRepository<Notificacao, Long> 
 
     Page<Notificacao> findByDestinatarioIdOrderByDtCriacaoDesc(Long destinatarioId, Pageable pageable);
 
-    long countByDestinatarioIdAndLidaFalse(Long destinatarioId);
-
     @Modifying
     @Query("UPDATE Notificacao n SET n.lida = true, n.dtLeitura = :agora WHERE n.destinatario.id = :destinatarioId AND n.lida = false")
     void marcarTodasComoLidas(@Param("destinatarioId") Long destinatarioId, @Param("agora") Timestamp agora);

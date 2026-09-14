@@ -29,11 +29,11 @@ function buildFilename(documento, extensao) {
   return partes.join('_') + '.' + extensao
 }
 
-export function pdfUrl(documentoId) {
+function pdfUrl(documentoId) {
   return `${API_BASE}/documentos/${documentoId}/pdf`
 }
 
-export function htmlUrl(documentoId) {
+function htmlUrl(documentoId) {
   return `${API_BASE}/documentos/${documentoId}/html`
 }
 

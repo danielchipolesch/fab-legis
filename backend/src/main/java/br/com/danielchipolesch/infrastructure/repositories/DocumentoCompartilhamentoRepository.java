@@ -12,5 +12,4 @@ public interface DocumentoCompartilhamentoRepository extends JpaRepository<Docum
     List<DocumentoCompartilhamento> findByDocumentoId(Long documentoId);
     Optional<DocumentoCompartilhamento> findByDocumentoIdAndUsuarioId(Long documentoId, Long usuarioId);
     boolean existsByDocumentoIdAndUsuarioId(Long documentoId, Long usuarioId);
-    void deleteByDocumentoId(Long documentoId);
 }

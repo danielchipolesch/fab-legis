@@ -4,12 +4,12 @@ O FAB Legis foi desenhado para crescer. As linhas de evolução abaixo estão or
 
 ## Curto prazo — consolidar o núcleo
 
-- **Migração para Keycloak/SSO** — a fase 0 (login próprio + JWT, ver [Autenticação e Colaboração](autenticacao.md)) foi desenhada para essa troca ser só de emissor de token: as *claims* já espelham as do Keycloak, e `DocumentoAcessoService` não referencia nada do mecanismo de autenticação em si.
+- **Migração para Keycloak/SSO** — o Authorization Server embutido (Spring Authorization Server, OAuth2 + PKCE, ver [Autenticação e Colaboração](autenticacao.md)) foi desenhado para essa troca ser só de emissor de token: as *claims* já espelham as do Keycloak, e `DocumentoAcessoService` não referencia nada do mecanismo de autenticação em si.
 - **Versionamento por snapshot** — `EmendaHistorico` já registra o quê mudou em cada ciclo de emenda (texto anterior/novo, justificativa, ciclo de publicação), mas não guarda uma foto completa da árvore do documento em cada publicação; um snapshot imutável por ciclo daria ao `DiffViewer` comparações de estrutura inteira, não só por elemento.
 - **Cobertura de testes** — testes unitários dos serviços de domínio (com destaque para a numeração e as transições de status) e testes de integração dos controllers com Testcontainers.
 - **Exportação DOCX nativa** — o HTML portável produzido pelo editor já foi pensado para isso; falta o conversor no backend.
 - **Backend como fonte única da numeração/ordenação** — hoje `numbering.js` (frontend) e a classe `Numbering` de `DocumentoFoBuilder.java` (backend) implementam a mesma regra em paralelo, mantidas manualmente em sincronia; um endpoint que devolva a numeração já calculada eliminaria esse risco de divergência.
-- **Notificação de sessão expirada via SSE** — a conexão de notificações (`EventSource`) reconecta silenciosamente em caso de erro, sem avisar a store de autenticação; hoje isso é aceito como comportamento reativo por design (ver nota em [Autenticação e Colaboração](autenticacao.md)), mas poderia ganhar um handler de erro que force um refresh de token ou logout quando apropriado.
+
 ## Médio prazo — fluxo de trabalho completo
 
 - **Workflow de tramitação** — encaminhamento entre setores, fila de revisão, comentários em linha e aprovação eletrônica, transformando o sistema de editor em plataforma de processo.

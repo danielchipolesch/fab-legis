@@ -170,6 +170,7 @@ function sair() {
 // WebSocket não faria isso de graça.
 const naoLidas = ref([])
 let eventSource = null
+let tratandoErroSse = false
 
 const NOTIF_ICON = {
   DOCUMENTO_COMPARTILHADO: 'mdi-account-multiple-plus-outline',
@@ -219,8 +220,34 @@ function conectarSse() {
       documentosStore.sinalizarRefresh()
     }
   })
-  // onerror não precisa de tratamento manual: o browser reconecta o
-  // EventSource sozinho, a menos que o servidor feche a conexão de propósito.
+  eventSource.onerror = tratarErroSse
+}
+
+// O token vai preso na URL da conexão (ver notificacoesApi.streamUrl) --
+// quando ele expira (access token de 30 min, sem refresh token, ver
+// AuthorizationServerConfig), o servidor responde com erro HTTP na tentativa
+// de conexão, e o browser NÃO tenta de novo sozinho nesse caso (só reconecta
+// automaticamente em falha de rede/queda de conexão já estabelecida) -- ele
+// só encerra: readyState vira CLOSED. Sem esse handler, o stream ficava morto
+// pra sempre depois da expiração, sem avisar ninguém (era exatamente o item
+// do roadmap "Notificação de sessão expirada via SSE"). readyState CONNECTING
+// significa que o próprio browser já está tentando de novo sozinho (queda de
+// rede passageira) -- nesse caso não fazemos nada, só evita reautenticar à
+// toa a cada soluço de rede.
+async function tratarErroSse() {
+  if (tratandoErroSse || eventSource?.readyState !== EventSource.CLOSED) return
+  tratandoErroSse = true
+  desconectarSse()
+  try {
+    const renovou = await auth.refresh()
+    if (renovou) {
+      conectarSse()
+    } else {
+      auth.logout()
+    }
+  } finally {
+    tratandoErroSse = false
+  }
 }
 
 function desconectarSse() {

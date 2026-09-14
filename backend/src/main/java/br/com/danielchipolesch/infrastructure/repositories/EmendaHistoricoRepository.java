@@ -1,7 +1,6 @@
 package br.com.danielchipolesch.infrastructure.repositories;
 
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.EmendaHistorico;
-import br.com.danielchipolesch.domain.entities.estruturaDocumento.SecaoDocumentoEnum;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -14,10 +13,6 @@ import java.util.List;
 public interface EmendaHistoricoRepository extends JpaRepository<EmendaHistorico, Long> {
 
     List<EmendaHistorico> findByDocumentoIdOrderByDtEmendaDesc(Long documentoId);
-
-    List<EmendaHistorico> findByDocumentoIdAndElementoIdOrderByDtEmendaDesc(Long documentoId, Long elementoId);
-
-    List<EmendaHistorico> findByDocumentoIdAndSecaoOrderByDtEmendaDesc(Long documentoId, SecaoDocumentoEnum secao);
 
     // Carimba com o ciclo desta publicação todas as linhas ainda pendentes (sem ciclo)
     // do documento — usado em EmendaService.consolidarPublicacao().
