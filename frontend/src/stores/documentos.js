@@ -135,7 +135,20 @@ export const useDocumentosStore = defineStore('documents', {
         doc._fromTemplate = true
       } else {
         doc._fromTemplate = false
+        // Local primeiro (numbering.js): cobre TODOS os tipos, inclusive
+        // parágrafo/inciso/alínea/subalínea, que NumeracaoService não
+        // calcula (numerados localmente ao pai, fora do escopo dela -- ver
+        // NumeracaoService). Servidor depois, por cima: reconcilia só o que
+        // ele de fato calcula (capítulo/seção/subseção/artigo) com a fonte
+        // de verdade -- cobre tanto a carga inicial quanto o retorno do
+        // diálogo de emenda (emendar/incluirElementoEmenda/
+        // reordenarElementoEmenda sempre recarregam por aqui).
         renumerarSecaoNormativa(doc)
+        const secaoNormativa = doc.secoes.find(s => s.tipo === 'parte_normativa')
+        if (secaoNormativa) {
+          const numeracaoPorId = new Map((doc._numeracaoServidor ?? []).map(n => [n.elementoId, n]))
+          api.aplicarNumeracaoPorId(secaoNormativa.elementos, numeracaoPorId)
+        }
       }
       const idx = this.documentos.findIndex(d => String(d.id) === String(id))
       if (idx !== -1) this.documentos[idx] = doc
@@ -173,9 +186,13 @@ export const useDocumentosStore = defineStore('documents', {
       const idx = this.documentos.findIndex(d => String(d.id) === String(documento.id))
       if (idx === -1) return
       if (documento.secoes) {
-        const normativos = await api.saveSecoes(documento.id, documento.secoes, documento.versao)
+        const resposta = await api.saveSecoes(documento.id, documento.secoes, documento.versao)
         const secaoNormativa = documento.secoes.find(s => s.tipo === 'parte_normativa')
-        if (secaoNormativa) api.aplicarIdsPersistidos(secaoNormativa.elementos, normativos ?? [])
+        if (secaoNormativa && resposta) {
+          api.aplicarIdsPersistidos(secaoNormativa.elementos, resposta.itens ?? [])
+          const numeracaoPorId = new Map((resposta.numeracao ?? []).map(n => [n.elementoId, n]))
+          api.aplicarNumeracao(secaoNormativa.elementos, resposta.itens ?? [], numeracaoPorId)
+        }
       }
       const atualizado = await api.updateDocumento(documento.id, documento)
       if (atualizado) {

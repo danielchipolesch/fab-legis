@@ -119,6 +119,49 @@ export function aplicarIdsPersistidos(locais, resposta) {
   }
 }
 
+// Reconcilia numero/letra calculados localmente por frontend/src/utils/
+// numbering.js (que roda a cada arrastar/promover/rebaixar, pra dar feedback
+// instantâneo sem esperar rede) com o valor recém-calculado pelo servidor
+// (NumeracaoService, mesma regra) -- elimina o risco das duas implementações
+// divergirem silenciosamente, sem trocar o cálculo local por uma chamada de
+// rede a cada interação (só reconcilia aqui, no round-trip que o autosave já
+// faz de qualquer forma). `numeracaoPorId` é um Map<idBackend, {numero,letra}>
+// -- só cobre capítulo/seção/subseção/artigo (mesmo escopo de NumeracaoService;
+// parágrafo/inciso/alínea/subalínea continuam só no cálculo local, numerados
+// por posição dentro do próprio pai/artigo).
+export function aplicarNumeracao(locais, resposta, numeracaoPorId) {
+  if (!locais || !resposta || !numeracaoPorId?.size) return
+  const n = Math.min(locais.length, resposta.length)
+  for (let i = 0; i < n; i++) {
+    const info = numeracaoPorId.get(resposta[i].id)
+    if (info) {
+      locais[i].numero = info.numero
+      locais[i]._emendaLetra = info.letra ?? null
+    }
+    aplicarNumeracao(locais[i].filhos, resposta[i].children, numeracaoPorId)
+  }
+}
+
+// Mesma reconciliação de aplicarNumeracao acima, mas pra quando só existe UMA
+// árvore (não duas paralelas locais/resposta) e os ids já são os reais do
+// backend -- caso de fetchDocumento (stores/documentos.js), chamado após
+// GET /{id} (carga inicial, conflito de versão) e também depois de qualquer
+// ação do diálogo de emenda (emendar/incluirElementoEmenda/
+// reordenarElementoEmenda, ver DocumentosStore) -- nenhuma delas passa por
+// PATCH /secoes, mas todas recarregam via GET /{id} logo em seguida, que já
+// veio com a numeração pronta (ver DocumentoResponseComAnexoTextualDto).
+export function aplicarNumeracaoPorId(elementos, numeracaoPorId) {
+  if (!elementos || !numeracaoPorId?.size) return
+  for (const el of elementos) {
+    const info = numeracaoPorId.get(idPersistido(el.id))
+    if (info) {
+      el.numero = info.numero
+      el._emendaLetra = info.letra ?? null
+    }
+    aplicarNumeracaoPorId(el.filhos, numeracaoPorId)
+  }
+}
+
 export function backendParaFrontend(doc) {
   if (!doc) return null
 
@@ -176,6 +219,13 @@ export function backendParaFrontend(doc) {
     om_nome: doc.omNome ?? null,
     versoes: [],
     secoes,
+    // Numeração já calculada pelo servidor pros elementos de itensNormativos
+    // (ver NumeracaoService/DocumentoParteNormativaService.calcularNumeracao) --
+    // não é um campo de domínio do documento, só carona pra fetchDocumento
+    // (stores/documentos.js) reconciliar com o cálculo local de numbering.js
+    // logo depois. Nome com "_" de propósito, pra não ser confundido com um
+    // atributo do documento em si.
+    _numeracaoServidor: doc.numeracao ?? [],
   }
 }
 
@@ -352,6 +402,8 @@ export async function saveSecoes(id, secoes, versaoEsperada) {
   // X-Client-Id: devolvido no broadcast SSE (event: estrutura) -- é assim que
   // DocumentoEditorPage.vue reconhece e ignora o próprio eco (já aplicou a mudança
   // localmente antes de mandar esta requisição).
+  // Resposta: { itens, numeracao } -- ver aplicarIdsPersistidos/aplicarNumeracao
+  // abaixo pra como cada metade é reconciliada com a árvore local.
   return http.patch(`/documentos/${id}/secoes`, { itens, versaoEsperada: versaoEsperada ?? null }, { 'X-Client-Id': clientId })
 }
 

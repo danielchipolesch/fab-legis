@@ -1,6 +1,7 @@
 package br.com.danielchipolesch.application.dtos.documentoDtos;
 
 import br.com.danielchipolesch.application.dtos.itemAnexoParteNormativaDtos.ItemAnexoParteNormativaResponseDto;
+import br.com.danielchipolesch.application.dtos.itemAnexoParteNormativaDtos.NumeracaoElementoResponseDto;
 import br.com.danielchipolesch.application.dtos.itemParteFinalDtos.ItemParteFinalResponseDto;
 import br.com.danielchipolesch.application.dtos.itemPartePreliminarDtos.ItemPartePreliminarResponseDto;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.DocumentoStatusEnum;
@@ -64,6 +65,16 @@ public record DocumentoResponseComAnexoTextualDto(
         List<ItemPartePreliminarResponseDto> itensPreliminares,
         List<ItemAnexoParteNormativaResponseDto> itensNormativos,
         List<ItemParteFinalResponseDto> itensFinais,
+
+        // Numeração de itensNormativos já calculada pelo servidor (mesma regra de
+        // frontend/src/utils/numbering.js, ver NumeracaoService) -- carregada em
+        // TODA leitura de documento (não só logo após salvar/emendar) pra que o
+        // editor reconcilie o número/letra exibido com a fonte de verdade sempre
+        // que a árvore é (re)carregada, cobrindo inclusive o diálogo de emenda
+        // (EmendaController: emendar/incluirElementoEmenda/reordenarElementoEmenda
+        // não devolvem numeração própria, mas o frontend sempre recarrega via
+        // GET /{id} logo depois -- ver DocumentosStore.fetchDocumento).
+        List<NumeracaoElementoResponseDto> numeracao,
 
         // versao alimenta a checagem de conflito de edição concorrente -- o editor
         // manda de volta como versaoEsperada em cada salvamento (SecoesSaveRequestDto,

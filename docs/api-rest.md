@@ -21,13 +21,13 @@ Endpoints padrão do Spring Authorization Server (`AuthorizationServerConfig`), 
 |---|---|---|
 | `POST` | `/` | Cria documento (calcula o número secundário) |
 | `POST` | `/{id}/clonar` | Clona o documento em novo `RASCUNHO` |
-| `GET` | `/{id}` | Obtém documento com anexo textual + links HATEOAS |
+| `GET` | `/{id}` | Obtém documento com anexo textual + links HATEOAS — inclui `numeracao` (capítulo/seção/subseção/artigo já calculados pelo servidor, ver [Modelo de Domínio](dominio.md#numeracao-automatica-conforme-a-tecnica-legislativa)) |
 | `GET` | `/obter-todos` | Lista paginada (DTO enxuto, sem os itens da árvore) |
 | `GET` | `/filtrar` | Filtra por espécie normativa e assunto básico |
 | `GET` | `/busca?q=&page=&size=` | Busca full-text no **conteúdo** dos dispositivos (`tsvector`/PostgreSQL, ver [Funcionalidades](funcionalidades.md#busca-textual)) — resultado paginado por dispositivo (não por documento), com trecho destacado |
 | `PUT` | `/{id}` | Atualiza metadados (somente Rascunho/Minuta, autor/coautor) |
 | `PATCH` | `/{id}/status` | Transição de status validada e autorizada por papel (publicar/alterar/revogar registram Portaria+BCA, ver [Ciclo de Vida](ciclo-de-vida.md)) |
-| `PATCH` | `/{id}/secoes` | Salva a árvore de seções por *diff* contra o que já está persistido (checagem de versão) — nunca reescreve `conteudo` de elemento existente, criado/atualizado/excluído propagam via SSE (`event: estrutura`) |
+| `PATCH` | `/{id}/secoes` | Salva a árvore de seções por *diff* contra o que já está persistido (checagem de versão) — nunca reescreve `conteudo` de elemento existente, criado/atualizado/excluído propagam via SSE (`event: estrutura`); resposta é `{ itens, numeracao }`, não só a árvore |
 | `PATCH` | `/{id}/elementos/{elementoId}/conteudo` | Grava só o `conteudo` de um elemento — usado pelo serviço `collab` a cada persistência da edição colaborativa |
 | `GET` | `/{id}/pode-editar` | 204 se o usuário autenticado pode editar o documento, 403 caso contrário — usado pelo `collab` para autorizar a conexão a uma sala |
 | `PUT` | `/{idDocumento}/adicionar-item-anexo-parte-textual` | Adiciona item à parte normativa |

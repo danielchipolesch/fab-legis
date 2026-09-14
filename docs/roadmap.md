@@ -8,7 +8,6 @@ O FAB Legis foi desenhado para crescer. As linhas de evolução abaixo estão or
 - **Versionamento por snapshot** — `EmendaHistorico` já registra o quê mudou em cada ciclo de emenda (texto anterior/novo, justificativa, ciclo de publicação), mas não guarda uma foto completa da árvore do documento em cada publicação; um snapshot imutável por ciclo daria ao `DiffViewer` comparações de estrutura inteira, não só por elemento.
 - **Cobertura de testes** — testes unitários dos serviços de domínio (com destaque para a numeração e as transições de status) e testes de integração dos controllers com Testcontainers.
 - **Exportação DOCX nativa** — o HTML portável produzido pelo editor já foi pensado para isso; falta o conversor no backend.
-- **Backend como fonte única da numeração/ordenação** — hoje `numbering.js` (frontend) e a classe `Numbering` de `DocumentoFoBuilder.java` (backend) implementam a mesma regra em paralelo, mantidas manualmente em sincronia; um endpoint que devolva a numeração já calculada eliminaria esse risco de divergência.
 
 ## Médio prazo — fluxo de trabalho completo
 

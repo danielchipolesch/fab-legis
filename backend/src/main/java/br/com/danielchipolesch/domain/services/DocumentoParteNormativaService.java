@@ -101,6 +101,14 @@ public class DocumentoParteNormativaService {
     public List<NumeracaoElementoResponseDto> listarNumeracao(Long documentoId) {
         List<ItemAnexoParteNormativaResponseDto> normativos = getItensNormativosByDocumento(documentoId)
                 .stream().map(ItemAnexoParteNormativaResponseDto::from).toList();
+        return calcularNumeracao(normativos);
+    }
+
+    // Mesmo cálculo acima, mas a partir de uma lista já carregada -- usado por
+    // saveSecoes() (DocumentoController) pra devolver a numeração recém-
+    // recalculada na mesma resposta do salvamento, sem um SELECT extra (a
+    // lista já foi buscada ali pra montar a resposta de itens).
+    public List<NumeracaoElementoResponseDto> calcularNumeracao(List<ItemAnexoParteNormativaResponseDto> normativos) {
         return numeracaoService.calcular(normativos).entrySet().stream()
                 .map(e -> NumeracaoElementoResponseDto.from(e.getKey(), e.getValue()))
                 .toList();
@@ -121,7 +129,9 @@ public class DocumentoParteNormativaService {
         List<ItemParteFinalResponseDto> finais = getItensFinaisByDocumento(documentoId)
                 .stream().map(ItemParteFinalResponseDto::from).toList();
 
-        return DocumentoMapper.documentoToDocumentoComAnexoTextualResponseDto(documento, preliminares, normativos, finais);
+        List<NumeracaoElementoResponseDto> numeracao = calcularNumeracao(normativos);
+
+        return DocumentoMapper.documentoToDocumentoComAnexoTextualResponseDto(documento, preliminares, normativos, finais, numeracao);
     }
 
     // ─── Salvar seções ────────────────────────────────────────────────────────────

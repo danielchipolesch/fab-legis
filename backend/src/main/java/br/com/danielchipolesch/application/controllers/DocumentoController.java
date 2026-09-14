@@ -18,6 +18,7 @@ import br.com.danielchipolesch.application.dtos.itemAnexoParteNormativaDtos.Item
 import br.com.danielchipolesch.application.dtos.itemAnexoParteNormativaDtos.ItemAnexoParteNormativaResponseDto;
 import br.com.danielchipolesch.application.dtos.itemAnexoParteNormativaDtos.NumeracaoElementoResponseDto;
 import br.com.danielchipolesch.application.dtos.itemAnexoParteNormativaDtos.SecoesSaveRequestDto;
+import br.com.danielchipolesch.application.dtos.itemAnexoParteNormativaDtos.SecoesSaveResponseDto;
 import br.com.danielchipolesch.application.dtos.usuarioDtos.CompartilharDocumentoRequestDto;
 import br.com.danielchipolesch.application.dtos.usuarioDtos.CompartilhamentoResponseDto;
 import br.com.danielchipolesch.domain.entities.auditoria.AcaoAuditoriaEnum;
@@ -279,9 +280,18 @@ public class DocumentoController {
     // Retorna a árvore normativa persistida (com os ids reais dos elementos recém-
     // criados) porque o frontend manda elementos novos sem id -- sem devolver o id
     // atribuído, o próximo autosave os trataria como novos de novo, duplicando-os.
+    //
+    // Também devolve a numeração recém-calculada pelo servidor (NumeracaoService) --
+    // frontend/src/utils/numbering.js mantém a MESMA regra em paralelo pra dar
+    // feedback instantâneo enquanto o usuário arrasta/promove/rebaixa um elemento
+    // (sem isso, cada interação esperaria uma chamada de rede pra atualizar o
+    // número na tela). Reconciliar com o valor do servidor só neste ponto -- onde já
+    // existe um round-trip de qualquer forma -- elimina o risco de as duas
+    // implementações divergirem silenciosamente, sem pagar o custo de latência que
+    // tornar o backend a ÚNICA fonte, chamada a cada interação, teria.
     @PreAuthorize("@documentoAcessoService.podeEditar(#id, authentication)")
     @PatchMapping("{id}/secoes")
-    public ResponseEntity<List<ItemAnexoParteNormativaResponseDto>> saveSecoes(
+    public ResponseEntity<SecoesSaveResponseDto> saveSecoes(
             @PathVariable(value = "id") Long id,
             @RequestBody SecoesSaveRequestDto request,
             // Id de sessão gerado uma vez por aba no frontend (ver frontend/src/utils/
@@ -295,7 +305,8 @@ public class DocumentoController {
         logAuditoriaService.registrar(dto.idDocumento(), dto.codigoDocumento(), AcaoAuditoriaEnum.EDITOU, "Conteúdo do documento");
         List<ItemAnexoParteNormativaResponseDto> normativos = documentoParteNormativaService
                 .getItensNormativosByDocumento(id).stream().map(ItemAnexoParteNormativaResponseDto::from).toList();
-        return ResponseEntity.ok(normativos);
+        List<NumeracaoElementoResponseDto> numeracao = documentoParteNormativaService.calcularNumeracao(normativos);
+        return ResponseEntity.ok(new SecoesSaveResponseDto(normativos, numeracao));
     }
 
     // Lê só o conteudo de UM elemento (sem trazer a árvore inteira) -- usado pelo

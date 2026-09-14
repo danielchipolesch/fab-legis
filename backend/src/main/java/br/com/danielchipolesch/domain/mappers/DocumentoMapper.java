@@ -3,6 +3,7 @@ package br.com.danielchipolesch.domain.mappers;
 import br.com.danielchipolesch.application.dtos.documentoDtos.DocumentoResponseComAnexoTextualDto;
 import br.com.danielchipolesch.application.dtos.documentoDtos.DocumentoResponseSemAnexoTextualDto;
 import br.com.danielchipolesch.application.dtos.itemAnexoParteNormativaDtos.ItemAnexoParteNormativaResponseDto;
+import br.com.danielchipolesch.application.dtos.itemAnexoParteNormativaDtos.NumeracaoElementoResponseDto;
 import br.com.danielchipolesch.application.dtos.itemParteFinalDtos.ItemParteFinalResponseDto;
 import br.com.danielchipolesch.application.dtos.itemPartePreliminarDtos.ItemPartePreliminarResponseDto;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.Documento;
@@ -55,7 +56,8 @@ public class DocumentoMapper {
             Documento documento,
             List<ItemPartePreliminarResponseDto> preliminares,
             List<ItemAnexoParteNormativaResponseDto> normativos,
-            List<ItemParteFinalResponseDto> finais) {
+            List<ItemParteFinalResponseDto> finais,
+            List<NumeracaoElementoResponseDto> numeracao) {
         return new DocumentoResponseComAnexoTextualDto(
                 documento.getId(),
                 documento.getEspecieNormativa().getSigla(),
@@ -86,6 +88,7 @@ public class DocumentoMapper {
                 preliminares,
                 normativos,
                 finais,
+                numeracao,
                 documento.getVersao(),
                 documento.getAutor().getId(),
                 documento.getAutor().getNome(),
