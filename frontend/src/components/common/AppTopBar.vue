@@ -79,8 +79,11 @@
               </q-item-section>
             </q-item>
 
-            <!-- Navegação: só Início é sempre visível -- Usuários/Auditoria
-                 exigem o papel correspondente (ver stores/auth.js). -->
+            <!-- Navegação: Início/Busca são sempre visíveis -- Usuários/Auditoria
+                 exigem o papel correspondente (ver stores/auth.js). Busca não tem
+                 requiresX nenhum porque visualizar já é liberado a qualquer
+                 autenticado, de qualquer OM (ver DocumentoAcessoService) -- a busca
+                 não é mais restritiva que abrir o documento diretamente. -->
             <q-item-label header class="text-caption text-weight-medium text-grey-7 q-pb-none">
               Navegação
             </q-item-label>
@@ -89,6 +92,12 @@
                 <q-icon name="mdi-home-outline" color="primary" />
               </q-item-section>
               <q-item-section>Início</q-item-section>
+            </q-item>
+            <q-item clickable v-close-popup :to="{ name: 'busca' }">
+              <q-item-section avatar>
+                <q-icon name="mdi-magnify" color="primary" />
+              </q-item-section>
+              <q-item-section>Busca Textual</q-item-section>
             </q-item>
             <q-item v-if="auth.isAprovador" clickable v-close-popup :to="{ name: 'revisao' }">
               <q-item-section avatar>

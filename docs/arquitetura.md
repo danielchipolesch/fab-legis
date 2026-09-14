@@ -58,7 +58,7 @@ br.com.danielchipolesch
 │   │                        DocumentoAcessoService, DocumentoConcorrenciaService,
 │   │                        DocumentoParteNormativaService, EmendaService,
 │   │                        PortariaPublicacaoService, UsuarioService,
-│   │                        LogAuditoriaService,
+│   │                        LogAuditoriaService, DocumentoBuscaService,
 │   │                        NotificacaoService, DocumentoPresencaService,
 │   │                        ImagemService, DocumentoPdfService, MapaAlteracaoPdfService,
 │   │                        FopFactoryProvider…)

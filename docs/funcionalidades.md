@@ -52,6 +52,12 @@ Dentro de cada aba: visão em tabela (ordenada por data de criação decrescente
 
 **Excluir** só aparece no menu de ações para documentos próprios (ou compartilhados) em Rascunho ou Minuta — outras combinações já são bloqueadas no backend (`DocumentoAcessoService.podeExcluir()`), e a opção nem é oferecida na interface.
 
+## Busca Textual
+
+A `BuscaPage` (`/busca`, item "Busca Textual" sempre visível no menu do usuário — sem papel específico, mesma regra de visualização universal do acervo) procura **dentro do texto** dos dispositivos (Artigo, Parágrafo, Inciso, Cláusula...), não só por metadado do documento como a busca da `HomePage`. Cada resultado é um dispositivo específico, com o trecho onde o termo foi encontrado já destacado, e um clique abre o documento correspondente na tela de visualização.
+
+Implementada com **`tsvector`/`GIN` do próprio PostgreSQL** (sem Elasticsearch): uma coluna gerada (`STORED`, recalculada automaticamente pelo banco a cada gravação, sem trigger) indexa `tx_conteudo_completo` — o texto puro de cada elemento, já mantido separadamente do JSON TipTap bruto (`DocumentoParteNormativaService.gerarFullTextContent`/`TipTapPlainTextExtractor`) — nas três tabelas de item (parte preliminar/normativa/final). Consulta via `websearch_to_tsquery` (sintaxe de caixa de busca comum: `"frase exata"`, `-excluir`) numa configuração de busca própria (`portuguese_unaccent`) que combina o *stemmer* `portuguese` com o dicionário `unaccent`, para que "publicacao" ache "publicação". Sem checagem de posse: como visualizar já é liberado a qualquer autenticado, a busca não é mais restritiva que abrir o documento diretamente.
+
 ## Revisão e Publicação
 
 Duas telas dedicadas, cada uma restrita a quem tem o papel correspondente e mostrando só a **fila pessoal** de quem está logado (documentos atribuídos a ela, nunca o acervo inteiro):

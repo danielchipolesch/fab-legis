@@ -45,6 +45,12 @@ const routes = [
     meta: { title: 'Comparar Versões' },
   },
   {
+    path: '/busca',
+    name: 'busca',
+    component: () => import('@/pages/BuscaPage.vue'),
+    meta: { title: 'Busca Textual' },
+  },
+  {
     path: '/revisao',
     name: 'revisao',
     component: () => import('@/pages/RevisaoPage.vue'),

@@ -14,6 +14,8 @@ import br.com.danielchipolesch.domain.entities.estruturaDocumento.DocumentoStatu
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.TipoAlteracaoEnum;
 import br.com.danielchipolesch.domain.handlers.exceptions.ResourceNotFoundException;
 import br.com.danielchipolesch.domain.mappers.DocumentoMapper;
+import br.com.danielchipolesch.domain.util.tiptap.TipTapNode;
+import br.com.danielchipolesch.domain.util.tiptap.TipTapPlainTextExtractor;
 import br.com.danielchipolesch.infrastructure.notificacao.DocumentoPresencaEmitterRegistry;
 import br.com.danielchipolesch.infrastructure.repositories.DocumentoRepository;
 import br.com.danielchipolesch.infrastructure.repositories.ItemAnexoParteNormativaRepository;
@@ -58,6 +60,9 @@ public class DocumentoParteNormativaService {
 
     @Autowired
     DocumentoPresencaEmitterRegistry presencaEmitterRegistry;
+
+    @Autowired
+    tools.jackson.databind.ObjectMapper objectMapper;
 
     // ─── Carregamento ────────────────────────────────────────────────────────────
 
@@ -349,11 +354,27 @@ public class DocumentoParteNormativaService {
         if (fullTextContentEnviado != null && !fullTextContentEnviado.isBlank()) return fullTextContentEnviado;
         StringBuilder sb = new StringBuilder();
         if (titulo != null && !titulo.isBlank()) sb.append(titulo);
-        if (conteudo != null && !conteudo.isBlank()) {
+        String textoConteudo = extrairTextoPlano(conteudo);
+        if (textoConteudo != null && !textoConteudo.isBlank()) {
             if (!sb.isEmpty()) sb.append(" ");
-            sb.append(conteudo);
+            sb.append(textoConteudo);
         }
         return sb.isEmpty() ? null : sb.toString();
+    }
+
+    // "conteudo" é o JSON bruto do TipTap (ver collab/server.js), não texto --
+    // concatená-lo cru (como esse fallback fazia antes) poluiria a busca
+    // full-text (V21__busca_fulltext.sql) com chaves/aspas de marcação em vez
+    // de palavras pesquisáveis. Só entra aqui quando o frontend não manda um
+    // fullTextContent pronto (caso raro -- ver ElementoConteudoRequestDto).
+    private String extrairTextoPlano(String conteudoJson) {
+        if (conteudoJson == null || conteudoJson.isBlank()) return null;
+        try {
+            TipTapNode doc = objectMapper.readValue(conteudoJson, TipTapNode.class);
+            return TipTapPlainTextExtractor.extrair(doc);
+        } catch (Exception e) {
+            return null;
+        }
     }
 
 }

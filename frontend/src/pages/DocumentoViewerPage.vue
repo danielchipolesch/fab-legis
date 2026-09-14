@@ -400,6 +400,7 @@ const podeEditar = computed(() => {
 const ORIGEM_CRUMB = {
   revisao:    { label: 'Revisão',    to: { name: 'revisao' } },
   publicacao: { label: 'Publicação', to: { name: 'publicacao' } },
+  busca:      { label: 'Busca Textual', to: { name: 'busca' } },
 }
 const origemCrumb = computed(() => ORIGEM_CRUMB[route.query.origem] ?? { label: 'Documentos', to: { name: 'home' } })
 

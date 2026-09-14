@@ -14,7 +14,6 @@ O FAB Legis foi desenhado para crescer. As linhas de evolução abaixo estão or
 
 - **Workflow de tramitação** — encaminhamento entre setores, fila de revisão, comentários em linha e aprovação eletrônica, transformando o sistema de editor em plataforma de processo.
 - **Assinatura digital ICP-Brasil** — assinatura do PDF da portaria e/ou do documento final com carimbo de tempo, conferindo validade jurídica ao ato publicado. A decisão de manter a portaria como arquivo separado (não mesclado ao PDF do documento — ver [Portaria, BCA e registro de publicações](ciclo-de-vida.md#portaria-bca-e-registro-de-publicacoes)) foi tomada justamente para preservar essa possibilidade: uma assinatura cobre um intervalo de bytes exato do arquivo original.
-- **Busca full-text no acervo** — indexação do conteúdo dos artigos com PostgreSQL `tsvector` ou Elasticsearch, permitindo localizar dispositivos por texto e não apenas por metadados.
 - **Grafo de referências normativas** — mapear quais atos alteram, revogam ou citam quais outros, e alertar automaticamente quando um ato referenciado for revogado.
 - **Modelos (templates) por espécie** — estruturas pré-montadas de ICA, NSCA, MCA etc., reduzindo o esforço de partida de cada novo documento.
 - **Importação de atos legados** — ingestão de documentos existentes em DOCX/PDF com reconhecimento automático da estrutura hierárquica.
