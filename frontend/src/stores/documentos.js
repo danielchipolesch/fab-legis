@@ -82,6 +82,10 @@ export const useDocumentosStore = defineStore('documents', {
     historicoPorDocumento: {},
     mapaAlteracaoPorDocumento: {},
     documentosComHistorico: [],
+    // Persistido aqui (não um ref local em HomePage.vue) pra sobreviver a
+    // sair e voltar pra Home dentro da mesma sessão (ex.: abrir um documento
+    // e apertar "voltar") -- mesmo raciocínio de stores/busca.js.
+    viewMode: 'tabela',
     // Incrementado quando algo fora da própria tela (ex.: alguém te adicionou
     // como coautor -- ver notificação DOCUMENTO_COMPARTILHADO em
     // AppTopBar.vue) deveria mudar a listagem/contagem da HomePage sem

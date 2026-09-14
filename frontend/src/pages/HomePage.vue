@@ -117,7 +117,7 @@
               Limpar
             </q-btn>
             <q-btn-toggle
-              v-model="viewMode"
+              v-model="store.viewMode"
               no-caps
               unelevated
               toggle-color="primary"
@@ -150,7 +150,7 @@
     </q-card>
 
     <!-- TABLE VIEW -->
-    <template v-if="viewMode === 'tabela'">
+    <template v-if="store.viewMode === 'tabela'">
       <q-card flat bordered>
         <q-table
           :rows="store.documentos"
@@ -507,7 +507,6 @@ const store = useDocumentosStore()
 const auth = useAuthStore()
 
 const dialogNovoDoc = ref(false)
-const viewMode = ref('tabela')
 const abaAtiva = ref('meus')
 const filtros = reactive({ busca: '', especie: null, status: null })
 const pdfLoading = reactive({})
