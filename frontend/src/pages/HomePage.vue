@@ -668,7 +668,7 @@ function canEdit(doc) {
 // Aprovado ou se é de outra pessoa.
 function tooltipEditar(doc) {
   if (!statusPermiteEdicao(doc)) return 'Edição disponível apenas para Rascunho e Minuta'
-  if (!temPosseDocumento(doc)) return 'Você só pode editar documentos dos quais é autor ou coautor'
+  if (!temPosseDocumento(doc)) return 'Você só pode editar documentos os quais é autor ou coautor'
   return 'Editar'
 }
 
