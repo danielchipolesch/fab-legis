@@ -16,7 +16,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Collection;
 import java.util.List;
+import java.util.Set;
 
 @Service
 public class DocumentoCompartilhamentoService {
@@ -30,6 +32,14 @@ public class DocumentoCompartilhamentoService {
         return compartilhamentoRepository.findByDocumentoId(documentoId).stream()
                 .map(CompartilhamentoResponseDto::from)
                 .toList();
+    }
+
+    // Batch (1 query pra página inteira) -- usado por DocumentoController.getAll
+    // pra marcar, na listagem, de quais documentos o usuário logado é coautor
+    // (ver DocumentoResponseSemAnexoTextualDto.ehAutorOuCoautor).
+    public Set<Long> listarIdsCompartilhadosComUsuario(Long usuarioId, Collection<Long> documentoIds) {
+        if (documentoIds.isEmpty()) return Set.of();
+        return Set.copyOf(compartilhamentoRepository.findDocumentoIdsCompartilhadosComUsuario(usuarioId, documentoIds));
     }
 
     @Transactional

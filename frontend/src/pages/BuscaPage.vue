@@ -63,7 +63,7 @@
               </q-item-label>
               <q-item-label caption class="q-mt-xs">
                 <q-badge outline color="primary" class="q-mr-sm">{{ TIPO_LABEL[item.tipoItem] ?? item.tipoItem }}</q-badge>
-                <q-badge :color="STATUS_META[item.statusDocumento]?.color ?? 'grey'">{{ STATUS_META[item.statusDocumento]?.titulo ?? item.statusDocumento }}</q-badge>
+                <q-badge :color="STATUS_META[item.statusDocumento]?.color ?? 'grey'">{{ STATUS_META[item.statusDocumento]?.label ?? item.statusDocumento }}</q-badge>
               </q-item-label>
               <q-item-label caption class="q-mt-sm text-body2 text-grey-9" v-html="destacarTrecho(item.trecho)" />
             </q-item-section>
@@ -87,25 +87,9 @@
 
 <script setup>
 import { useBuscaStore } from '@/stores/busca.js'
+import { STATUS_META } from '@/utils/statusDocumento.js'
 
 const store = useBuscaStore()
-
-// Mesma paleta de STATUS_META do DocumentoViewerPage.vue -- não extraída pra
-// um util compartilhado ainda porque só estas duas telas precisam disso hoje.
-const STATUS_META = {
-  RASCUNHO:          { titulo: 'Rascunho',              icon: 'mdi-pencil-outline',        color: 'grey'        },
-  MINUTA:            { titulo: 'Minuta',                icon: 'mdi-file-edit-outline',     color: 'orange'      },
-  EM_REVISAO:        { titulo: 'Em Revisão',            icon: 'mdi-account-search-outline', color: 'orange'     },
-  APROVADO:          { titulo: 'Aprovado',              icon: 'mdi-check-circle-outline',  color: 'green'       },
-  EM_PUBLICACAO:     { titulo: 'Em Publicação',         icon: 'mdi-timer-sand',            color: 'blue'        },
-  PUBLICADO:         { titulo: 'Publicado',             icon: 'mdi-publish',               color: 'primary'    },
-  EM_ALTERACAO:      { titulo: 'Em Alteração',          icon: 'mdi-pencil-lock-outline',   color: 'deep-orange' },
-  ALTERADO:          { titulo: 'Alterado',              icon: 'mdi-check-circle-outline',  color: 'teal'        },
-  ANALISE_REVOGACAO: { titulo: 'Análise de Revogação',  icon: 'mdi-file-search-outline',   color: 'brown'       },
-  EM_REVOGACAO:      { titulo: 'Em Revogação',          icon: 'mdi-timer-sand',            color: 'brown'       },
-  REVOGADO:          { titulo: 'Revogado',              icon: 'mdi-file-remove-outline',   color: 'brown'       },
-  CANCELADO:         { titulo: 'Cancelado',             icon: 'mdi-close-circle-outline',  color: 'negative'    },
-}
 
 // Rótulo em português de cada ItemAnexoParteNormativaTipoEnum (backend) --
 // cobre as 3 partes (preliminar/normativa/final), já que a busca cruza as três.

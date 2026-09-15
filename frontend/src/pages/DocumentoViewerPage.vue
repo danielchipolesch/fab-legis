@@ -324,6 +324,7 @@ import StatusBadge from '@/components/common/StatusBadge.vue'
 import { gerarPdf, gerarHtml } from '@/services/pdfService.js'
 import { gerarTextoSugeridoPortaria } from '@/utils/textoSugeridoPortaria.js'
 import { resolveMinioUrl, resolveMinioUrls } from '@/utils/minioUrls.js'
+import { STATUS_META as STATUS_META_COMPARTILHADO } from '@/utils/statusDocumento.js'
 
 const route    = useRoute()
 const router   = useRouter()
@@ -407,20 +408,12 @@ const origemCrumb = computed(() => ORIGEM_CRUMB[route.query.origem] ?? { label: 
 // Metadados visuais por status — os ciclos EM_ALTERACAO <-> ALTERADO podem se repetir
 // várias vezes até a republicação, então o histórico vem do log de transições
 // (t_historico_documento), não de um timestamp único por status.
-const STATUS_META = {
-  RASCUNHO:          { titulo: 'Rascunho',              icon: 'mdi-pencil-outline',        color: 'grey'        },
-  MINUTA:            { titulo: 'Minuta',                icon: 'mdi-file-edit-outline',     color: 'orange'      },
-  EM_REVISAO:        { titulo: 'Em Revisão',            icon: 'mdi-account-search-outline', color: 'orange'     },
-  APROVADO:          { titulo: 'Aprovado',              icon: 'mdi-check-circle-outline',  color: 'green'       },
-  EM_PUBLICACAO:     { titulo: 'Em Publicação',         icon: 'mdi-timer-sand',            color: 'blue'        },
-  PUBLICADO:         { titulo: 'Publicado',             icon: 'mdi-publish',               color: 'primary'    },
-  EM_ALTERACAO:      { titulo: 'Em Alteração',          icon: 'mdi-pencil-lock-outline',   color: 'deep-orange' },
-  ALTERADO:          { titulo: 'Alterado',              icon: 'mdi-check-circle-outline',  color: 'teal'        },
-  ANALISE_REVOGACAO: { titulo: 'Análise de Revogação',  icon: 'mdi-file-search-outline',   color: 'brown'       },
-  EM_REVOGACAO:      { titulo: 'Em Revogação',          icon: 'mdi-timer-sand',            color: 'brown'       },
-  REVOGADO:          { titulo: 'Revogado',              icon: 'mdi-file-remove-outline',   color: 'brown'       },
-  CANCELADO:         { titulo: 'Cancelado',             icon: 'mdi-close-circle-outline',  color: 'negative'    },
-}
+// Mesma fonte de cor/ícone de StatusBadge.vue/HomePage.vue -- ver
+// utils/statusDocumento.js. "titulo" (não "label") só porque é assim que o
+// resto deste arquivo já lia essa chave; sem repaginar todos os call sites.
+const STATUS_META = Object.fromEntries(
+  Object.entries(STATUS_META_COMPARTILHADO).map(([status, cfg]) => [status, { ...cfg, titulo: cfg.label }])
+)
 
 const historico = computed(() => docStore.historicoPorDocumento[String(documentoId.value)] ?? [])
 const portariasBrutas = computed(() => docStore.portariasPorDocumento[String(documentoId.value)] ?? [])

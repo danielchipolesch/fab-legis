@@ -14,8 +14,10 @@ CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
 FROM base AS build
 ARG VITE_API_BASE_URL=http://localhost:8081/v1
 ARG VITE_USE_MOCK_API=false
+ARG VITE_COLLAB_URL=ws://localhost:1234
 ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
 ENV VITE_USE_MOCK_API=$VITE_USE_MOCK_API
+ENV VITE_COLLAB_URL=$VITE_COLLAB_URL
 COPY frontend/ .
 RUN npm run build
 

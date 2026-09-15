@@ -217,6 +217,11 @@ export function backendParaFrontend(doc) {
     autor_nome: doc.autorNome ?? null,
     om_id: doc.omId != null ? String(doc.omId) : null,
     om_nome: doc.omNome ?? null,
+    // Só vem preenchido (true/false) na listagem paginada (obter-todos) --
+    // ver DocumentoResponseSemAnexoTextualDto.ehAutorOuCoautor. null nos
+    // demais usos deste mapeamento (GET /{id} não manda esse campo — a
+    // posse ali é decidida por outra via, ver DocumentoAcessoService).
+    eh_autor_ou_coautor: doc.ehAutorOuCoautor ?? null,
     versoes: [],
     secoes,
     // Numeração já calculada pelo servidor pros elementos de itensNormativos

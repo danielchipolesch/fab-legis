@@ -61,6 +61,7 @@ import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBo
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Set;
 
 @RestController
 @RequestMapping(value = "/v1/documentos", produces = MediaType.APPLICATION_JSON_VALUE)
@@ -185,7 +186,12 @@ public class DocumentoController {
         Page<Documento> resultado = documentoService.getAllPaginado(
                 usuario.getId(), usuario.getOm().getId(), aba, busca, especieSigla, status,
                 PageRequest.of(page, size, sort));
-        return ResponseEntity.ok(resultado.map(DocumentoMapper::documentoToDocumentoSemAnexoTextualResponseDto));
+        // 1 query pra página inteira (não 1 por linha) -- ver
+        // DocumentoCompartilhamentoService.listarIdsCompartilhadosComUsuario.
+        List<Long> idsDaPagina = resultado.getContent().stream().map(Documento::getId).toList();
+        Set<Long> coautorDe = compartilhamentoService.listarIdsCompartilhadosComUsuario(usuario.getId(), idsDaPagina);
+        return ResponseEntity.ok(resultado.map(doc -> DocumentoMapper.documentoToDocumentoSemAnexoTextualResponseDto(
+                doc, doc.getAutor().getId().equals(usuario.getId()) || coautorDe.contains(doc.getId()))));
     }
 
     // Fila pessoal das telas de Revisão/Publicação -- ver DocumentoService.

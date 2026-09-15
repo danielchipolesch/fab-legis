@@ -46,6 +46,8 @@ O `.env` na raiz (fora do git, só o `.env.example` é versionado) é lido autom
 docker compose --profile production up -d
 ```
 
+Isso sobe o serviço `frontend-prod` em vez do `frontend` de desenvolvimento — mas **subir com esse perfil sozinho não é suficiente pra funcionar** fora de `localhost`/`127.0.0.1`. Ver [Deploy em produção](#deploy-em-producao) abaixo para o passo a passo completo (HTTPS, proxy reverso, variáveis de ambiente).
+
 ## Opção 2 — execução local
 
 === "Backend"
@@ -125,6 +127,85 @@ Via Docker Compose, todas as variáveis abaixo (exceto `PORT` do collab, que nã
 
 !!! warning "Acesse sempre via `127.0.0.1`, nunca `localhost`"
     `APP_OAUTH2_ISSUER`/`APP_OAUTH2_REDIRECT_URI`/`APP_FRONTEND_LOGIN_URL`/`VITE_API_BASE_URL`/`VITE_COLLAB_URL` usam `127.0.0.1` de propósito, não `localhost` — para o navegador são origens diferentes (cookie de sessão e `sessionStorage` não atravessam), e o `redirect_uri` do client OAuth2 só está registrado para `127.0.0.1`. Abrir o frontend em `http://localhost:5173` quebra o login logo no primeiro redirect para `/oauth2/authorize`. Se mudar um desses valores, mude todos juntos, mantendo o mesmo host.
+
+## Deploy em produção
+
+O fluxo de login (OAuth2 Authorization Code + PKCE, ver [Autenticação e Colaboração](autenticacao.md)) foi validado em desenvolvimento usando `127.0.0.1`, nunca `localhost` — não por preferência estética, mas porque o cookie de sessão do Spring Security (`SameSite=Lax`) e a API `crypto.subtle` (usada pelo PKCE) só se comportam de forma confiável quando tudo está na mesma origem. Isso tem implicações diretas pra produção: **não é só trocar `127.0.0.1` por um hostname público** — alguns pré-requisitos são obrigatórios, não configuráveis.
+
+### 1. HTTPS é obrigatório — não um "nice to have"
+
+`crypto.subtle` (usado por `frontend/src/utils/pkce.js` para gerar o `code_challenge`) só existe em **contextos seguros**: HTTPS, ou HTTP em `localhost`/`127.0.0.1`. Um domínio de produção acessado por `http://` puro (comum em intranets internas) **não é** um contexto seguro — `crypto.subtle` fica `undefined` e o login falha para todo mundo, sem alternativa de configuração. Se o ambiente de destino é uma intranet sem TLS hoje, isso precisa ser resolvido primeiro (certificado interno/CA próprio da organização serve — não precisa ser público) antes de qualquer outro passo abaixo fazer diferença.
+
+### 2. Mesma origem (proxy reverso) — o mesmo motivo do `127.0.0.1` em dev
+
+Em desenvolvimento, o proxy do próprio Vite (`server.proxy` em `frontend/vite.config.js`) faz `/oauth2/**`, `/login`, `/logout` e `/.well-known/**` parecerem, pro navegador, a mesma origem do frontend — é isso que faz o cookie de sessão sobreviver ao fluxo de login (ver a explicação completa nos comentários daquele arquivo). **Esse proxy só existe no dev server do Vite — o build de produção (`frontend-prod`, Nginx) não tem nada equivalente hoje** (`frontend/nginx.conf` serve só os arquivos estáticos da SPA, sem proxiar nada pro backend). Sem corrigir isso, produção reproduziria exatamente o mesmo bug de cookie cross-origin que foi corrigido em desenvolvimento.
+
+A correção é replicar a mesma ideia no Nginx de produção: tudo atrás de **um único host público**, com o Nginx roteando por path para o backend ou para os arquivos estáticos. Exemplo de bloco a adicionar em `frontend/nginx.conf` (ajustar `backend` para o hostname/endereço real do backend nesse ambiente):
+
+```nginx
+location ~ ^/(oauth2|login|logout|\.well-known)(/|$) {
+    proxy_pass http://backend:8081;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+}
+
+location /v1/ {
+    proxy_pass http://backend:8081;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+}
+```
+
+Duas pegadinhas já resolvidas em dev que valem repetir aqui:
+
+- **`GET /login` precisa continuar servindo a SPA** (rota do Vue Router), só o `POST /login` é do backend — um bloco `location` só por prefixo de path pegaria os dois. Em Nginx isso exige separar por método (`limit_except` invertido, ou um bloco `location` condicionado ao método via `if`, já que Nginx não tem um equivalente direto ao `bypass()` do Vite) — teste explicitamente que `GET /login` ainda abre a tela de login da SPA depois de configurar isso.
+- **Não reescreva o header `Host`** (`proxy_set_header Host $host`, como acima — não `proxy_set_header Host backend:8081`). O Spring Security usa esse header pra reconstruir certas URLs de redirect; sobrescrevê-lo vaza o hostname interno (só resolvível dentro da rede Docker/interna) para o navegador real, que não consegue navegar até lá.
+
+### 3. Variáveis de ambiente — apontar tudo pro domínio público, com HTTPS
+
+!!! tip "Lugar único: o `.env` da raiz do repositório"
+    **`.env`** (raiz do repositório, fora do git — `cp .env.example .env`) é o único arquivo que a equipe DevSecOps precisa editar para trocar `127.0.0.1`/`localhost` pelo hostname real de produção em **todos** os serviços de uma vez — backend, `collab` e frontend (dev e produção). `docker-compose.yml` interpola cada `${VAR:-padrão}` a partir dele; nenhuma variável de host fica hardcoded em outro lugar. As únicas duas exceções, e nenhuma delas é hostname: `PROXY_BACKEND_TARGET` (só existe pro proxy do Vite em dev, sem efeito em produção — ver nota no fim desta seção) e o proxy reverso do Nginx do passo 2 acima (`frontend/nginx.conf`, arquivo de configuração, não variável de ambiente).
+
+Todas já são parametrizáveis (ver tabelas acima), só precisam do valor certo. Supondo `https://fab-legis.exemplo.mil.br` como o único host público (backend e frontend atrás do mesmo proxy do passo 2):
+
+| Variável | Valor em produção |
+|---|---|
+| `APP_OAUTH2_ISSUER` | `https://fab-legis.exemplo.mil.br` |
+| `APP_OAUTH2_REDIRECT_URI` | `https://fab-legis.exemplo.mil.br/callback` |
+| `APP_FRONTEND_LOGIN_URL` | `https://fab-legis.exemplo.mil.br/login` |
+| `OAUTH2_ISSUER` (collab) | `https://fab-legis.exemplo.mil.br` — precisa bater com `APP_OAUTH2_ISSUER` (comparado contra o claim `iss` do token) |
+| `OAUTH2_JWKS_URL` (collab) | pode continuar interno (`http://backend:8081/oauth2/jwks`) — é só de onde o `collab` busca as chaves, nunca é exposto ao navegador |
+| `VITE_API_BASE_URL` | `https://fab-legis.exemplo.mil.br/v1` |
+| `VITE_COLLAB_URL` | `wss://fab-legis.exemplo.mil.br/collab` (ou outro caminho/porta, dependendo de como o `collab` for exposto — ele também precisa estar atrás de TLS, já que a página é servida por HTTPS e não pode abrir um WebSocket `ws://` sem criptografia a partir dela) |
+
+!!! warning "`VITE_*` é build-time, não runtime — sempre reconstrua depois de mudar o `.env`"
+    Diferente das variáveis do backend (lidas a cada boot), as `VITE_*` são embutidas no JavaScript estático durante `npm run build`. `docker-compose.yml` já passa `VITE_API_BASE_URL`/`VITE_COLLAB_URL`/`VITE_USE_MOCK_API` do `.env` como *build args* pro `frontend-prod` (`build.args`, lido por `frontend/Dockerfile`) — então editar o `.env` já é o suficiente em termos de **onde** configurar, mas só surte efeito depois de reconstruir a imagem: mudar a variável de um container **já construído**, sem rebuild, não tem efeito nenhum.
+    ```bash
+    docker compose --profile production up -d --build frontend-prod
+    ```
+
+`PROXY_BACKEND_TARGET` não se aplica em produção — é uma variável exclusiva do dev server do Vite (ver comentário em `.env.example`); o Nginx de produção usa o `proxy_pass` fixo no `nginx.conf` (passo 2), não uma variável de ambiente.
+
+### 4. `application-prod.properties` ainda é um rascunho
+
+`backend/src/main/resources/application-prod.properties` hoje tem placeholders de um scaffold anterior a este projeto (origens de CORS genéricas tipo `localhost:4200`, sem `app.oauth2.*`, sem conexão de banco real) — **precisa ser preenchido** antes de rodar com `SPRING_PROFILES_ACTIVE=prod`, com o equivalente de produção do que `application-dev.properties` já tem hoje (`app.oauth2.issuer`, `app.oauth2.redirect-uri`, `app.frontend.login-url`, conexão real do PostgreSQL).
+
+### 5. Chave de assinatura RSA — efêmera por padrão
+
+O par de chaves RSA do Authorization Server é gerado em memória a cada boot (`AuthorizationServerConfig.gerarChaveRsa()`) — todo restart do backend invalida instantaneamente todos os tokens/sessões emitidos antes dele, forçando login de novo em todo mundo. Em dev isso é aceitável; em produção, se restarts forem frequentes (deploy, escala automática), vale considerar carregar a chave de um arquivo/variável de ambiente persistente em vez de gerar uma nova a cada vez — não implementado ainda, fica registrado aqui como próximo passo caso incomode.
+
+### Checklist antes de expor ao público
+
+1. HTTPS ativo no domínio de produção (certificado interno serve).
+2. Proxy reverso configurado (`/oauth2/**`, `/login` POST, `/logout`, `/.well-known/**`, `/v1/**` → backend; resto → estático), sem `Host` sobrescrito.
+3. Todas as variáveis da tabela acima apontando para o domínio público com `https://`/`wss://`.
+4. Frontend reconstruído (não só reiniciado) depois de qualquer mudança em `VITE_*`.
+5. `application-prod.properties` preenchido com configuração real.
+6. Testar o fluxo de login completo (não só que a tela carrega) — é o único jeito de pegar um `Host` sobrescrito ou uma rota de proxy faltando antes que um usuário real esbarre nisso.
 
 ## Servindo esta documentação técnica
 

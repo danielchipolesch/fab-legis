@@ -13,6 +13,13 @@ import java.util.List;
 public class DocumentoMapper {
 
     public static DocumentoResponseSemAnexoTextualDto documentoToDocumentoSemAnexoTextualResponseDto(Documento documento) {
+        return documentoToDocumentoSemAnexoTextualResponseDto(documento, null);
+    }
+
+    // ehAutorOuCoautor: ver comentário do campo em DocumentoResponseSemAnexoTextualDto --
+    // só a listagem paginada (DocumentoController.getAll) chama esta variante.
+    public static DocumentoResponseSemAnexoTextualDto documentoToDocumentoSemAnexoTextualResponseDto(
+            Documento documento, Boolean ehAutorOuCoautor) {
         return new DocumentoResponseSemAnexoTextualDto(
                 documento.getId(),
                 documento.getEspecieNormativa().getSigla(),
@@ -48,7 +55,8 @@ public class DocumentoMapper {
                 documento.getRevisorAtribuido() != null ? documento.getRevisorAtribuido().getId() : null,
                 documento.getRevisorAtribuido() != null ? documento.getRevisorAtribuido().getNome() : null,
                 documento.getPublicadorAtribuido() != null ? documento.getPublicadorAtribuido().getId() : null,
-                documento.getPublicadorAtribuido() != null ? documento.getPublicadorAtribuido().getNome() : null
+                documento.getPublicadorAtribuido() != null ? documento.getPublicadorAtribuido().getNome() : null,
+                ehAutorOuCoautor
         );
     }
 

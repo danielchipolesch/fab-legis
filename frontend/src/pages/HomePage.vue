@@ -30,7 +30,7 @@
          carregar()/DocumentoSpecifications.aba). -->
     <q-card flat bordered class="q-mb-lg">
       <q-tabs
-        v-model="abaAtiva"
+        v-model="store.abaAtiva"
         dense
         no-caps
         inline-label
@@ -77,7 +77,7 @@
         <div class="row q-col-gutter-sm items-center">
           <div class="col-12 col-md-4">
             <q-input
-              v-model="filtros.busca"
+              v-model="store.filtros.busca"
               label="Buscar nesta aba, por assunto ou número"
               outlined
               dense
@@ -91,7 +91,7 @@
           </div>
           <div class="col-6 col-md-2">
             <q-select
-              v-model="filtros.especie"
+              v-model="store.filtros.especie"
               :options="especies"
               label="Espécie"
               outlined
@@ -102,7 +102,7 @@
           </div>
           <div class="col-6 col-md-2">
             <q-select
-              v-model="filtros.status"
+              v-model="store.filtros.status"
               :options="statusOptions"
               label="Situação"
               outlined
@@ -141,7 +141,7 @@
             :text-color="s.fg"
             size="sm"
             square
-            @click="filtros.status = filtros.status === s.status ? null : s.status"
+            @click="store.filtros.status = store.filtros.status === s.status ? null : s.status"
           >
             {{ s.label }}: <strong class="q-ml-xs">{{ s.count }}</strong>
           </q-chip>
@@ -158,7 +158,7 @@
           row-key="id"
           :loading="store.loading"
           :rows-per-page-options="[15, 25, 50]"
-          v-model:pagination="tablePagination"
+          v-model:pagination="store.tablePagination"
           @request="onRequest"
           flat
           class="legis-table"
@@ -222,7 +222,7 @@
                   :to="canEdit(props.row) ? { name: 'documento-editar', params: { id: props.row.id } } : undefined"
                 >
                   <q-tooltip anchor="top middle" self="bottom middle">
-                    {{ canEdit(props.row) ? 'Editar' : 'Edição disponível apenas para Rascunho e Minuta' }}
+                    {{ tooltipEditar(props.row) }}
                   </q-tooltip>
                 </q-btn>
 
@@ -412,7 +412,7 @@
            de uma vez, sem precisar de paginação aqui). -->
       <div v-if="totalPaginas > 1" class="row justify-center q-mt-lg">
         <q-pagination
-          v-model="tablePagination.page"
+          v-model="store.tablePagination.page"
           :max="totalPaginas"
           direction-links
           boundary-links
@@ -501,14 +501,13 @@ import NovoDocumentoDialog from '@/components/common/NovoDocumentoDialog.vue'
 import SelecionarPessoaDialog from '@/components/editor/SelecionarPessoaDialog.vue'
 import { gerarPdf } from '@/services/pdfService.js'
 import { listEspeciesNormativas, normalizeEspecie } from '@/api/referencias.js'
+import { STATUS_META } from '@/utils/statusDocumento.js'
 
 const $q = useQuasar()
 const store = useDocumentosStore()
 const auth = useAuthStore()
 
 const dialogNovoDoc = ref(false)
-const abaAtiva = ref('meus')
-const filtros = reactive({ busca: '', especie: null, status: null })
 const pdfLoading = reactive({})
 
 // Siglas do catálogo real de espécies normativas (t_especie_normativa), não mais
@@ -564,24 +563,24 @@ const ABA_LABELS = {
   outras_oms: 'Documentos de Outras OMs',
   revogados: 'Documentos Revogados',
 }
-const abaAtivaLabel = computed(() => ABA_LABELS[abaAtiva.value])
+const abaAtivaLabel = computed(() => ABA_LABELS[store.abaAtiva])
 
 // Paginação real no backend (ver DocumentoController.getAll/DocumentoService --
 // antes disso, um único fetch de até 200 documentos vinha pro navegador, e aba, busca,
 // espécie/situação e a própria paginação da tabela eram calculadas em JS por cima desse
 // array fixo -- acima de 200 documentos no acervo o resto simplesmente não aparecia).
-const totalPaginas = computed(() => Math.max(1, Math.ceil(store.totalElements / tablePagination.value.rowsPerPage)))
+const totalPaginas = computed(() => Math.max(1, Math.ceil(store.totalElements / store.tablePagination.rowsPerPage)))
 
 async function carregar() {
   const params = {
-    aba: abaAtiva.value,
-    busca: filtros.busca || undefined,
-    especieSigla: filtros.especie || undefined,
-    status: filtros.status || undefined,
-    page: tablePagination.value.page - 1,
-    size: tablePagination.value.rowsPerPage,
-    sortBy: SORT_FIELD_MAP[tablePagination.value.sortBy] ?? 'dtCriacao',
-    descending: tablePagination.value.descending,
+    aba: store.abaAtiva,
+    busca: store.filtros.busca || undefined,
+    especieSigla: store.filtros.especie || undefined,
+    status: store.filtros.status || undefined,
+    page: store.tablePagination.page - 1,
+    size: store.tablePagination.rowsPerPage,
+    sortBy: SORT_FIELD_MAP[store.tablePagination.sortBy] ?? 'dtCriacao',
+    descending: store.tablePagination.descending,
   }
   await Promise.all([
     store.fetchPagina(params),
@@ -590,29 +589,28 @@ async function carregar() {
 }
 
 // Disparado pela q-table (clique de página/ordenação/linhas-por-página) -- a própria
-// tabela já atualiza tablePagination via v-model antes de chamar isso (padrão Quasar de
-// paginação por servidor, mesmo usado em AuditoriaPage.vue).
+// tabela já atualiza store.tablePagination via v-model antes de chamar isso (padrão
+// Quasar de paginação por servidor, mesmo usado em AuditoriaPage.vue).
 function onRequest(props) {
-  tablePagination.value.page = props.pagination.page
-  tablePagination.value.rowsPerPage = props.pagination.rowsPerPage
-  tablePagination.value.sortBy = props.pagination.sortBy
-  tablePagination.value.descending = props.pagination.descending
+  store.tablePagination.page = props.pagination.page
+  store.tablePagination.rowsPerPage = props.pagination.rowsPerPage
+  store.tablePagination.sortBy = props.pagination.sortBy
+  store.tablePagination.descending = props.pagination.descending
   carregar()
 }
 
-const tablePagination = ref({ page: 1, rowsPerPage: 15, sortBy: 'data_criacao', descending: true, rowsNumber: 0 })
-watch(() => store.totalElements, (v) => { tablePagination.value.rowsNumber = v })
+watch(() => store.totalElements, (v) => { store.tablePagination.rowsNumber = v })
 
 // Trocar de aba/espécie/situação busca de novo na hora; busca por texto livre tem um
 // debounce curto (a q-table não dispara @request por digitação, então sem isso cada
 // tecla viraria uma requisição).
 let buscaTimer = null
-watch(() => filtros.busca, () => {
+watch(() => store.filtros.busca, () => {
   clearTimeout(buscaTimer)
-  buscaTimer = setTimeout(() => { tablePagination.value.page = 1; carregar() }, 350)
+  buscaTimer = setTimeout(() => { store.tablePagination.page = 1; carregar() }, 350)
 })
-watch([abaAtiva, () => filtros.especie, () => filtros.status], () => {
-  tablePagination.value.page = 1
+watch([() => store.abaAtiva, () => store.filtros.especie, () => store.filtros.status], () => {
+  store.tablePagination.page = 1
   carregar()
 })
 
@@ -623,20 +621,10 @@ watch(() => store.refreshSignal, () => { carregar() })
 
 onMounted(() => { carregar(); carregarEspecies() })
 
-const STATUS_CFG = {
-  RASCUNHO:          { bg: 'grey-3',        fg: 'grey-9',         label: 'Rascunho'             },
-  MINUTA:            { bg: 'orange-2',      fg: 'orange-10',      label: 'Minuta'                },
-  EM_REVISAO:        { bg: 'orange-2',      fg: 'orange-10',      label: 'Em Revisão'            },
-  APROVADO:          { bg: 'green-2',       fg: 'green-10',       label: 'Aprovado'              },
-  EM_PUBLICACAO:     { bg: 'blue-2',        fg: 'primary',        label: 'Em Publicação'         },
-  PUBLICADO:         { bg: 'blue-2',        fg: 'primary',        label: 'Publicado'             },
-  EM_ALTERACAO:      { bg: 'deep-orange-2', fg: 'deep-orange-10', label: 'Em Alteração'          },
-  ALTERADO:          { bg: 'teal-2',        fg: 'teal-10',        label: 'Alterado'              },
-  ANALISE_REVOGACAO: { bg: 'brown-2',       fg: 'brown-10',       label: 'Análise de Revogação'  },
-  EM_REVOGACAO:      { bg: 'brown-2',       fg: 'brown-10',       label: 'Em Revogação'          },
-  CANCELADO:         { bg: 'red-2',         fg: 'red-10',         label: 'Cancelado'             },
-  REVOGADO:          { bg: 'brown-2',       fg: 'brown-10',       label: 'Revogado'              },
-}
+// Mesma fonte que StatusBadge.vue (coluna Situação da tabela) -- ver
+// utils/statusDocumento.js. Antes era uma cópia mantida à mão aqui, com cores
+// repetidas entre situações diferentes.
+const STATUS_CFG = STATUS_META
 
 // store.resumoStatus já vem do servidor com aba/busca/espécie aplicados (ver
 // DocumentoService.getResumo) -- o número no chip bate com o que aparece na tabela ao
@@ -655,12 +643,40 @@ const statusSummary = computed(() =>
 // revisor atribuído durante EM_REVISAO -- ele entra no editor de propósito, pelo
 // link "Editar" da tela de visualização (mesmo padrão de Rascunho/Minuta) ou
 // pela fila de Revisão, nunca direto por aqui.
-function canEdit(doc) {
+//
+// Posse (autor OU coautor) é tão obrigatória quanto o status -- mesma regra
+// de DocumentoAcessoService.podeEditar no backend (que já barrava a edição de
+// verdade; o que faltava era o ÍCONE refletir isso, em vez de ficar habilitado
+// pra RASCUNHO/MINUTA de qualquer um só porque a OM bate). eh_autor_ou_coautor
+// só vem preenchido (true/false) na listagem paginada -- ver
+// DocumentoResponseSemAnexoTextualDto.ehAutorOuCoautor/backendParaFrontend.
+function statusPermiteEdicao(doc) {
   return ['RASCUNHO', 'MINUTA', 'EM_ALTERACAO'].includes(doc.status)
 }
 
+function temPosseDocumento(doc) {
+  return doc.eh_autor_ou_coautor === true
+}
+
+function canEdit(doc) {
+  return statusPermiteEdicao(doc) && temPosseDocumento(doc)
+}
+
+// Mensagem do tooltip do lápis -- distingue as duas razões de bloqueio
+// (situação vs. posse) em vez de uma mensagem genérica, senão um Editor de
+// verdade (autor/coautor) não sabe se o problema é o documento estar
+// Aprovado ou se é de outra pessoa.
+function tooltipEditar(doc) {
+  if (!statusPermiteEdicao(doc)) return 'Edição disponível apenas para Rascunho e Minuta'
+  if (!temPosseDocumento(doc)) return 'Você só pode editar documentos dos quais é autor ou coautor'
+  return 'Editar'
+}
+
+// Mesma correção de posse que canEdit -- DocumentoAcessoService.podeExcluir
+// também exige autor/coautor, não só o status; sem isso "Excluir" aparecia no
+// menu "⋮" pra Rascunho/Minuta de qualquer pessoa da mesma OM.
 function canDelete(doc) {
-  return ['RASCUNHO', 'MINUTA'].includes(doc.status)
+  return ['RASCUNHO', 'MINUTA'].includes(doc.status) && temPosseDocumento(doc)
 }
 
 // Mesmo critério que decide o que aparece dentro do menu "⋮" -- se nada
@@ -819,9 +835,9 @@ async function excluir() {
 }
 
 function limparFiltros() {
-  filtros.busca = ''
-  filtros.especie = null
-  filtros.status = null
+  store.filtros.busca = ''
+  store.filtros.especie = null
+  store.filtros.status = null
 }
 </script>
 

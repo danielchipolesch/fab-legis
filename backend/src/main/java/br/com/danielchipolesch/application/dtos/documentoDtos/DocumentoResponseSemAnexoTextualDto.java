@@ -69,6 +69,16 @@ public record DocumentoResponseSemAnexoTextualDto(
         Long revisorAtribuidoId,
         String revisorAtribuidoNome,
         Long publicadorAtribuidoId,
-        String publicadorAtribuidoNome
+        String publicadorAtribuidoNome,
+
+        // Autor OU coautor do documento (ver DocumentoAcessoService.podeEditar) --
+        // só preenchido na listagem paginada (DocumentoController.getAll), onde
+        // existe um usuário logado "espectador" cujo ponto de vista faz sentido
+        // perguntar; null nos demais usos deste DTO (resposta de uma mutação que
+        // o próprio usuário acabou de fazer, onde a pergunta não se aplica). O
+        // ícone de editar da HomePage usa isto pra não ficar habilitado pra
+        // RASCUNHO/MINUTA de outra pessoa só porque a OM bate -- posse nunca foi
+        // (e não deveria ser) sobre pertencer à mesma OM, ver docs/autenticacao.md.
+        Boolean ehAutorOuCoautor
 ) {
 }

@@ -82,10 +82,18 @@ export const useDocumentosStore = defineStore('documents', {
     historicoPorDocumento: {},
     mapaAlteracaoPorDocumento: {},
     documentosComHistorico: [],
-    // Persistido aqui (não um ref local em HomePage.vue) pra sobreviver a
-    // sair e voltar pra Home dentro da mesma sessão (ex.: abrir um documento
-    // e apertar "voltar") -- mesmo raciocínio de stores/busca.js.
+    // Persistido aqui (não um ref/reactive local em HomePage.vue) pra
+    // sobreviver a sair e voltar pra Home dentro da mesma sessão (ex.: abrir
+    // um documento e apertar "voltar") -- mesmo raciocínio de
+    // stores/busca.js. Sem custo de rede extra: o onMounted da HomePage já
+    // dispara uma busca de qualquer forma a cada montagem do componente
+    // (não tem keep-alive); persistir só troca OS PARÂMETROS dessa mesma
+    // busca (aba/filtro/ordenação de antes, em vez dos padrões), não
+    // adiciona uma segunda chamada.
     viewMode: 'tabela',
+    abaAtiva: 'meus',
+    filtros: { busca: '', especie: null, status: null },
+    tablePagination: { page: 1, rowsPerPage: 15, sortBy: 'data_criacao', descending: true, rowsNumber: 0 },
     // Incrementado quando algo fora da própria tela (ex.: alguém te adicionou
     // como coautor -- ver notificação DOCUMENTO_COMPARTILHADO em
     // AppTopBar.vue) deveria mudar a listagem/contagem da HomePage sem

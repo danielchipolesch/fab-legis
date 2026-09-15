@@ -107,6 +107,19 @@ services:
       context: .
       dockerfile: frontend/Dockerfile
       target: production
+      # VITE_* é build-time (embutido no JS estático em "npm run build" dentro
+      # do Dockerfile, não lido em runtime como o environment: do backend
+      # abaixo) -- sem estes args, o build de produção sempre usava o padrão
+      # fixo do Dockerfile (http://localhost:8081/v1), ignorando o .env
+      # silenciosamente. Lidos do mesmo .env da raiz que o serviço "frontend"
+      # de dev já usa (ver docs/instalacao.md, seção "Deploy em produção") --
+      # é o único lugar que precisa mudar pra apontar produção pro domínio
+      # real; mudar só o .env não move este build já existente, precisa
+      # reconstruir a imagem (ver aviso na documentação).
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://127.0.0.1:8081/v1}
+        VITE_COLLAB_URL: ${VITE_COLLAB_URL:-ws://127.0.0.1:1234}
+        VITE_USE_MOCK_API: ${VITE_USE_MOCK_API:-false}
     container_name: fab-legis-frontend-prod
     ports:
       - "80:8080"
