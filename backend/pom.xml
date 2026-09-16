@@ -93,6 +93,20 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-hateoas</artifactId>
         </dependency>
+        <!-- Observabilidade: /actuator/health corrige o healthcheck que faltava
+             pro backend no docker-compose.yml; /actuator/prometheus deixa métricas
+             prontas pra qualquer coletor externo Prometheus-compatible, sem acoplar
+             o projeto a um fornecedor (ver docs/instalacao.md, seção "Deploy em
+             produção"). Nenhum coletor/visualizador (Prometheus/Grafana) sobe como
+             parte deste repositório: decisão de infraestrutura de quem hospeda. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-registry-prometheus</artifactId>
+        </dependency>
         <dependency>
             <groupId>net.sf.jasperreports</groupId>
             <artifactId>jasperreports</artifactId>

@@ -198,6 +198,22 @@ Todas já são parametrizáveis (ver tabelas acima), só precisam do valor certo
 
 O par de chaves RSA do Authorization Server é gerado em memória a cada boot (`AuthorizationServerConfig.gerarChaveRsa()`) — todo restart do backend invalida instantaneamente todos os tokens/sessões emitidos antes dele, forçando login de novo em todo mundo. Em dev isso é aceitável; em produção, se restarts forem frequentes (deploy, escala automática), vale considerar carregar a chave de um arquivo/variável de ambiente persistente em vez de gerar uma nova a cada vez — não implementado ainda, fica registrado aqui como próximo passo caso incomode.
 
+### 6. Observabilidade — Actuator/Micrometer, sem coletor incluso
+
+O backend expõe **Spring Boot Actuator** com **Micrometer** (`spring-boot-starter-actuator` + `micrometer-registry-prometheus`), mas só quatro endpoints ficam acessíveis via HTTP (`management.endpoints.web.exposure.include=health,info,metrics,prometheus` em `application.properties`) — nunca `*`: `/actuator/env`, `/actuator/beans`, `/actuator/heapdump` etc. vazam detalhe interno demais pra ficar expostos, mesmo atrás de autenticação, e não são necessários pra observabilidade externa.
+
+| Endpoint | Acesso | Uso |
+|---|---|---|
+| `GET /actuator/health` | **Sem autenticação** (ver `SecurityConfig`) | Usado pelo healthcheck do `docker-compose.yml` — o orquestrador não tem como enviar um token. `management.endpoint.health.show-details=never` garante que a resposta seja só `{"status":"UP"}`, nunca o detalhe de cada dependência (banco, disco etc.), mesmo sem login |
+| `GET /actuator/metrics` | Exige autenticação (JWT, igual a qualquer endpoint de `/v1/**`) | Métricas em JSON, navegáveis uma a uma |
+| `GET /actuator/prometheus` | Exige autenticação | Mesmas métricas, formato texto Prometheus — pronto pra qualquer coletor Prometheus-compatible fazer *scrape* |
+| `GET /actuator/info` | Exige autenticação | Metadados da build (vazio hoje, sem `spring-boot-maven-plugin` build-info configurado) |
+
+!!! warning "Nenhum coletor/visualizador faz parte deste repositório de propósito"
+    Prometheus, Grafana, Zabbix, Datadog ou o que a organização já usa pra monitorar outros sistemas — a escolha e a hospedagem desse serviço são decisão de infraestrutura de quem hospeda o FAB Legis, o mesmo raciocínio de "lugar único pra configurar hostname" já explicado acima. Este projeto só garante o lado de **expor** dados de forma padrão (`/actuator/prometheus`); **coletar/visualizar** é responsabilidade externa.
+
+    `/actuator/metrics` e `/actuator/prometheus` hoje exigem o mesmo login OAuth2 de qualquer usuário do sistema — não há uma credencial de serviço dedicada. Um coletor automatizado (ex.: um *scraper* do Prometheus) **não consegue fazer login interativo**, então, ao conectar um coletor de verdade, quem administra a infraestrutura precisa escolher entre: (a) isolar esses endpoints numa rede interna que o coletor já alcança sem passar pelo proxy público (mais comum — ex.: `management.server.port` numa porta separada, não exposta no `docker-compose.yml`), ou (b) implementar uma credencial de serviço dedicada. Nenhuma das duas está implementada — decisão para quando houver um coletor real a conectar.
+
 ### Checklist antes de expor ao público
 
 1. HTTPS ativo no domínio de produção (certificado interno serve).
@@ -206,6 +222,7 @@ O par de chaves RSA do Authorization Server é gerado em memória a cada boot (`
 4. Frontend reconstruído (não só reiniciado) depois de qualquer mudança em `VITE_*`.
 5. `application-prod.properties` preenchido com configuração real.
 6. Testar o fluxo de login completo (não só que a tela carrega) — é o único jeito de pegar um `Host` sobrescrito ou uma rota de proxy faltando antes que um usuário real esbarre nisso.
+7. Se for conectar um coletor de métricas externo, decidir como ele vai autenticar contra `/actuator/prometheus` (ver seção 6) — não deixar a decisão pra depois do deploy.
 
 ## Servindo esta documentação técnica
 

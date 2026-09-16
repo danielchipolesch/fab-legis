@@ -5,6 +5,8 @@ import br.com.danielchipolesch.domain.entities.auditoria.AcaoAuditoriaEnum;
 import br.com.danielchipolesch.domain.entities.auditoria.LogAuditoria;
 import br.com.danielchipolesch.infrastructure.repositories.LogAuditoriaRepository;
 import br.com.danielchipolesch.infrastructure.security.AutenticacaoUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -22,18 +24,30 @@ import java.sql.Timestamp;
 @Service
 public class LogAuditoriaService {
 
+    private static final Logger log = LoggerFactory.getLogger(LogAuditoriaService.class);
+
     @Autowired
     private LogAuditoriaRepository logAuditoriaRepository;
 
+    // Nunca lança de verdade: a ação de negócio já foi commitada (própria
+    // transação, separada desta) antes de cada chamador chegar aqui -- se a
+    // gravação da auditoria falhar (ex.: banco fora do ar num instante ruim),
+    // o request não pode virar 500 pro usuário só porque o REGISTRO da ação
+    // falhou, quando a ação em si já aconteceu de verdade. Só loga o erro pra
+    // não desaparecer silenciosamente.
     @Transactional
     public void registrar(Long documentoId, String documentoDescricao, AcaoAuditoriaEnum acao, String detalhe) {
-        var log = new LogAuditoria();
-        log.setUsuario(AutenticacaoUtil.usuarioAtual());
-        log.setDocumentoId(documentoId);
-        log.setDocumentoDescricao(documentoDescricao);
-        log.setAcao(acao);
-        log.setDetalhe(detalhe);
-        logAuditoriaRepository.save(log);
+        try {
+            var registro = new LogAuditoria();
+            registro.setUsuario(AutenticacaoUtil.usuarioAtual());
+            registro.setDocumentoId(documentoId);
+            registro.setDocumentoDescricao(documentoDescricao);
+            registro.setAcao(acao);
+            registro.setDetalhe(detalhe);
+            logAuditoriaRepository.save(registro);
+        } catch (Exception e) {
+            log.error("Falha ao registrar auditoria (documentoId={}, acao={}): {}", documentoId, acao, e.getMessage(), e);
+        }
     }
 
     public Page<LogAuditoriaResponseDto> filtrar(

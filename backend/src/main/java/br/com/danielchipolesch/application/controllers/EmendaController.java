@@ -79,6 +79,7 @@ public class EmendaController {
             @PathVariable Long elementoId,
             @RequestParam String direcao) {
         emendaService.reordenarIncluido(docId, secao, elementoId, direcao);
+        registrarEdicao(docId, "Reordenação (" + direcao + ") em " + secao);
         return ResponseEntity.noContent().build();
     }
 }

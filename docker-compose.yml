@@ -70,6 +70,18 @@ services:
         condition: service_healthy
       minio:
         condition: service_started
+    # /actuator/health (Spring Boot Actuator, liberado sem autenticação --
+    # ver SecurityConfig) -- antes, o backend não tinha healthcheck nenhum
+    # aqui, então frontend/collab/docs só esperavam o container INICIAR, não
+    # ficar de fato pronto pra aceitar conexão (ex.: ainda rodando migration
+    # do Flyway). wget, não curl: a imagem de runtime é eclipse-temurin
+    # jre-alpine, sem curl instalado -- wget já vem no busybox do Alpine.
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8081/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
     restart: unless-stopped
 
   # ── Frontend — desenvolvimento (Vite + HMR) ─────────────────────────────────
@@ -97,8 +109,10 @@ services:
       # chamada é o container do frontend, não o navegador do usuário.
       PROXY_BACKEND_TARGET: http://backend:8081
     depends_on:
-      - backend
-      - collab
+      backend:
+        condition: service_healthy
+      collab:
+        condition: service_started
     restart: unless-stopped
 
   # ── Frontend — produção (Nginx, perfil production) ──────────────────────────
@@ -128,7 +142,8 @@ services:
     profiles:
       - production
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     restart: unless-stopped
 
   # ── Colaboração em tempo real (Hocuspocus/Yjs) ──────────────────────────────
@@ -147,7 +162,8 @@ services:
       OAUTH2_JWKS_URL: http://backend:8081/oauth2/jwks
       BACKEND_URL: http://backend:8081/v1
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     restart: unless-stopped
 
   # ── Documentação técnica (MkDocs Material, build estático servido por Nginx) ─

@@ -332,6 +332,13 @@ public class DocumentoController {
     // Grava só o conteudo de UM elemento -- ponto de escrita usado pelo serviço de
     // colaboração (Hocuspocus) a cada persistência do Y.Doc, nunca pelo autosave
     // estrutural acima. Ver plano de colaboração em tempo real (CRDT/Yjs).
+    //
+    // Auditoria registrada aqui em cima do que JÁ é persistido, não por
+    // keystroke -- o próprio Hocuspocus já debounça essa chamada (2s, até 10s
+    // sob digitação contínua, ver docs/autenticacao.md), então cada PATCH que
+    // chega aqui já corresponde a uma gravação real no Postgres, não a um
+    // evento intermediário do WebSocket. Não dá pra logar mais granular que
+    // isso sem inundar a tabela numa sessão de edição longa.
     @PreAuthorize("@documentoAcessoService.podeEditar(#id, authentication)")
     @PatchMapping("{id}/elementos/{elementoId}/conteudo")
     public ResponseEntity<Void> atualizarConteudoElemento(
@@ -339,6 +346,10 @@ public class DocumentoController {
             @PathVariable(value = "elementoId") Long elementoId,
             @RequestBody ElementoConteudoRequestDto request) {
         documentoParteNormativaService.atualizarConteudoElemento(id, elementoId, request.conteudo());
+        DocumentoResponseSemAnexoTextualDto dto = DocumentoMapper.documentoToDocumentoSemAnexoTextualResponseDto(
+                documentoService.getById(id));
+        logAuditoriaService.registrar(dto.idDocumento(), dto.codigoDocumento(), AcaoAuditoriaEnum.EDITOU,
+                "Conteúdo do elemento " + elementoId + " (edição colaborativa)");
         return ResponseEntity.noContent().build();
     }
 

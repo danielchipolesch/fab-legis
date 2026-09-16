@@ -82,6 +82,17 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                 .requestMatchers("/v1/fab-legis-api/**", "/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**").permitAll()
+                // Só /health sem token -- é o que o healthcheck do backend no
+                // docker-compose.yml usa, e não tem como carregar um JWT (nem
+                // sentido faria, já que é o próprio orquestrador perguntando se o
+                // container está de pé). show-details=never (application.properties)
+                // garante que a resposta aqui seja só {"status":"UP"}, sem detalhe de
+                // dependência nenhum. /metrics e /prometheus continuam batendo em
+                // .anyRequest().authenticated() abaixo -- exigem login igual a
+                // qualquer outro endpoint da API, não há coletor externo hospedado
+                // como parte deste projeto hoje que precise entrar sem isso (ver
+                // docs/instalacao.md, seção "Deploy em produção").
+                .requestMatchers(HttpMethod.GET, "/actuator/health", "/actuator/health/**").permitAll()
                 // Raiz do backend não é rota de API nenhuma -- só existe pra
                 // dar um destino gracioso (ver RootRedirectController) quando
                 // alguém cai aqui por engano (ex.: um mismatch de host entre
