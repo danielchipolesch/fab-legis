@@ -1,2 +1,0 @@
-ALTER TABLE t_documento
-    ADD COLUMN IF NOT EXISTS dt_alterado TIMESTAMP;

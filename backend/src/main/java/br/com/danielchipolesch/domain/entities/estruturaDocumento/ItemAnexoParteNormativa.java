@@ -71,7 +71,7 @@ public class ItemAnexoParteNormativa {
     // Permanente, independente de emendaStatus — usada só pela numeração com sufixo de
     // letra (ex.: "Art. 5-A"). emendaStatus é livre para evoluir (INCLUIDO -> ALTERADO
     // -> REVOGADO) sem nunca perder a marca de inclusão, senão a numeração sequencial
-    // seguinte seria indevidamente deslocada. Ver V5__incluido_por_emenda_permanente.sql.
+    // seguinte seria indevidamente deslocada.
     @Column(name = "fl_incluido_emenda", nullable = false)
     private boolean incluidoPorEmenda = false;
 

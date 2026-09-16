@@ -12,8 +12,10 @@ import java.sql.Timestamp;
 // Postos (oficiais) e graduações (praças) da FAB -- catálogo de referência,
 // nos mesmos moldes de EspecieNormativa/AssuntoBasico. `bigrama` é o código
 // de duas (ou três, para 1º/2º/3º) posições usado nas exibições compactas
-// (ex.: menu superior); `ordem` reflete a hierarquia militar (menor = mais
-// alto), não ordem alfabética, para popular corretamente o seletor.
+// (ex.: menu superior); `precedencia` reflete a hierarquia militar (menor =
+// mais alto), não ordem alfabética, para popular corretamente o seletor.
+// Nome deliberadamente distinto de "nr_ordem" -- nos bancos internos da FAB
+// esse termo já designa a matrícula do militar, não uma posição em lista.
 @Data
 @Entity
 @Table(name = "t_posto_graduacao")
@@ -31,8 +33,8 @@ public class PostoGraduacao {
     @Column(name = "sg_bigrama", nullable = false, unique = true, length = 4)
     private String bigrama;
 
-    @Column(name = "nr_ordem", nullable = false)
-    private Integer ordem;
+    @Column(name = "nr_precedencia", nullable = false)
+    private Integer precedencia;
 
     @Column(name = "dt_criacao", updatable = false)
     @CreationTimestamp

@@ -10,6 +10,6 @@ import java.util.List;
 @Repository
 public interface PostoGraduacaoRepository extends JpaRepository<PostoGraduacao, Long> {
     default List<PostoGraduacao> findAllOrdenado() {
-        return findAll(Sort.by("ordem"));
+        return findAll(Sort.by("precedencia"));
     }
 }

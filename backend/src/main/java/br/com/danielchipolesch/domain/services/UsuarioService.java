@@ -27,7 +27,7 @@ import java.util.List;
 // Tela "Manter Usuários" (admin). Não há exclusão definitiva -- usuários são
 // autores de documento (FK sem ON DELETE), então desativar (fl_ativo=false)
 // é o único caminho, e já era a intenção original de ter esse campo (ver
-// comentário em Usuario.java / migração V9).
+// comentário em Usuario.java).
 @Service
 public class UsuarioService {
 

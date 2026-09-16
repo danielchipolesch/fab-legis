@@ -27,7 +27,7 @@ import static br.com.danielchipolesch.domain.entities.estruturaDocumento.ItemAne
 // - Artigo: numeração GLOBAL (contínua por todo o documento), mesma regra de sufixo.
 //   A marca `incluidoPorEmenda` é permanente — não o status ao vivo — para que um
 //   artigo incluído por emenda nunca perca seu sufixo de letra mesmo depois de
-//   alterado ou revogado (ver V5__incluido_por_emenda_permanente.sql).
+//   alterado ou revogado.
 @Service
 public class NumeracaoService {
 

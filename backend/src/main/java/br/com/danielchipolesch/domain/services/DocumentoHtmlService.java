@@ -295,6 +295,10 @@ public class DocumentoHtmlService {
                 .fecho-bloco p { text-align: left; text-indent: 0; margin: 0; display: block; }
                 .assinatura-bloco { margin-top: 36pt; text-align: center; }
                 .assinatura-bloco p { margin: 0; text-align: center; text-indent: 0; display: block; }
+                /* Aviso de que o HTML é só uma cópia de leitura, não o registro oficial --
+                   fica na mesma página da Portaria (antes da quebra para "ANEXO I"), logo
+                   após a assinatura, nunca no corpo do ato em si. */
+                .aviso-nao-substitui { color: #FF0000; text-align: center; margin-top: 24pt; }
                 .assin-data { margin: 0 0 24pt; }
                 .assin-nome { text-transform: uppercase; margin: 0; }
                 .assin-cargo { margin: 0; }
@@ -410,6 +414,12 @@ public class DocumentoHtmlService {
                 sb.append("<p class=\"assin-cargo\">Comandante da Aeronáutica</p>");
             }
             sb.append("</div>\n");
+
+            // Aviso de que esta cópia HTML não substitui o registro oficial publicado
+            // no BCA -- fica dentro do mesmo "page-break" da Portaria (não do corpo do
+            // ato), então acompanha a Portaria antes da quebra de página, nunca gruda em
+            // "ANEXO I" na página seguinte.
+            sb.append("<p class=\"aviso-nao-substitui\">Esta versão não substitui a publicada no BCA.</p>\n");
 
             sb.append("</div>\n");
             return sb.toString();

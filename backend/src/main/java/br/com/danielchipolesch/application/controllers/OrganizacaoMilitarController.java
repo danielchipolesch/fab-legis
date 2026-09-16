@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 
 // Listagem simples para popular o seletor de OM na tela de usuários -- sem
-// CRUD de OM nesta fase (só existe a OM "SISTEMA" seedada pela migração V9).
+// CRUD de OM nesta fase (só existe a OM "SISTEMA" seedada na migração inicial).
 @RestController
 @RequestMapping(value = "/v1/organizacoes-militares", produces = MediaType.APPLICATION_JSON_VALUE)
 @Tag(name = "Organização Militar", description = "Consulta de organizações militares")

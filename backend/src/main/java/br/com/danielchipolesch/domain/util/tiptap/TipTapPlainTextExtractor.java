@@ -4,7 +4,7 @@ package br.com.danielchipolesch.domain.util.tiptap;
 // como último recurso quando o frontend não manda um fullTextContent pronto
 // (ver DocumentoParteNormativaService.gerarFullTextContent). Sem isso, o
 // fallback concatenava o JSON bruto de "conteudo" como se fosse texto, o que
-// poluiria a busca full-text (ver V21__busca_fulltext.sql) com chaves/aspas
+// poluiria a busca full-text (ver tsv_busca em db/migration/V1__initial.sql) com chaves/aspas
 // de marcação em vez de palavras pesquisáveis.
 public class TipTapPlainTextExtractor {
 

@@ -21,7 +21,7 @@ import java.util.EnumSet;
 // Roda em todo boot, mas só age uma vez: cria o usuário ADMIN padrão apenas
 // se nenhum usuário com login (fl_sistema = false) existir ainda -- ou seja,
 // só no primeiro deploy. O usuário "sistema" (dono dos documentos
-// pré-existentes) já é criado pela própria migração V9, não aqui.
+// pré-existentes) já é criado pela própria migração inicial, não aqui.
 //
 // Reaproveita a OM "SISTEMA" criada pela migração como OM provisória do
 // admin -- ele deveria ser reatribuído à OM real assim que a tela de
@@ -58,7 +58,7 @@ public class DataSeeder implements ApplicationRunner {
 
         OrganizacaoMilitar omSistema = omRepository.findBySigla("SISTEMA")
                 .orElseThrow(() -> new IllegalStateException(
-                        "OM 'SISTEMA' não encontrada -- migração V9 não foi aplicada?"));
+                        "OM 'SISTEMA' não encontrada -- migração V1__initial.sql não foi aplicada?"));
 
         Usuario admin = new Usuario();
         admin.setNome(adminNome);

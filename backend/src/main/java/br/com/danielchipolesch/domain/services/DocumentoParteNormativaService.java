@@ -374,7 +374,7 @@ public class DocumentoParteNormativaService {
 
     // "conteudo" é o JSON bruto do TipTap (ver collab/server.js), não texto --
     // concatená-lo cru (como esse fallback fazia antes) poluiria a busca
-    // full-text (V21__busca_fulltext.sql) com chaves/aspas de marcação em vez
+    // full-text (tsv_busca em db/migration/V1__initial.sql) com chaves/aspas de marcação em vez
     // de palavras pesquisáveis. Só entra aqui quando o frontend não manda um
     // fullTextContent pronto (caso raro -- ver ElementoConteudoRequestDto).
     private String extrairTextoPlano(String conteudoJson) {

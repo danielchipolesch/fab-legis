@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 
 // Listagem simples para popular o seletor de posto/graduação na tela de
-// usuários -- catálogo fixo (ver migração V14), sem CRUD nesta fase.
+// usuários -- catálogo fixo (ver db/migration/V1__initial.sql), sem CRUD nesta fase.
 @RestController
 @RequestMapping(value = "/v1/postos-graduacoes", produces = MediaType.APPLICATION_JSON_VALUE)
 @Tag(name = "Posto/Graduação", description = "Consulta do catálogo de postos e graduações")

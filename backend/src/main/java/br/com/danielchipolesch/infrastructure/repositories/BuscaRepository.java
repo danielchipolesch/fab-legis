@@ -30,7 +30,7 @@ public class BuscaRepository {
     @PersistenceContext
     private EntityManager entityManager;
 
-    // 'portuguese_unaccent' (ver V21__busca_fulltext.sql) combina o stemmer
+    // 'portuguese_unaccent' (ver db/migration/V1__initial.sql) combina o stemmer
     // 'portuguese' com o dicionário unaccent, pra "publicacao" (sem acento)
     // achar "publicação". websearch_to_tsquery (não plainto_tsquery) entende
     // sintaxe de caixa de busca comum ("frase exata", -excluir, ou) sem o
