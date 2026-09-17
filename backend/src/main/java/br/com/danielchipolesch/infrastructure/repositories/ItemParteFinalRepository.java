@@ -16,6 +16,10 @@ public interface ItemParteFinalRepository extends JpaRepository<ItemParteFinal, 
     @Query("SELECT i FROM ItemParteFinal i WHERE i.documento.id = :documentoId ORDER BY i.elementOrder ASC")
     List<ItemParteFinal> findByDocumentoIdOrderByElementOrderAsc(@Param("documentoId") Long documentoId);
 
+    // Confere que um elemento realmente pertence ao documento antes de aceitar um
+    // comentário sobre ele (ver ComentarioElementoService).
+    boolean existsByIdAndDocumentoId(Long id, Long documentoId);
+
     @Modifying
     @Transactional
     @Query("DELETE FROM ItemParteFinal i WHERE i.documento.id = :documentoId")

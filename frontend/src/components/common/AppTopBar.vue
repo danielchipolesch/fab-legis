@@ -73,7 +73,7 @@
                 </q-avatar>
               </q-item-section>
               <q-item-section>
-                <q-item-label class="text-weight-bold text-white">{{ auth.usuario.nome }}</q-item-label>
+                <q-item-label class="text-weight-bold text-white">{{ caixaAlta(auth.usuario.nome) }}</q-item-label>
                 <q-item-label caption class="text-white" style="opacity:.85">{{ formatarCpf(auth.usuario.cpf) }}</q-item-label>
                 <q-item-label caption class="text-white" style="opacity:.85">{{ auth.usuario.omNome }}</q-item-label>
               </q-item-section>
@@ -146,6 +146,7 @@ import { useQuasar } from 'quasar'
 import { useAuthStore } from '@/stores/auth.js'
 import { useDocumentosStore } from '@/stores/documentos.js'
 import { formatarCpf } from '@/utils/cpf.js'
+import { caixaAlta } from '@/utils/texto.js'
 import * as notificacoesApi from '@/api/notificacoes.js'
 
 const router = useRouter()
@@ -159,9 +160,9 @@ const nomeExibicao = computed(() => {
   const usuario = auth.usuario
   if (!usuario) return ''
   if (usuario.postoGraduacaoBigrama && usuario.nomeGuerra) {
-    return `${usuario.postoGraduacaoBigrama} ${usuario.nomeGuerra}`
+    return `${usuario.postoGraduacaoBigrama} ${caixaAlta(usuario.nomeGuerra)}`
   }
-  return usuario.nome
+  return caixaAlta(usuario.nome)
 })
 
 // auth.logout() já navega pro /logout do backend (window.location.href) e
@@ -291,6 +292,18 @@ async function abrirNotificacao(notificacao) {
     await notificacoesApi.marcarComoLida(notificacao.id)
   } catch {
     // Navegação não deve travar por causa disso -- só fica sem marcar como lida.
+  }
+  // Comentário leva direto ao elemento (abre o editor com o painel de comentários
+  // já aberto nele) -- num documento grande, cair só na visualização não ajuda a
+  // achar onde foi o comentário. Demais tipos continuam indo pra visualização,
+  // que já é o lugar certo (compartilhamento, aprovação pendente).
+  if (notificacao.tipo === 'COMENTARIO_NOVO' && notificacao.elementoId) {
+    router.push({
+      name: 'documento-editar',
+      params: { id: notificacao.documentoId },
+      query: { comentario: notificacao.elementoId },
+    })
+    return
   }
   router.push({ name: 'documento-visualizar', params: { id: notificacao.documentoId } })
 }

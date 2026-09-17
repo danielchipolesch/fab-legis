@@ -19,6 +19,11 @@ public interface ItemAnexoParteNormativaRepository extends JpaRepository<ItemAne
     @Query("SELECT i FROM ItemAnexoParteNormativa i WHERE i.documento.id = :documentoId")
     List<ItemAnexoParteNormativa> findAllByDocumentoId(@Param("documentoId") Long documentoId);
 
+    // Confere que um elemento realmente pertence ao documento antes de aceitar um
+    // comentário sobre ele (ver ComentarioElementoService) -- sem isso, dava pra
+    // comentar um elemento de outro documento só sabendo o id.
+    boolean existsByIdAndDocumentoId(Long id, Long documentoId);
+
     List<ItemAnexoParteNormativa> findByParentOrderByElementOrderAsc(ItemAnexoParteNormativa parent);
 
     @Modifying

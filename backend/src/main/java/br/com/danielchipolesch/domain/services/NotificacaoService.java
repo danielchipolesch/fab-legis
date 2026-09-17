@@ -1,6 +1,7 @@
 package br.com.danielchipolesch.domain.services;
 
 import br.com.danielchipolesch.application.dtos.notificacaoDtos.NotificacaoResponseDto;
+import br.com.danielchipolesch.domain.entities.estruturaDocumento.SecaoDocumentoEnum;
 import br.com.danielchipolesch.domain.entities.notificacao.Notificacao;
 import br.com.danielchipolesch.domain.entities.notificacao.TipoNotificacaoEnum;
 import br.com.danielchipolesch.domain.entities.usuario.Usuario;
@@ -42,12 +43,24 @@ public class NotificacaoService {
 
     @Transactional
     public void criar(Usuario destinatario, TipoNotificacaoEnum tipo, String mensagem, Long documentoId, String documentoDescricao) {
+        criar(destinatario, tipo, mensagem, documentoId, documentoDescricao, null, null);
+    }
+
+    // Variante com elemento/seção -- usada por COMENTARIO_NOVO (ver
+    // ComentarioElementoService) para que a notificação leve direto ao elemento
+    // comentado, não só ao documento (num documento grande, "abrir o documento"
+    // sozinho não basta).
+    @Transactional
+    public void criar(Usuario destinatario, TipoNotificacaoEnum tipo, String mensagem, Long documentoId,
+                       String documentoDescricao, Long elementoId, SecaoDocumentoEnum secao) {
         var notificacao = new Notificacao();
         notificacao.setDestinatario(destinatario);
         notificacao.setTipo(tipo);
         notificacao.setMensagem(mensagem);
         notificacao.setDocumentoId(documentoId);
         notificacao.setDocumentoDescricao(documentoDescricao);
+        notificacao.setElementoId(elementoId);
+        notificacao.setSecao(secao);
         Notificacao salva = notificacaoRepository.save(notificacao);
 
         agendarPushAposCommit(destinatario.getId(), salva);

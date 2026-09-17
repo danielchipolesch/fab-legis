@@ -51,6 +51,17 @@
     <!-- Dialog de compartilhamento (coautoria) -->
     <CompartilharDialog v-if="documentoId" v-model="compartilharDialogOpen" :documento-id="documentoId" />
 
+    <!-- Painel de comentários em linha (dúvida/objeção sobre o elemento selecionado,
+         sem editar o texto dele -- ver docs/funcionalidades.md) -->
+    <ComentariosPainel
+      v-if="documentoId"
+      v-model="comentariosDrawerOpen"
+      :documento-id="documentoId"
+      :elemento="selectedElement"
+      @contagem="comentariosNaoResolvidos = $event"
+      @selecionar-elemento="id => editorStore.selectElement(String(id))"
+    />
+
     <!-- Coluna principal: topbar + área de edição -->
     <div class="editor-main column">
 
@@ -102,6 +113,12 @@
           <q-tooltip anchor="bottom middle" self="top middle">Compartilhar</q-tooltip>
         </q-btn>
 
+        <q-btn round flat color="primary" @click="abrirComentarios">
+          <q-icon name="mdi-comment-text-multiple-outline" size="22px" />
+          <q-badge v-if="comentariosNaoResolvidos" floating color="deep-orange" rounded>{{ comentariosNaoResolvidos }}</q-badge>
+          <q-tooltip anchor="bottom middle" self="top middle">Comentários</q-tooltip>
+        </q-btn>
+
         <q-btn
           outline
           color="primary"
@@ -150,7 +167,7 @@
       <div v-if="presencaOutros.length" class="q-px-md q-py-xs row items-center" style="background:#FFF3E0;border-bottom:1px solid #FFCC80;gap:8px">
         <q-icon name="mdi-account-alert-outline" color="deep-orange-8" size="16px" />
         <span class="text-caption text-deep-orange-9 text-weight-bold">
-          {{ presencaOutros.map(p => p.nome).join(', ') }}
+          {{ presencaOutros.map(p => caixaAlta(p.nome)).join(', ') }}
           {{ presencaOutros.length === 1 ? 'também está editando' : 'também estão editando' }} este documento agora.
         </span>
       </div>
@@ -297,7 +314,10 @@ import EmendaDialog from '@/components/editor/EmendaDialog.vue'
 import IncluirElementoDialog from '@/components/editor/IncluirElementoDialog.vue'
 import Lc95HelpDialog from '@/components/editor/Lc95HelpDialog.vue'
 import CompartilharDialog from '@/components/editor/CompartilharDialog.vue'
+import ComentariosPainel from '@/components/editor/ComentariosPainel.vue'
+import { caixaAlta } from '@/utils/texto.js'
 import * as documentsApi from '@/api/documentos.js'
+import * as comentariosApi from '@/api/comentarios.js'
 import { clientId } from '@/utils/clientId.js'
 
 const route = useRoute()
@@ -312,6 +332,31 @@ const pdfLoading    = ref(false)
 const htmlLoading   = ref(false)
 const lc95DialogOpen = ref(false)
 const compartilharDialogOpen = ref(false)
+const comentariosDrawerOpen = ref(false)
+const comentariosNaoResolvidos = ref(0)
+
+// Clicar no ícone de comentários não pode só abrir o painel no elemento que
+// JÁ estava selecionado -- se o comentário pendente está em outro elemento
+// (bem provável num documento grande), a pessoa cairia num painel vazio sem
+// entender por quê. Mesmo critério de "pra onde ir" que o deep-link da
+// notificação usa (AppTopBar.vue abrirNotificacao): pula pro elemento do
+// comentário não resolvido mais recente, a não ser que o elemento atual já
+// tenha um -- aí não atropela quem já está lendo/respondendo ali.
+async function abrirComentarios() {
+  try {
+    const lista = await comentariosApi.listComentarios(documentoId.value)
+    const raizesNaoResolvidas = lista.filter(c => !c.parentId && !c.resolvido)
+    const idAtual = editorStore.selectedElementId
+    const temNoAtual = raizesNaoResolvidas.some(c => String(c.elementoId) === String(idAtual))
+    if (!temNoAtual && raizesNaoResolvidas.length) {
+      const maisRecente = [...raizesNaoResolvidas].sort((a, b) => new Date(b.dtCriacao) - new Date(a.dtCriacao))[0]
+      editorStore.selectElement(String(maisRecente.elementoId))
+    }
+  } catch {
+    // Sem a lista, abre mesmo assim no elemento atual -- não impede de comentar.
+  }
+  comentariosDrawerOpen.value = true
+}
 
 // ── Presença de edição (aviso de colisão, não trava nada) ───────────────────────
 // "Quem está editando agora" é literalmente "quem tem esta conexão SSE
@@ -629,7 +674,23 @@ onMounted(async () => {
     const primeiro = normativa?.elementos?.[0]
     if (primeiro) editorStore.selectElement(primeiro.id)
 
+    // Veio de uma notificação de comentário (ver AppTopBar.vue abrirNotificacao)
+    // -- seleciona o elemento comentado (getter selectedElement já busca recursivo
+    // na árvore, não precisa ser um elemento de topo) e abre o painel direto nele,
+    // em vez de deixar a pessoa vasculhar a árvore inteira à procura.
+    if (route.query.comentario) {
+      editorStore.selectElement(String(route.query.comentario))
+      comentariosDrawerOpen.value = true
+    }
+
     iniciarPresenca()
+    // Carrega a contagem já de cara -- sem isso, o badge só aparecia depois da
+    // primeira vez que a pessoa abrisse o painel (ver @contagem em
+    // ComentariosPainel), então não havia nenhum sinal pra saber que existia
+    // algo pra ver antes de clicar no ícone.
+    comentariosApi.listComentarios(documentoId.value)
+      .then(lista => { comentariosNaoResolvidos.value = lista.filter(c => !c.parentId && !c.resolvido).length })
+      .catch(() => {})
   } else {
     editorStore.loadNew()
   }
