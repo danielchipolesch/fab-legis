@@ -169,6 +169,7 @@ import { editorExtensions, editorExtensionsColaborativas } from '@/editor/extens
 import { useAuthStore } from '@/stores/auth.js'
 import { useQuasar } from 'quasar'
 import { primeMinioUrlCache } from '@/utils/minioUrls.js'
+import { caixaAlta } from '@/utils/texto.js'
 
 // Throttle simples (leading+trailing): a primeira chamada roda na hora, chamadas
 // subsequentes dentro da janela viram uma única execução ao final dela -- garante
@@ -246,9 +247,9 @@ function corDoUsuario(usuarioId) {
 function rotuloDoUsuario(usuario) {
   if (!usuario) return 'Anônimo'
   if (usuario.postoGraduacaoBigrama && usuario.nomeGuerra) {
-    return `${usuario.postoGraduacaoBigrama} ${usuario.nomeGuerra}`
+    return `${usuario.postoGraduacaoBigrama} ${caixaAlta(usuario.nomeGuerra)}`
   }
-  return usuario.nome ?? 'Anônimo'
+  return caixaAlta(usuario.nome) ?? 'Anônimo'
 }
 
 const colaborativo = !!(props.documentoId && props.elementoId)

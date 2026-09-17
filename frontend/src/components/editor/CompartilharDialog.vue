@@ -16,18 +16,33 @@
 
       <q-card-section>
         <q-form class="row items-start" style="gap:8px" @submit.prevent="adicionar">
-          <q-input
-            :model-value="cpf"
-            @update:model-value="val => cpf = mascaraCpf(val)"
-            label="CPF do coautor"
+          <q-select
+            v-model="selecionado"
+            :options="opcoes"
+            option-label="rotulo"
+            option-value="id"
+            label="Buscar coautor por nome de guerra ou nome completo"
             outlined
             dense
+            emit-value
+            map-options
+            use-input
+            input-debounce="300"
             class="col"
-            maxlength="14"
+            @filter="filtrar"
+            :loading="buscando"
             :error="!!erro"
             :error-message="erro"
-          />
-          <q-btn color="primary" unelevated icon="mdi-plus" :loading="adicionando" type="submit" style="height:40px" />
+          >
+            <template #no-option>
+              <q-item>
+                <q-item-section class="text-grey-6">
+                  {{ termoBusca.trim().length < 2 ? 'Digite ao menos 2 letras do nome' : 'Ninguém encontrado' }}
+                </q-item-section>
+              </q-item>
+            </template>
+          </q-select>
+          <q-btn color="primary" unelevated icon="mdi-plus" :disable="!selecionado" :loading="adicionando" type="submit" style="height:40px" />
         </q-form>
       </q-card-section>
 
@@ -42,7 +57,7 @@
               </q-avatar>
             </q-item-section>
             <q-item-section>
-              <q-item-label>{{ c.nome }}</q-item-label>
+              <q-item-label>{{ caixaAlta(c.nome) }}</q-item-label>
               <q-item-label caption>{{ formatarCpf(c.cpf) }}</q-item-label>
             </q-item-section>
             <q-item-section side>
@@ -63,10 +78,12 @@
 </template>
 
 <script setup>
-import { ref, watch } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useQuasar } from 'quasar'
 import * as api from '@/api/documentos.js'
-import { validarCpf, mascaraCpf, formatarCpf, onlyDigits } from '@/utils/cpf.js'
+import { buscarUsuariosPorNome } from '@/api/usuarios.js'
+import { formatarCpf } from '@/utils/cpf.js'
+import { caixaAlta } from '@/utils/texto.js'
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
@@ -75,10 +92,20 @@ const props = defineProps({
 defineEmits(['update:modelValue'])
 
 const $q = useQuasar()
-const cpf = ref('')
 const erro = ref('')
 const adicionando = ref(false)
 const compartilhamentos = ref([])
+
+const candidatos = ref([])
+const selecionado = ref(null)
+const termoBusca = ref('')
+const buscando = ref(false)
+
+const opcoes = computed(() => candidatos.value.map(c => ({
+  id: c.id,
+  cpf: c.cpf,
+  rotulo: `${c.postoGraduacaoBigrama && c.nomeGuerra ? `${c.postoGraduacaoBigrama} ${caixaAlta(c.nomeGuerra)}` : caixaAlta(c.nome)} — ${c.omSigla ?? ''} (${formatarCpf(c.cpf)})`,
+})))
 
 async function carregar() {
   try {
@@ -88,18 +115,37 @@ async function carregar() {
   }
 }
 
-watch(() => props.modelValue, (aberto) => { if (aberto) carregar() })
+watch(() => props.modelValue, (aberto) => {
+  if (aberto) {
+    selecionado.value = null
+    candidatos.value = []
+    carregar()
+  }
+})
+
+// Quasar chama isto a cada tecla (já espaçado pelo input-debounce acima) --
+// `update()` troca as opções do dropdown pelo resultado da busca no backend.
+function filtrar(val, update, abort) {
+  termoBusca.value = val
+  buscando.value = true
+  buscarUsuariosPorNome(val)
+    .then(resultado => { candidatos.value = resultado; update() })
+    .catch(() => abort())
+    .finally(() => { buscando.value = false })
+}
 
 async function adicionar() {
   erro.value = ''
-  if (!validarCpf(cpf.value)) {
-    erro.value = 'CPF inválido'
+  const escolhido = candidatos.value.find(c => c.id === selecionado.value)
+  if (!escolhido) {
+    erro.value = 'Selecione um coautor na lista'
     return
   }
   adicionando.value = true
   try {
-    await api.compartilharDocumento(props.documentoId, onlyDigits(cpf.value))
-    cpf.value = ''
+    await api.compartilharDocumento(props.documentoId, escolhido.cpf)
+    selecionado.value = null
+    candidatos.value = []
     await carregar()
     $q.notify({ type: 'positive', message: 'Documento compartilhado.' })
   } catch (e) {

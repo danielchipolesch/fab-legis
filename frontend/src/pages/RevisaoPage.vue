@@ -27,7 +27,7 @@
         class="legis-table"
       >
         <template #body-cell-autores="props">
-          <q-td :props="props">{{ props.row.autores.join(', ') }}</q-td>
+          <q-td :props="props">{{ props.row.autores.map(caixaAlta).join(', ') }}</q-td>
         </template>
 
         <template #body-cell-status="props">
@@ -96,6 +96,7 @@ import { useDocumentosStore } from '@/stores/documentos.js'
 import * as documentosApi from '@/api/documentos.js'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import SelecionarPessoaDialog from '@/components/editor/SelecionarPessoaDialog.vue'
+import { caixaAlta } from '@/utils/texto.js'
 
 const $q = useQuasar()
 const store = useDocumentosStore()

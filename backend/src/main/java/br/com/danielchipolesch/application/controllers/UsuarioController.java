@@ -1,6 +1,7 @@
 package br.com.danielchipolesch.application.controllers;
 
 import br.com.danielchipolesch.application.dtos.usuarioDtos.RedefinirSenhaRequestDto;
+import br.com.danielchipolesch.application.dtos.usuarioDtos.UsuarioBuscaResponseDto;
 import br.com.danielchipolesch.application.dtos.usuarioDtos.UsuarioCreateRequestDto;
 import br.com.danielchipolesch.application.dtos.usuarioDtos.UsuarioElegivelResponseDto;
 import br.com.danielchipolesch.application.dtos.usuarioDtos.UsuarioResponseDto;
@@ -49,10 +50,33 @@ public class UsuarioController {
     @GetMapping("/elegiveis")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<UsuarioElegivelResponseDto>> elegiveis(
-            @RequestParam PapelEnum papel, Authentication authentication) {
+            @RequestParam PapelEnum papel,
+            @RequestParam(required = false) String q,
+            Authentication authentication) {
         var usuario = ((UsuarioPrincipal) authentication.getPrincipal()).getUsuario();
-        var candidatos = usuarioRepository.findByOmIdAndPapel(usuario.getOm().getId(), papel).stream()
-                .map(UsuarioElegivelResponseDto::from)
+        var termo = q != null ? q.trim() : "";
+        var elegiveis = termo.isEmpty()
+                ? usuarioRepository.findByOmIdAndPapel(usuario.getOm().getId(), papel)
+                : usuarioRepository.findByOmIdAndPapelAndTermo(usuario.getOm().getId(), papel, termo);
+        var candidatos = elegiveis.stream().map(UsuarioElegivelResponseDto::from).toList();
+        return ResponseEntity.ok(candidatos);
+    }
+
+    // Busca de coautor por nome/nome de guerra (CompartilharDialog.vue) -- autor de
+    // documento quase nunca sabe o CPF de um colega de cor, mas sabe o nome; o CPF só
+    // é resolvido internamente a partir do candidato escolhido aqui (ver
+    // DocumentoCompartilhamentoService.compartilhar, que continua recebendo CPF).
+    // Sem filtro de OM/papel de propósito: coautoria não é restrita a isso. Termo
+    // mínimo de 2 caracteres evita devolver a base inteira a cada tecla digitada.
+    @GetMapping("/buscar")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<List<UsuarioBuscaResponseDto>> buscar(
+            @RequestParam String q, Authentication authentication) {
+        var usuario = ((UsuarioPrincipal) authentication.getPrincipal()).getUsuario();
+        var termo = q.trim();
+        if (termo.length() < 2) return ResponseEntity.ok(List.of());
+        var candidatos = usuarioRepository.buscarPorNome(termo, usuario.getId()).stream()
+                .map(UsuarioBuscaResponseDto::from)
                 .toList();
         return ResponseEntity.ok(candidatos);
     }

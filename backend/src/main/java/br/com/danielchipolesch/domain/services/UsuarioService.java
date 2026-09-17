@@ -136,9 +136,16 @@ public class UsuarioService {
         return (valor == null || valor.isBlank()) ? null : valor.trim();
     }
 
+    // Editor é papel padrão e permanente de todo usuário (exceto o usuário
+    // "sistema", que nem passa por aqui) -- a regra de posse sobre documento
+    // continua a mesma (DocumentoAcessoService: só edita quem é autor/coautor),
+    // isso só garante que ninguém cria/edita um usuário sem a capacidade básica
+    // de editar. Adicionado aqui, não só na tela (UsuariosPage.vue trava o
+    // checkbox), pra valer também numa chamada direta à API.
     private EnumSet<PapelEnum> papeisComo(java.util.Set<PapelEnum> papeis) {
         var resultado = EnumSet.noneOf(PapelEnum.class);
         if (papeis != null) resultado.addAll(papeis);
+        resultado.add(PapelEnum.EDIT);
         return resultado;
     }
 }

@@ -36,7 +36,7 @@
 
         <template #body-cell-nomeGuerra="props">
           <q-td :props="props">
-            {{ props.row.nomeGuerra || '—' }}
+            {{ props.row.nomeGuerra ? caixaAlta(props.row.nomeGuerra) : '—' }}
           </q-td>
         </template>
 
@@ -178,11 +178,14 @@
 
             <q-select
               v-model="form.omId"
-              :options="omOptions"
+              :options="omOptionsFiltradas"
               option-label="label"
               option-value="value"
               emit-value
               map-options
+              use-input
+              input-debounce="0"
+              @filter="filtrarOm"
               label="Organização Militar *"
               outlined dense
               :rules="[obrigatorio]"
@@ -190,9 +193,11 @@
             />
 
             <div>
-              <div class="text-caption text-grey-7 q-mb-xs">Papéis (sem nenhum, a pessoa só consegue visualizar o acervo)</div>
+              <div class="text-caption text-grey-7 q-mb-xs">Papéis (Editor é padrão de todo usuário e não pode ser removido; os demais são adicionais)</div>
               <div class="row q-gutter-md">
-                <q-checkbox v-model="form.editor" label="Editor" :disable="salvando" />
+                <q-checkbox v-model="form.editor" label="Editor" disable>
+                  <q-tooltip>Todo usuário tem este papel -- não dá pra remover.</q-tooltip>
+                </q-checkbox>
                 <q-checkbox v-model="form.aprovador" label="Aprovador" :disable="salvando" />
                 <q-checkbox v-model="form.publicador" label="Publicador" :disable="salvando" />
                 <q-checkbox v-model="form.admin" label="Administrador" :disable="salvando" />
@@ -234,7 +239,7 @@
         <q-separator />
         <q-card-section class="q-pa-lg">
           <p class="text-body2 text-grey-7 q-mb-md">
-            Nova senha para <strong>{{ alvoSenha?.nome }}</strong>.
+            Nova senha para <strong>{{ caixaAlta(alvoSenha?.nome) }}</strong>.
           </p>
           <q-form ref="senhaFormRef" @submit.prevent="confirmarRedefinirSenha">
             <q-input
@@ -267,10 +272,11 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, watch, onMounted } from 'vue'
 import { useQuasar } from 'quasar'
 import * as usuariosApi from '@/api/usuarios.js'
 import { validarCpf, mascaraCpf, formatarCpf, onlyDigits } from '@/utils/cpf.js'
+import { caixaAlta, normalizarBusca } from '@/utils/texto.js'
 import { useAuthStore } from '@/stores/auth.js'
 
 const $q = useQuasar()
@@ -282,7 +288,7 @@ const postos    = ref([])
 const carregando = ref(false)
 
 const columns = [
-  { name: 'nome',   label: 'Nome Completo', field: 'nome', align: 'left', sortable: true },
+  { name: 'nome',   label: 'Nome Completo', field: 'nome', align: 'left', sortable: true, format: val => caixaAlta(val) },
   { name: 'posto',  label: 'Posto/Grad.', field: 'postoGraduacaoBigrama', align: 'center', sortable: true, style: 'width:100px' },
   { name: 'nomeGuerra', label: 'Nome de Guerra', field: 'nomeGuerra', align: 'left', sortable: true },
   { name: 'cpf',    label: 'CPF',     field: 'cpf',    align: 'center', sortable: true, style: 'width:160px' },
@@ -292,7 +298,22 @@ const columns = [
   { name: 'actions', label: 'Ações',  field: 'actions', align: 'center', style: 'width:110px' },
 ]
 
-const omOptions = computed(() => oms.value.map(om => ({ label: `${om.nome} (${om.sigla})`, value: om.id })))
+// Catálogo real de OMs da FAB passou de 1 (seed antigo) pra 300+ (ver
+// V1__initial.sql) -- uma lista desse tamanho sem busca é impraticável de rolar.
+const omOptions = computed(() => oms.value.map(om => ({
+  label: `${om.nome} (${om.sigla})`, value: om.id, busca: normalizarBusca(`${om.nome} ${om.sigla}`),
+})))
+const omOptionsFiltradas = ref([])
+watch(omOptions, (val) => { omOptionsFiltradas.value = val }, { immediate: true })
+
+function filtrarOm(val, update) {
+  update(() => {
+    const termo = normalizarBusca(val)
+    omOptionsFiltradas.value = termo
+      ? omOptions.value.filter(o => o.busca.includes(termo))
+      : omOptions.value
+  })
+}
 // postos já vem ordenado pela hierarquia militar (ver PostoGraduacaoRepository), não
 // alfabeticamente -- mantém essa mesma ordem no seletor.
 const postoOptions = computed(() => postos.value.map(p => ({ label: `${p.bigrama} — ${p.nome}`, value: p.id })))
@@ -339,15 +360,18 @@ const salvando    = ref(false)
 const editando    = ref(null) // Usuario sendo editado, ou null (criação)
 const mostrarSenha = ref(false)
 
+// editor: true por padrão e travado na UI (checkbox disable) -- ver
+// UsuarioService.papeisComo no backend, que também força isso independente do
+// que vier daqui (mesma regra em duas camadas, não só decoração de tela).
 const form = reactive({
   nome: '', nomeGuerra: '', cpf: '', email: '', postoGraduacaoId: null, senha: '',
-  omId: null, editor: false, aprovador: false, publicador: false, admin: false, auditor: false, ativo: true,
+  omId: null, editor: true, aprovador: false, publicador: false, admin: false, auditor: false, ativo: true,
 })
 
 function resetForm() {
   Object.assign(form, {
     nome: '', nomeGuerra: '', cpf: '', email: '', postoGraduacaoId: null, senha: '',
-    omId: null, editor: false, aprovador: false, publicador: false, admin: false, auditor: false, ativo: true,
+    omId: null, editor: true, aprovador: false, publicador: false, admin: false, auditor: false, ativo: true,
   })
   formRef.value?.resetValidation()
 }
@@ -368,7 +392,7 @@ function abrirEdicao(usuario) {
     postoGraduacaoId: usuario.postoGraduacaoId ?? null,
     senha: '',
     omId: usuario.omId,
-    editor: usuario.papeis.includes('EDIT'),
+    editor: true, // sempre -- ver comentário no form acima
     aprovador: usuario.papeis.includes('APROV'),
     publicador: usuario.papeis.includes('PUBLIC'),
     admin: usuario.papeis.includes('ADMIN'),

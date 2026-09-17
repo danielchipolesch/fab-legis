@@ -453,11 +453,14 @@
             <q-select
               v-if="omEditavel"
               v-model="metaForm.om_id"
-              :options="omOptions"
+              :options="omOptionsFiltradas"
               option-label="label"
               option-value="value"
               emit-value
               map-options
+              use-input
+              input-debounce="0"
+              @filter="filtrarOm"
               label="Organização Militar"
               outlined dense
               hint="Impressa na capa do ato normativo (NSCA 5-3, Art. 17)."
@@ -620,6 +623,7 @@ import { useDocumentosStore } from '@/stores/documentos.js'
 import { useAuthStore } from '@/stores/auth.js'
 import { BASE_URL } from '@/api/client.js'
 import { listOrganizacoesMilitares } from '@/api/usuarios.js'
+import { normalizarBusca } from '@/utils/texto.js'
 
 const $q = useQuasar()
 const editorStore = useEditorStore()
@@ -666,18 +670,33 @@ const metaEditavel = computed(() => !props.isEmAlteracao)
 // documento ainda não avançou pra revisão (ver DocumentoService.update).
 const omEditavel = computed(() => ['RASCUNHO', 'MINUTA'].includes(props.documento?.status))
 
+// Catálogo real de OMs da FAB passou de 1 (seed antigo) pra 300+ (ver
+// V1__initial.sql) -- uma lista desse tamanho sem busca é impraticável de rolar.
+// omOptions guarda a lista completa (carregada uma vez); omOptionsFiltradas é o
+// que o q-select de fato mostra, recalculado a cada tecla via filtrarOm.
 const omOptions = ref([])
+const omOptionsFiltradas = ref([])
 let omOptionsCarregadas = false
 async function carregarOmOptions() {
   if (omOptionsCarregadas) return
   try {
     const lista = await listOrganizacoesMilitares()
-    omOptions.value = lista.map(om => ({ label: om.nome, value: String(om.id) }))
+    omOptions.value = lista.map(om => ({ label: `${om.nome} (${om.sigla})`, value: String(om.id), busca: normalizarBusca(`${om.nome} ${om.sigla}`) }))
+    omOptionsFiltradas.value = omOptions.value
     omOptionsCarregadas = true
   } catch {
     // Sem lista, o seletor só fica vazio -- o valor atual (om_id) ainda aparece
     // desabilitado no campo, não impede o resto do dialog de funcionar.
   }
+}
+
+function filtrarOm(val, update) {
+  update(() => {
+    const termo = normalizarBusca(val)
+    omOptionsFiltradas.value = termo
+      ? omOptions.value.filter(o => o.busca.includes(termo))
+      : omOptions.value
+  })
 }
 
 function abrirDialogMeta() {

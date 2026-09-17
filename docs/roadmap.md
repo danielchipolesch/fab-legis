@@ -5,13 +5,11 @@ O FAB Legis foi desenhado para crescer. As linhas de evolução abaixo estão or
 ## Curto prazo — consolidar o núcleo
 
 - **Migração para Keycloak/SSO** — o Authorization Server embutido (Spring Authorization Server, OAuth2 + PKCE, ver [Autenticação e Colaboração](autenticacao.md)) foi desenhado para essa troca ser só de emissor de token: as *claims* já espelham as do Keycloak, e `DocumentoAcessoService` não referencia nada do mecanismo de autenticação em si.
-- **Versionamento por snapshot** — `EmendaHistorico` já registra o quê mudou em cada ciclo de emenda (texto anterior/novo, justificativa, ciclo de publicação), mas não guarda uma foto completa da árvore do documento em cada publicação; um snapshot imutável por ciclo daria ao `DiffViewer` comparações de estrutura inteira, não só por elemento.
 - **Cobertura de testes** — testes unitários dos serviços de domínio (com destaque para a numeração e as transições de status) e testes de integração dos controllers com Testcontainers.
 - **Exportação DOCX nativa** — o HTML portável produzido pelo editor já foi pensado para isso; falta o conversor no backend.
 
 ## Médio prazo — fluxo de trabalho completo
 
-- **Workflow de tramitação** — encaminhamento entre setores, fila de revisão, comentários em linha e aprovação eletrônica, transformando o sistema de editor em plataforma de processo.
 - **Assinatura digital ICP-Brasil** — assinatura do PDF da portaria e/ou do documento final com carimbo de tempo, conferindo validade jurídica ao ato publicado. A decisão de manter a portaria como arquivo separado (não mesclado ao PDF do documento — ver [Portaria, BCA e registro de publicações](ciclo-de-vida.md#portaria-bca-e-registro-de-publicacoes)) foi tomada justamente para preservar essa possibilidade: uma assinatura cobre um intervalo de bytes exato do arquivo original.
 - **Grafo de referências normativas** — mapear quais atos alteram, revogam ou citam quais outros, e alertar automaticamente quando um ato referenciado for revogado.
 - **Modelos (templates) por espécie** — estruturas pré-montadas de ICA, NSCA, MCA etc., reduzindo o esforço de partida de cada novo documento.

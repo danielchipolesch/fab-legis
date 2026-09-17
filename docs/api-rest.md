@@ -60,6 +60,17 @@ Endpoints padrão do Spring Authorization Server (`AuthorizationServerConfig`), 
 | `POST` | `/` | Envia um arquivo (multipart) como anexo |
 | `DELETE` | `/{anexoId}` | Remove um anexo |
 
+## Comentários — `/v1/documentos/{docId}/comentarios`
+
+Comentário em linha sobre um elemento (artigo, parágrafo, inciso...) — revisão assíncrona sem editar o texto do elemento, ver [Funcionalidades](funcionalidades.md#comentarios-em-linha). Todas as rotas exigem o mesmo conjunto de posse de `podeComentar` (autor, coautor, ou revisor/publicador atualmente atribuído).
+
+| Método | Rota | Descrição |
+|---|---|---|
+| `GET` | `/` | Lista todos os comentários do documento (o front agrupa em threads por `elementoId`/`parentId`) |
+| `POST` | `/` | Cria um comentário raiz ou, com `parentId`, uma resposta em thread |
+| `PATCH` | `/{comentarioId}/resolver` | Marca o comentário (raiz) como resolvido |
+| `PATCH` | `/{comentarioId}/reabrir` | Desfaz a resolução |
+
 ## Espécies normativas — `/v1/especie-normativa`
 
 `POST` · `GET /{id}` · `GET /obter-todos` · `PUT /{id}` · `DELETE /{id}`
@@ -87,6 +98,13 @@ O `ImagemService` cria o bucket sob demanda na primeira execução; o bucket é 
 | `PATCH` | `/{id}/senha` | Redefine a senha de um usuário |
 
 Sem exclusão definitiva — usuários são autores de documento (FK sem `ON DELETE`), então o ciclo de vida é ativar/desativar, nunca apagar.
+
+Duas rotas sob `/v1/usuarios` sobrescrevem a restrição de Admin da classe (`isAuthenticated()`) — alimentam os seletores de pessoa por nome (CPF é dado pessoal, quase nunca sabido de cor, ver [Autenticação e Colaboração](autenticacao.md#papeis-e-posse-de-documento)):
+
+| Método | Rota | Descrição |
+|---|---|---|
+| `GET` | `/elegiveis?papel=&q=` | Candidatos a revisor/publicador — escopado à OM de quem chama; `q` opcional filtra por nome/nome de guerra |
+| `GET` | `/buscar?q=` | Candidatos a coautor — **sem** filtro de OM/papel (coautoria não é restrita a isso); exige 2+ caracteres |
 
 ## Organizações militares — `/v1/organizacoes-militares`
 
