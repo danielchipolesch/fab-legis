@@ -67,7 +67,14 @@ public class DataSeeder implements ApplicationRunner {
         admin.setOm(omSistema);
         admin.setAtivo(true);
         admin.setSistema(false);
-        admin.setPapeis(EnumSet.of(PapelEnum.ADMIN));
+        // ADMIN sozinho não basta pra criar documento (ver isEditor em
+        // stores/auth.js e o comentário de PapelEnum.ADMIN -- é papel puramente
+        // administrativo, sem poder nenhum sobre documentos, de propósito).
+        // Sem EDIT aqui, o único usuário que existe logo após a instalação não
+        // consegue criar nada até alguém entrar em Usuários e conceder o papel a
+        // si mesmo -- então o admin padrão nasce com os dois papéis, e qualquer
+        // outro ADMIN criado depois continua sem EDIT implícito nenhum.
+        admin.setPapeis(EnumSet.of(PapelEnum.ADMIN, PapelEnum.EDIT));
         usuarioRepository.save(admin);
 
         log.warn("Usuário administrador padrão criado (CPF {}). Troque a senha padrão assim que possível.", cpf);

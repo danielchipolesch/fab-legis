@@ -38,7 +38,7 @@ O `.env` na raiz (fora do git, só o `.env.example` é versionado) é lido autom
 | PostgreSQL | `localhost:5432` | `postgres` / `123456` |
 | MinIO (console) | http://localhost:9001 | `minioadmin` / `minioadmin123` |
 
-**Usuário administrador padrão** — criado automaticamente pelo `DataSeeder` no primeiro boot, só se nenhum usuário real ainda existir. CPF `111.444.777-35` (dígitos: `11144477735`), senha `Admin@123`. Troque a senha (ou os valores de `APP_ADMIN_CPF`/`APP_ADMIN_SENHA` antes do primeiro boot) assim que possível em qualquer ambiente que não seja local.
+**Usuário administrador padrão** — criado automaticamente pelo `DataSeeder` no primeiro boot, só se nenhum usuário real ainda existir. CPF `111.444.777-35` (dígitos: `11144477735`), senha `Admin@123`, papéis **Admin + Editor** (o suficiente para gerenciar usuários e já criar o primeiro documento, sem precisar se auto-conceder um papel antes de usar o sistema — ver [Autenticação e Colaboração](autenticacao.md#papeis-e-posse-de-documento) sobre por que Admin sozinho não bastaria). Troque a senha (ou os valores de `APP_ADMIN_CPF`/`APP_ADMIN_SENHA` antes do primeiro boot) assim que possível em qualquer ambiente que não seja local.
 
 **Perfil de produção** (frontend compilado e servido por Nginx na porta 80):
 
