@@ -293,18 +293,6 @@ async function abrirNotificacao(notificacao) {
   } catch {
     // Navegação não deve travar por causa disso -- só fica sem marcar como lida.
   }
-  // Comentário leva direto ao elemento (abre o editor com o painel de comentários
-  // já aberto nele) -- num documento grande, cair só na visualização não ajuda a
-  // achar onde foi o comentário. Demais tipos continuam indo pra visualização,
-  // que já é o lugar certo (compartilhamento, aprovação pendente).
-  if (notificacao.tipo === 'COMENTARIO_NOVO' && notificacao.elementoId) {
-    router.push({
-      name: 'documento-editar',
-      params: { id: notificacao.documentoId },
-      query: { comentario: notificacao.elementoId },
-    })
-    return
-  }
   router.push({ name: 'documento-visualizar', params: { id: notificacao.documentoId } })
 }
 </script>

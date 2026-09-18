@@ -1,6 +1,5 @@
 package br.com.danielchipolesch.domain.entities.notificacao;
 
-import br.com.danielchipolesch.domain.entities.estruturaDocumento.SecaoDocumentoEnum;
 import br.com.danielchipolesch.domain.entities.usuario.Usuario;
 import jakarta.persistence.*;
 import lombok.Data;
@@ -38,15 +37,6 @@ public class Notificacao {
 
     @Column(name = "documento_descricao", nullable = false)
     private String documentoDescricao;
-
-    // Preenchidos só em COMENTARIO_NOVO -- levam direto ao elemento comentado
-    // (ver ComentarioElementoService), não só ao documento; NULL nos demais tipos.
-    @Column(name = "elemento_id")
-    private Long elementoId;
-
-    @Column(name = "secao", columnDefinition = "VARCHAR(30)")
-    @Enumerated(EnumType.STRING)
-    private SecaoDocumentoEnum secao;
 
     @Column(name = "fl_lida", nullable = false)
     private boolean lida = false;

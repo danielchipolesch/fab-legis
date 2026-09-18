@@ -60,17 +60,6 @@ Endpoints padrão do Spring Authorization Server (`AuthorizationServerConfig`), 
 | `POST` | `/` | Envia um arquivo (multipart) como anexo |
 | `DELETE` | `/{anexoId}` | Remove um anexo |
 
-## Comentários — `/v1/documentos/{docId}/comentarios`
-
-Comentário em linha sobre um elemento (artigo, parágrafo, inciso...) — revisão assíncrona sem editar o texto do elemento, ver [Funcionalidades](funcionalidades.md#comentarios-em-linha). Todas as rotas exigem o mesmo conjunto de posse de `podeComentar` (autor, coautor, ou revisor/publicador atualmente atribuído).
-
-| Método | Rota | Descrição |
-|---|---|---|
-| `GET` | `/` | Lista todos os comentários do documento (o front agrupa em threads por `elementoId`/`parentId`) |
-| `POST` | `/` | Cria um comentário raiz ou, com `parentId`, uma resposta em thread |
-| `PATCH` | `/{comentarioId}/resolver` | Marca o comentário (raiz) como resolvido |
-| `PATCH` | `/{comentarioId}/reabrir` | Desfaz a resolução |
-
 ## Espécies normativas — `/v1/especie-normativa`
 
 `POST` · `GET /{id}` · `GET /obter-todos` · `PUT /{id}` · `DELETE /{id}`

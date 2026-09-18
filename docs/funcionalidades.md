@@ -16,14 +16,6 @@ Operações estruturais disponíveis: adicionar filho, adicionar irmão, **promo
 
 Regras de numeração automática aplicadas pelo editor estão detalhadas em [Modelo de Domínio](dominio.md#numeracao-automatica-conforme-a-tecnica-legislativa).
 
-## Comentários em linha
-
-Dúvida, objeção ou sugestão sobre um elemento específico (artigo, parágrafo, inciso...) sem editar o texto dele — revisão assíncrona, ao estilo de comentário de Pull Request. Botão dedicado na topbar do editor (`ComentariosPainel.vue`, badge com a contagem de threads não resolvidas) abre um painel lateral com a thread do elemento atualmente selecionado na sidebar: comentar, responder (thread de um nível) e marcar como resolvido/reabrir.
-
-Deliberadamente **fora do Yjs/Hocuspocus**: um comentário nunca toca `tx_conteudo_item` do elemento — é a tabela `t_comentario_elemento`, lida por REST comum, não pelo WebSocket da colaboração — então sobrevive independente de quem está editando o texto no momento, e não compete com o CRDT do editor colaborativo. Só pode comentar quem já interage com o documento de alguma forma — autor, coautor, ou quem estiver atribuído como revisor/publicador no momento (`DocumentoAcessoService.podeComentar`) — não qualquer um da OM. Um elemento recém-criado no editor só pode receber comentário depois do primeiro salvamento automático (precisa de um id real do backend, não o id local temporário do editor).
-
-Deliberadamente **sem** fila de revisão, setor ou "assumir documento" — o sistema prioriza o mínimo de burocracia possível na edição; a atribuição pessoal direta que já existe (revisor/publicador atribuído, ver [Autenticação e Colaboração](autenticacao.md#papeis-e-posse-de-documento)) já resolve o roteamento sem precisar de mais uma camada de processo.
-
 ## Figuras com numeração sequencial
 
 Extensão TipTap customizada (`extensions/figure.js`) com *NodeView* em Vue: upload da imagem para o MinIO, título, legenda e linha "Fonte:" embutida no HTML para garantir portabilidade na exportação. A numeração ("Figura 1", "Figura 2"…) usa CSS counters no preview web e é resolvida literalmente na exportação, de modo que o mesmo HTML gera PDF e DOCX corretos. O sumário inclui automaticamente a **Lista de Figuras**.

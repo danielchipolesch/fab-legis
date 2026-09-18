@@ -54,21 +54,6 @@ public class DocumentoAcessoService {
         return ehAutor(doc, usuario) || compartilhamentoRepository.existsByDocumentoIdAndUsuarioId(documentoId, usuario.getId());
     }
 
-    // Comentário em linha (dúvida/objeção sobre um elemento, sem editar o texto
-    // dele -- ver ComentarioElementoService): autor, coautor, ou quem estiver
-    // atribuído como revisor/publicador no momento -- o mesmo conjunto de gente
-    // que já interage de alguma forma com o documento, não qualquer um da OM.
-    public boolean podeComentar(Long documentoId, Authentication auth) {
-        Usuario usuario = usuarioDe(auth);
-        Documento doc = documentoRepository.findById(documentoId).orElse(null);
-        if (doc == null) return false;
-
-        if (ehAutor(doc, usuario)) return true;
-        if (compartilhamentoRepository.existsByDocumentoIdAndUsuarioId(documentoId, usuario.getId())) return true;
-        if (doc.getRevisorAtribuido() != null && doc.getRevisorAtribuido().getId().equals(usuario.getId())) return true;
-        return doc.getPublicadorAtribuido() != null && doc.getPublicadorAtribuido().getId().equals(usuario.getId());
-    }
-
     // Só quem criou o documento pode adicionar ou remover coautores -- um
     // coautor não pode, por sua vez, compartilhar com mais alguém.
     public boolean podeCompartilhar(Long documentoId, Authentication auth) {
