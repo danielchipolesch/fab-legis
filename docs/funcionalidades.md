@@ -14,6 +14,8 @@ O conteúdo de cada elemento é armazenado no banco como **JSON TipTap** (format
 
 Operações estruturais disponíveis: adicionar filho, adicionar irmão, **promover** e **rebaixar** elementos na hierarquia (com validação de subárvore), mover para cima/baixo, remover e reordenar por *drag and drop* (persistido no backend).
 
+Um documento novo já abre com os **capítulos padronizados da NSCA 5-3** (Disposições Preliminares, Gerais, Transitórias e Finais, com suas seções e artigos de orientação) — o autor preenche os textos, insere os capítulos do assunto e exclui os de aplicação eventual que não precisar. Detalhes em [Modelo de Domínio](dominio.md#capitulos-padronizados-nsca-5-3).
+
 Regras de numeração automática aplicadas pelo editor estão detalhadas em [Modelo de Domínio](dominio.md#numeracao-automatica-conforme-a-tecnica-legislativa).
 
 ## Figuras com numeração sequencial

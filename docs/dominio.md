@@ -27,6 +27,24 @@ graph LR
     AN --> A1["Arquivos anexados (upload livre)"]
 ```
 
+## Capítulos padronizados (NSCA 5-3)
+
+Todo documento novo já nasce com a estrutura padrão da **NSCA 5-3, Seção X (arts. 63 a 67)** na Parte Normativa — a mesma para todas as espécies normativas, criada por `CapitulosPadronizadosService` dentro de `DocumentoService.create`:
+
+| Capítulo | Aplicação | Norma | Seções e artigos criados |
+|---|---|---|---|
+| **DISPOSIÇÕES PRELIMINARES** | Obrigatório — sempre o **primeiro** | Art. 63 e 64 | Seção **Finalidade** (1 artigo) e seção **Âmbito** (1 artigo, que deve descrever claramente a aplicabilidade da publicação) |
+| **DISPOSIÇÕES GERAIS** | Eventual — o **antepenúltimo** | Art. 65 | 1 artigo (disposições de caráter geral ou matéria relacionada com assuntos de mais de um capítulo) |
+| **DISPOSIÇÕES TRANSITÓRIAS** | Eventual — o **penúltimo** | Art. 66 | 1 artigo (providências condicionadas a eventos futuros, prazos determinados, preceitos que perdem vigência) |
+| **DISPOSIÇÕES FINAIS** | Obrigatório — sempre o **último** | Art. 67 | Seção **Substituição de publicações** (1 artigo) e seção **Casos não previstos** (1 artigo, com a atribuição para solucioná-los) |
+
+Como funciona na prática:
+
+- Os textos dos artigos entre colchetes (`[descrever a finalidade da publicação]`) são **orientação de preenchimento**, não redação definitiva — o autor substitui. Nos capítulos de aplicação eventual, se não forem necessários, basta **excluir o capítulo inteiro**.
+- Fora dos colchetes, onde o texto fala do próprio documento, a palavra "publicação" é trocada pela **espécie normativa criada**, com a concordância de gênero: numa ICA, `Esta instrução tem por finalidade […]`; numa DCA, `Esta diretriz…`; num MCA, `Este manual…`; numa NSCA, `Esta norma de sistema…`. O substantivo sai do nome cadastrado da espécie (sem o "do Comando da Aeronáutica") e o gênero fica em `CapitulosPadronizadosService`; uma espécie cadastrada depois e ainda fora dessa lista mantém "publicação", o termo genérico da NSCA 5-3. O texto **dentro dos colchetes** não muda.
+- Os capítulos do assunto da publicação são inseridos **entre Disposições Preliminares e Disposições Gerais**; a numeração (Capítulo I…, Seção I…, Art. 1º…) é sempre calculada pela estrutura, então tudo se renumera sozinho — nada disso é gravado no banco.
+- A estrutura só é criada na **criação** do documento: documentos já existentes não são alterados, e o clone (`/{id}/clonar`) copia a estrutura do original em vez de recriá-la.
+
 ## Numeração oficial do documento
 
 A identificação de um ato — por exemplo **`ICA 5-3`** — é composta por:

@@ -79,6 +79,9 @@ public class DocumentoService {
     DocumentoHistoricoService documentoHistoricoService;
 
     @Autowired
+    CapitulosPadronizadosService capitulosPadronizadosService;
+
+    @Autowired
     AnexoRepository anexoRepository;
 
     @Autowired
@@ -105,6 +108,7 @@ public class DocumentoService {
                 .build();
 
         Documento salvo = documentoRepository.save(documento);
+        capitulosPadronizadosService.criarEstruturaPadrao(salvo);
         documentoHistoricoService.registrar(salvo, TipoAlteracaoEnum.CRIACAO,
                 "Documento criado", null, DocumentoStatusEnum.RASCUNHO);
         return DocumentoMapper.documentoToDocumentoSemAnexoTextualResponseDto(salvo);

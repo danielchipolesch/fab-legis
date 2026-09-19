@@ -19,7 +19,7 @@ Endpoints padrão do Spring Authorization Server (`AuthorizationServerConfig`), 
 
 | Método | Rota | Descrição |
 |---|---|---|
-| `POST` | `/` | Cria documento (calcula o número secundário) |
+| `POST` | `/` | Cria documento (calcula o número secundário) já com os [capítulos padronizados da NSCA 5-3](dominio.md#capitulos-padronizados-nsca-5-3) na Parte Normativa |
 | `POST` | `/{id}/clonar` | Clona o documento em novo `RASCUNHO` |
 | `GET` | `/{id}` | Obtém documento com anexo textual + links HATEOAS — inclui `numeracao` (capítulo/seção/subseção/artigo já calculados pelo servidor, ver [Modelo de Domínio](dominio.md#numeracao-automatica-conforme-a-tecnica-legislativa)) |
 | `GET` | `/obter-todos` | Lista paginada (DTO enxuto, sem os itens da árvore) |
