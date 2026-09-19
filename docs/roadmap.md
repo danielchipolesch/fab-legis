@@ -12,7 +12,6 @@ O FAB Legis foi desenhado para crescer. As linhas de evolução abaixo estão or
 
 - **Assinatura digital ICP-Brasil** — assinatura do PDF da portaria e/ou do documento final com carimbo de tempo, conferindo validade jurídica ao ato publicado. A decisão de manter a portaria como arquivo separado (não mesclado ao PDF do documento — ver [Portaria, BCA e registro de publicações](ciclo-de-vida.md#portaria-bca-e-registro-de-publicacoes)) foi tomada justamente para preservar essa possibilidade: uma assinatura cobre um intervalo de bytes exato do arquivo original.
 - **Grafo de referências normativas** — mapear quais atos alteram, revogam ou citam quais outros, e alertar automaticamente quando um ato referenciado for revogado.
-- **Importação de atos legados** — ingestão de documentos existentes em DOCX/PDF com reconhecimento automático da estrutura hierárquica.
 
 ## Longo prazo — plataforma normativa
 
