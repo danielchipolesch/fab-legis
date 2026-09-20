@@ -55,7 +55,7 @@ A identificação de um ato — por exemplo **`ICA 5-3`** — é composta por:
 | **Assunto Básico** | `AssuntoBasicoEnum` | `5` (Publicações) |
 | **Número Secundário** | Calculado pelo sistema | `3` |
 
-O **número secundário é atribuído automaticamente** pelo `DocumentoService.calculateSecondaryNumber()`: o serviço busca todos os documentos da mesma combinação Espécie + Assunto e **reaproveita a primeira lacuna** na sequência, evitando buracos na numeração do acervo.
+A identificação é gravada na criação (`Documento.identificacao`) e nunca recalculada; quem a monta é a regra de criação da espécie (`RegrasDeCriacaoDoDocumento`). O **número secundário é atribuído automaticamente** por `CriacaoDeAtoNormativo`: o serviço busca todos os documentos da mesma combinação Espécie + Assunto e **reaproveita a primeira lacuna** na sequência, evitando buracos na numeração do acervo.
 
 O catálogo de espécies inclui DCA, FCA, ICA, MCA, NSCA, OCA, PCA, RCA, RICA, ROCA e TCA — cada uma com nome e descrição normativa completa. Os assuntos básicos cobrem toda a tabela oficial (Doutrina Aeroespacial, Publicações, Tecnologia da Informação, Pessoal, Ensino, Governança, Projetos e demais).
 

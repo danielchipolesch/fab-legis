@@ -842,9 +842,7 @@ public class LeiauteHtmlDeAtoNormativo implements LeiauteDoHtml {
         }
 
         private String docId() {
-            return doc.getEspecieNormativa().getSigla()
-                    + " " + doc.getAssuntoBasico().getCodigo()
-                    + "-" + doc.getNumeroSecundario();
+            return doc.getIdentificacao();
         }
 
         private String especieCompleta() {

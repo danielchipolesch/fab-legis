@@ -66,10 +66,7 @@ public class DocumentoCompartilhamentoService {
         compartilhamento.setUsuario(usuario);
         var salvo = compartilhamentoRepository.save(compartilhamento);
 
-        String descricao = String.format("%s %s-%d",
-                documento.getEspecieNormativa().getSigla(),
-                documento.getAssuntoBasico().getCodigo(),
-                documento.getNumeroSecundario());
+        String descricao = documento.getIdentificacao();
         notificacaoService.criar(usuario, TipoNotificacaoEnum.DOCUMENTO_COMPARTILHADO,
                 documento.getAutor().getNome() + " compartilhou o documento " + descricao + " com você.",
                 documento.getId(), descricao);

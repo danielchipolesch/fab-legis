@@ -94,20 +94,11 @@ public class DocumentoService {
     public DocumentoResponseSemAnexoTextualDto create(DocumentoRequestCreateDto request) throws RuntimeException {
 
         EspecieNormativa especieNormativa = especieNormativaRepository.findById(request.idEspecieNormativa()).orElseThrow(() -> new ResourceNotFoundException(EspecieNormativaException.NOT_FOUND.getMessage()));
-        AssuntoBasico assuntoBasico = assuntoBasicoRepository.findById(request.idAssuntoBasico()).orElseThrow(() ->  new ResourceNotFoundException(AssuntoBasicoException.NOT_FOUND.getMessage()));
 
-        var secondaryNumber = this.calculateSecondaryNumber(especieNormativa, assuntoBasico);
-        var usuarioAtual = AutenticacaoUtil.usuarioAtual();
-
-        Documento documento = new DocumentoBuilder()
-                .especieNormativa(especieNormativa)
-                .assuntoBasico(assuntoBasico)
-                .numeroSecundario(secondaryNumber)
-                .tituloDocumento(request.tituloDocumento())
-                .situacaoLocal(SituacaoLocalEnum.RASCUNHO)
-                .autor(usuarioAtual)
-                .om(usuarioAtual.getOm())
-                .build();
+        // O que a espécie exige para criar (assunto básico, identificação...) e como o documento se identifica
+        // é regra da espécie.
+        Documento documento = regras.para(especieNormativa).criacao()
+                .montar(request, especieNormativa, AutenticacaoUtil.usuarioAtual());
 
         Documento salvo = documentoRepository.save(documento);
         // A estrutura inicial é regra da espécie (atos normativos: capítulos padronizados da NSCA 5-3).
@@ -145,10 +136,7 @@ public class DocumentoService {
                 .forEach(c -> autores.add(c.getUsuario().getNome()));
         return new DocumentoFilaResponseDto(
                 documento.getId(),
-                String.format("%s %s-%d",
-                        documento.getEspecieNormativa().getSigla(),
-                        documento.getAssuntoBasico().getCodigo(),
-                        documento.getNumeroSecundario()),
+                documento.getIdentificacao(),
                 documento.getTituloDocumento(),
                 documento.getSituacaoBca(),
                 documento.getSituacaoLocal(),
@@ -307,21 +295,11 @@ public class DocumentoService {
         Documento documentoAntigo = documentoRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException(DocumentoException.NOT_FOUND.getMessage()));
 
-        var secondaryNumber = this.calculateSecondaryNumber(documentoAntigo.getEspecieNormativa(), documentoAntigo.getAssuntoBasico());
-        var usuarioAtual = AutenticacaoUtil.usuarioAtual();
-
         // O clone é um documento novo (ver clonarNormItem): quem clona vira o
         // autor, não quem criou o original -- mesma regra de "criar" no resto
         // do sistema.
-        Documento documentoNovo = new DocumentoBuilder()
-                .especieNormativa(documentoAntigo.getEspecieNormativa())
-                .assuntoBasico(documentoAntigo.getAssuntoBasico())
-                .numeroSecundario(secondaryNumber)
-                .tituloDocumento(documentoAntigo.getTituloDocumento())
-                .situacaoLocal(SituacaoLocalEnum.RASCUNHO)
-                .autor(usuarioAtual)
-                .om(usuarioAtual.getOm())
-                .build();
+        Documento documentoNovo = regras.para(documentoAntigo.getEspecieNormativa()).criacao()
+                .montarCopiaDe(documentoAntigo, AutenticacaoUtil.usuarioAtual());
 
         documentoAntigo.setQtdReplicas(documentoAntigo.getQtdReplicas() + 1);
         documentoRepository.save(documentoAntigo);
@@ -418,25 +396,4 @@ public class DocumentoService {
         return sb.isEmpty() ? null : sb.toString();
     }
 
-    private Integer calculateSecondaryNumber(EspecieNormativa especieNormativa, AssuntoBasico assuntoBasico){
-
-        List<Documento> documents = documentoRepository.findByEspecieNormativaAndAssuntoBasico(especieNormativa, assuntoBasico);
-
-        if (documents.isEmpty()) {
-            return 1;
-        }
-
-        List<Integer> secondaryNumbers = documents.stream()
-                .map(Documento::getNumeroSecundario)
-                .sorted()
-                .toList();
-
-        for (int i = 1; i <= secondaryNumbers.size(); i++) {
-            if (!secondaryNumbers.contains(i)) {
-                return i;
-            }
-        }
-
-        return secondaryNumbers.size() + 1;
-    }
 }

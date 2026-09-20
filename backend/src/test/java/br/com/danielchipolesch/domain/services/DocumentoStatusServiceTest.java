@@ -95,7 +95,7 @@ class DocumentoStatusServiceTest {
         // O ciclo de vida é regra da espécie: aqui, o dos atos normativos (as espécies de teste não
         // declaram tipo de regras, e o padrão é ATO_NORMATIVO).
         ReflectionTestUtils.setField(service, "regras", new RegrasDasEspecies(List.of(
-                new RegrasDeAtoNormativo(null, null, null, null, null, new CicloDeVidaDeAtoNormativo()))));
+                new RegrasDeAtoNormativo(null, null, null, null, null, null, null, new CicloDeVidaDeAtoNormativo()))));
         when(documentoPdfService.gerarEArmazenarPdf(any())).thenReturn("pdf-gerado");
         when(documentoHtmlService.gerarEArmazenarHtml(any())).thenReturn("html-gerado");
     }
@@ -124,6 +124,7 @@ class DocumentoStatusServiceTest {
         doc.setEspecieNormativa(especie);
         doc.setAssuntoBasico(assunto);
         doc.setNumeroSecundario(3);
+        doc.setIdentificacao("ICA 5-3");
         doc.setSituacaoBca(bca);
         doc.setSituacaoLocal(local);
         doc.setAutor(usuario(1L, "Autor"));

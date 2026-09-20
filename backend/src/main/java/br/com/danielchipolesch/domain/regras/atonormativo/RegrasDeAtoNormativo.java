@@ -5,9 +5,11 @@ import br.com.danielchipolesch.domain.regras.EstruturaInicialDeNovoDocumento;
 import br.com.danielchipolesch.domain.regras.LeiauteDoHtml;
 import br.com.danielchipolesch.domain.regras.LeiauteDoPdf;
 import br.com.danielchipolesch.domain.regras.RegrasDaEspecieNormativa;
-import br.com.danielchipolesch.domain.regras.TipoDeRegras;
+import br.com.danielchipolesch.domain.regras.RegrasDeCriacaoDoDocumento;
+import br.com.danielchipolesch.domain.regras.RegrasDeHierarquiaDosElementos;
 import br.com.danielchipolesch.domain.regras.RegrasDoCicloDeVidaDoDocumento;
 import br.com.danielchipolesch.domain.regras.RotuloDosAnexos;
+import br.com.danielchipolesch.domain.regras.TipoDeRegras;
 import br.com.danielchipolesch.domain.services.CapitulosPadronizadosService;
 import br.com.danielchipolesch.domain.services.DocumentoFoBuilder;
 import br.com.danielchipolesch.domain.services.NumeracaoService;
@@ -19,6 +21,8 @@ import org.springframework.stereotype.Component;
 @Component
 public class RegrasDeAtoNormativo implements RegrasDaEspecieNormativa {
 
+    private final RegrasDeCriacaoDoDocumento criacao;
+    private final RegrasDeHierarquiaDosElementos hierarquia;
     private final CalculadoraDeNumeracaoDosElementos numeracao;
     private final EstruturaInicialDeNovoDocumento estruturaInicial;
     private final RotuloDosAnexos rotuloDosAnexos;
@@ -26,12 +30,16 @@ public class RegrasDeAtoNormativo implements RegrasDaEspecieNormativa {
     private final LeiauteDoHtml leiauteDoHtml;
     private final RegrasDoCicloDeVidaDoDocumento cicloDeVida;
 
-    public RegrasDeAtoNormativo(NumeracaoService numeracao,
-                        CapitulosPadronizadosService estruturaInicial,
-                        RotuloDeAnexoDeAtoNormativo rotuloDosAnexos,
-                        DocumentoFoBuilder leiauteDoPdf,
-                        LeiauteHtmlDeAtoNormativo leiauteDoHtml,
-                        CicloDeVidaDeAtoNormativo cicloDeVida) {
+    public RegrasDeAtoNormativo(CriacaoDeAtoNormativo criacao,
+                                HierarquiaDeAtoNormativo hierarquia,
+                                NumeracaoService numeracao,
+                                CapitulosPadronizadosService estruturaInicial,
+                                RotuloDeAnexoDeAtoNormativo rotuloDosAnexos,
+                                DocumentoFoBuilder leiauteDoPdf,
+                                LeiauteHtmlDeAtoNormativo leiauteDoHtml,
+                                CicloDeVidaDeAtoNormativo cicloDeVida) {
+        this.criacao = criacao;
+        this.hierarquia = hierarquia;
         this.numeracao = numeracao;
         this.estruturaInicial = estruturaInicial;
         this.rotuloDosAnexos = rotuloDosAnexos;
@@ -41,6 +49,8 @@ public class RegrasDeAtoNormativo implements RegrasDaEspecieNormativa {
     }
 
     @Override public TipoDeRegras tipo() { return TipoDeRegras.ATO_NORMATIVO; }
+    @Override public RegrasDeCriacaoDoDocumento criacao() { return criacao; }
+    @Override public RegrasDeHierarquiaDosElementos hierarquia() { return hierarquia; }
     @Override public CalculadoraDeNumeracaoDosElementos numeracao() { return numeracao; }
     @Override public EstruturaInicialDeNovoDocumento estruturaInicial() { return estruturaInicial; }
     @Override public RotuloDosAnexos rotuloDosAnexos() { return rotuloDosAnexos; }

@@ -208,10 +208,7 @@ public class DocumentoStatusService {
         documentoHistoricoService.registrar(documento, TipoAlteracaoEnum.ALTERACAO_STATUS,
                 descricaoHistorico, atual, destino);
 
-        String descricao = String.format("%s %s-%d",
-                documento.getEspecieNormativa().getSigla(),
-                documento.getAssuntoBasico().getCodigo(),
-                documento.getNumeroSecundario());
+        String descricao = documento.getIdentificacao();
 
         // Cada transição de atribuição avisa só a pessoa escolhida -- nunca uma OM inteira
         // (ver PapelEnum: o modelo é de atribuição pessoal, não de "qualquer Aprovador pega").

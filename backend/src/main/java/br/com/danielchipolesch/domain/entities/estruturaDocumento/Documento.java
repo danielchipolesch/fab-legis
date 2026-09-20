@@ -31,14 +31,20 @@ public class Documento extends RepresentationModel<Documento> {
     private EspecieNormativa especieNormativa;
 
     @ManyToOne(fetch = FetchType.EAGER)
-    @JoinColumn(name = "assunto_basico_id", nullable = false)
+    @JoinColumn(name = "assunto_basico_id", nullable = true)
     private AssuntoBasico assuntoBasico;
 
-    @Column(name = "nr_numero_secundario", nullable = false)
+    @Column(name = "nr_numero_secundario", nullable = true)
     private Integer numeroSecundario;
 
     @Column(name = "nm_titulo_documento", nullable = false)
     private String tituloDocumento;
+
+    // Como o documento se chama em toda tela e no PDF ("DCA 11-3"): gravada na criação pelas regras da espécie
+    // (RegrasDeCriacaoDoDocumento) -- nos atos normativos é SIGLA + assunto básico + sequencial; numa NPA, texto livre.
+    // Nunca é recalculada depois.
+    @Column(name = "tx_identificacao", nullable = false, length = 120)
+    private String identificacao;
 
     // Situação BCA: a situação REAL, que espelha o repositório oficial -- só muda quando
     // portaria + BCA são registrados (ver SituacaoBcaEnum e DocumentoStatusService).

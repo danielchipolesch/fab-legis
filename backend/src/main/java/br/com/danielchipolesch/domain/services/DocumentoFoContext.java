@@ -108,9 +108,7 @@ final class DocumentoFoContext {
     // ─── Identificação do documento ─────────────────────────────────────────────
 
     String docId() {
-        return doc.getEspecieNormativa().getSigla()
-                + " " + doc.getAssuntoBasico().getCodigo()
-                + "-" + doc.getNumeroSecundario();
+        return doc.getIdentificacao();
     }
 
     String especieCompleta() {

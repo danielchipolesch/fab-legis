@@ -14,7 +14,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 // restante do sistema nunca testa a espécie do documento, só pede a regra a quem a conhece.
 class RegrasDasEspeciesTest {
 
-    private static final RegrasDeAtoNormativo ATO = new RegrasDeAtoNormativo(null, null, null, null, null, new CicloDeVidaDeAtoNormativo());
+    private static final RegrasDeAtoNormativo ATO = new RegrasDeAtoNormativo(null, null, null, null, null, null, null, new CicloDeVidaDeAtoNormativo());
 
     @Test
     void aEspecieSegueAsRegrasDeAtoNormativoPorPadrao() {

@@ -7,6 +7,10 @@ public interface RegrasDaEspecieNormativa {
 
     TipoDeRegras tipo();
 
+    RegrasDeCriacaoDoDocumento criacao();
+
+    RegrasDeHierarquiaDosElementos hierarquia();
+
     CalculadoraDeNumeracaoDosElementos numeracao();
 
     EstruturaInicialDeNovoDocumento estruturaInicial();

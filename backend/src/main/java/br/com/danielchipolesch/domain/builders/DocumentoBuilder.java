@@ -13,6 +13,7 @@ public class DocumentoBuilder {
     private AssuntoBasico assuntoBasico;
     private Integer numeroSecundario;
     private String tituloDocumento;
+    private String identificacao;
     private SituacaoLocalEnum situacaoLocal;
     private Usuario autor;
     private OrganizacaoMilitar om;
@@ -37,6 +38,11 @@ public class DocumentoBuilder {
         return this;
     }
 
+    public DocumentoBuilder identificacao(String identificacao) {
+        this.identificacao = identificacao;
+        return this;
+    }
+
     public DocumentoBuilder situacaoLocal(SituacaoLocalEnum situacaoLocal) {
         this.situacaoLocal = situacaoLocal;
         return this;
@@ -58,6 +64,7 @@ public class DocumentoBuilder {
         documento.setAssuntoBasico(this.assuntoBasico);
         documento.setNumeroSecundario(this.numeroSecundario);
         documento.setTituloDocumento(this.tituloDocumento);
+        documento.setIdentificacao(this.identificacao);
         documento.setSituacaoLocal(this.situacaoLocal);
         documento.setAutor(this.autor);
         documento.setOm(this.om);

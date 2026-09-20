@@ -12,6 +12,7 @@ import br.com.danielchipolesch.application.dtos.itemPartePreliminarDtos.ItemPart
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.*;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.SituacaoBcaEnum;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.TipoAlteracaoEnum;
+import br.com.danielchipolesch.domain.handlers.exceptions.InvalidInputException;
 import br.com.danielchipolesch.domain.handlers.exceptions.ResourceNotFoundException;
 import br.com.danielchipolesch.domain.mappers.DocumentoMapper;
 import br.com.danielchipolesch.domain.regras.RegrasDasEspecies;
@@ -154,6 +155,10 @@ public class DocumentoParteNormativaService {
         }
 
         if (request.itens() == null) return;
+
+        // A hierarquia dos elementos é regra da espécie (NPA: sem artigo; alínea só sob parágrafo...).
+        regras.para(documento.getEspecieNormativa()).hierarquia().validar(
+                request.itens().stream().filter(i -> i.secao() == SecaoDocumentoEnum.PARTE_NORMATIVA).toList());
 
         concorrenciaService.checarEAtualizarVersao(documento, request.versaoEsperada());
 
@@ -357,6 +362,13 @@ public class DocumentoParteNormativaService {
                 throw new RuntimeException("O item pai não pertence ao mesmo documento!");
             }
             novoItem.setParent(parent);
+        }
+
+        var hierarquia = regras.para(documento.getEspecieNormativa()).hierarquia();
+        var tipoDoPai = novoItem.getParent() != null ? novoItem.getParent().getTipo() : null;
+        if (!hierarquia.permite(tipoDoPai, dto.tipo())) {
+            throw new InvalidInputException("Um elemento do tipo " + dto.tipo() + " não pode ficar "
+                    + (tipoDoPai == null ? "na raiz do documento" : "dentro de " + tipoDoPai) + " nesta espécie.");
         }
 
         itemAnexoParteNormativaRepository.save(novoItem);
