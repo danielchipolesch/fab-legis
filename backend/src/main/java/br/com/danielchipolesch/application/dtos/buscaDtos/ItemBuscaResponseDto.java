@@ -11,8 +11,8 @@ import br.com.danielchipolesch.domain.entities.estruturaDocumento.SecaoDocumento
 public record ItemBuscaResponseDto(
         Long documentoId,
         String siglaEspecieNormativa,
-        String codigoAssuntoBasico,
-        Integer numeroSecundario,
+        // A identificação do documento ("ICA 5-3"; numa NPA, o texto livre informado na criação).
+        String codigoDocumento,
         String tituloDocumento,
         SituacaoBcaEnum situacaoBca,
         SituacaoLocalEnum situacaoLocal,

@@ -56,17 +56,22 @@ public class DocumentoSpecifications {
         return sub.select(compRoot.get("documento").get("id")).where(condicao);
     }
 
-    // Mesmos três campos que a busca em texto livre já comparava no frontend
-    // (HomePage.vue, documentosDaAbaFiltrados) antes de virar filtro de servidor: nome e
-    // código do assunto básico, e sigla da espécie.
+    // Nome e código do assunto básico, sigla da espécie e -- o que uma NPA, sem assunto básico, tem no lugar --
+    // a identificação e o título do documento. O assunto básico é LEFT JOIN: um documento sem ele (NPA) não pode
+    // sumir da listagem só porque o filtro de texto foi usado.
     public static Specification<Documento> busca(String texto) {
         if (texto == null || texto.isBlank()) return (root, query, cb) -> null;
         String termo = "%" + texto.toLowerCase() + "%";
-        return (root, query, cb) -> cb.or(
-                cb.like(cb.lower(root.get("assuntoBasico").get("nome")), termo),
-                cb.like(cb.lower(root.get("assuntoBasico").get("codigo")), termo),
-                cb.like(cb.lower(root.get("especieNormativa").get("sigla")), termo)
-        );
+        return (root, query, cb) -> {
+            var assunto = root.join("assuntoBasico", jakarta.persistence.criteria.JoinType.LEFT);
+            return cb.or(
+                    cb.like(cb.lower(assunto.get("nome")), termo),
+                    cb.like(cb.lower(assunto.get("codigo")), termo),
+                    cb.like(cb.lower(root.get("especieNormativa").get("sigla")), termo),
+                    cb.like(cb.lower(root.get("identificacao")), termo),
+                    cb.like(cb.lower(root.get("tituloDocumento")), termo)
+            );
+        };
     }
 
     public static Specification<Documento> especieSigla(String sigla) {
