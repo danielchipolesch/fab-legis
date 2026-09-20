@@ -304,7 +304,21 @@ public class XslFoContentRenderer {
     private void renderInline(TipTapNode node, StringBuilder sb) {
         if (node == null) return;
         if ("text".equals(node.getType())) {
-            String text = foEsc(node.getText());
+            // Texto entre colchetes (campo do modelo a preencher) em vermelho -- ver TextoEntreColchetes.
+            for (var trecho : TextoEntreColchetes.dividir(node.getText())) {
+                renderTexto(trecho.texto(), node, trecho.entreColchetes(), sb);
+            }
+        } else if ("hardBreak".equals(node.getType())) {
+            sb.append("<fo:block/>");
+        }
+    }
+
+    private void renderTexto(String bruto, TipTapNode node, boolean entreColchetes, StringBuilder sb) {
+        {
+            String text = foEsc(bruto);
+            boolean temCor = node.getMarks() != null && node.getMarks().stream()
+                    .anyMatch(m -> "textStyle".equals(m.getType()) && m.getAttr("color") != null);
+            if (entreColchetes && !temCor) text = "<fo:inline color=\"" + TextoEntreColchetes.COR + "\">" + text + "</fo:inline>";
             if (node.getMarks() == null || node.getMarks().isEmpty()) {
                 sb.append(text);
                 return;
@@ -327,8 +341,6 @@ public class XslFoContentRenderer {
                 }
             }
             sb.append(open).append(text).append(close);
-        } else if ("hardBreak".equals(node.getType())) {
-            sb.append("<fo:block/>");
         }
     }
 
