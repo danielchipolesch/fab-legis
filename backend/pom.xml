@@ -17,6 +17,9 @@
         <java.version>25</java.version>
         <maven.compiler.source>25</maven.compiler.source>
         <maven.compiler.target>25</maven.compiler.target>
+        <!-- `mvn test` roda só os testes unitários (sem Spring/banco). Testes de integração
+             levam @Tag("integration"); para incluí-los: mvn test -DexcludedGroups=nenhum -->
+        <excludedGroups>integration</excludedGroups>
     </properties>
     <dependencies>
         <dependency>

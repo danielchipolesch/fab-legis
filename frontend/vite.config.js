@@ -25,6 +25,12 @@ export default defineConfig({
     },
   },
 
+  // Testes unitários (npm test): funções puras, sem DOM.
+  test: {
+    environment: 'node',
+    include: ['src/**/*.test.js'],
+  },
+
   build: {
     // Target browsers modernos; reduz o polyfill overhead
     target: 'es2020',
