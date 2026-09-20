@@ -37,6 +37,19 @@ Os **Anexos** (arquivos vinculados ao documento, `AnexoController`) também vira
 
 **Aviso "Esta versão não substitui a publicada no BCA."**: só no HTML, e só em documento já publicado (fica na página da Portaria, que não existe antes da 1ª publicação) (`.aviso-nao-substitui`, vermelho, centralizado) — o PDF é a cópia oficial mantida em `urlPdf`, servida sem ressalva; o HTML é uma cópia de leitura conveniente e precisa deixar isso explícito. Fica dentro do mesmo `<div class="page-break">` da Portaria, logo após a assinatura — acompanha a Portaria antes da quebra de página que leva ao "ANEXO I", nunca gruda na página seguinte nem aparece no corpo do ato.
 
+## Exportação da NPA
+
+A [NPA](dominio.md#npa-norma-padrao-de-acao) tem layout próprio (Anexo XII da NSCA 5-3), escolhido pelas regras da espécie (`LeiauteDoPdf`/`LeiauteDoHtml`): **sem portaria, capa nem sumário**.
+
+- **Moldura:** todo o conteúdo dentro de uma moldura que **continua em todas as páginas**. No PDF ela é um retângulo de posição fixa em conteúdo estático (o FOP não admite borda na região do corpo); no HTML, uma borda em volta do documento.
+- **Cabeçalho** (primeira página): tabela de 4 colunas — espaço reservado ao **DOM** (distintivo da OM, tratado depois) e a **identificação** logo abaixo; três linhas centralizadas em negrito (Comando, OM, setor emissor); **DATAS** (EMISSÃO = data da aprovação; EFETIVAÇÃO = Boletim Interno nº e data, só depois de publicada); **DISTRIBUIÇÃO** (sempre OSTENSIVA); **ASSUNTO** (o título); **ANEXOS** (`A - X; B - Y; e C - Z`, gerado dos próprios anexos; `NÃO HÁ` sem anexos).
+- **Numeração de páginas (só no PDF):** `n/total` no alto das páginas 2 em diante, acima da moldura; a primeira página não leva número, e o total não conta os anexos de imagem.
+- **Corpo:** numerado pelo caminho (`1`, `1.1`, `1.1.1.1`, alínea `a)`); número do capítulo/seção/subseção em negrito, título do capítulo em maiúsculas e negrito, título da seção **sublinhado**. Texto justificado no PDF e alinhado à esquerda no HTML (NSCA 5-3, art. 8, XXI).
+- **Fecho:** `Local, dd de mês de aaaa` (data da aprovação) e os **blocos de assinatura em texto livre**; se publicada, a linha `(Publicada no Boletim Interno Ostensivo nº __, de __ de ____)`.
+- **Anexos** de imagem ao final, rotulados `ANEXO A`, `ANEXO B`…; revogada, o selo vermelho `REVOGADO` no canto superior direito da primeira página.
+
+O texto do cabeçalho e do fecho é resolvido **uma só vez** (`CabecalhoDaNpa`) e usado por todos os formatos, então PDF, HTML e prévia mostram exatamente o mesmo. Coberto por `DocumentoFoNpaBuilderTest`, `LeiauteHtmlDeNpaTest`, `CabecalhoDaNpaTest` e `ConsistenciaEntreFormatosDaNpaTest`.
+
 ## Consistência entre PDF, HTML e DOCX (planejado, ver [Roadmap](roadmap.md))
 
 **Qualquer mudança que altere elementos do documento exportado — estrutura, formatação, regra de negócio da técnica legislativa (NSCA 5-3/LC 95/1998/Decreto nº 12.002/2024) — deve ser averiguada nos 3 formatos (PDF, HTML e, quando implementado, DOCX), não só naquele em que a mudança foi originalmente pedida.** Os três nunca são gerados um a partir do outro (cada um tem seu próprio construtor: `DocumentoFoBuilder` para PDF, `DocumentoHtmlService` para HTML, e a Rota 1 planejada para DOCX é também um construtor próprio, direto do JSON TipTap, não uma conversão do HTML — ver Roadmap) — então uma regra corrigida em um não se propaga sozinha para os outros dois; cada um precisa da própria correção, ressalvadas as particularidades que a norma ou o próprio formato exigem (ex.: alinhamento do corpo e capa dispensada só valem para HTML, Art. 8 XXI/17 V §1º da NSCA 5-3).

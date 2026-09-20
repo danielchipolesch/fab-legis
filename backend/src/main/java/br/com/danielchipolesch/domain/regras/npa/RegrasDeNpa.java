@@ -11,6 +11,7 @@ import br.com.danielchipolesch.domain.regras.RegrasDeHierarquiaDosElementos;
 import br.com.danielchipolesch.domain.regras.RegrasDoCicloDeVidaDoDocumento;
 import br.com.danielchipolesch.domain.regras.RotuloDosAnexos;
 import br.com.danielchipolesch.domain.regras.TipoDeRegras;
+import br.com.danielchipolesch.domain.services.DocumentoFoNpaBuilder;
 import org.springframework.stereotype.Component;
 
 // As regras da NPA (Norma Padrão de Ação): espécie de uso interno da OM, com identificação livre, gramática de
@@ -25,14 +26,14 @@ public class RegrasDeNpa implements RegrasDaEspecieNormativa {
     private final NumeracaoDeNpa numeracao;
     private final EstruturaInicialDeNpa estruturaInicial;
     private final RotuloDeAnexoDeNpa rotuloDosAnexos;
-    private final LeiauteDoPdfDeNpa leiauteDoPdf;
+    private final DocumentoFoNpaBuilder leiauteDoPdf;
     private final LeiauteHtmlDeNpa leiauteDoHtml;
     private final CicloDeVidaDeNpa cicloDeVida;
 
     public RegrasDeNpa(CriacaoDeNpa criacao, HierarquiaDeNpa hierarquia, CamposDeNpa camposEspecificos,
                        NumeracaoDeNpa numeracao,
                        EstruturaInicialDeNpa estruturaInicial, RotuloDeAnexoDeNpa rotuloDosAnexos,
-                       LeiauteDoPdfDeNpa leiauteDoPdf, LeiauteHtmlDeNpa leiauteDoHtml, CicloDeVidaDeNpa cicloDeVida) {
+                       DocumentoFoNpaBuilder leiauteDoPdf, LeiauteHtmlDeNpa leiauteDoHtml, CicloDeVidaDeNpa cicloDeVida) {
         this.criacao = criacao;
         this.hierarquia = hierarquia;
         this.camposEspecificos = camposEspecificos;

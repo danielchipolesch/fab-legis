@@ -32,6 +32,11 @@ final class DocumentoFoFrontMatterBuilder {
     // ─── Page master ──────────────────────────────────────────────────────────
 
     String buildLayoutMasterSet() {
+        return buildLayoutMasterSet("");
+    }
+
+    // mastersAdicionais: page masters de outro layout (ex.: o da NPA) que convivem com os masters de anexo daqui.
+    String buildLayoutMasterSet(String mastersAdicionais) {
         return """
             <fo:layout-master-set>
               <fo:simple-page-master master-name="a4"
@@ -67,8 +72,7 @@ final class DocumentoFoFrontMatterBuilder {
                   <fo:conditional-page-master-reference master-reference="a4-continuacao" page-position="rest"/>
                 </fo:repeatable-page-master-alternatives>
               </fo:page-sequence-master>
-            </fo:layout-master-set>
-            """;
+            """ + mastersAdicionais + "</fo:layout-master-set>\n";
     }
 
     // Cabeçalho das páginas 2+ de um anexo de imagem (ANEXO II em diante): "Continuação do ANEXO X"
