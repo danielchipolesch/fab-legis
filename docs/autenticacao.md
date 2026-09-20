@@ -17,6 +17,10 @@ Autenticação via **Spring Authorization Server embutido no próprio backend** 
     
     O `EventSource` de notificações leva o token na própria URL (não há header em SSE); quando ele expira, o servidor rejeita a conexão e o navegador **não** tenta de novo sozinho (`readyState` vai direto para `CLOSED` — só reconecta automaticamente em queda de rede, não em erro de autenticação). `AppTopBar.vue` detecta esse `CLOSED` e reage: tenta uma renovação silenciosa (`auth.refresh()`) e, se conseguir, reconecta o SSE com o token novo; se não conseguir, desloga.
 
+## CPF oculto na tela
+
+O CPF é **dado pessoal**: em toda tela onde ele fica visível para um usuário — menu do usuário (o próprio CPF), lista de Manter Usuários e formulário de edição, coautores e seletores de pessoa (revisor/publicador), Auditoria — aparece **ocultado como no Portal da Transparência**, só com os 3 primeiros e os 2 últimos dígitos: `111.***.***-35` (`ocultarCpf` em `frontend/src/utils/cpf.js`; um valor malformado nunca é devolvido, sai totalmente oculto). Os campos em que a própria pessoa **digita** um CPF — login e cadastro de um novo usuário — continuam mostrando o que ela digita, e o CPF de um usuário existente não é editável. Isto é só exibição: a API ainda devolve o CPF completo onde a tela precisa dele para identificar a pessoa (ex.: compartilhar um documento envia o CPF do coautor escolhido).
+
 ## Papéis e posse de documento
 
 Nenhum poder sobre o ciclo de vida de um documento é implícito — todos os papéis são atribuídos explicitamente na tela **Manter Usuários** (restrita a Admin), em `PapelEnum`. Uma pessoa sem papel nenhum só visualiza/baixa qualquer documento do acervo, de qualquer OM, em qualquer situação.

@@ -41,7 +41,7 @@
         </template>
 
         <template #body-cell-cpf="props">
-          <q-td :props="props">{{ formatarCpf(props.row.cpf) }}</q-td>
+          <q-td :props="props">{{ ocultarCpf(props.row.cpf) }}</q-td>
         </template>
 
         <template #body-cell-om="props">
@@ -146,7 +146,7 @@
               outlined dense
               maxlength="14"
               :disable="salvando || editando"
-              :rules="[cpfValidoRule]"
+              :rules="editando ? [] : [cpfValidoRule]"
             />
 
             <q-input
@@ -275,7 +275,7 @@
 import { ref, reactive, computed, watch, onMounted } from 'vue'
 import { useQuasar } from 'quasar'
 import * as usuariosApi from '@/api/usuarios.js'
-import { validarCpf, mascaraCpf, formatarCpf, onlyDigits } from '@/utils/cpf.js'
+import { validarCpf, mascaraCpf, ocultarCpf, onlyDigits } from '@/utils/cpf.js'
 import { caixaAlta, normalizarBusca } from '@/utils/texto.js'
 import { useAuthStore } from '@/stores/auth.js'
 
@@ -387,7 +387,7 @@ function abrirEdicao(usuario) {
   Object.assign(form, {
     nome: usuario.nome,
     nomeGuerra: usuario.nomeGuerra ?? '',
-    cpf: formatarCpf(usuario.cpf),
+    cpf: ocultarCpf(usuario.cpf),
     email: usuario.email ?? '',
     postoGraduacaoId: usuario.postoGraduacaoId ?? null,
     senha: '',

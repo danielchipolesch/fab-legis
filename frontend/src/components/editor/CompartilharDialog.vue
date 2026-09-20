@@ -58,7 +58,7 @@
             </q-item-section>
             <q-item-section>
               <q-item-label>{{ caixaAlta(c.nome) }}</q-item-label>
-              <q-item-label caption>{{ formatarCpf(c.cpf) }}</q-item-label>
+              <q-item-label caption>{{ ocultarCpf(c.cpf) }}</q-item-label>
             </q-item-section>
             <q-item-section side>
               <q-btn icon="mdi-delete-outline" flat round dense size="sm" color="negative" @click="remover(c)">
@@ -82,7 +82,7 @@ import { ref, computed, watch } from 'vue'
 import { useQuasar } from 'quasar'
 import * as api from '@/api/documentos.js'
 import { buscarUsuariosPorNome } from '@/api/usuarios.js'
-import { formatarCpf } from '@/utils/cpf.js'
+import { ocultarCpf } from '@/utils/cpf.js'
 import { caixaAlta } from '@/utils/texto.js'
 
 const props = defineProps({
@@ -104,7 +104,7 @@ const buscando = ref(false)
 const opcoes = computed(() => candidatos.value.map(c => ({
   id: c.id,
   cpf: c.cpf,
-  rotulo: `${c.postoGraduacaoBigrama && c.nomeGuerra ? `${c.postoGraduacaoBigrama} ${caixaAlta(c.nomeGuerra)}` : caixaAlta(c.nome)} — ${c.omSigla ?? ''} (${formatarCpf(c.cpf)})`,
+  rotulo: `${c.postoGraduacaoBigrama && c.nomeGuerra ? `${c.postoGraduacaoBigrama} ${caixaAlta(c.nomeGuerra)}` : caixaAlta(c.nome)} — ${c.omSigla ?? ''} (${ocultarCpf(c.cpf)})`,
 })))
 
 async function carregar() {

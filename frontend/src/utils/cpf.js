@@ -22,6 +22,17 @@ export function formatarCpf(cpf) {
   return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6, 9)}-${d.slice(9)}`
 }
 
+// CPF é dado pessoal: em qualquer tela onde ele fica visível para um usuário, aparece ocultado como
+// no Portal da Transparência -- só os 3 primeiros e os 2 últimos dígitos: 111.***.***-35. Os campos em
+// que a própria pessoa DIGITA um CPF (login, cadastro de usuário) continuam mostrando o que ela digita.
+export function ocultarCpf(cpf) {
+  const d = onlyDigits(cpf)
+  if (!d) return ''
+  // Malformado (não tem 11 dígitos): nunca devolve o valor original -- oculta tudo.
+  if (d.length !== 11) return '***.***.***-**'
+  return `${d.slice(0, 3)}.***.***-${d.slice(9)}`
+}
+
 // Máscara progressiva para uso em @update:model-value de um q-input, aplicada
 // enquanto o usuário digita.
 export function mascaraCpf(valor) {

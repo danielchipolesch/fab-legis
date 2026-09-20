@@ -56,7 +56,7 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
 import { listUsuariosElegiveis } from '@/api/usuarios.js'
-import { formatarCpf } from '@/utils/cpf.js'
+import { ocultarCpf } from '@/utils/cpf.js'
 import { caixaAlta } from '@/utils/texto.js'
 
 const props = defineProps({
@@ -78,7 +78,7 @@ const erro = ref('')
 
 const opcoes = computed(() => candidatos.value.map(c => ({
   id: c.id,
-  rotulo: `${c.postoGraduacaoBigrama && c.nomeGuerra ? `${c.postoGraduacaoBigrama} ${caixaAlta(c.nomeGuerra)}` : caixaAlta(c.nome)} — ${formatarCpf(c.cpf)}`,
+  rotulo: `${c.postoGraduacaoBigrama && c.nomeGuerra ? `${c.postoGraduacaoBigrama} ${caixaAlta(c.nomeGuerra)}` : caixaAlta(c.nome)} — ${ocultarCpf(c.cpf)}`,
 })))
 
 async function carregar(termo) {

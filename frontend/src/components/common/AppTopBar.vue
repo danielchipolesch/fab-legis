@@ -74,7 +74,7 @@
               </q-item-section>
               <q-item-section>
                 <q-item-label class="text-weight-bold text-white">{{ caixaAlta(auth.usuario.nome) }}</q-item-label>
-                <q-item-label caption class="text-white" style="opacity:.85">{{ formatarCpf(auth.usuario.cpf) }}</q-item-label>
+                <q-item-label caption class="text-white" style="opacity:.85">{{ ocultarCpf(auth.usuario.cpf) }}</q-item-label>
                 <q-item-label caption class="text-white" style="opacity:.85">{{ auth.usuario.omNome }}</q-item-label>
               </q-item-section>
             </q-item>
@@ -139,7 +139,7 @@ import { useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { useAuthStore } from '@/stores/auth.js'
 import { useDocumentosStore } from '@/stores/documentos.js'
-import { formatarCpf } from '@/utils/cpf.js'
+import { ocultarCpf } from '@/utils/cpf.js'
 import { caixaAlta } from '@/utils/texto.js'
 import * as notificacoesApi from '@/api/notificacoes.js'
 
