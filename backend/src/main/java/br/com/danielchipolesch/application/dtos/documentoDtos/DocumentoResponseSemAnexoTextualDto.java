@@ -81,6 +81,10 @@ public record DocumentoResponseSemAnexoTextualDto(
         // ícone de editar da HomePage usa isto pra não ficar habilitado pra
         // RASCUNHO/MINUTA de outra pessoa só porque a OM bate -- posse nunca foi
         // (e não deveria ser) sobre pertencer à mesma OM, ver docs/autenticacao.md.
-        Boolean ehAutorOuCoautor
+        Boolean ehAutorOuCoautor,
+
+        // Qual conjunto de regras a espécie segue (ATO_NORMATIVO, NPA) -- o frontend escolhe o perfil de edição,
+        // prévia e publicação por aqui, nunca pela sigla da espécie.
+        String tipoDeRegras
 ) {
 }

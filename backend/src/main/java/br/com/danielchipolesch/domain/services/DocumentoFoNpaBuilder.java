@@ -112,7 +112,7 @@ public class DocumentoFoNpaBuilder implements LeiauteDoPdf {
     private static String moldura(String regiao, String topo, String altura) {
         return "<fo:static-content flow-name=\"" + regiao + "\">\n"
                 + "  <fo:block-container absolute-position=\"fixed\" top=\"" + topo + "\" left=\"2cm\" width=\"17cm\" height=\"" + altura
-                + "\" border=\"" + MOLDURA + "\"><fo:block>&#160;</fo:block></fo:block-container>\n"
+                + "\" border=\"" + MOLDURA + "\"><fo:block/></fo:block-container>\n"
                 + "</fo:static-content>\n";
     }
 
@@ -142,7 +142,7 @@ public class DocumentoFoNpaBuilder implements LeiauteDoPdf {
         sb.append(tabelaDoCabecalho(cabecalho));
         for (var item : normativos) renderizar(ctx, item, numeros, sb);
         sb.append(fecho(cabecalho));
-        sb.append("<fo:block id=\"npa-fim\" font-size=\"1pt\">&#160;</fo:block>\n");
+        sb.append("<fo:block id=\"npa-fim\"/>\n");
         sb.append("</fo:flow>\n</fo:page-sequence>\n");
         return sb.toString();
     }
@@ -176,7 +176,7 @@ public class DocumentoFoNpaBuilder implements LeiauteDoPdf {
         sb.append("<fo:table-body>\n");
 
         // Linha 1: o espaço do DOM (distintivo da OM, tratado depois) e a identificação; Comando, OM e setor.
-        var identificacao = "<fo:block-container height=\"2.2cm\"><fo:block>&#160;</fo:block></fo:block-container>"
+        var identificacao = "<fo:block-container height=\"2.2cm\"><fo:block/></fo:block-container>"
                 + "<fo:block font-weight=\"bold\" text-align=\"center\">" + foEsc(c.identificacao()) + "</fo:block>";
         var linhasDeCima = new StringBuilder();
         for (String linha : c.linhasDeCima()) {

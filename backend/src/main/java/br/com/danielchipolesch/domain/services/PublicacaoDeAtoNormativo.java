@@ -10,6 +10,7 @@ import br.com.danielchipolesch.domain.entities.estruturaDocumento.TipoPortariaPu
 import br.com.danielchipolesch.domain.handlers.exceptions.StatusCannotBeUpdatedException;
 import br.com.danielchipolesch.domain.regras.AcaoDeEtapa;
 import br.com.danielchipolesch.domain.regras.RegrasDeRegistroDaPublicacao;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
 
 import java.sql.Timestamp;
@@ -26,9 +27,11 @@ public class PublicacaoDeAtoNormativo implements RegrasDeRegistroDaPublicacao {
     private final DocumentoParteNormativaService documentoParteNormativaService;
     private final EmendaService emendaService;
 
+    // @Lazy: DocumentoParteNormativaService depende de RegrasDasEspecies, que depende (por aqui) deste registro --
+    // sem o proxy preguiçoso os beans formam um ciclo e a aplicação não sobe.
     public PublicacaoDeAtoNormativo(PortariaPublicacaoService portariaPublicacaoService,
-                                    DocumentoParteNormativaService documentoParteNormativaService,
-                                    EmendaService emendaService) {
+                                    @Lazy DocumentoParteNormativaService documentoParteNormativaService,
+                                    @Lazy EmendaService emendaService) {
         this.portariaPublicacaoService = portariaPublicacaoService;
         this.documentoParteNormativaService = documentoParteNormativaService;
         this.emendaService = emendaService;
