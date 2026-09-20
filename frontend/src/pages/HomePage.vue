@@ -76,7 +76,7 @@
           <strong>{{ abaAtivaLabel }}</strong>, selecionada acima.
         </div>
         <div class="row q-col-gutter-sm items-center">
-          <div class="col-12 col-md-4">
+          <div class="col-12 col-md-3">
             <q-input
               v-model="store.filtros.busca"
               label="Buscar nesta aba, por assunto ou número"
@@ -127,7 +127,22 @@
               hide-bottom-space
             />
           </div>
-          <div class="col-12 col-md-2 row justify-end items-center" style="gap:8px">
+          <div class="col-12 col-md-3 row justify-end items-center" style="gap:8px">
+            <!-- Busca Textual: procura no CONTEÚDO de todos os documentos (não só desta aba); leva o
+                 termo já digitado no campo ao lado. -->
+            <q-btn
+              outline
+              color="primary"
+              icon="mdi-text-search"
+              label="Busca no conteúdo"
+              no-caps
+              data-testid="busca-conteudo"
+              :to="rotaBuscaConteudo(store.filtros.busca)"
+            >
+              <q-tooltip anchor="top middle" self="bottom middle">
+                Procura dentro do texto de todos os documentos, de qualquer aba
+              </q-tooltip>
+            </q-btn>
             <q-btn flat @click="limparFiltros">
               <q-icon left name="mdi-filter-off" />
               Limpar
@@ -543,6 +558,7 @@ import SelecionarPessoaDialog from '@/components/editor/SelecionarPessoaDialog.v
 import { gerarPdf } from '@/services/pdfService.js'
 import { listEspeciesNormativas, normalizeEspecie } from '@/api/referencias.js'
 import { SITUACAO_BCA_META, SITUACAO_LOCAL_META } from '@/utils/statusDocumento.js'
+import { rotaBuscaConteudo } from '@/utils/buscaTextual.js'
 
 const $q = useQuasar()
 const store = useDocumentosStore()

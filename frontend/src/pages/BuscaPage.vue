@@ -87,10 +87,24 @@
 </template>
 
 <script setup>
+import { onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import { useBuscaStore } from '@/stores/busca.js'
+import { termoDaQuery } from '@/utils/buscaTextual.js'
 import { situacaoBcaMeta, situacaoLocalMeta, temEtapaEmCurso } from '@/utils/statusDocumento.js'
 
 const store = useBuscaStore()
+const route = useRoute()
+
+// Vindo do botão "Busca no conteúdo" da homepage, o termo digitado lá chega na URL (`?q=`): já
+// preenche o campo e executa a busca. Sem `?q=`, mantém a última busca guardada na store.
+onMounted(() => {
+  const termo = termoDaQuery(route.query)
+  if (termo) {
+    store.termo = termo
+    store.buscarAgora()
+  }
+})
 
 // Rótulo em português de cada ItemAnexoParteNormativaTipoEnum (backend) --
 // cobre as 3 partes (preliminar/normativa/final), já que a busca cruza as três.
