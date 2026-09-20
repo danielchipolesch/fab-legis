@@ -16,8 +16,8 @@
       <div v-if="documento?.titulo" class="text-body2 text-grey-8 q-mt-xxs ellipsis-2-lines">
         {{ documento.titulo }}
       </div>
-      <div v-if="documento?.assunto_basico" class="text-caption text-grey-6 q-mt-xxs ellipsis">
-        {{ documento.assunto_basico }}
+      <div v-if="documento?.assunto_basico || (perfil.ehNpa && documento?.titulo)" class="text-caption text-grey-6 q-mt-xxs ellipsis">
+        {{ documento.assunto_basico || documento.titulo }}
       </div>
     </div>
 
@@ -434,10 +434,11 @@
           <div class="col-4">
             <q-input :model-value="props.documento?.especie" label="Espécie" outlined dense disable />
           </div>
-          <div class="col-4">
+          <!-- Número básico e secundário são do ato normativo; a NPA se identifica só pelo texto livre da criação. -->
+          <div v-if="!perfil.ehNpa" class="col-4">
             <q-input :model-value="props.documento?.numero_basico" label="Número Básico" outlined dense disable />
           </div>
-          <div class="col-4">
+          <div v-if="!perfil.ehNpa" class="col-4">
             <q-input
               v-model="metaForm.numero_secundario"
               label="Número Secundário"
@@ -478,13 +479,13 @@
         <!-- Conteúdo -->
         <div class="text-caption text-weight-bold text-grey-6 text-uppercase q-mb-sm">Conteúdo</div>
         <div class="column q-col-gutter-sm q-mb-md">
-          <div>
+          <div v-if="!perfil.ehNpa">
             <q-input :model-value="props.documento?.assunto_basico" label="Assunto Básico" outlined dense disable />
           </div>
           <div>
             <q-input
               v-model="metaForm.titulo"
-              label="Título"
+              :label="perfil.ehNpa ? 'Assunto' : 'Título'"
               outlined dense
               autofocus
               :disable="!metaEditavel"
