@@ -109,6 +109,20 @@ class CabecalhoDaNpaTest {
     }
 
     @Test
+    void oRotuloDeAssinaturaLevaDoisPontosSemDuplicar() {
+        var campos = new CamposDaNpaDto("S", "L", List.of(
+                new br.com.danielchipolesch.application.dtos.npaDtos.AssinaturaDaNpaDto("Visto", List.of("A")),
+                new br.com.danielchipolesch.application.dtos.npaDtos.AssinaturaDaNpaDto("Aprovo:", List.of("B")),
+                new br.com.danielchipolesch.application.dtos.npaDtos.AssinaturaDaNpaDto("Elaborado por  ", List.of("C"))));
+
+        var c = CabecalhoDaNpa.de(documento(SituacaoBcaEnum.NAO_PUBLICADO), campos, List.of());
+
+        assertThat(c.assinaturas()).extracting(br.com.danielchipolesch.application.dtos.npaDtos.AssinaturaDaNpaDto::rotulo)
+                .containsExactly("Visto:", "Aprovo:", "Elaborado por:");
+        assertThat(c.assinaturas().get(0).linhas()).containsExactly("A");
+    }
+
+    @Test
     void semAnexosDizNaoHa() {
         assertThat(CabecalhoDaNpa.listaDeAnexos(List.of())).containsExactly("NÃO HÁ");
         assertThat(CabecalhoDaNpa.listaDeAnexos(null)).containsExactly("NÃO HÁ");

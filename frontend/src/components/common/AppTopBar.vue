@@ -213,7 +213,7 @@ function conectarSse() {
     $q.notify({
       type: 'info',
       icon: notifIcon(notificacao.tipo),
-      position: 'top-right',
+      position: 'bottom-right',
       message: notificacao.mensagem,
     })
     // Coautoria muda quem vê o quê em "Meus Documentos" (ver

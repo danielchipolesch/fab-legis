@@ -133,6 +133,22 @@ class LeiauteHtmlDeNpaTest {
     }
 
     @Test
+    void oFechoEDasAssinaturasSeguemOModelo() {
+        var html = html();
+
+        assertThat(html).contains(".fecho { text-align: right;").contains(".assinatura { text-align: left;")
+                .contains(".assinatura .linhas { text-align: center;");
+        assertThat(html).contains("<div class=\"assinatura\"><div>Elaborado por:</div><div class=\"linhas\"><div>FULANO DE TAL</div><div>Major Aviador</div></div></div>");
+    }
+
+    @Test
+    void osParagrafosTemPrimeiraLinhaRecuadaEAAlineaTemALetraPendurada() {
+        var html = html();
+
+        assertThat(html).contains(".paragrafo { text-indent: 1.25cm; }").contains(".alinea { margin-left: 3.1cm; text-indent: -0.6cm; }");
+    }
+
+    @Test
     void oTextoDoCabecalhoEEscapado() {
         assertThat(html()).contains("Funcionamento &lt;da&gt; Divisão").doesNotContain("Funcionamento <da>");
     }
@@ -142,7 +158,7 @@ class LeiauteHtmlDeNpaTest {
         var html = html();
 
         assertThat(html).contains(">1&nbsp;&nbsp;DISPOSIÇÕES PRELIMINARES<")
-                .contains("<span class=\"num\">1.1</span>&nbsp;&nbsp;<u>Referências</u>")
+                .contains("<span class=\"num\">1.1</span>&nbsp;&nbsp;<u>REFERÊNCIAS</u>")
                 .contains("<span class=\"num\">1.1.1</span>&nbsp;&nbsp;<p>Constituem referências:</p>")
                 .contains("<span class=\"num\">a)</span>&nbsp;&nbsp;<p>a Constituição Federal;</p>")
                 .contains("<span class=\"num\">b)</span>&nbsp;&nbsp;<p>o Decreto 12.002.</p>")
@@ -176,7 +192,7 @@ class LeiauteHtmlDeNpaTest {
         var html = html();
 
         assertThat(html).contains("Brasília, 12 de março de 2026")
-                .contains(">Elaborado por<").contains(">FULANO DE TAL<").contains(">Major Aviador<").contains(">Aprovo<");
+                .contains(">Elaborado por:<").contains(">FULANO DE TAL<").contains(">Major Aviador<").contains(">Aprovo:<");
         assertThat(html.indexOf("Elaborado por")).isLessThan(html.indexOf("Aprovo"));
     }
 

@@ -66,7 +66,7 @@ public record CabecalhoDaNpa(
                 listaDeAnexos(anexos),
                 campos.local() + ", " + (doc.getDtAprovacao() != null
                         ? dataPorExtenso(doc.getDtAprovacao()) : "___ de __________ de ____"),
-                campos.assinaturas() != null ? campos.assinaturas() : List.of(),
+                comDoisPontos(campos.assinaturas()),
                 publicada ? "(Publicada no " + boletim + ")" : null,
                 campos.boletimDaRevogacao() != null && !campos.boletimDaRevogacao().isBlank()
                         ? "(Revogada pelo " + campos.boletimDaRevogacao().strip() + ")" : null);
@@ -78,6 +78,15 @@ public record CabecalhoDaNpa(
         return doc.getBcaReferencia() != null && !doc.getBcaReferencia().isBlank()
                 ? doc.getBcaReferencia().strip()
                 : "Boletim Interno Ostensivo nº __, de __ de ______ de ____";
+    }
+
+    // O rótulo do bloco de assinatura leva dois-pontos ("Elaborado por:"), como no modelo, mesmo que o autor não os tenha digitado.
+    static List<AssinaturaDaNpaDto> comDoisPontos(List<AssinaturaDaNpaDto> assinaturas) {
+        if (assinaturas == null) return List.of();
+        return assinaturas.stream()
+                .map(a -> a.rotulo().stripTrailing().endsWith(":") ? a
+                        : new AssinaturaDaNpaDto(a.rotulo().stripTrailing() + ":", a.linhas()))
+                .toList();
     }
 
     // As duas linhas da célula EFETIVAÇÃO: "BIO 15" e "02 ABR 2026" (só depois de publicada; senão, em branco).

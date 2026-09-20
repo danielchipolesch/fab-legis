@@ -148,6 +148,14 @@ function efetivacao(documento, publicada) {
   return [`BIO ${numero}`, dataMilitar(documento.data_bca_referencia) ?? DATA_EM_BRANCO]
 }
 
+// O rótulo do bloco de assinatura leva dois-pontos ("Elaborado por:"), como no modelo, mesmo que o autor não os tenha digitado.
+export function comDoisPontos(assinaturas) {
+  return (assinaturas ?? []).map(a => {
+    const rotulo = (a.rotulo ?? '').trimEnd()
+    return rotulo.endsWith(':') ? a : { ...a, rotulo: rotulo + ':' }
+  })
+}
+
 // documento: o documento do frontend (backendParaFrontend); campos: { setorEmissor, local, assinaturas,
 // boletimDaRevogacao }; anexos: [{ ordem, titulo }].
 export function cabecalho(documento, campos, anexos) {
@@ -166,7 +174,7 @@ export function cabecalho(documento, campos, anexos) {
     assunto: documento.titulo,
     anexos: listaDeAnexos(anexos),
     localEData: `${campos.local}, ${dataPorExtenso(aprovacao) ?? '___ de __________ de ____'}`,
-    assinaturas: campos.assinaturas ?? [],
+    assinaturas: comDoisPontos(campos.assinaturas),
     publicadaNo: publicada ? `(Publicada no ${referencia})` : null,
     revogadaNo: revogacao ? `(Revogada pelo ${revogacao})` : null,
   }

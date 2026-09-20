@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   filhosPermitidos, permite, renumerar, rotulo, rotuloDoCorpo, letraDaAlinea, letraDoAnexo, listaDeAnexos,
-  cabecalho, dataMilitar, dataPorExtenso,
+  cabecalho, comDoisPontos, dataMilitar, dataPorExtenso,
 } from './npa.js'
 
 // Espelho de HierarquiaDeNpaTest, NumeracaoDeNpaTest e CabecalhoDaNpaTest (backend): os mesmos cenários, de
@@ -226,6 +226,13 @@ describe('cabeçalho e fecho', () => {
       { ...campos, boletimDaRevogacao: 'Boletim Interno Ostensivo nº 20, de 3 de maio de 2026' }, [])
     expect(c.publicadaNo).toContain('nº 15')
     expect(c.revogadaNo).toBe('(Revogada pelo Boletim Interno Ostensivo nº 20, de 3 de maio de 2026)')
+  })
+
+  it('o rótulo de assinatura leva dois-pontos, sem duplicar', () => {
+    const r = comDoisPontos([{ rotulo: 'Visto', linhas: ['A'] }, { rotulo: 'Aprovo:', linhas: ['B'] }, { rotulo: 'Elaborado por  ', linhas: ['C'] }])
+    expect(r.map(a => a.rotulo)).toEqual(['Visto:', 'Aprovo:', 'Elaborado por:'])
+    expect(r[0].linhas).toEqual(['A'])
+    expect(comDoisPontos(null)).toEqual([])
   })
 
   it('datas sem fuso: o dia não recua', () => {

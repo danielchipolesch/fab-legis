@@ -80,7 +80,7 @@ public class LeiauteHtmlDeNpa implements LeiauteDoHtml {
                    color: #000; text-align: left; margin: 0; }
             @media screen { body { padding: 0 16px; } }
             .moldura { position: relative; border: 1px solid #000; }
-            .corpo { padding: 10px 10px 12px; }
+            .corpo { padding: 10px 10px 1.2cm; }
             .selo-revogado { position: absolute; top: 8px; right: 8px; border: 2px solid #C00000; color: #C00000;
                              font-weight: bold; font-size: 14pt; padding: 2pt 8pt; text-align: center; }
             table.cabecalho { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 12pt; }
@@ -94,14 +94,16 @@ public class LeiauteHtmlDeNpa implements LeiauteDoHtml {
             .secao u { text-decoration: underline; }
             .num { font-weight: bold; }
             .paragrafo, .alinea { margin: 4px 0; }
-            .alinea { margin-left: 1cm; }
+            /* Como no modelo: primeira linha do parágrafo recuada (1,25 cm); alínea a 2,5 cm com a letra pendurada. */
+            .paragrafo { text-indent: 1.25cm; }
+            .alinea { margin-left: 3.1cm; text-indent: -0.6cm; }
             .alinea .num { font-weight: normal; }
             /* O texto vem do TipTap como <p>: inline, para o número e o texto ficarem na mesma linha (como nos atos normativos). */
             .paragrafo p, .alinea p { display: inline; margin: 0; }
             .bloco { display: inline; }
-            .fecho { text-align: center; margin-top: 26px; }
-            .assinatura { text-align: center; margin-top: 30px; }
-            .assinatura .nome { font-weight: bold; margin-top: 14px; }
+            .fecho { text-align: right; margin-top: 26px; }
+            .assinatura { text-align: left; margin-top: 26px; }
+            .assinatura .linhas { text-align: center; margin-top: 30px; }
             .publicada { text-align: center; font-size: 10pt; margin-top: 26px; }
             .anexo { page-break-before: always; margin-top: 30px; }
             .anexo-titulo { text-align: center; font-weight: bold; margin: 0 0 6px; }
@@ -147,7 +149,7 @@ public class LeiauteHtmlDeNpa implements LeiauteDoHtml {
             case CAPITULO -> sb.append("<div class=\"capitulo\">").append(numero).append("&nbsp;&nbsp;")
                     .append(esc(titulo.toUpperCase())).append("</div>\n");
             case SECAO_NORMATIVA, SUBSECAO_NORMATIVA -> sb.append("<div class=\"secao\"><span class=\"num\">").append(numero)
-                    .append("</span>&nbsp;&nbsp;<u>").append(esc(titulo)).append("</u></div>\n");
+                    .append("</span>&nbsp;&nbsp;<u>").append(esc(titulo.toUpperCase())).append("</u></div>\n");
             case PARAGRAFO -> texto(item, "paragrafo", numero, sb);
             case ALINEA -> texto(item, "alinea", numero, sb);
             default -> {
@@ -192,12 +194,11 @@ public class LeiauteHtmlDeNpa implements LeiauteDoHtml {
         var sb = new StringBuilder();
         sb.append("<div class=\"fecho\">").append(esc(c.localEData())).append("</div>\n");
         for (AssinaturaDaNpaDto assinatura : c.assinaturas()) {
-            sb.append("<div class=\"assinatura\"><div>").append(esc(assinatura.rotulo())).append("</div>");
+            // Como no modelo: o rótulo à esquerda ("Elaborado por:") e, abaixo, o texto livre centralizado, sem negrito.
+            sb.append("<div class=\"assinatura\"><div>").append(esc(assinatura.rotulo())).append("</div><div class=\"linhas\">");
             var linhas = assinatura.linhas() != null ? assinatura.linhas() : List.<String>of();
-            for (int i = 0; i < linhas.size(); i++) {
-                sb.append("<div").append(i == 0 ? " class=\"nome\"" : "").append(">").append(esc(linhas.get(i))).append("</div>");
-            }
-            sb.append("</div>\n");
+            for (String linha : linhas) sb.append("<div>").append(esc(linha)).append("</div>");
+            sb.append("</div></div>\n");
         }
         if (c.publicadaNo() != null) {
             sb.append("<div class=\"publicada\">").append(esc(c.publicadaNo())).append("</div>\n");

@@ -235,7 +235,7 @@ class DocumentoFoNpaBuilderTest {
 
         // A moldura é o retângulo da área do corpo, a 2,5 cm das bordas, e o corpo não tem margem própria: a tabela
         // começa exatamente nela. As células só têm borda embaixo e (as que não são da última coluna) à direita.
-        assertThat(fo).contains("top=\"2.5cm\" left=\"2.5cm\"");
+        assertThat(fo).contains("top=\"71.62pt\" left=\"70.87pt\"");
         assertThat(fo).contains("<fo:region-body region-name=\"xsl-region-body\"/>");
         assertThat(fo).doesNotContain("border-left=").doesNotContain("<fo:table-cell padding=\"3pt\" border=");
     }
@@ -281,8 +281,8 @@ class DocumentoFoNpaBuilderTest {
     void osElementosSaoNumeradosPeloCaminhoEAsAlineasPorLetra() throws Exception {
         var texto = textoCorrido(arvoreDeAreas(fo(rascunho(), estruturaPequena(), List.of())));
 
-        assertThat(texto).contains("1 DISPOSIÇÕES PRELIMINARES").contains("1.1 Finalidade").contains("1.1.1 Estabelecer")
-                .contains("1.2 Referências").contains("1.2.1 Constituem referências:")
+        assertThat(texto).contains("1 DISPOSIÇÕES PRELIMINARES").contains("1.1 FINALIDADE").contains("1.1.1 Estabelecer")
+                .contains("1.2 REFERÊNCIAS").contains("1.2.1 Constituem referências:")
                 .contains("a) a Constituição Federal;").contains("b) o Decreto 12.002.")
                 .contains("2 DISPOSIÇÕES FINAIS").contains("2.1 Os casos omissos");
         // Nada da numeração dos atos normativos.
@@ -342,9 +342,75 @@ class DocumentoFoNpaBuilderTest {
     void aMolduraEABordaDoCorpoERepeteEmTodasAsPaginas() {
         var fo = fo(rascunho(), estruturaLonga(), List.of());
 
-        // Uma moldura (retângulo fixo em conteúdo estático) por master -- a primeira página e as demais.
-        assertThat(ocorrencias(fo, "border=\"0.75pt solid #000000\"")).isEqualTo(2);
+        // Uma moldura (retângulo fixo em conteúdo estático) para a primeira página e outra para as demais, mais a borda
+        // do bloco do conteúdo, que a repete no mesmo lugar e a fecha na última página.
+        assertThat(ocorrencias(fo, "border=\"0.75pt solid #000000\"")).isEqualTo(3);
         assertThat(fo).contains("master-name=\"npa-primeira\"").contains("master-name=\"npa-demais\"");
+        // A última página só ganha a linha de cima (a borda do bloco não se repete no topo de uma página nova).
+        assertThat(fo).contains("master-name=\"npa-ultima\"").contains("flow-name=\"npa-topo-da-ultima\"");
+        assertThat(fo).contains("page-position=\"last\"").contains("page-position=\"only\"");
+    }
+
+    @Test
+    void aMolduraDaUltimaPaginaTerminaNoCampoDeAssinaturaEnaoNoFimDaPagina() throws Exception {
+        // Os blocos de assinatura vêm por último: a moldura da última página acaba depois deles, com uma folga, e o
+        // resto da folha fica em branco (no modelo, ela não vai até o rodapé).
+        var arvore = arvoreDeAreas(fo(rascunho(), estruturaLonga(), List.of()));
+        var paginas = arvore.split("<pageViewport");
+
+        // A moldura de página inteira é um retângulo fixo de 698,66 pt de altura (698660 na árvore de áreas): a primeira
+        // página e as do meio o têm; a última, não.
+        final String moldura = "positioning=\"fixed\"";
+        var primeira = paginas[1];
+        var ultima = paginas[paginas.length - 1];
+        assertThat(primeira).contains("bpd=\"698660\"").contains(moldura);
+        assertThat(ultima).doesNotContain("bpd=\"698660\"");
+
+        // Em vez dele, na última é o bloco do conteúdo que fecha a moldura: tem as bordas dos lados e a de baixo, e é mais
+        // baixo que a página. Na primeira ele não tem a de baixo (o documento continua na página seguinte).
+        var fechada = java.util.regex.Pattern.compile(
+                "<block ipd=\"4535\\d+\" bpd=\"(\\d+)\"(?![^>]*positioning=\"fixed\")[^>]*border-start=[^>]*border-end=[^>]*border-after=").matcher(ultima);
+        assertThat(fechada.find()).as("bloco do conteúdo fechado por borda embaixo, na última página").isTrue();
+        assertThat(Long.parseLong(fechada.group(1))).isLessThan(698_660L);
+        assertThat(java.util.regex.Pattern.compile("<block ipd=\"4535\\d+\" bpd=\"\\d+\"(?![^>]*positioning=\"fixed\")[^>]*border-start=[^>]*border-end=[^>]*border-after=")
+                .matcher(primeira).find()).isFalse();
+    }
+
+    @Test
+    void osParagrafosSaoSempreNumeradosEComPrimeiraLinhaRecuada() {
+        var fo = fo(rascunho(), estruturaPequena(), List.of());
+
+        // O parágrafo tem primeira linha recuada (1,25 cm) e o número em negrito antes do texto.
+        assertThat(fo).contains("start-indent=\"6pt\" text-indent=\"35.4pt\"").contains("<fo:inline font-weight=\"bold\">1.1.1</fo:inline>");
+        // Nenhum parágrafo fica sem o número, nem sob "Finalidade" nem sob "Âmbito".
+        assertThat(fo).doesNotContain("<fo:inline font-weight=\"bold\"></fo:inline>");
+    }
+
+    @Test
+    void aAlineaTemALetraPendurada() {
+        var fo = fo(rascunho(), estruturaPequena(), List.of());
+
+        assertThat(fo).contains("start-indent=\"94.9pt\" text-indent=\"-17pt\"");
+    }
+
+    @Test
+    void oTituloDaSecaoSaiEmMaiusculasESublinhado() {
+        var fo = fo(rascunho(), estruturaPequena(), List.of());
+
+        assertThat(fo).contains("<fo:inline text-decoration=\"underline\">FINALIDADE</fo:inline>")
+                .doesNotContain(">Finalidade</fo:inline>");
+    }
+
+    @Test
+    void oLocalEDataFicamADireitaEOsRotulosDeAssinaturaAEsquerdaComDoisPontos() {
+        var fo = fo(rascunho(), estruturaPequena(), List.of());
+
+        assertThat(fo).contains("<fo:block text-align=\"right\" space-before=\"24pt\" keep-with-next=\"always\">Brasília, 12 de março de 2026");
+        assertThat(fo).contains("<fo:block text-align=\"left\" keep-with-next=\"always\">Elaborado por:</fo:block>")
+                .contains("<fo:block text-align=\"left\" keep-with-next=\"always\">Aprovo:</fo:block>");
+        // O texto livre da assinatura fica centralizado e sem negrito.
+        assertThat(fo).contains("<fo:block text-align=\"center\" space-before=\"30pt\">FULANO DE TAL</fo:block>")
+                .contains("<fo:block text-align=\"center\">Major Aviador</fo:block>");
     }
 
     @Test
@@ -359,7 +425,7 @@ class DocumentoFoNpaBuilderTest {
             assertThat(texto).as("página " + p).contains(p + "/" + paginas);
         }
         // Na primeira página não há número.
-        assertThat(texto).doesNotContain("1/" + paginas + " ");
+        assertThat(texto).doesNotContainPattern("(?<!\\d)1/" + paginas + "(?!\\d)");
     }
 
     @Test

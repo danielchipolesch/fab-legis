@@ -38,7 +38,11 @@ public class DocumentoFoNpaBuilder implements LeiauteDoPdf {
     // O texto fica recuado da moldura (o cabeçalho, não): start-indent é absoluto, então o recuo do texto e o da alínea
     // (o do texto + 1 cm) partem dele.
     private static final String RECUO_DO_TEXTO = "6pt";
-    private static final String RECUO_DA_ALINEA = "34.35pt";
+    // Como no modelo: o parágrafo começa com a primeira linha recuada (1,25 cm); a alínea fica a 2,5 cm da moldura, com a
+    // letra pendurada -- as linhas seguintes alinham com o texto, não com a letra.
+    private static final String PRIMEIRA_LINHA_DO_PARAGRAFO = "35.4pt";
+    private static final String RECUO_DA_ALINEA = "94.9pt";
+    private static final String SUSPENSAO_DA_ALINEA = "-17pt";
 
     private final ObjectMapper objectMapper;
     private final ImagemService imagemService;
@@ -95,6 +99,12 @@ public class DocumentoFoNpaBuilder implements LeiauteDoPdf {
                 <fo:region-before region-name="wm" extent="0pt" overflow="visible"/>
                 <fo:region-end region-name="npa-moldura-primeira" extent="0pt" overflow="visible"/>
               </fo:simple-page-master>
+              <fo:simple-page-master master-name="npa-unica"
+                  page-width="21cm" page-height="29.7cm"
+                  margin-top="2.5cm" margin-bottom="2.5cm" margin-left="2.5cm" margin-right="2.5cm">
+                <fo:region-body region-name="xsl-region-body"/>
+                <fo:region-before region-name="wm" extent="0pt" overflow="visible"/>
+              </fo:simple-page-master>
               <fo:simple-page-master master-name="npa-demais"
                   page-width="21cm" page-height="29.7cm"
                   margin-top="1.7cm" margin-bottom="2.5cm" margin-left="2.5cm" margin-right="2.5cm">
@@ -103,21 +113,41 @@ public class DocumentoFoNpaBuilder implements LeiauteDoPdf {
                 <fo:region-start region-name="wm-continuacao" extent="0pt" overflow="visible"/>
                 <fo:region-end region-name="npa-moldura-demais" extent="0pt" overflow="visible"/>
               </fo:simple-page-master>
+              <fo:simple-page-master master-name="npa-ultima"
+                  page-width="21cm" page-height="29.7cm"
+                  margin-top="1.7cm" margin-bottom="2.5cm" margin-left="2.5cm" margin-right="2.5cm">
+                <fo:region-body region-name="xsl-region-body" margin-top="0.8cm"/>
+                <fo:region-before region-name="npa-numero-da-pagina" extent="0.8cm" display-align="after"/>
+                <fo:region-start region-name="wm-continuacao" extent="0pt" overflow="visible"/>
+                <fo:region-end region-name="npa-topo-da-ultima" extent="0pt" overflow="visible"/>
+              </fo:simple-page-master>
               <fo:page-sequence-master master-name="npa">
                 <fo:repeatable-page-master-alternatives>
+                  <fo:conditional-page-master-reference master-reference="npa-unica" page-position="only"/>
                   <fo:conditional-page-master-reference master-reference="npa-primeira" page-position="first"/>
+                  <fo:conditional-page-master-reference master-reference="npa-ultima" page-position="last"/>
                   <fo:conditional-page-master-reference master-reference="npa-demais" page-position="rest"/>
                 </fo:repeatable-page-master-alternatives>
               </fo:page-sequence-master>
             """;
     }
 
-    // A moldura é o retângulo da área do corpo: 16 x 24,7 cm, a 2,5 cm das bordas, igual em todas as páginas (o "n/total"
-    // fica na margem de cima, acima dela). A largura e a altura descontam a espessura da borda, que o FOP soma por fora.
+    // A moldura das páginas que continuam é o retângulo da área do corpo: 16 x 24,7 cm, a 2,5 cm das bordas (o "n/total"
+    // fica na margem de cima, acima dela). O posicionamento é o da área interna (a borda cresce para fora), então top/left já descontam 0,75 pt: assim a borda cai exatamente onde cai a do bloco do conteúdo (a que fecha a moldura na última página) e as duas coincidem.
+    // Na ÚLTIMA página (e num documento de uma página só) a moldura acaba onde acaba o campo de assinatura das
+    // autoridades: quem a desenha é a borda do bloco do conteúdo (ver sequenciaDaNpa); aqui, na última página de um
+    // documento de várias, só falta a linha de cima -- a borda de um bloco não se repete no topo de uma página nova.
     private static String moldura(String regiao) {
         return "<fo:static-content flow-name=\"" + regiao + "\">\n"
-                + "  <fo:block-container absolute-position=\"fixed\" top=\"2.5cm\" left=\"2.5cm\" width=\"452.04pt\" height=\"698.66pt\""
+                + "  <fo:block-container absolute-position=\"fixed\" top=\"71.62pt\" left=\"70.87pt\" width=\"453.54pt\" height=\"698.66pt\""
                 + " border=\"" + LINHA + "\"><fo:block/></fo:block-container>\n"
+                + "</fo:static-content>\n";
+    }
+
+    private static String topoDaUltima() {
+        return "<fo:static-content flow-name=\"npa-topo-da-ultima\">\n"
+                + "  <fo:block-container absolute-position=\"fixed\" top=\"71.62pt\" left=\"70.87pt\" width=\"453.54pt\" height=\"0pt\""
+                + " border-top=\"" + LINHA + "\"><fo:block/></fo:block-container>\n"
                 + "</fo:static-content>\n";
     }
 
@@ -125,13 +155,14 @@ public class DocumentoFoNpaBuilder implements LeiauteDoPdf {
                                   List<ItemAnexoParteNormativaResponseDto> normativos,
                                   Map<Long, ElementoNumeracao> numeros) {
         var sb = new StringBuilder();
-        sb.append("<fo:page-sequence master-reference=\"npa\" font-family=\"Calibri\" font-size=\"11pt\">\n");
+        sb.append("<fo:page-sequence master-reference=\"npa\" font-family=\"Calibri\" font-size=\"12pt\">\n");
         sb.append("<fo:static-content flow-name=\"npa-numero-da-pagina\">\n")
           .append("  <fo:block text-align=\"right\" font-size=\"10pt\"><fo:page-number/>/")
           .append("<fo:page-number-citation-last ref-id=\"npa-fim\"/></fo:block>\n")
           .append("</fo:static-content>\n");
         sb.append(moldura("npa-moldura-primeira"));
         sb.append(moldura("npa-moldura-demais"));
+        sb.append(topoDaUltima());
         sb.append(ctx.buildStaticContentWatermark());
         sb.append(ctx.buildStaticContentWatermark("wm-continuacao"));
         sb.append("<fo:flow flow-name=\"xsl-region-body\">\n");
@@ -144,13 +175,18 @@ public class DocumentoFoNpaBuilder implements LeiauteDoPdf {
               .append("</fo:block-container>\n");
         }
 
+        // Um bloco só, com a borda da moldura, guarda o cabeçalho e o texto: nas páginas que continuam a moldura já é
+        // desenhada por inteiro (regiões estáticas) e este bloco a repete no mesmo lugar; na última, é ele que a fecha,
+        // logo depois do campo de assinatura. O bloco de id, no fim, marca o fim do documento para o "n/total".
+        sb.append("<fo:block border=\"").append(LINHA).append("\">\n");
         sb.append(tabelaDoCabecalho(cabecalho));
         // O texto fica um pouco recuado da moldura; o cabeçalho, não (suas bordas são as da moldura).
-        sb.append("<fo:block start-indent=\"6pt\" end-indent=\"6pt\" space-before=\"8pt\">\n");
+        sb.append("<fo:block start-indent=\"6pt\" end-indent=\"6pt\" space-before=\"8pt\" padding-bottom=\"1.2cm\">\n");
         for (var item : normativos) renderizar(ctx, item, numeros, sb);
         sb.append(fecho(cabecalho));
         sb.append("</fo:block>\n");
         sb.append("<fo:block id=\"npa-fim\"/>\n");
+        sb.append("</fo:block>\n");
         sb.append("</fo:flow>\n</fo:page-sequence>\n");
         return sb.toString();
     }
@@ -195,7 +231,7 @@ public class DocumentoFoNpaBuilder implements LeiauteDoPdf {
     // linha -- é um bloco com borda no pé da célula do DOM, porque no modelo a divisória cai no meio da linha 4.
     private static String tabelaDoCabecalho(CabecalhoDaNpa c) {
         var sb = new StringBuilder();
-        sb.append("<fo:table table-layout=\"fixed\" width=\"100%\" border-collapse=\"separate\" font-size=\"11pt\">\n");
+        sb.append("<fo:table table-layout=\"fixed\" width=\"100%\" border-collapse=\"separate\" font-size=\"12pt\">\n");
         sb.append("<fo:table-column column-width=\"proportional-column-width(24.5)\"/>\n");
         sb.append("<fo:table-column column-width=\"proportional-column-width(25)\"/>\n");
         sb.append("<fo:table-column column-width=\"proportional-column-width(26.5)\"/>\n");
@@ -259,9 +295,9 @@ public class DocumentoFoNpaBuilder implements LeiauteDoPdf {
                     .append(numero).append("  ").append(foEsc(titulo.toUpperCase())).append("</fo:block>\n");
             case SECAO_NORMATIVA, SUBSECAO_NORMATIVA -> sb.append("<fo:block space-before=\"8pt\" space-after=\"4pt\" keep-with-next=\"always\">")
                     .append("<fo:inline font-weight=\"bold\">").append(numero).append("</fo:inline>  ")
-                    .append("<fo:inline text-decoration=\"underline\">").append(foEsc(titulo)).append("</fo:inline></fo:block>\n");
-            case PARAGRAFO -> texto(ctx, item, "<fo:inline font-weight=\"bold\">" + numero + "</fo:inline>", RECUO_DO_TEXTO, sb);
-            case ALINEA -> texto(ctx, item, numero, RECUO_DA_ALINEA, sb);
+                    .append("<fo:inline text-decoration=\"underline\">").append(foEsc(titulo.toUpperCase())).append("</fo:inline></fo:block>\n");
+            case PARAGRAFO -> texto(ctx, item, "<fo:inline font-weight=\"bold\">" + numero + "</fo:inline>", RECUO_DO_TEXTO, PRIMEIRA_LINHA_DO_PARAGRAFO, sb);
+            case ALINEA -> texto(ctx, item, numero, RECUO_DA_ALINEA, SUSPENSAO_DA_ALINEA, sb);
             default -> {
                 // Fora da gramática da NPA (a hierarquia o recusa no salvamento): não é desenhado.
             }
@@ -273,7 +309,7 @@ public class DocumentoFoNpaBuilder implements LeiauteDoPdf {
 
     // O rótulo e o primeiro parágrafo na mesma linha; parágrafos, tabelas e figuras seguintes em blocos.
     private void texto(DocumentoFoContext ctx, ItemAnexoParteNormativaResponseDto item, String rotuloFo,
-                       String recuo, StringBuilder sb) {
+                       String recuo, String recuoDaPrimeiraLinha, StringBuilder sb) {
         TipTapNode doc = ctx.parseConteudo(item.elementContent());
         String primeiro = "";
         String resto = "";
@@ -285,7 +321,8 @@ public class DocumentoFoNpaBuilder implements LeiauteDoPdf {
                 resto = ctx.renderer.renderDocContent(doc);
             }
         }
-        sb.append("<fo:block text-align=\"justify\" space-before=\"3pt\" space-after=\"3pt\" start-indent=\"").append(recuo).append("\">")
+        sb.append("<fo:block text-align=\"justify\" space-before=\"3pt\" space-after=\"3pt\" start-indent=\"").append(recuo)
+          .append("\" text-indent=\"").append(recuoDaPrimeiraLinha).append("\">")
           .append(rotuloFo).append("  ").append(primeiro).append("</fo:block>\n");
         if (!resto.isBlank()) {
             sb.append("<fo:block text-align=\"justify\" start-indent=\"").append(recuo).append("\">").append(resto).append("</fo:block>\n");
@@ -294,16 +331,18 @@ public class DocumentoFoNpaBuilder implements LeiauteDoPdf {
 
     // ─── Fecho ────────────────────────────────────────────────────────────────
 
+    // Como no modelo: "Local, data" à direita; cada assinatura tem o rótulo à esquerda ("Elaborado por:") e, abaixo, o
+    // texto livre centralizado, sem negrito (o nome, o posto e a função vêm como o autor escreveu).
     private static String fecho(CabecalhoDaNpa c) {
         var sb = new StringBuilder();
-        sb.append("<fo:block text-align=\"center\" space-before=\"24pt\" keep-with-next=\"always\">")
+        sb.append("<fo:block text-align=\"right\" space-before=\"24pt\" keep-with-next=\"always\">")
           .append(foEsc(c.localEData())).append("</fo:block>\n");
         for (AssinaturaDaNpaDto assinatura : c.assinaturas()) {
-            sb.append("<fo:block text-align=\"center\" space-before=\"26pt\" keep-together.within-page=\"always\">")
-              .append("<fo:block>").append(foEsc(assinatura.rotulo())).append("</fo:block>");
+            sb.append("<fo:block space-before=\"24pt\" keep-together.within-page=\"always\">")
+              .append("<fo:block text-align=\"left\" keep-with-next=\"always\">").append(foEsc(assinatura.rotulo())).append("</fo:block>");
             var linhas = assinatura.linhas() != null ? assinatura.linhas() : List.<String>of();
             for (int i = 0; i < linhas.size(); i++) {
-                sb.append("<fo:block").append(i == 0 ? " font-weight=\"bold\" space-before=\"14pt\"" : "").append(">")
+                sb.append("<fo:block text-align=\"center\"").append(i == 0 ? " space-before=\"30pt\"" : "").append(">")
                   .append(foEsc(linhas.get(i))).append("</fo:block>");
             }
             sb.append("</fo:block>\n");

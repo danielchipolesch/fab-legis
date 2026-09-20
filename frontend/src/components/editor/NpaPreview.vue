@@ -9,7 +9,9 @@
         <div v-if="wmText" class="wm-overlay" :style="{ color: wmColor }">{{ wmText }}</div>
         <div v-if="seloRevogado" class="selo-revogado" data-testid="selo-revogado">REVOGADO</div>
 
-        <!-- O cabeçalho é o do modelo do Anexo XII (mesma grade do PDF): as bordas de cima e dos lados são as da moldura. -->
+        <!-- A moldura vai do cabeçalho até o fim do campo de assinatura; as bordas de cima e dos lados do cabeçalho
+             (modelo do Anexo XII, mesma grade do PDF) são as dela. -->
+        <div class="moldura">
         <table class="cabecalho">
           <colgroup><col style="width:24.5%"><col style="width:25%"><col style="width:26.5%"><col style="width:24%"></colgroup>
           <tbody>
@@ -58,7 +60,7 @@
               <span class="num">{{ item.el._caminho }}</span>&nbsp;&nbsp;{{ (item.el.titulo || '').toUpperCase() }}
             </template>
             <template v-else-if="item.el.tipo === 'secao_normativa' || item.el.tipo === 'subsecao_normativa'">
-              <span class="num">{{ item.el._caminho }}</span>&nbsp;&nbsp;<u>{{ item.el.titulo }}</u>
+              <span class="num">{{ item.el._caminho }}</span>&nbsp;&nbsp;<u>{{ (item.el.titulo || '').toUpperCase() }}</u>
             </template>
             <template v-else>
               <span class="num">{{ item.el._caminho }}</span>&nbsp;&nbsp;<span class="texto" v-html="item.html" />
@@ -69,10 +71,11 @@
         <div class="fecho">{{ c.localEData }}</div>
         <div v-for="(a, i) in c.assinaturas" :key="i" class="assinatura">
           <div>{{ a.rotulo }}</div>
-          <div v-for="(linha, j) in a.linhas" :key="j" :class="{ nome: j === 0 }">{{ linha }}</div>
+          <div class="linhas"><div v-for="(linha, j) in a.linhas" :key="j">{{ linha }}</div></div>
         </div>
         <div v-if="c.publicadaNo" class="publicada">{{ c.publicadaNo }}</div>
         <div v-if="c.revogadaNo" class="publicada">{{ c.revogadaNo }}</div>
+        </div>
         </div>
       </div>
 
@@ -233,16 +236,9 @@ async function resolverImagens() {
   color: #000;
   text-align: justify;
 }
-.pdf-page:not(.pdf-page--anexo) { border: 0; }
-.pdf-page:not(.pdf-page--anexo)::before {
-  content: '';
-  position: absolute;
-  inset: 94px;
-  border: 1px solid #000;
-  pointer-events: none;
-}
+/* A moldura é a borda do bloco do cabeçalho + texto: acaba onde acaba o campo de assinatura, não no rodapé. */
+.moldura { border: 1px solid #000; }
 /* O conteúdo começa na própria moldura (2,5 cm das bordas): as bordas do cabeçalho são as dela. */
-.pdf-page:not(.pdf-page--anexo) > * { position: relative; }
 .pdf-page:not(.pdf-page--anexo) { padding: 94px; }
 
 .wm-overlay {
@@ -281,14 +277,16 @@ table.cabecalho td.topo { vertical-align: bottom; }
 .npa-el { padding: 2px 0; text-align: left; }
 .npa-capitulo { font-weight: 700; margin-top: 14px; }
 .npa-secao_normativa, .npa-subsecao_normativa { margin-top: 8px; }
-.npa-alinea { margin-left: 38px; }
+/* Como no modelo: parágrafo com a primeira linha recuada (1,25 cm); alínea a 2,5 cm com a letra pendurada. */
+.npa-paragrafo { text-indent: 47px; }
+.npa-alinea { margin-left: 117px; text-indent: -23px; }
 .num { font-weight: 700; }
 .npa-alinea .num { font-weight: 400; }
 .texto :deep(p) { display: inline; margin: 0; }
 
-.fecho { text-align: center; margin-top: 26px; }
-.assinatura { text-align: center; margin-top: 30px; }
-.assinatura .nome { font-weight: 700; margin-top: 12px; }
+.fecho { text-align: right; margin-top: 26px; }
+.assinatura { text-align: left; margin-top: 26px; }
+.assinatura .linhas { text-align: center; margin-top: 30px; }
 .publicada { text-align: center; font-size: 12px; margin-top: 24px; }
 
 .pdf-page--anexo { padding: 76px; }

@@ -95,7 +95,7 @@ class ConsistenciaEntreFormatosDaNpaTest {
                 "COMANDO DA AERONÁUTICA", "GRUPO DE APOIO", "DIVISÃO DE SUPORTE", "NPA-AGO-01", "OSTENSIVA",
                 "Funcionamento da Divisão", "12 MAR 2026", "BIO 15", "02 ABR 2026",
                 "A - Organograma.", "ANEXO A", "ORGANOGRAMA",
-                "1 DISPOSIÇÕES PRELIMINARES", "1.1 Referências", "1.1.1 Constituem referências:",
+                "1 DISPOSIÇÕES PRELIMINARES", "1.1 REFERÊNCIAS", "1.1.1 Constituem referências:",
                 "a) a Constituição Federal;", "2 DISPOSIÇÕES FINAIS", "2.1 Casos omissos.",
                 "Brasília, 12 de março de 2026", "Elaborado por", "FULANO", "Major",
                 "(Publicada no Boletim Interno Ostensivo nº 15, de 2 de abril de 2026)");
