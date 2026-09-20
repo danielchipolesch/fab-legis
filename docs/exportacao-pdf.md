@@ -41,7 +41,7 @@ Os **Anexos** (arquivos vinculados ao documento, `AnexoController`) também vira
 
 A [NPA](dominio.md#npa-norma-padrao-de-acao) tem layout próprio (Anexo XII da NSCA 5-3), escolhido pelas regras da espécie (`LeiauteDoPdf`/`LeiauteDoHtml`): **sem portaria, capa nem sumário**.
 
-- **Moldura:** todo o conteúdo dentro de uma moldura de 16 cm de largura, a 2,5 cm das bordas da página, que **continua em todas as páginas**. No PDF ela é um retângulo de posição fixa em conteúdo estático (o FOP não admite borda na região do corpo); no HTML, uma borda em volta do documento. A moldura e **todas as linhas do cabeçalho têm a mesma espessura**.
+- **Moldura:** todo o conteúdo dentro de uma moldura de 16 cm de largura, a 2,5 cm das bordas da página, que **continua em todas as páginas**. No PDF ela é um retângulo de posição fixa em conteúdo estático (o FOP não admite borda na região do corpo); no HTML e na prévia, uma borda em volta do cabeçalho e do texto. A moldura e **todas as linhas do cabeçalho têm a mesma espessura**.
 - **Cabeçalho** (primeira página): a tabela do modelo do Anexo XII, **colada à moldura** — as bordas de cima e dos lados do cabeçalho *são* as da página; as células só desenham as linhas internas. Quatro colunas (A, B, C, D), com células mescladas:
 
     | Linha | Coluna A | Colunas B–C | Coluna D |
@@ -56,7 +56,7 @@ A [NPA](dominio.md#npa-norma-padrao-de-acao) tem layout próprio (Anexo XII da N
 
     Datas no formato militar (`08 NOV 2026`); a EFETIVAÇÃO é `BIO <número>` e a data do Boletim, só depois de publicada (antes, `BIO __` e `__ ___ ____`).
 - **Numeração de páginas (só no PDF):** `n/total` no alto das páginas 2 em diante, acima da moldura; a primeira página não leva número, e o total não conta os anexos de imagem.
-- **Última página:** a moldura das páginas que continuam vai de ponta a ponta da área do texto; na **última**, ela acaba no fim do campo de assinatura das autoridades (com uma folga), e o resto da folha fica em branco. No PDF isso é feito por uma página-mestre própria para a última página (`page-position="last"`, e `only` para o documento de uma página só), em que a borda do próprio bloco do conteúdo fecha a moldura; nas demais páginas a moldura é um retângulo fixo.
+- **Última página:** a moldura vai **sempre até o fim da página**, inclusive na última — é o campo de assinatura das autoridades que acaba antes do fim da folha, não a moldura. No PDF ela é um retângulo fixo em conteúdo estático, igual em todas as páginas.
 - **Corpo:** numerado pelo caminho (`1`, `1.1`, `1.1.1.1`, alínea `a)`), **sempre** — todo parágrafo leva o número, inclusive os de *Finalidade* e *Âmbito*. Número do capítulo/seção/subseção em negrito, título do capítulo em maiúsculas e negrito, título da seção **em maiúsculas e sublinhado**. O parágrafo começa com a **primeira linha recuada** (1,25 cm); a **alínea** fica a 2,5 cm da moldura, com a letra pendurada (as linhas seguintes alinham com o texto). Texto justificado no PDF e alinhado à esquerda no HTML (NSCA 5-3, art. 8, XXI). Fonte de 12 pt.
 - **Fecho:** `Local, dd de mês de aaaa` (data da aprovação) **à direita**; cada bloco de assinatura tem o **rótulo à esquerda com dois-pontos** (`Elaborado por:`, acrescentado se o autor não o digitou) e, abaixo, o **texto livre centralizado, sem negrito**; se publicada, a linha `(Publicada no Boletim Interno Ostensivo nº __, de __ de ____)`.
 - **Anexos** de imagem ao final, rotulados `ANEXO A`, `ANEXO B`…; revogada, o selo vermelho `REVOGADO` no canto superior direito da primeira página.

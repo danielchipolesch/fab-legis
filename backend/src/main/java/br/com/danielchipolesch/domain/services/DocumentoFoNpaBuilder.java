@@ -99,12 +99,6 @@ public class DocumentoFoNpaBuilder implements LeiauteDoPdf {
                 <fo:region-before region-name="wm" extent="0pt" overflow="visible"/>
                 <fo:region-end region-name="npa-moldura-primeira" extent="0pt" overflow="visible"/>
               </fo:simple-page-master>
-              <fo:simple-page-master master-name="npa-unica"
-                  page-width="21cm" page-height="29.7cm"
-                  margin-top="2.5cm" margin-bottom="2.5cm" margin-left="2.5cm" margin-right="2.5cm">
-                <fo:region-body region-name="xsl-region-body"/>
-                <fo:region-before region-name="wm" extent="0pt" overflow="visible"/>
-              </fo:simple-page-master>
               <fo:simple-page-master master-name="npa-demais"
                   page-width="21cm" page-height="29.7cm"
                   margin-top="1.7cm" margin-bottom="2.5cm" margin-left="2.5cm" margin-right="2.5cm">
@@ -113,41 +107,24 @@ public class DocumentoFoNpaBuilder implements LeiauteDoPdf {
                 <fo:region-start region-name="wm-continuacao" extent="0pt" overflow="visible"/>
                 <fo:region-end region-name="npa-moldura-demais" extent="0pt" overflow="visible"/>
               </fo:simple-page-master>
-              <fo:simple-page-master master-name="npa-ultima"
-                  page-width="21cm" page-height="29.7cm"
-                  margin-top="1.7cm" margin-bottom="2.5cm" margin-left="2.5cm" margin-right="2.5cm">
-                <fo:region-body region-name="xsl-region-body" margin-top="0.8cm"/>
-                <fo:region-before region-name="npa-numero-da-pagina" extent="0.8cm" display-align="after"/>
-                <fo:region-start region-name="wm-continuacao" extent="0pt" overflow="visible"/>
-                <fo:region-end region-name="npa-topo-da-ultima" extent="0pt" overflow="visible"/>
-              </fo:simple-page-master>
               <fo:page-sequence-master master-name="npa">
                 <fo:repeatable-page-master-alternatives>
-                  <fo:conditional-page-master-reference master-reference="npa-unica" page-position="only"/>
                   <fo:conditional-page-master-reference master-reference="npa-primeira" page-position="first"/>
-                  <fo:conditional-page-master-reference master-reference="npa-ultima" page-position="last"/>
                   <fo:conditional-page-master-reference master-reference="npa-demais" page-position="rest"/>
                 </fo:repeatable-page-master-alternatives>
               </fo:page-sequence-master>
             """;
     }
 
-    // A moldura das páginas que continuam é o retângulo da área do corpo: 16 x 24,7 cm, a 2,5 cm das bordas (o "n/total"
-    // fica na margem de cima, acima dela). O posicionamento é o da área interna (a borda cresce para fora), então top/left já descontam 0,75 pt: assim a borda cai exatamente onde cai a do bloco do conteúdo (a que fecha a moldura na última página) e as duas coincidem.
-    // Na ÚLTIMA página (e num documento de uma página só) a moldura acaba onde acaba o campo de assinatura das
-    // autoridades: quem a desenha é a borda do bloco do conteúdo (ver sequenciaDaNpa); aqui, na última página de um
-    // documento de várias, só falta a linha de cima -- a borda de um bloco não se repete no topo de uma página nova.
+    // A moldura vai SEMPRE de ponta a ponta da área do texto (16 x 24,7 cm, a 2,5 cm das bordas), em todas as páginas,
+    // inclusive a última -- o campo de assinatura é que acaba antes, não a moldura. O "n/total" fica na margem de cima,
+    // acima dela. O posicionamento é o da área interna (a borda cresce para fora), então top/left descontam 0,75 pt e a
+    // largura e a altura, 1,5 pt: assim a borda externa coincide com as bordas da área do texto, onde a tabela do
+    // cabeçalho começa.
     private static String moldura(String regiao) {
         return "<fo:static-content flow-name=\"" + regiao + "\">\n"
-                + "  <fo:block-container absolute-position=\"fixed\" top=\"71.62pt\" left=\"70.87pt\" width=\"453.54pt\" height=\"698.66pt\""
+                + "  <fo:block-container absolute-position=\"fixed\" top=\"71.62pt\" left=\"71.62pt\" width=\"452.04pt\" height=\"698.66pt\""
                 + " border=\"" + LINHA + "\"><fo:block/></fo:block-container>\n"
-                + "</fo:static-content>\n";
-    }
-
-    private static String topoDaUltima() {
-        return "<fo:static-content flow-name=\"npa-topo-da-ultima\">\n"
-                + "  <fo:block-container absolute-position=\"fixed\" top=\"71.62pt\" left=\"70.87pt\" width=\"453.54pt\" height=\"0pt\""
-                + " border-top=\"" + LINHA + "\"><fo:block/></fo:block-container>\n"
                 + "</fo:static-content>\n";
     }
 
@@ -162,7 +139,6 @@ public class DocumentoFoNpaBuilder implements LeiauteDoPdf {
           .append("</fo:static-content>\n");
         sb.append(moldura("npa-moldura-primeira"));
         sb.append(moldura("npa-moldura-demais"));
-        sb.append(topoDaUltima());
         sb.append(ctx.buildStaticContentWatermark());
         sb.append(ctx.buildStaticContentWatermark("wm-continuacao"));
         sb.append("<fo:flow flow-name=\"xsl-region-body\">\n");
@@ -175,13 +151,11 @@ public class DocumentoFoNpaBuilder implements LeiauteDoPdf {
               .append("</fo:block-container>\n");
         }
 
-        // Um bloco só, com a borda da moldura, guarda o cabeçalho e o texto: nas páginas que continuam a moldura já é
-        // desenhada por inteiro (regiões estáticas) e este bloco a repete no mesmo lugar; na última, é ele que a fecha,
-        // logo depois do campo de assinatura. O bloco de id, no fim, marca o fim do documento para o "n/total".
-        sb.append("<fo:block border=\"").append(LINHA).append("\">\n");
+        // Um bloco só guarda o cabeçalho e o texto; o bloco de id, no fim, marca o fim do documento para o "n/total".
+        sb.append("<fo:block>\n");
         sb.append(tabelaDoCabecalho(cabecalho));
         // O texto fica um pouco recuado da moldura; o cabeçalho, não (suas bordas são as da moldura).
-        sb.append("<fo:block start-indent=\"6pt\" end-indent=\"6pt\" space-before=\"8pt\" padding-bottom=\"1.2cm\">\n");
+        sb.append("<fo:block start-indent=\"6pt\" end-indent=\"6pt\" space-before=\"8pt\">\n");
         for (var item : normativos) renderizar(ctx, item, numeros, sb);
         sb.append(fecho(cabecalho));
         sb.append("</fo:block>\n");

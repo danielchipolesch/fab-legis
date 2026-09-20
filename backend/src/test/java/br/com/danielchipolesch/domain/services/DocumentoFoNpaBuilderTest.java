@@ -235,7 +235,7 @@ class DocumentoFoNpaBuilderTest {
 
         // A moldura é o retângulo da área do corpo, a 2,5 cm das bordas, e o corpo não tem margem própria: a tabela
         // começa exatamente nela. As células só têm borda embaixo e (as que não são da última coluna) à direita.
-        assertThat(fo).contains("top=\"71.62pt\" left=\"70.87pt\"");
+        assertThat(fo).contains("top=\"71.62pt\" left=\"71.62pt\"");
         assertThat(fo).contains("<fo:region-body region-name=\"xsl-region-body\"/>");
         assertThat(fo).doesNotContain("border-left=").doesNotContain("<fo:table-cell padding=\"3pt\" border=");
     }
@@ -342,38 +342,29 @@ class DocumentoFoNpaBuilderTest {
     void aMolduraEABordaDoCorpoERepeteEmTodasAsPaginas() {
         var fo = fo(rascunho(), estruturaLonga(), List.of());
 
-        // Uma moldura (retângulo fixo em conteúdo estático) para a primeira página e outra para as demais, mais a borda
-        // do bloco do conteúdo, que a repete no mesmo lugar e a fecha na última página.
-        assertThat(ocorrencias(fo, "border=\"0.75pt solid #000000\"")).isEqualTo(3);
+        // Uma moldura (retângulo fixo em conteúdo estático) para a primeira página e outra para as demais -- a última é
+        // uma delas --, e nenhuma borda no bloco do conteúdo: a moldura NÃO acompanha o texto, vai até o fim da página.
+        assertThat(ocorrencias(fo, "border=\"0.75pt solid #000000\"")).isEqualTo(2);
         assertThat(fo).contains("master-name=\"npa-primeira\"").contains("master-name=\"npa-demais\"");
-        // A última página só ganha a linha de cima (a borda do bloco não se repete no topo de uma página nova).
-        assertThat(fo).contains("master-name=\"npa-ultima\"").contains("flow-name=\"npa-topo-da-ultima\"");
-        assertThat(fo).contains("page-position=\"last\"").contains("page-position=\"only\"");
+        assertThat(fo).doesNotContain("npa-ultima").doesNotContain("npa-unica")
+                .doesNotContain("page-position=\"last\"").doesNotContain("page-position=\"only\"");
     }
 
     @Test
-    void aMolduraDaUltimaPaginaTerminaNoCampoDeAssinaturaEnaoNoFimDaPagina() throws Exception {
-        // Os blocos de assinatura vêm por último: a moldura da última página acaba depois deles, com uma folga, e o
-        // resto da folha fica em branco (no modelo, ela não vai até o rodapé).
+    void aMolduraVaiAteOFimDaPaginaEmTodasAsPaginasInclusiveAUltima() throws Exception {
+        // As assinaturas é que acabam antes do fim da última página; a moldura, não: ela é sempre o retângulo de página
+        // inteira, de 698,66 pt de altura (698660 na árvore de áreas), fixo em conteúdo estático.
         var arvore = arvoreDeAreas(fo(rascunho(), estruturaLonga(), List.of()));
         var paginas = arvore.split("<pageViewport");
 
-        // A moldura de página inteira é um retângulo fixo de 698,66 pt de altura (698660 na árvore de áreas): a primeira
-        // página e as do meio o têm; a última, não.
-        final String moldura = "positioning=\"fixed\"";
-        var primeira = paginas[1];
-        var ultima = paginas[paginas.length - 1];
-        assertThat(primeira).contains("bpd=\"698660\"").contains(moldura);
-        assertThat(ultima).doesNotContain("bpd=\"698660\"");
-
-        // Em vez dele, na última é o bloco do conteúdo que fecha a moldura: tem as bordas dos lados e a de baixo, e é mais
-        // baixo que a página. Na primeira ele não tem a de baixo (o documento continua na página seguinte).
-        var fechada = java.util.regex.Pattern.compile(
-                "<block ipd=\"4535\\d+\" bpd=\"(\\d+)\"(?![^>]*positioning=\"fixed\")[^>]*border-start=[^>]*border-end=[^>]*border-after=").matcher(ultima);
-        assertThat(fechada.find()).as("bloco do conteúdo fechado por borda embaixo, na última página").isTrue();
-        assertThat(Long.parseLong(fechada.group(1))).isLessThan(698_660L);
-        assertThat(java.util.regex.Pattern.compile("<block ipd=\"4535\\d+\" bpd=\"\\d+\"(?![^>]*positioning=\"fixed\")[^>]*border-start=[^>]*border-end=[^>]*border-after=")
-                .matcher(primeira).find()).isFalse();
+        assertThat(paginas.length - 1).isGreaterThanOrEqualTo(3);
+        for (int i = 1; i < paginas.length; i++) {
+            assertThat(paginas[i]).as("página " + i).contains("bpd=\"698660\"").contains("positioning=\"fixed\"");
+        }
+        // Nenhum bloco do conteúdo carrega borda embaixo (a moldura não é fechada pelo texto).
+        var fechadaPeloTexto = java.util.regex.Pattern.compile(
+                "<block ipd=\"4535\\d+\" bpd=\"\\d+\"(?![^>]*positioning=\"fixed\")[^>]*border-after=");
+        assertThat(fechadaPeloTexto.matcher(paginas[paginas.length - 1]).find()).isFalse();
     }
 
     @Test
