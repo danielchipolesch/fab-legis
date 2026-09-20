@@ -153,7 +153,7 @@ class LeiauteHtmlDeNpaTest {
         assertThat(html()).doesNotContain("Publicada no").contains("A ser preenchida na publicação");
 
         var doc = documento(SituacaoBcaEnum.PUBLICADO);
-        doc.setBcaReferencia("15");
+        doc.setBcaReferencia("Boletim Interno Ostensivo nº 15, de 2 de abril de 2026");
         doc.setDtBcaReferencia(Timestamp.valueOf("2026-04-02 08:00:00"));
         var html = html(doc, List.of());
 

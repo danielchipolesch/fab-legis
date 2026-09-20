@@ -78,7 +78,7 @@ class ConsistenciaEntreFormatosDaNpaTest {
         doc.setSituacaoBca(SituacaoBcaEnum.PUBLICADO);
         doc.setSituacaoLocal(SituacaoLocalEnum.SEM_ETAPA);
         doc.setDtAprovacao(Timestamp.valueOf("2026-03-12 10:00:00"));
-        doc.setBcaReferencia("15");
+        doc.setBcaReferencia("Boletim Interno Ostensivo nº 15, de 2 de abril de 2026");
         doc.setDtBcaReferencia(Timestamp.valueOf("2026-04-02 08:00:00"));
         var normativos = List.of(
                 item(CAPITULO, "Disposições Preliminares", null,

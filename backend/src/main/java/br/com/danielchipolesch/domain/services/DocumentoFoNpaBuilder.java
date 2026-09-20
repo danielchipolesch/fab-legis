@@ -273,6 +273,10 @@ public class DocumentoFoNpaBuilder implements LeiauteDoPdf {
             sb.append("<fo:block text-align=\"center\" font-size=\"10pt\" space-before=\"24pt\">")
               .append(foEsc(c.publicadaNo())).append("</fo:block>\n");
         }
+        if (c.revogadaNo() != null) {
+            sb.append("<fo:block text-align=\"center\" font-size=\"10pt\" space-before=\"6pt\">")
+              .append(foEsc(c.revogadaNo())).append("</fo:block>\n");
+        }
         return sb.toString();
     }
 }

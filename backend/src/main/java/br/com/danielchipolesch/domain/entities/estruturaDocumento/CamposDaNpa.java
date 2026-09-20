@@ -27,6 +27,10 @@ public class CamposDaNpa {
     @Column(name = "tx_local", nullable = false, length = 120)
     private String local;
 
+    // Referência do Boletim Interno em que a NPA foi revogada; null enquanto não revogada.
+    @Column(name = "tx_boletim_revogacao")
+    private String boletimDaRevogacao;
+
     // JSON: [{"rotulo": "Elaborado por", "linhas": ["Nome", "Posto"]}] -- blocos de assinatura em texto livre.
     @Column(name = "tx_assinaturas", nullable = false, columnDefinition = "TEXT")
     private String assinaturas;

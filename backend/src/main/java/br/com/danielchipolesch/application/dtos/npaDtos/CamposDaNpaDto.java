@@ -16,6 +16,13 @@ public record CamposDaNpaDto(
         String local,
 
         @Size(max = 10) @Valid
-        List<AssinaturaDaNpaDto> assinaturas
+        List<AssinaturaDaNpaDto> assinaturas,
+
+        // Só na resposta (ignorado ao atualizar): o Boletim Interno da revogação, quando a NPA foi revogada.
+        String boletimDaRevogacao
 ) {
+
+    public CamposDaNpaDto(String setorEmissor, String local, List<AssinaturaDaNpaDto> assinaturas) {
+        this(setorEmissor, local, assinaturas, null);
+    }
 }

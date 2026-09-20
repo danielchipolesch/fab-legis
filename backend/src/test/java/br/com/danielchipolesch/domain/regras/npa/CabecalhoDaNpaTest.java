@@ -73,7 +73,7 @@ class CabecalhoDaNpaTest {
         assertThat(naoPublicada.publicadaNo()).isNull();
 
         var doc = documento(SituacaoBcaEnum.PUBLICADO);
-        doc.setBcaReferencia(" 15 ");
+        doc.setBcaReferencia(" Boletim Interno Ostensivo nº 15, de 2 de abril de 2026 ");
         doc.setDtBcaReferencia(Timestamp.valueOf("2026-04-02 08:00:00"));
         var publicada = CabecalhoDaNpa.de(doc, CAMPOS, List.of());
 
@@ -86,15 +86,20 @@ class CabecalhoDaNpaTest {
         var c = CabecalhoDaNpa.de(documento(SituacaoBcaEnum.PUBLICADO), CAMPOS, List.of());
 
         assertThat(c.efetivacao()).isEqualTo("Boletim Interno Ostensivo nº __, de __ de ______ de ____");
+        assertThat(c.revogadaNo()).isNull();
     }
 
     @Test
     void umaNpaRevogadaContinuaMostrandoAPublicacaoOriginal() {
         var doc = documento(SituacaoBcaEnum.REVOGADO);
-        doc.setBcaReferencia("15");
-        doc.setDtBcaReferencia(Timestamp.valueOf("2026-04-02 08:00:00"));
+        doc.setBcaReferencia("Boletim Interno Ostensivo nº 15, de 2 de abril de 2026");
+        var campos = new CamposDaNpaDto("DIVISÃO DE SUPORTE", "Brasília", List.of(),
+                "Boletim Interno Ostensivo nº 20, de 3 de maio de 2026");
 
-        assertThat(CabecalhoDaNpa.de(doc, CAMPOS, List.of()).publicadaNo()).contains("nº 15");
+        var c = CabecalhoDaNpa.de(doc, campos, List.of());
+
+        assertThat(c.publicadaNo()).contains("nº 15");
+        assertThat(c.revogadaNo()).isEqualTo("(Revogada pelo Boletim Interno Ostensivo nº 20, de 3 de maio de 2026)");
     }
 
     @Test

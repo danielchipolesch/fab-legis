@@ -187,6 +187,9 @@ public class LeiauteHtmlDeNpa implements LeiauteDoHtml {
         if (c.publicadaNo() != null) {
             sb.append("<div class=\"publicada\">").append(esc(c.publicadaNo())).append("</div>\n");
         }
+        if (c.revogadaNo() != null) {
+            sb.append("<div class=\"publicada\">").append(esc(c.revogadaNo())).append("</div>\n");
+        }
         return sb.toString();
     }
 

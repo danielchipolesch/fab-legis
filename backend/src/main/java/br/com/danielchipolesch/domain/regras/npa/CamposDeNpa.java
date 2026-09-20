@@ -89,6 +89,20 @@ public class CamposDeNpa implements CamposEspecificosDaEspecie {
         return documento;
     }
 
+    // Chamado ao revogar a NPA: guarda o Boletim Interno da revogação sem tocar nos demais campos.
+    public void registrarRevogacao(Long documentoId, String boletim) {
+        var campos = repositorio.findById(documentoId).orElseGet(() -> {
+            var novos = new CamposDaNpa();
+            novos.setDocumentoId(documentoId);
+            novos.setSetorEmissor(SETOR_INICIAL);
+            novos.setLocal(LOCAL_INICIAL);
+            novos.setAssinaturas(objectMapper.writeValueAsString(assinaturasIniciais()));
+            return novos;
+        });
+        campos.setBoletimDaRevogacao(boletim);
+        repositorio.save(campos);
+    }
+
     private void gravar(Long documentoId, String setor, String local, List<AssinaturaDaNpaDto> assinaturas) {
         var campos = repositorio.findById(documentoId).orElseGet(CamposDaNpa::new);
         campos.setDocumentoId(documentoId);
@@ -106,7 +120,7 @@ public class CamposDeNpa implements CamposEspecificosDaEspecie {
     // da NPA (PDF/HTML) lê, sem exigir que o chamador já tenha carregado o documento.
     public CamposDaNpaDto camposParaLeiaute(Long documentoId) {
         return repositorio.findById(documentoId)
-                .map(c -> new CamposDaNpaDto(c.getSetorEmissor(), c.getLocal(), ler(c)))
+                .map(c -> new CamposDaNpaDto(c.getSetorEmissor(), c.getLocal(), ler(c), c.getBoletimDaRevogacao()))
                 .orElseGet(() -> new CamposDaNpaDto(SETOR_INICIAL, LOCAL_INICIAL, assinaturasIniciais()));
     }
 }

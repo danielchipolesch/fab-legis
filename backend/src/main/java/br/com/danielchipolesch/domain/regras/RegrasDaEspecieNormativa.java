@@ -13,6 +13,8 @@ public interface RegrasDaEspecieNormativa {
 
     CamposEspecificosDaEspecie camposEspecificos();
 
+    RegrasDeRegistroDaPublicacao registroDaPublicacao();
+
     CalculadoraDeNumeracaoDosElementos numeracao();
 
     EstruturaInicialDeNovoDocumento estruturaInicial();

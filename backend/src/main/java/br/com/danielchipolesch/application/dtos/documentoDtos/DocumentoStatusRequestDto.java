@@ -51,6 +51,21 @@ public record DocumentoStatusRequestDto(
 
         // URL (MinIO) do PDF da portaria já enviado via POST .../portaria-pdf
         // antes deste request.
-        String portariaPdfUrl
+        String portariaPdfUrl,
+
+        // Só numa NPA, ao publicar (EM_PUBLICACAO -> SEM_ETAPA) e ao revogar (EM_REVOGACAO -> SEM_ETAPA): o número e a
+        // data do Boletim Interno em que a NPA foi publicada ou revogada. Não há portaria nem BCA.
+        Integer numeroBoletimInterno,
+        LocalDate dataBoletimInterno
 ) {
+
+    // Forma sem o Boletim Interno: o pedido de um ato normativo (e todas as etapas que não registram publicação).
+    public DocumentoStatusRequestDto(SituacaoLocalEnum situacaoLocal, Long revisorId, Long publicadorId,
+                                     String orgaoPortaria, String setorPortaria, String numeroPortaria,
+                                     LocalDate dataPortaria, Integer numeroBca, LocalDate dataBca,
+                                     String epigrafe, String ementa, String preambulo, String fecho,
+                                     String assinatura, String portariaPdfUrl) {
+        this(situacaoLocal, revisorId, publicadorId, orgaoPortaria, setorPortaria, numeroPortaria, dataPortaria,
+                numeroBca, dataBca, epigrafe, ementa, preambulo, fecho, assinatura, portariaPdfUrl, null, null);
+    }
 }

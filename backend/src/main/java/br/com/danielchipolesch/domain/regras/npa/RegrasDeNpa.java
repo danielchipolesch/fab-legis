@@ -8,6 +8,7 @@ import br.com.danielchipolesch.domain.regras.LeiauteDoPdf;
 import br.com.danielchipolesch.domain.regras.RegrasDaEspecieNormativa;
 import br.com.danielchipolesch.domain.regras.RegrasDeCriacaoDoDocumento;
 import br.com.danielchipolesch.domain.regras.RegrasDeHierarquiaDosElementos;
+import br.com.danielchipolesch.domain.regras.RegrasDeRegistroDaPublicacao;
 import br.com.danielchipolesch.domain.regras.RegrasDoCicloDeVidaDoDocumento;
 import br.com.danielchipolesch.domain.regras.RotuloDosAnexos;
 import br.com.danielchipolesch.domain.regras.TipoDeRegras;
@@ -23,6 +24,7 @@ public class RegrasDeNpa implements RegrasDaEspecieNormativa {
     private final CriacaoDeNpa criacao;
     private final HierarquiaDeNpa hierarquia;
     private final CamposDeNpa camposEspecificos;
+    private final PublicacaoDeNpa registroDaPublicacao;
     private final NumeracaoDeNpa numeracao;
     private final EstruturaInicialDeNpa estruturaInicial;
     private final RotuloDeAnexoDeNpa rotuloDosAnexos;
@@ -31,12 +33,13 @@ public class RegrasDeNpa implements RegrasDaEspecieNormativa {
     private final CicloDeVidaDeNpa cicloDeVida;
 
     public RegrasDeNpa(CriacaoDeNpa criacao, HierarquiaDeNpa hierarquia, CamposDeNpa camposEspecificos,
-                       NumeracaoDeNpa numeracao,
+                       PublicacaoDeNpa registroDaPublicacao, NumeracaoDeNpa numeracao,
                        EstruturaInicialDeNpa estruturaInicial, RotuloDeAnexoDeNpa rotuloDosAnexos,
                        DocumentoFoNpaBuilder leiauteDoPdf, LeiauteHtmlDeNpa leiauteDoHtml, CicloDeVidaDeNpa cicloDeVida) {
         this.criacao = criacao;
         this.hierarquia = hierarquia;
         this.camposEspecificos = camposEspecificos;
+        this.registroDaPublicacao = registroDaPublicacao;
         this.numeracao = numeracao;
         this.estruturaInicial = estruturaInicial;
         this.rotuloDosAnexos = rotuloDosAnexos;
@@ -49,6 +52,7 @@ public class RegrasDeNpa implements RegrasDaEspecieNormativa {
     @Override public RegrasDeCriacaoDoDocumento criacao() { return criacao; }
     @Override public RegrasDeHierarquiaDosElementos hierarquia() { return hierarquia; }
     @Override public CamposEspecificosDaEspecie camposEspecificos() { return camposEspecificos; }
+    @Override public RegrasDeRegistroDaPublicacao registroDaPublicacao() { return registroDaPublicacao; }
     @Override public CalculadoraDeNumeracaoDosElementos numeracao() { return numeracao; }
     @Override public EstruturaInicialDeNovoDocumento estruturaInicial() { return estruturaInicial; }
     @Override public RotuloDosAnexos rotuloDosAnexos() { return rotuloDosAnexos; }

@@ -102,6 +102,8 @@ Revogar um ato publicado segue o mesmo padrão de atribuição pessoal do fluxo 
 
 ## Portaria, BCA e registro de publicações
 
+> **NPA:** a [NPA](dominio.md#npa-norma-padrao-de-acao) não tem portaria nem BCA — é publicada e revogada no **Boletim Interno** da OM, e basta informar o **número** (1 a 9999) e a **data** (`numeroBoletimInterno`/`dataBoletimInterno` no pedido de status; `PublicacaoDeNpa`). A referência da publicação ("Boletim Interno Ostensivo nº 15, de 2 de abril de 2026") vai para os mesmos campos de referência que um ato normativo usa para o BCA e alimenta a EFETIVAÇÃO do cabeçalho e a linha "(Publicada no …)". A da **revogação** fica em `t_documento_npa` (`V9`) e **não sobrescreve** a da publicação: a NPA revogada continua mostrando onde foi publicada, e ganha "(Revogada pelo …)" e o selo `REVOGADO`. A data do Boletim da revogação não pode ser anterior à da publicação.
+
 Publicar (`EM_PUBLICACAO → SEM_ETAPA`) e revogar (`EM_REVOGACAO → SEM_ETAPA`), sempre pela pessoa atribuída como publicadora, exigem o registro de uma **Portaria** (órgão, setor, número, data) e de um **BCA** (número, data), além do upload do PDF da portaria correspondente. Esse registro é gravado como uma linha própria em `PortariaPublicacao`, nunca mesclado ao PDF do documento — cada portaria permanece um arquivo íntegro, condição necessária para uma futura assinatura digital (que cobre um intervalo de bytes exato do arquivo original; um merge invalidaria essa assinatura).
 
 O tipo de cada registro é decidido pela **Situação BCA** do documento no momento:

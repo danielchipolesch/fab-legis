@@ -23,6 +23,7 @@ import java.util.List;
 //   anexos       : "A - Título; B - Título; e C - Título", gerado dos próprios anexos
 //   localEData   : "Local, dd de mês de aaaa" do fecho (data da aprovação)
 //   publicadaNo  : "(Publicada no Boletim Interno Ostensivo nº __, de __ de ____)" -- só depois de publicada; senão null
+//   revogadaNo   : "(Revogada pelo Boletim Interno Ostensivo nº __, de __ de ____)" -- só depois de revogada; senão null
 public record CabecalhoDaNpa(
         List<String> linhasDeCima,
         String identificacao,
@@ -33,7 +34,8 @@ public record CabecalhoDaNpa(
         String anexos,
         String localEData,
         List<AssinaturaDaNpaDto> assinaturas,
-        String publicadaNo) {
+        String publicadaNo,
+        String revogadaNo) {
 
     static final String COMANDO = "COMANDO DA AERONÁUTICA";
     static final String DISTRIBUICAO = "OSTENSIVA";
@@ -58,16 +60,17 @@ public record CabecalhoDaNpa(
                 campos.local() + ", " + (doc.getDtAprovacao() != null
                         ? dataPorExtenso(doc.getDtAprovacao()) : "___ de __________ de ____"),
                 campos.assinaturas() != null ? campos.assinaturas() : List.of(),
-                publicada ? "(Publicada no " + boletim + ")" : null);
+                publicada ? "(Publicada no " + boletim + ")" : null,
+                campos.boletimDaRevogacao() != null && !campos.boletimDaRevogacao().isBlank()
+                        ? "(Revogada pelo " + campos.boletimDaRevogacao().strip() + ")" : null);
     }
 
-    // "Boletim Interno Ostensivo nº X, de dd de mês de aaaa". O número e a data ficam nos campos de referência da
-    // publicação do documento (os mesmos que um ato normativo usa para o BCA).
+    // "Boletim Interno Ostensivo nº X, de dd de mês de aaaa": a referência oficial da publicação, gravada pronta no campo
+    // que um ato normativo usa para o BCA (ver PublicacaoDeNpa). Em branco só se a NPA foi publicada sem ela.
     private static String boletim(Documento doc) {
-        String numero = doc.getBcaReferencia() != null && !doc.getBcaReferencia().isBlank()
-                ? doc.getBcaReferencia().strip() : "__";
-        String data = doc.getDtBcaReferencia() != null ? dataPorExtenso(doc.getDtBcaReferencia()) : "__ de ______ de ____";
-        return "Boletim Interno Ostensivo nº " + numero + ", de " + data;
+        return doc.getBcaReferencia() != null && !doc.getBcaReferencia().isBlank()
+                ? doc.getBcaReferencia().strip()
+                : "Boletim Interno Ostensivo nº __, de __ de ______ de ____";
     }
 
     // "A - X; B - Y; e C - Z". Um só anexo: "A - X". Dois: "A - X; e B - Y".

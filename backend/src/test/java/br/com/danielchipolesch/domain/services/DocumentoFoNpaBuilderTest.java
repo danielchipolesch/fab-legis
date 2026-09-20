@@ -158,7 +158,7 @@ class DocumentoFoNpaBuilderTest {
         assertThat(naoPublicada).contains("A ser preenchida na publicação").doesNotContain("Publicada no");
 
         var doc = documento(SituacaoBcaEnum.PUBLICADO, SituacaoLocalEnum.SEM_ETAPA);
-        doc.setBcaReferencia("15");
+        doc.setBcaReferencia("Boletim Interno Ostensivo nº 15, de 2 de abril de 2026");
         doc.setDtBcaReferencia(Timestamp.valueOf("2026-04-02 08:00:00"));
         var publicada = textoCorrido(arvoreDeAreas(fo(doc, estruturaPequena(), List.of())));
 

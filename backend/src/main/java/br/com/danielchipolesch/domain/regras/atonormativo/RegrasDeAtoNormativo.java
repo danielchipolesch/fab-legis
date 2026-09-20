@@ -8,12 +8,14 @@ import br.com.danielchipolesch.domain.regras.LeiauteDoPdf;
 import br.com.danielchipolesch.domain.regras.RegrasDaEspecieNormativa;
 import br.com.danielchipolesch.domain.regras.RegrasDeCriacaoDoDocumento;
 import br.com.danielchipolesch.domain.regras.RegrasDeHierarquiaDosElementos;
+import br.com.danielchipolesch.domain.regras.RegrasDeRegistroDaPublicacao;
 import br.com.danielchipolesch.domain.regras.RegrasDoCicloDeVidaDoDocumento;
 import br.com.danielchipolesch.domain.regras.RotuloDosAnexos;
 import br.com.danielchipolesch.domain.regras.TipoDeRegras;
 import br.com.danielchipolesch.domain.services.CapitulosPadronizadosService;
 import br.com.danielchipolesch.domain.services.DocumentoFoBuilder;
 import br.com.danielchipolesch.domain.services.NumeracaoService;
+import br.com.danielchipolesch.domain.services.PublicacaoDeAtoNormativo;
 import org.springframework.stereotype.Component;
 
 // As regras dos atos normativos (DCA, ICA, NSCA...): LC 95/1998, Decreto 12.002/2024 e NSCA 5-3. Reúne as
@@ -25,6 +27,7 @@ public class RegrasDeAtoNormativo implements RegrasDaEspecieNormativa {
     private final RegrasDeCriacaoDoDocumento criacao;
     private final RegrasDeHierarquiaDosElementos hierarquia;
     private final CamposEspecificosDaEspecie camposEspecificos;
+    private final RegrasDeRegistroDaPublicacao registroDaPublicacao;
     private final CalculadoraDeNumeracaoDosElementos numeracao;
     private final EstruturaInicialDeNovoDocumento estruturaInicial;
     private final RotuloDosAnexos rotuloDosAnexos;
@@ -35,6 +38,7 @@ public class RegrasDeAtoNormativo implements RegrasDaEspecieNormativa {
     public RegrasDeAtoNormativo(CriacaoDeAtoNormativo criacao,
                                 HierarquiaDeAtoNormativo hierarquia,
                                 SemCamposEspecificos camposEspecificos,
+                                PublicacaoDeAtoNormativo registroDaPublicacao,
                                 NumeracaoService numeracao,
                                 CapitulosPadronizadosService estruturaInicial,
                                 RotuloDeAnexoDeAtoNormativo rotuloDosAnexos,
@@ -44,6 +48,7 @@ public class RegrasDeAtoNormativo implements RegrasDaEspecieNormativa {
         this.criacao = criacao;
         this.hierarquia = hierarquia;
         this.camposEspecificos = camposEspecificos;
+        this.registroDaPublicacao = registroDaPublicacao;
         this.numeracao = numeracao;
         this.estruturaInicial = estruturaInicial;
         this.rotuloDosAnexos = rotuloDosAnexos;
@@ -56,6 +61,7 @@ public class RegrasDeAtoNormativo implements RegrasDaEspecieNormativa {
     @Override public RegrasDeCriacaoDoDocumento criacao() { return criacao; }
     @Override public RegrasDeHierarquiaDosElementos hierarquia() { return hierarquia; }
     @Override public CamposEspecificosDaEspecie camposEspecificos() { return camposEspecificos; }
+    @Override public RegrasDeRegistroDaPublicacao registroDaPublicacao() { return registroDaPublicacao; }
     @Override public CalculadoraDeNumeracaoDosElementos numeracao() { return numeracao; }
     @Override public EstruturaInicialDeNovoDocumento estruturaInicial() { return estruturaInicial; }
     @Override public RotuloDosAnexos rotuloDosAnexos() { return rotuloDosAnexos; }
