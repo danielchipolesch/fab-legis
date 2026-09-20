@@ -25,7 +25,7 @@
 
       <q-separator vertical style="height:36px" />
 
-      <q-btn outline color="primary" size="sm"
+      <q-btn v-if="perfil.permiteAlteracao" outline color="primary" size="sm"
         :to="{ name: 'documento-comparar', params: { id: documentoId } }">
         <q-icon left name="mdi-source-branch" />
         Versões
@@ -90,24 +90,28 @@
                     <div class="col-6">
                       <div class="info-label">Número</div>
                       <div class="info-value text-primary text-weight-medium">
-                        {{ documento.especie }} {{ documento.numero_basico }}<template v-if="documento.numero_secundario">-{{ documento.numero_secundario }}</template>
+                        {{ documento.codigo_documento }}
                       </div>
                     </div>
                     <div class="col-12">
                       <div class="info-label">Título</div>
                       <div class="info-value">{{ documento.titulo || '—' }}</div>
                     </div>
-                    <div class="col-12">
+                    <div v-if="!perfil.ehNpa" class="col-12">
                       <div class="info-label">Assunto Básico</div>
                       <div class="info-value">{{ documento.assunto_basico || '—' }}</div>
                     </div>
                     <div class="col-6">
-                      <div class="info-label">Situação BCA</div>
+                      <div class="info-label">{{ perfil.ehNpa ? 'Situação (Boletim Interno)' : 'Situação BCA' }}</div>
                       <StatusBadge :situacao-bca="documento.situacao_bca" mostrar="bca" class="q-mt-xs" data-testid="info-situacao-bca" />
                     </div>
                     <div class="col-6">
                       <div class="info-label">Situação Local</div>
                       <StatusBadge :situacao-local="documento.situacao_local" mostrar="local" class="q-mt-xs" data-testid="info-situacao-local" />
+                    </div>
+                    <div v-if="perfil.ehNpa && documento.bca_referencia" class="col-12">
+                      <div class="info-label">Publicação</div>
+                      <div class="info-value">{{ documento.bca_referencia }}</div>
                     </div>
                     <div class="col-6">
                       <div class="info-label">Código</div>
@@ -167,8 +171,9 @@
           </q-expansion-item>
         </q-card>
 
-        <!-- 2. Portarias (edição, alterações e revogação -- fechada por padrão) -->
-        <q-card flat class="section-card">
+        <!-- 2. Portarias (edição, alterações e revogação -- fechada por padrão). A NPA não tem portaria:
+             é publicada e revogada no Boletim Interno (ver "Publicação" acima). -->
+        <q-card v-if="!perfil.ehNpa" flat class="section-card">
           <q-expansion-item
             v-model="expanded.portarias"
             icon="mdi-file-certificate-outline"
@@ -357,6 +362,7 @@ import { gerarPdf, gerarHtml, buscarPdfBlob } from '@/services/pdfService.js'
 import { gerarTextoSugeridoPortaria } from '@/utils/textoSugeridoPortaria.js'
 import { resolveMinioUrls } from '@/utils/minioUrls.js'
 import BotaoBaixarVersao from '@/components/common/BotaoBaixarVersao.vue'
+import { perfilDoDocumento } from '@/perfis/index.js'
 import { itensRenumeracaoUnico } from '@/utils/numbering.js'
 import {
   ehAlteracaoPublicada, temVersaoVigente, temVersaoEmTramitacao, versaoPadrao, eventoDoHistorico,
@@ -381,6 +387,8 @@ const expanded = reactive({
 
 const documentoId = computed(() => route.params.id)
 const documento   = computed(() => docStore.getById(documentoId.value))
+// As regras da espécie do documento (perfis/index.js): o que a tela mostra varia por espécie.
+const perfil      = computed(() => perfilDoDocumento(documento.value))
 
 // Versão exibida no iframe: a em tramitação (se houver) é a padrão; senão, a vigente. O PDF só
 // é buscado com a seção aberta: a versão em tramitação é renderizada na hora pelo backend quando
@@ -427,8 +435,7 @@ onBeforeUnmount(liberarPdf)
 const docLabel = computed(() => {
   const d = documento.value
   if (!d) return 'Documento'
-  const num = [d.numero_basico, d.numero_secundario].filter(Boolean).join('-')
-  return [d.especie, num].filter(Boolean).join(' ') || 'Documento'
+  return d.codigo_documento || 'Documento'
 })
 
 // Rascunho/Minuta oferecem o atalho de voltar para o editor pelo breadcrumb

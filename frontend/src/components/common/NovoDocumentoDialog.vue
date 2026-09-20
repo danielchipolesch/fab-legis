@@ -45,8 +45,24 @@
               </q-select>
             </div>
 
-            <!-- Assunto Básico -->
-            <div class="col-12">
+            <!-- Identificação (NPA): texto livre, conforme o padrão do setor que emite -->
+            <div v-if="ehNpa" class="col-12">
+              <q-input
+                v-model="form.identificacao"
+                label="Identificação *"
+                hint="Texto livre, conforme o padrão do setor. Ex.: NPA-AGO-01 ou NPA 44-__/2026"
+                :rules="[obrigatorio]"
+                outlined
+                maxlength="120"
+              >
+                <template #prepend>
+                  <q-icon name="mdi-identifier" />
+                </template>
+              </q-input>
+            </div>
+
+            <!-- Assunto Básico (atos normativos; a NPA não usa) -->
+            <div v-else class="col-12">
               <q-select
                 v-model="form.assuntoBasico"
                 :options="assuntosFiltrados"
@@ -79,7 +95,7 @@
             <div class="col-12">
               <q-input
                 v-model="form.titulo"
-                label="Título do Documento *"
+                :label="ehNpa ? 'Assunto *' : 'Título do Documento *'"
                 :rules="[obrigatorio, minLen]"
                 outlined
                 counter
@@ -95,7 +111,7 @@
         </q-form>
 
         <q-banner
-          v-if="form.especieNormativa && form.assuntoBasico"
+          v-if="!ehNpa && form.especieNormativa && form.assuntoBasico"
           dense
           rounded
           class="bg-info text-white q-mt-sm"
@@ -131,6 +147,7 @@
 import { ref, reactive, computed, watch } from 'vue'
 import { useDocumentosStore } from '@/stores/documentos.js'
 import { useRouter } from 'vue-router'
+import { perfilDe } from '@/perfis/index.js'
 import { listEspeciesNormativas, listAssuntosBasicos, normalizeEspecie, normalizeAssunto } from '@/api/referencias.js'
 
 const props = defineProps({
@@ -197,8 +214,13 @@ function filtrarAssuntos(val, update) {
 const form = reactive({
   especieNormativa: null,
   assuntoBasico:    null,
+  identificacao:    '',
   titulo:           '',
 })
+
+// A espécie escolhida decide o que o documento pede na criação (perfis/index.js): um ato normativo, o assunto
+// básico; uma NPA, a identificação em texto livre.
+const ehNpa = computed(() => perfilDe(form.especieNormativa?.tipoDeRegras).ehNpa)
 
 const aberto = computed({
   get: () => props.modelValue,
@@ -208,7 +230,7 @@ const aberto = computed({
 watch(aberto, async (v) => {
   if (v) {
     formRef.value?.resetValidation()
-    Object.assign(form, { especieNormativa: null, assuntoBasico: null, titulo: '' })
+    Object.assign(form, { especieNormativa: null, assuntoBasico: null, identificacao: '', titulo: '' })
     await carregarReferencias()
   }
 })
@@ -224,7 +246,8 @@ async function confirmar() {
   try {
     const doc = await store.createDocumento({
       idEspecieNormativa: form.especieNormativa.id,
-      idAssuntoBasico:    form.assuntoBasico.id,
+      idAssuntoBasico:    ehNpa.value ? null : form.assuntoBasico.id,
+      identificacao:      ehNpa.value ? form.identificacao : null,
       tituloDocumento:    form.titulo,
     })
     if (doc?.id) {
@@ -241,6 +264,6 @@ async function confirmar() {
 function fechar() {
   aberto.value = false
   formRef.value?.resetValidation()
-  Object.assign(form, { especieNormativa: null, assuntoBasico: null, titulo: '' })
+  Object.assign(form, { especieNormativa: null, assuntoBasico: null, identificacao: '', titulo: '' })
 }
 </script>

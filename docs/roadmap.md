@@ -15,45 +15,17 @@ O FAB Legis foi desenhado para crescer. As linhas de evolução abaixo estão or
 - **Anexos com parte textual** — hoje os anexos além do ANEXO I (sumário + corpo normativo) são só de imagem. Quando houver anexos com texto, a regra "**Continuação do ANEXO X**" da segunda página em diante (já implementada para os anexos de imagem — ver [Exportação](exportacao-pdf.md)) se estende a eles: bastará usar o mesmo layout de página (`a4-anexo`, `DocumentoFoFrontMatterBuilder.buildContinuacaoAnexo`) na sequência de páginas de cada anexo de texto, com o próprio rótulo. O ANEXO I continua sem esse cabeçalho, por decisão explícita.
 - **Grafo de referências normativas** — mapear quais atos alteram, revogam ou citam quais outros, e alertar automaticamente quando um ato referenciado for revogado.
 
-## NPA (Norma Padrão de Ação) — proposta de implementação
+## NPA (Norma Padrão de Ação) — o que falta
 
-A NPA é uma espécie de **uso interno da OM**, para disciplinar rotinas internas, com layout, elementos, numeração e ciclo de vida próprios (modelo: Anexo XII da NSCA 5-3). As demais espécies são produzidas pelas OM, mas seu âmbito extrapola a OM. Ela será o **segundo tipo de regras** (`NPA`, `RegrasDeNpa`), implementado nas interfaces de [Regras por espécie normativa](arquitetura.md#regras-por-especie-normativa-atras-de-interfaces) — a refatoração que as introduziu já está feita (sem mudar comportamento).
+A NPA já funciona de ponta a ponta — criação, edição, PDF/HTML/prévia, publicação e revogação no Boletim Interno; as regras estão em [Modelo de Domínio](dominio.md#npa-norma-padrao-de-acao). Ficaram de fora, por dependerem de decisão ou de escopo maior:
 
-### Como é a NPA (decifrado do layout e de uma NPA real)
-
-- **Página:** A4, margens de 2 cm; todo o conteúdo dentro de **uma moldura que continua em todas as páginas**; número de página **"n/total"** no cabeçalho das páginas 2 em diante. O título "ANEXO XII — NORMA PADRÃO DE AÇÃO" do layout é o nome do modelo na NSCA, **não** é impresso na NPA.
-- **Cabeçalho (tabela de 4 colunas):** linhas centralizadas em negrito com Comando, OM e o setor emissor; à esquerda o **DOM** (distintivo da OM — tratado depois), com a **identificação** logo abaixo (`NPA-AGO-01` / `NPA 44-__/2026`), **campo livre** que o usuário preenche conforme o setor; **DATAS** (EMISSÃO = data da aprovação; EFETIVAÇÃO = Boletim Interno nº e data, preenchidos na publicação); **DISTRIBUIÇÃO** (sempre OSTENSIVA — constante das regras da NPA); **ASSUNTO**; **ANEXOS** (`A - …; B - …; e C - …`, gerado dos próprios anexos).
-- **Corpo, numeração pelo nível (algarismo arábico):** `1` capítulo (maiúsculas, negrito) → `1.1` seção → `1.1.1` subseção → `1.1.1.1`; **parágrafo** (o dispositivo em si, com o texto) fica direto sob capítulo, seção ou subseção e recebe o número do caminho (`3.1` sob o capítulo 3; `2.1.1.1` sob uma subseção). Seção, subseção e parágrafo do mesmo pai **dividem uma única sequência**. **Todo elemento é numerado**. **Alíneas** (`a)`, `b)`…) enumeram um parágrafo — **só existem depois de um parágrafo**. Número em negrito; título de seção sublinhado.
-- **Estrutura obrigatória (do layout):** capítulo 1 DISPOSIÇÕES PRELIMINARES com as seções Finalidade, Âmbito e Referências; capítulo 2 DISPOSIÇÕES GERAIS com a seção Conceituações; capítulo 3 DISPOSIÇÕES FINAIS com um parágrafo direto (`3.1`). Como alínea só existe depois de parágrafo, a seção Referências nasce com um parágrafo introdutório ("Constituem referências:") seguido das alíneas.
-- **Fecho:** linha "Local, dd de mês de aaaa" e **blocos de assinatura em texto livre** (rótulo — "Elaborado por", "Visto", "Proposto por", "Aprovo" — e linhas livres); ao final, "(Publicada no Boletim Interno Ostensivo nº __, de __ de ____)".
-- **Anexos** ao final do documento (como nos demais normativos), rotulados **A, B, C…** e listados no cabeçalho.
-- **Ciclo de vida:** **sem alteração** — só publicação (no Boletim Interno) e revogação. Para mudar uma NPA publicada, cria-se outra e revoga-se a anterior.
-
-### Regras por interface
-
-| Interface | Regra da NPA |
-|---|---|
-| `RegrasDeHierarquiaDosElementos` (nova) | capítulo na raiz; seção sob capítulo; subseção sob seção; parágrafo sob capítulo, seção ou subseção; alínea só sob parágrafo. Reaproveita os tipos já existentes (`CAPITULO`, `SECAO_NORMATIVA`, `SUBSECAO_NORMATIVA`, `PARAGRAFO`, `ALINEA`); artigo, inciso, parágrafo único e subalínea não existem na NPA. O backend recusa, no salvamento, o que a hierarquia não permite |
-| `CalculadoraDeNumeracaoDosElementos` | número pelo caminho de posições (`1`, `1.1`, `1.1.1.1`), alínea em letra; sem sufixo de letra, sem "único", recalculada livremente até a publicação |
-| `RegrasDeCriacaoDoDocumento` (nova) | pede identificação (texto livre) e assunto; não usa assunto básico nem sequencial gerado |
-| `EstruturaInicialDeNovoDocumento` | os três capítulos e as seções fixas acima |
-| `CamposEspecificosDaEspecie` (nova) | setor emissor, identificação, datas, assunto, assinaturas (lista de blocos de texto livre), "Local, data" — numa estrutura 1:1 com o documento, não em colunas novas de `Documento` |
-| `RotuloDosAnexos` | letras (A, B, C…); a lista do cabeçalho vem dos anexos |
-| `RegrasDoCicloDeVidaDoDocumento` | rascunho → minuta → revisão → publicação (Boletim Interno) → revogação; sem `INICIAR_ALTERACAO`/`CANCELAR_ALTERACAO`, sem ciclo de emenda |
-| `LeiauteDoPdf` / `LeiauteDoHtml` | moldura em todas as páginas, tabela de cabeçalho, "n/total"; e um componente de prévia próprio no frontend |
-
-O que já existe e a NPA reaproveita: permissões e posse, revisão/publicação por atribuição pessoal, versões vigente/em tramitação, busca textual, limite de gerações de PDF, marcação vermelha do texto de orientação. **Distribuição sempre ostensiva** → toda NPA é visível para todas as OMs, sem regra de restrição.
-
-### Etapas
-
-1. **Refatoração das interfaces (concluída para 6 interfaces):** tipo de regras, registro e as interfaces de numeração, estrutura inicial, rótulo dos anexos, layouts PDF/HTML e ciclo de vida, com `RegrasDeAtoNormativo` envolvendo o código existente e os testes atuais como rede de segurança. Faltam: **hierarquia**, **criação** (identificação/assunto), **campos específicos** e o **espelho no frontend** (`perfis/…`, com fixtures de teste compartilhadas com o backend para numeração e hierarquia não divergirem).
-2. **Gramática, numeração e modelo da NPA** (backend e frontend), com testes; menu "adicionar elemento" guiado pela hierarquia (parágrafo ou seção/subseção; alínea só sob parágrafo).
-3. **Campos do cabeçalho e assinaturas:** persistência, formulário de criação e edição.
-4. **Exportação:** PDF (moldura como borda do corpo, tabela de cabeçalho, "n/total" por citação de última página), HTML e prévia, com teste de layout pelo FOP.
-5. **Ciclo de publicação por Boletim Interno** (nº e data preenchem EFETIVAÇÃO) **e revogação**; generalizar o conceito de "situação BCA" para "publicação oficial" com o veículo definido pelas regras da espécie; ação "Substituir" (cria a nova NPA e revoga a anterior).
-6. **Biblioteca e reaproveitamento:** seletor **Atos normativos | NPA** na homepage; dentro da NPA, **Da minha OM**, **Biblioteca de outras OMs** (filtros por OM e setor, com o DOM no cartão) e **Revogadas**; "Usar como base" clona a NPA para a OM de quem clicou, registrando de qual veio; catálogo de setores compartilhado; o **DOM** de cada OM.
-
-**Em aberto:** termos oficiais para o glossário (`docs/dominio.md`); formato do DOM (imagem por OM, tamanho e posição); catálogo de setores.
+- **DOM (distintivo da OM):** hoje o cabeçalho reserva o espaço e mostra a identificação abaixo dele. Falta decidir o formato (imagem por OM, tamanho e posição) e o cadastro dessa imagem por OM.
+- **Catálogo de setores:** o setor emissor é texto livre por documento. Um catálogo compartilhado por OM padronizaria o texto e permitiria filtrar a biblioteca por setor.
+- **"Substituir":** para mudar uma NPA publicada cria-se outra e revoga-se a anterior. Hoje isso é feito à mão (clonar e, depois, pedir a revogação da antiga); a ação "Substituir" faria as duas coisas ligadas, registrando qual NPA substitui qual.
+- **"Usar como base" com origem registrada:** clonar uma NPA de outra OM já traz estrutura, cabeçalho e assinaturas para a OM de quem clonou; falta registrar de qual NPA a nova veio.
+- **Seletor "Atos normativos | NPA" na homepage:** hoje a NPA aparece no filtro de espécie e nas abas (*Meus*, *Minha OM*, *Outras OMs* — a biblioteca — e *Revogados*).
+- **Glossário:** confirmar os termos oficiais da NPA para `docs/dominio.md`.
+- **Prévia paginada:** a prévia do editor mostra a NPA numa moldura contínua; a paginação e o "n/total" reais são os do PDF.
 
 ## Longo prazo — plataforma normativa
 

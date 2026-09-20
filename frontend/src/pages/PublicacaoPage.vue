@@ -78,7 +78,16 @@
       </q-table>
     </q-card>
 
+    <!-- A NPA é publicada e revogada no Boletim Interno; um ato normativo, por portaria + BCA. -->
+    <PublicarNpaDialog
+      v-if="alvoEhNpa"
+      v-model="dialogPublicar"
+      :documento="alvo"
+      :enviando="enviando"
+      @confirmar="confirmarPublicacao"
+    />
     <PublicarDialog
+      v-else
       v-model="dialogPublicar"
       :documento="alvo"
       :enviando="enviando"
@@ -88,12 +97,14 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useQuasar } from 'quasar'
 import { useDocumentosStore } from '@/stores/documentos.js'
 import * as documentosApi from '@/api/documentos.js'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import PublicarDialog from '@/components/editor/PublicarDialog.vue'
+import PublicarNpaDialog from '@/components/editor/PublicarNpaDialog.vue'
+import { perfilDoDocumento } from '@/perfis/index.js'
 import { caixaAlta } from '@/utils/texto.js'
 import { DESTINO_DE_CONCLUSAO, destinoDeDevolucao, ehRevogacao, podeDevolverPublicacao } from '@/utils/fluxoDocumento.js'
 
@@ -125,6 +136,7 @@ onMounted(carregar)
 
 const dialogPublicar = ref(false)
 const alvo = ref(null)
+const alvoEhNpa = computed(() => perfilDoDocumento(alvo.value).ehNpa)
 const enviando = ref(false)
 
 // PublicarDialog precisa de mais campos do que a fila enxuta traz (espécie,

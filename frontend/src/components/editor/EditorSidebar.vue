@@ -619,6 +619,7 @@ import { useQuasar } from 'quasar'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import { situacaoBcaMeta, situacaoLocalMeta, temEtapaEmCurso } from '@/utils/statusDocumento.js'
 import { formatLabel, elementIcon } from '@/utils/numbering.js'
+import { perfilDoDocumento } from '@/perfis/index.js'
 import { useEditorStore } from '@/stores/editor.js'
 import { useDocumentosStore } from '@/stores/documentos.js'
 import { useAuthStore } from '@/stores/auth.js'
@@ -749,32 +750,14 @@ const CAPITULO_PRESETS = [
 const GROUPING_TIPOS = new Set(['capitulo', 'secao_normativa', 'subsecao_normativa'])
 const ARTIGO_TIPOS   = new Set(['artigo', 'paragrafo', 'paragrafo_unico', 'inciso', 'alinea', 'sub_alinea'])
 
-const CHILD_MAP = {
-  capitulo:           [
-    { tipo: 'secao_normativa', label: 'Seção' },
-    { tipo: 'artigo',          label: 'Artigo' },
-  ],
-  secao_normativa:    [
-    { tipo: 'subsecao_normativa', label: 'Subseção' },
-    { tipo: 'artigo',             label: 'Artigo' },
-  ],
-  subsecao_normativa: [{ tipo: 'artigo', label: 'Artigo' }],
-  artigo:             [
-    { tipo: 'paragrafo_unico', label: 'Parágrafo único' },
-    { tipo: 'paragrafo',       label: 'Parágrafo (§)' },
-    { tipo: 'inciso',          label: 'Inciso' },
-  ],
-  paragrafo_unico: [{ tipo: 'inciso', label: 'Inciso' }],
-  paragrafo:       [{ tipo: 'inciso', label: 'Inciso' }],
-  inciso:          [{ tipo: 'alinea', label: 'Alínea' }],
-  alinea:          [{ tipo: 'sub_alinea', label: 'Sub-alínea' }],
-}
+// O que cabe dentro de cada elemento é regra da espécie do documento (perfis/index.js).
+const perfil = computed(() => perfilDoDocumento(props.documento))
 
 // ── Helpers p/ q-tree ────────────────────────────────────────────────────────
 const isGroupingType = (tipo) => GROUPING_TIPOS.has(tipo)
-const canPromoteNode = (node) => ARTIGO_TIPOS.has(node.tipo) && node.tipo !== 'artigo'
-const canDemoteNode  = (node) => ARTIGO_TIPOS.has(node.tipo)
-const childOptions   = (node) => CHILD_MAP[node.tipo] ?? []
+const canPromoteNode = (node) => perfil.value.permitePromoverRebaixar && ARTIGO_TIPOS.has(node.tipo) && node.tipo !== 'artigo'
+const canDemoteNode  = (node) => perfil.value.permitePromoverRebaixar && ARTIGO_TIPOS.has(node.tipo)
+const childOptions   = (node) => perfil.value.filhosPermitidos(node.tipo)
 
 // ── "Mover para" (reparenteamento sem alterar tipo) ─────────────────────────
 // A lista de destinos válidos (incluindo "Nível superior", quando aplicável) é

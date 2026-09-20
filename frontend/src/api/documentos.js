@@ -138,6 +138,8 @@ export function aplicarNumeracao(locais, resposta, numeracaoPorId) {
     if (info) {
       locais[i].numero = info.numero
       locais[i]._emendaLetra = info.letra ?? null
+      // NPA: o rótulo pelo caminho (1.2, a)) também vem do servidor, a fonte de verdade.
+      if (locais[i]._caminho != null && info.label != null) locais[i]._caminho = info.label
     }
     aplicarNumeracao(locais[i].filhos, resposta[i].children, numeracaoPorId)
   }
@@ -158,6 +160,7 @@ export function aplicarNumeracaoPorId(elementos, numeracaoPorId) {
     if (info) {
       el.numero = info.numero
       el._emendaLetra = info.letra ?? null
+      if (el._caminho != null && info.label != null) el._caminho = info.label
     }
     aplicarNumeracaoPorId(el.filhos, numeracaoPorId)
   }
@@ -185,6 +188,9 @@ export function backendParaFrontend(doc) {
   return {
     id: doc.idDocumento,
     especie: doc.siglaEspecieNormativa,
+    // Qual conjunto de regras a espécie segue (ATO_NORMATIVO, NPA): escolhe o perfil de edição, prévia e publicação
+    // (ver perfis/index.js) -- nunca a sigla da espécie.
+    tipo_de_regras: doc.tipoDeRegras ?? 'ATO_NORMATIVO',
     numero_basico: doc.codigoAssuntoBasico,
     numero_secundario: doc.numeroSecundario != null ? String(doc.numeroSecundario) : null,
     assunto_basico: doc.nomeAssuntoBasico ?? doc.codigoAssuntoBasico,
@@ -242,6 +248,7 @@ export function frontendParaBackendCreate(payload) {
   return {
     idEspecieNormativa: payload.idEspecieNormativa,
     idAssuntoBasico:    payload.idAssuntoBasico,
+    identificacao:      payload.identificacao,
     tituloDocumento:    payload.tituloDocumento,
   }
 }
@@ -366,6 +373,9 @@ export async function changeDocumentoStatus(id, situacaoLocal, refs) {
     body.fecho           = refs.fecho ?? null
     body.assinatura      = refs.assinatura ?? null
     body.portariaPdfUrl  = refs.portariaPdfUrl ?? null
+    // Só numa NPA: o Boletim Interno que a publica ou revoga (no lugar de portaria + BCA).
+    body.numeroBoletimInterno = refs.numeroBoletimInterno ?? null
+    body.dataBoletimInterno   = refs.dataBoletimInterno ?? null
   }
   const result = await http.patch(`/documentos/${id}/status`, body)
   return backendParaFrontend(result)

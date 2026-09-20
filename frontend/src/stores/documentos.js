@@ -1,18 +1,14 @@
 import { defineStore } from 'pinia'
 import { v4 as uuidv4 } from 'uuid'
-import { renumberElements, renumberElementsEmAlteracao } from '@/utils/numbering.js'
+import { renumerarElementos } from '@/perfis/index.js'
 import * as api from '@/api/documentos.js'
 
 function renumerarSecaoNormativa(doc) {
   const normativa = doc.secoes?.find(s => s.tipo === 'parte_normativa')
   if (!normativa?.elementos?.length) return
-  // Documento já publicado (PUBLICADO ou REVOGADO): numeração por emenda (elemento em vigor nunca
-  // é renumerado), em qualquer etapa local.
-  if (doc.situacao_bca && doc.situacao_bca !== 'NAO_PUBLICADO') {
-    renumberElementsEmAlteracao(normativa.elementos)
-  } else {
-    renumberElements(normativa.elementos)
-  }
+  // A numeração é regra da espécie do documento (perfis/index.js): num ato normativo já publicado a
+  // numeração é por emenda (elemento em vigor nunca é renumerado); numa NPA, pelo caminho.
+  renumerarElementos(normativa.elementos, doc)
 }
 
 function makeElement(tipo, numero, conteudo = '', filhos = []) {
@@ -312,7 +308,7 @@ export const useDocumentosStore = defineStore('documents', {
         addToParent(secaoNormativa.elementos)
       }
 
-      renumberElements(secaoNormativa.elementos)
+      renumerarElementos(secaoNormativa.elementos, doc)
     },
   },
 })

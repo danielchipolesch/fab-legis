@@ -58,7 +58,7 @@
             </q-item-section>
             <q-item-section>
               <q-item-label class="text-weight-medium">
-                {{ item.siglaEspecieNormativa }} {{ item.codigoAssuntoBasico }}<template v-if="item.numeroSecundario">-{{ item.numeroSecundario }}</template>
+                {{ item.codigoDocumento }}
                 <span class="text-grey-7 text-weight-regular"> — {{ item.tituloDocumento }}</span>
               </q-item-label>
               <q-item-label caption class="q-mt-xs">

@@ -48,6 +48,16 @@
     <!-- Dialog de referência: técnica legislativa (LC 95/1998) -->
     <Lc95HelpDialog v-model="lc95DialogOpen" />
 
+    <!-- Cabeçalho e assinaturas da NPA (setor emissor, local do fecho, blocos de assinatura em texto livre) -->
+    <CamposDaNpaDialog
+      v-if="perfil.ehNpa"
+      v-model="camposNpaDialogOpen"
+      :campos="camposNpa"
+      :salvando="camposNpaSalvando"
+      :somente-leitura="isReadonly"
+      @salvar="salvarCamposNpa"
+    />
+
     <!-- Dialog de compartilhamento (coautoria) -->
     <CompartilharDialog v-if="documentoId" v-model="compartilharDialogOpen" :documento-id="documentoId" />
 
@@ -91,7 +101,12 @@
 
         <q-space />
 
-        <q-btn round flat color="primary" @click="lc95DialogOpen = true">
+        <q-btn v-if="perfil.ehNpa" outline color="primary" @click="camposNpaDialogOpen = true">
+          <q-icon left name="mdi-table-headers-eye" />
+          Cabeçalho e assinaturas
+        </q-btn>
+
+        <q-btn v-if="!perfil.ehNpa" round flat color="primary" @click="lc95DialogOpen = true">
           <q-icon name="mdi-help-circle-outline" size="22px" />
           <q-tooltip anchor="bottom middle" self="top middle">Técnica legislativa (LC 95/1998)</q-tooltip>
         </q-btn>
@@ -103,6 +118,7 @@
         </q-btn>
 
         <q-btn
+          v-if="perfil.permiteAlteracao"
           outline
           color="primary"
           :to="{ name: 'documento-comparar', params: { id: documentoId } }"
@@ -208,7 +224,7 @@
                 @update:model-value="onTituloUpdate"
               />
               <p class="text-caption text-grey-7 q-mt-xs">
-                O título aparecerá em maiúsculas no documento (NSCA 5-3).
+                {{ perfil.ehNpa ? 'O título do capítulo aparece em maiúsculas e o da seção, sublinhado.' : 'O título aparecerá em maiúsculas no documento (NSCA 5-3).' }}
               </p>
             </template>
 
@@ -230,7 +246,7 @@
             />
 
             <!-- Add child element shortcuts -->
-            <div v-if="childOptions.length && !isReadonly" class="q-mt-md row items-center" style="flex-wrap:wrap">
+            <div v-if="(childOptions.length || !isGroupingEl) && !isReadonly" class="q-mt-md row items-center" style="flex-wrap:wrap">
               <span class="text-caption text-grey-7">Adicionar:</span>
               <q-btn
                 v-for="opt in childOptions"
@@ -263,8 +279,14 @@
 
         <!-- PDF Preview panel -->
         <div class="preview-panel" style="overflow-y:auto; position:relative">
+          <NpaPreview
+            v-if="previewMounted && documento && perfil.ehNpa"
+            :documento="documento"
+            :campos="camposNpa"
+            :selected-element-id="editorStore.selectedElementId"
+          />
           <DocumentoPreview
-            v-if="previewMounted && documento"
+            v-else-if="previewMounted && documento"
             :documento="documento"
             :selected-element-id="editorStore.selectedElementId"
           />
@@ -288,11 +310,15 @@ import { useQuasar } from 'quasar'
 import { useEditorStore } from '@/stores/editor.js'
 import { useDocumentosStore } from '@/stores/documentos.js'
 import { useAuthStore } from '@/stores/auth.js'
-import { formatLabel, elementIcon, renumberElements } from '@/utils/numbering.js'
+import { formatLabel, elementIcon } from '@/utils/numbering.js'
+import { perfilDoDocumento, renumerarElementos } from '@/perfis/index.js'
 import { gerarPdf, gerarHtml } from '@/services/pdfService.js'
 import EditorSidebar from '@/components/editor/EditorSidebar.vue'
 import WysiwygEditor from '@/components/editor/WysiwygEditor.vue'
 import DocumentoPreview from '@/components/editor/DocumentoPreview.vue'
+import NpaPreview from '@/components/editor/NpaPreview.vue'
+import CamposDaNpaDialog from '@/components/editor/CamposDaNpaDialog.vue'
+import { obterCamposDaNpa, salvarCamposDaNpa } from '@/api/npa.js'
 import EmendaDialog from '@/components/editor/EmendaDialog.vue'
 import IncluirElementoDialog from '@/components/editor/IncluirElementoDialog.vue'
 import Lc95HelpDialog from '@/components/editor/Lc95HelpDialog.vue'
@@ -313,6 +339,37 @@ const pdfLoading    = ref(false)
 const htmlLoading   = ref(false)
 const lc95DialogOpen = ref(false)
 const compartilharDialogOpen = ref(false)
+
+// Campos que só a NPA tem (setor emissor, local do fecho, assinaturas): carregados junto com o documento e
+// regravados pelo diálogo "Cabeçalho e assinaturas"; alimentam a prévia da NPA.
+const camposNpaDialogOpen = ref(false)
+const camposNpaSalvando = ref(false)
+const camposNpa = ref(null)
+
+async function carregarCamposNpa() {
+  try {
+    camposNpa.value = await obterCamposDaNpa(documentoId.value)
+  } catch (e) {
+    console.error('[NPA] Erro ao carregar o cabeçalho e as assinaturas:', e)
+  }
+}
+
+async function salvarCamposNpa(campos) {
+  camposNpaSalvando.value = true
+  try {
+    camposNpa.value = await salvarCamposDaNpa(documentoId.value, campos)
+    camposNpaDialogOpen.value = false
+  } catch (e) {
+    $q.notify({
+      type: 'negative',
+      message: `Erro ao salvar o cabeçalho e as assinaturas: ${e?.message ?? 'erro desconhecido'}`,
+      position: 'bottom-right',
+      timeout: 6000,
+    })
+  } finally {
+    camposNpaSalvando.value = false
+  }
+}
 
 // ── Presença de edição (aviso de colisão, não trava nada) ───────────────────────
 // "Quem está editando agora" é literalmente "quem tem esta conexão SSE
@@ -537,9 +594,8 @@ const origemCrumb = computed(() => ORIGEM_CRUMB[route.query.origem] ?? { label: 
 const docLabel = computed(() => {
   const d = documento.value
   if (!d) return 'Novo Documento'
-  const numStr = [d.numero_basico, d.numero_secundario].filter(Boolean).join('-')
-  const num = [d.especie, numStr].filter(Boolean).join(' ')
-  return num || 'Documento sem título'
+  // A identificação é gravada na criação pelas regras da espécie ("ICA 5-3"; numa NPA, o texto livre informado).
+  return d.codigo_documento || 'Documento sem título'
 })
 
 const selectedElementLabel = computed(() => {
@@ -563,30 +619,12 @@ const groupingLabel = computed(() => {
   }
 })
 
-const CHILD_OPTIONS = {
-  capitulo:           [
-    { tipo: 'secao_normativa', label: 'Seção' },
-    { tipo: 'artigo',          label: 'Artigo' },
-  ],
-  secao_normativa:    [
-    { tipo: 'subsecao_normativa', label: 'Subseção' },
-    { tipo: 'artigo',             label: 'Artigo' },
-  ],
-  subsecao_normativa: [{ tipo: 'artigo', label: 'Artigo' }],
-  artigo:             [
-    { tipo: 'paragrafo_unico', label: 'Parágrafo único' },
-    { tipo: 'paragrafo',       label: 'Parágrafo (§)' },
-    { tipo: 'inciso',          label: 'Inciso' },
-  ],
-  paragrafo_unico: [{ tipo: 'inciso', label: 'Inciso' }],
-  paragrafo:       [{ tipo: 'inciso', label: 'Inciso' }],
-  inciso:          [{ tipo: 'alinea', label: 'Alínea' }],
-  alinea:          [{ tipo: 'sub_alinea', label: 'Sub-alínea' }],
-}
+// O que cabe dentro de cada elemento é regra da espécie do documento (perfis/index.js).
+const perfil = computed(() => perfilDoDocumento(documento.value))
 
 const childOptions = computed(() => {
   const el = selectedElement.value
-  return el ? (CHILD_OPTIONS[el.tipo] ?? []) : []
+  return el ? perfil.value.filhosPermitidos(el.tipo) : []
 })
 
 onMounted(async () => {
@@ -629,6 +667,7 @@ onMounted(async () => {
     if (primeiro) editorStore.selectElement(primeiro.id)
 
     iniciarPresenca()
+    if (perfilDoDocumento(doc).ehNpa) await carregarCamposNpa()
   } else {
     editorStore.loadNew()
   }
@@ -707,7 +746,7 @@ function onTituloUpdate(titulo) {
 function onReorderNormativa() {
   const secao = editorStore.normativaSecao
   if (secao) {
-    renumberElements(secao.elementos)
+    renumerarElementos(secao.elementos, documento.value)
     editorStore.markUserEdit()
     scheduleAutoSave()
   }
@@ -788,7 +827,7 @@ function addArtigo() {
     filhos: [],
   }
   secao.elementos.push(novo)
-  renumberElements(secao.elementos)
+  renumerarElementos(secao.elementos, documento.value)
   editorStore.selectedElementId = novo.id
   editorStore.markUserEdit()
   scheduleAutoSave()

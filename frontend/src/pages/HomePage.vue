@@ -222,7 +222,7 @@
           <template #body-cell-numero="props">
             <q-td :props="props">
               <span class="text-weight-medium text-primary">
-                {{ props.row.especie }} {{ props.row.numero_basico }}<template v-if="props.row.numero_secundario">-{{ props.row.numero_secundario }}</template>
+                {{ props.row.codigo_documento }}
               </span>
             </q-td>
           </template>
@@ -390,7 +390,7 @@
               </q-item-section>
               <q-item-section>
                 <q-item-label class="text-subtitle2 text-weight-bold">
-                  {{ doc.especie }} {{ doc.numero_basico }}<template v-if="doc.numero_secundario">-{{ doc.numero_secundario }}</template>
+                  {{ doc.codigo_documento }}
                 </q-item-label>
                 <q-item-label caption>{{ formatarData(doc.data_criacao) }}</q-item-label>
               </q-item-section>
@@ -482,7 +482,7 @@
         <q-card-section class="text-h6">Excluir documento?</q-card-section>
         <q-card-section class="q-pt-none">
           Esta ação não pode ser desfeita. O documento
-          <strong>{{ dialog.target?.especie }} {{ dialog.target?.numero_basico }}<template v-if="dialog.target?.numero_secundario">-{{ dialog.target?.numero_secundario }}</template></strong>
+          <strong>{{ dialog.target?.codigo_documento }}</strong>
           será removido permanentemente.
         </q-card-section>
         <q-card-actions align="right" class="q-pb-md q-px-md">
@@ -501,7 +501,7 @@
         <q-card-section class="text-h6">{{ dialog.statusOpt?.label }}?</q-card-section>
         <q-card-section class="q-pt-none">
           O documento
-          <strong>{{ dialog.target?.especie }} {{ dialog.target?.numero_basico }}<template v-if="dialog.target?.numero_secundario">-{{ dialog.target?.numero_secundario }}</template></strong>
+          <strong>{{ dialog.target?.codigo_documento }}</strong>
           <template v-if="dialog.statusOpt?.descricao">{{ dialog.statusOpt.descricao }}</template>
           <template v-else>terá sua etapa alterada para <strong>{{ dialog.statusOpt?.rotuloDestino }}</strong>.</template>
         </q-card-section>
@@ -522,7 +522,7 @@
       v-model="dialog.pessoa"
       papel="APROV"
       :titulo="dialog.statusOpt?.label ?? ''"
-      :descricao="dialog.target ? `Documento ${dialog.target.especie} ${dialog.target.numero_basico}${dialog.target.numero_secundario ? '-' + dialog.target.numero_secundario : ''}` : ''"
+      :descricao="dialog.target ? `Documento ${dialog.target.codigo_documento}` : ''"
       acao-label="Enviar"
       :enviando="alterandoStatus"
       @confirmar="executarEnvioPessoa"
@@ -534,7 +534,7 @@
         <q-card-section class="text-h6">Clonar documento?</q-card-section>
         <q-card-section class="q-pt-none">
           Será criada uma cópia do documento
-          <strong>{{ dialog.target?.especie }} {{ dialog.target?.numero_basico }}<template v-if="dialog.target?.numero_secundario">-{{ dialog.target?.numero_secundario }}</template></strong>
+          <strong>{{ dialog.target?.codigo_documento }}</strong>
           com situação <strong>RASCUNHO</strong>.
         </q-card-section>
         <q-card-actions align="right" class="q-pb-md q-px-md">
@@ -559,6 +559,7 @@ import { gerarPdf } from '@/services/pdfService.js'
 import { listEspeciesNormativas, normalizeEspecie } from '@/api/referencias.js'
 import { SITUACAO_BCA_META, SITUACAO_LOCAL_META } from '@/utils/statusDocumento.js'
 import { rotaBuscaConteudo } from '@/utils/buscaTextual.js'
+import { perfilDoDocumento } from '@/perfis/index.js'
 
 const $q = useQuasar()
 const store = useDocumentosStore()
@@ -778,7 +779,8 @@ function statusActions(doc) {
       ]
     case 'SEM_ETAPA':
       return publicado ? [
-        ...(auth.isAprovador ? [{ destino: 'EM_ALTERACAO', label: 'Iniciar Alteração', icon: 'mdi-pencil-lock-outline', rotuloDestino: 'Em Alteração' }] : []),
+        // A NPA não tem alteração: para mudá-la cria-se outra e revoga-se a anterior (perfis/index.js).
+        ...(auth.isAprovador && perfilDoDocumento(doc).permiteAlteracao ? [{ destino: 'EM_ALTERACAO', label: 'Iniciar Alteração', icon: 'mdi-pencil-lock-outline', rotuloDestino: 'Em Alteração' }] : []),
         ...(auth.isEditor ? [{ destino: 'ANALISE_REVOGACAO', label: 'Enviar para Revogação', icon: 'mdi-file-remove-outline', escolherPessoa: true }] : []),
       ] : []
     default:

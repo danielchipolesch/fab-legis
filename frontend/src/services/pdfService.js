@@ -33,9 +33,12 @@ function sanitize(str) {
 function buildFilename(documento, extensao) {
   const numero = [documento.numero_basico, documento.numero_secundario].filter(Boolean).join('-')
   const ano = documento.data_criacao ? documento.data_criacao.slice(0, 4) : String(new Date().getFullYear())
+  // Sem assunto básico (NPA) a identificação inteira é o texto livre informado na criação.
+  const identificacao = documento.numero_basico
+    ? [sanitize(documento.especie), sanitize(numero)]
+    : [sanitize(documento.codigo_documento)]
   const partes = [
-    sanitize(documento.especie),
-    sanitize(numero),
+    ...identificacao,
     sanitize(documento.titulo),
     sanitize(ano),
   ].filter(Boolean)

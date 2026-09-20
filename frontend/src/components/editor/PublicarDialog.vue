@@ -4,7 +4,7 @@
       <q-card-section class="text-h6">{{ isRevogacao ? 'Revogar documento' : (primeiraPublicacao ? 'Publicar documento' : 'Publicar alteração') }}?</q-card-section>
       <q-card-section class="q-pt-none">
         O documento
-        <strong>{{ documento?.especie }} {{ documento?.numero_basico }}<template v-if="documento?.numero_secundario">-{{ documento.numero_secundario }}</template></strong>
+        <strong>{{ documento?.codigo_documento }}</strong>
         <template v-if="isRevogacao">terá sua situação BCA alterada para <strong>REVOGADO</strong>.</template>
         <template v-else-if="primeiraPublicacao">terá sua situação BCA alterada para <strong>PUBLICADO</strong>.</template>
         <template v-else>continua <strong>PUBLICADO</strong>; a alteração passa a valer e a versão vigente é substituída.</template>

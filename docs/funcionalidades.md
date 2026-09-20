@@ -70,3 +70,13 @@ Duas telas dedicadas, cada uma restrita a quem tem o papel correspondente e most
 Cada uma tem seu próprio breadcrumb (Início → Revisão/Publicação), e um documento aberto a partir de qualquer uma delas carrega essa origem consigo (`?origem=revisao|publicacao`) — o breadcrumb do editor/visualizador então volta para a fila de onde a pessoa veio, não para o acervo geral (`HomePage`).
 
 Ver [Ciclo de Vida do Documento](ciclo-de-vida.md) para o fluxo completo de atribuição pessoal.
+
+## NPA (Norma Padrão de Ação)
+
+A [NPA](dominio.md#npa-norma-padrao-de-acao) usa as mesmas telas do acervo, mas cada uma se adapta à espécie pelo **perfil** do documento (`frontend/src/perfis/`, escolhido pelo `tipoDeRegras` que o backend informa — nunca pela sigla):
+
+- **Novo documento:** ao escolher a espécie NPA o diálogo troca o *Assunto Básico* pela **Identificação** (texto livre, ex.: `NPA-AGO-01`) e o campo do título vira **Assunto**.
+- **Editor:** a árvore mostra a numeração pelo caminho (`1`, `1.1`, `1.1.1.1`, `a)`); "Adicionar" oferece só o que a hierarquia da NPA permite (capítulo → seção/parágrafo; seção → subseção/parágrafo; parágrafo → alínea) e seção, subseção e parágrafo do mesmo pai trocam de lugar livremente. Não há promover/rebaixar, "Comparar versões" nem a ajuda da LC 95/1998. O botão **Cabeçalho e assinaturas** (`CamposDaNpaDialog`) edita o setor emissor, o local do fecho e os blocos de assinatura em texto livre — cada bloco com rótulo, até 6 linhas, e pode ser reordenado.
+- **Prévia** (`NpaPreview`): cabeçalho em tabela, corpo numerado, fecho e assinaturas dentro de uma moldura; os textos vêm de `perfis/npa.js` (espelho de `CabecalhoDaNpa`, backend), os mesmos do PDF e do HTML.
+- **Publicação e revogação** (`PublicarNpaDialog`, na tela de *Publicação*): só o **número e a data do Boletim Interno**, sem portaria, BCA nem PDF de portaria.
+- **Visualização:** sem "Assunto Básico", sem o painel de *Portarias* e sem "Versões"; a referência do Boletim Interno aparece em *Publicação*. Na homepage, "Iniciar Alteração" não é oferecido para uma NPA.

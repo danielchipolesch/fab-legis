@@ -102,7 +102,7 @@ Nem toda espécie normativa obedece às mesmas regras. Para o restante do sistem
 
 `RegrasDaEspecieNormativa` reúne as regras de uma espécie (`RegrasDeAtoNormativo`, para as demais espécies, é a implementação atual; `RegrasDeNpa` virá a seguir) e `RegrasDasEspecies.para(especie)` devolve as regras — toda `RegrasDaEspecieNormativa` registrada como bean entra sozinha, então acrescentar uma espécie com regras próprias **não exige mexer no registro nem nos serviços**. Quem só precisa da regra depende da interface: `DocumentoService.create`/`clone` (criação, estrutura inicial e campos específicos), `DocumentoParteNormativaService` (hierarquia e numeração), `DocumentoPdfService` e `DocumentoHtmlService` (layouts, que continuam dono da parte que não depende da espécie: escolher a versão, gerar, armazenar e servir o arquivo) e `DocumentoStatusService` (ciclo de vida e registro da publicação).
 
-**Regra para código novo:** um comportamento que varia por espécie entra como método de uma dessas interfaces (ou de uma interface nova), nunca como `if (espécie == …)` no serviço. Ver a proposta da NPA, a próxima espécie com regras próprias, no [Roadmap](roadmap.md#npa-norma-padrao-de-acao-proposta-de-implementacao).
+**Regra para código novo:** um comportamento que varia por espécie entra como método de uma dessas interfaces (ou de uma interface nova), nunca como `if (espécie == …)` no serviço. Ver o que falta da NPA, a segunda espécie com regras próprias, no [Roadmap](roadmap.md#npa-norma-padrao-de-acao-o-que-falta).
 
 ## Camadas do frontend
 
@@ -118,6 +118,9 @@ frontend/src
 │   ├── comparison/ ← DiffViewer
 │   └── common/     ← AppTopBar (menu de usuário, sino de notificações),
 │                      StatusBadge, NewDocumentDialog
+├── perfis/         ← as regras que variam por espécie no frontend (hierarquia dos elementos,
+│                      numeração, cabeçalho da NPA), escolhidas pelo `tipoDeRegras` que o backend
+│                      informa: espelho das interfaces de `domain.regras` (ver abaixo)
 ├── stores/         ← Pinia: auth (sessão) · documents (acervo) · editor (documento em edição)
 ├── api/            ← client (fetch tipado, com renovação automática de token) +
 │                      módulos por recurso (documents, auth, usuarios, auditoria,
@@ -128,6 +131,8 @@ frontend/src
 ├── services/       ← pdfService (geração e download de PDF server-side)
 └── router/         ← Rotas SPA, com guarda de autenticação e de papel (admin/auditor)
 ```
+
+**Perfis por espécie no frontend.** `perfis/index.js` entrega, para o `tipo_de_regras` de um documento, o perfil com o que a tela precisa decidir: `filhosPermitidos(tipoPai)` (menu "adicionar"), `renumerar(elementos, documento)`, se admite promover/rebaixar, alteração e a ordem livre entre irmãos. `atoNormativo.js` envolve `utils/numbering.js`; `npa.js` espelha `HierarquiaDeNpa`, `NumeracaoDeNpa` e `CabecalhoDaNpa` do backend — com os **mesmos cenários de teste** (`npa.test.js`), como já é a regra da numeração dos atos. Tela nenhuma testa a sigla da espécie.
 
 **Estado com Pinia — três stores complementares:**
 
