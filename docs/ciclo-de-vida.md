@@ -19,6 +19,8 @@ Combinações que existem (`SituacaoLocalEnum` documenta as mesmas):
 | `PUBLICADO` | `SEM_ETAPA`, `EM_ALTERACAO`, `EM_REVISAO`, `EM_PUBLICACAO`, `ANALISE_REVOGACAO`, `EM_REVOGACAO` |
 | `REVOGADO` | `SEM_ETAPA` |
 
+> **NPA:** a [NPA](dominio.md#npa-norma-padrao-de-acao) percorre o mesmo caminho de elaboração, revisão, publicação e revogação, mas **sem alteração**: não existe a etapa `EM_ALTERACAO`, nem iniciar/cancelar alteração, nem ciclo de emenda. "Devolver" leva sempre à `MINUTA`. Para mudar uma NPA publicada cria-se outra e revoga-se a anterior (`CicloDeVidaDeNpa`).
+
 ## Transições da Situação Local
 
 Validadas no servidor por `DocumentoStatusService.changeStatus()` — tentativas inválidas resultam em `StatusCannotBeUpdatedException` (`403`, "Transição não permitida: X → Y (situação BCA: Z)."). O pedido (`PATCH /v1/documentos/{id}/status`) sempre informa a **nova situação local** (`situacaoLocal`); `SEM_ETAPA` como destino significa **concluir a etapa em curso** — o que isso quer dizer depende da origem (tabela abaixo).

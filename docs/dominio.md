@@ -91,3 +91,45 @@ A renumeração é **recalculada a cada mutação da árvore** — inserir um ar
 - desfazer a inclusão do 2º parágrafo antes da publicação devolve o `Parágrafo único` ao normal — nada é gravado até a publicação.
 
 Inciso, alínea e subalínea são numerados por contadores posicionais simples entre irmãos do mesmo tipo dentro do mesmo pai — mirrorado entre os métodos privados de `DocumentoFoCorpoBuilder.java` (backend) e a própria travessia de árvore do frontend — e **não** têm a proteção de sufixo de letra que artigo e parágrafo têm: inserir um inciso no meio de um dispositivo já publicado desloca a numeração dos seguintes. O Decreto nº 12.002/2024 não veda isso expressamente para esses níveis (a vedação do art. 14, IV é específica de parágrafo), então essa é uma decisão de escopo deliberada, não um bug.
+
+## NPA — Norma Padrão de Ação
+
+A **NPA** é uma espécie de **uso interno da OM**, para disciplinar rotinas internas (modelo: Anexo XII da NSCA 5-3). Ao contrário das demais espécies — produzidas pelas OM, mas de âmbito que extrapola a OM —, ela tem elementos, numeração, layout e ciclo de vida **próprios**; por isso segue o tipo de regras `NPA` (`RegrasDeNpa`, ver [Arquitetura](arquitetura.md#regras-por-especie-normativa-atras-de-interfaces)). A **distribuição é sempre ostensiva**: toda NPA é visível para todas as OM.
+
+### Identificação
+
+Texto livre informado na criação (`NPA-AGO-01`, `NPA 44-__/2026`… — cada setor tem o seu padrão), de até 120 caracteres. **Não há assunto básico nem sequencial gerado**; o "assunto" do cabeçalho é o título do documento (`CriacaoDeNpa`).
+
+### Elementos e hierarquia
+
+Só existem **capítulo, seção, subseção, parágrafo e alínea** — sem artigo, inciso, parágrafo único nem subalínea. O **parágrafo** é o dispositivo em si (o elemento que tem o texto) e o backend recusa, no salvamento, qualquer combinação fora desta tabela (`HierarquiaDeNpa`):
+
+| Elemento | Onde pode ficar |
+|---|---|
+| Capítulo | na raiz do documento |
+| Seção | sob um capítulo |
+| Subseção | sob uma seção |
+| Parágrafo | sob um capítulo, uma seção ou uma subseção |
+| Alínea | **só** sob um parágrafo |
+
+### Numeração
+
+Algarismo arábico pelo **caminho** do elemento; **todo elemento é numerado** e a numeração é sempre recalculada (não há emenda, nada é congelado nem recebe sufixo de letra) — `NumeracaoDeNpa`:
+
+| Elemento | Formato | Exemplo |
+|---|---|---|
+| Capítulo | número | `3` |
+| Seção | capítulo `.` posição | `1.1` |
+| Subseção | seção `.` posição | `1.1.1` |
+| Parágrafo | número do pai `.` posição | `3.1` (sob o capítulo 3) · `1.1.1` (sob a seção 1.1) · `1.1.1.1` (sob a subseção 1.1.1) |
+| Alínea | letra pela posição entre as alíneas do parágrafo | `a)`, `b)` |
+
+Seção, subseção e parágrafo **do mesmo pai dividem uma única sequência**: num capítulo com a seção `1.1`, um parágrafo colocado depois dela recebe `1.2`.
+
+### Estrutura com que a NPA nasce
+
+`EstruturaInicialDeNpa` (layout do Anexo XII): `1 DISPOSIÇÕES PRELIMINARES` (`1.1 Finalidade`, `1.2 Âmbito`, `1.3 Referências`), `2 DISPOSIÇÕES GERAIS` (`2.1 Conceituações`) e `3 DISPOSIÇÕES FINAIS` (parágrafo direto, `3.1`). Como a alínea só existe depois de um parágrafo, a seção Referências nasce com o parágrafo introdutório **"Constituem referências:"** seguido da alínea. Os textos de orientação entre colchetes nascem em vermelho, como nos atos normativos.
+
+### Anexos
+
+Ficam ao final do documento e são rotulados **A, B, C…** (`ANEXO A`) — não há "ANEXO I" reservado ao corpo normativo — e listados no campo ANEXOS do cabeçalho.

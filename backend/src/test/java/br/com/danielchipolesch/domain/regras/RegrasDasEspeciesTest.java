@@ -3,6 +3,7 @@ package br.com.danielchipolesch.domain.regras;
 import br.com.danielchipolesch.domain.entities.numeracaoDocumento.EspecieNormativa;
 import br.com.danielchipolesch.domain.regras.atonormativo.CicloDeVidaDeAtoNormativo;
 import br.com.danielchipolesch.domain.regras.atonormativo.RegrasDeAtoNormativo;
+import br.com.danielchipolesch.domain.regras.npa.RegrasDeNpa;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -35,6 +36,18 @@ class RegrasDasEspeciesTest {
 
         assertThat(regras.tipo()).isEqualTo(TipoDeRegras.ATO_NORMATIVO);
         assertThat(regras.cicloDeVida()).isInstanceOf(CicloDeVidaDeAtoNormativo.class);
+    }
+
+    @Test
+    void umaEspecieDeNpaRecebeAsRegrasDaNpaEAsDemaisAsDeAtoNormativo() {
+        var npaRegras = new RegrasDeNpa(null, null, null, null, null, null, null, null);
+        var registro = new RegrasDasEspecies(List.of(ATO, npaRegras));
+        var especieNpa = new EspecieNormativa();
+        especieNpa.setTipoDeRegras(TipoDeRegras.NPA);
+
+        assertThat(registro.para(especieNpa)).isSameAs(npaRegras);
+        assertThat(registro.para(new EspecieNormativa())).isSameAs(ATO);
+        assertThat(npaRegras.tipo()).isEqualTo(TipoDeRegras.NPA);
     }
 
     @Test
