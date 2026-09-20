@@ -8,7 +8,7 @@ import br.com.danielchipolesch.domain.entities.estruturaDocumento.SituacaoBcaEnu
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.SituacaoLocalEnum;
 import br.com.danielchipolesch.domain.entities.numeracaoDocumento.AssuntoBasico;
 import br.com.danielchipolesch.domain.entities.numeracaoDocumento.EspecieNormativa;
-import br.com.danielchipolesch.domain.regimes.atonormativo.LeiauteHtmlDeAtoNormativo;
+import br.com.danielchipolesch.domain.regras.atonormativo.LeiauteHtmlDeAtoNormativo;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;

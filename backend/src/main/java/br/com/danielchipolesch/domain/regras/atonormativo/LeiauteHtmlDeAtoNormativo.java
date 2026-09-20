@@ -1,4 +1,4 @@
-package br.com.danielchipolesch.domain.regimes.atonormativo;
+package br.com.danielchipolesch.domain.regras.atonormativo;
 
 import br.com.danielchipolesch.application.dtos.anexoDtos.AnexoResponseDto;
 import br.com.danielchipolesch.application.dtos.itemAnexoParteNormativaDtos.ItemAnexoParteNormativaResponseDto;
@@ -7,9 +7,9 @@ import br.com.danielchipolesch.domain.entities.estruturaDocumento.Documento;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.SituacaoBcaEnum;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.ElementoEmendaStatusEnum;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.ItemAnexoParteNormativaTipoEnum;
-import br.com.danielchipolesch.domain.regimes.ElementoNumeracao;
-import br.com.danielchipolesch.domain.regimes.LeiauteDoHtml;
-import br.com.danielchipolesch.domain.regimes.RotuloDosAnexos;
+import br.com.danielchipolesch.domain.regras.ElementoNumeracao;
+import br.com.danielchipolesch.domain.regras.LeiauteDoHtml;
+import br.com.danielchipolesch.domain.regras.RotuloDosAnexos;
 import br.com.danielchipolesch.domain.services.ImagemService;
 import br.com.danielchipolesch.domain.services.NumeracaoService;
 import br.com.danielchipolesch.domain.services.VersoesDocumento;
@@ -39,7 +39,7 @@ import java.util.regex.Pattern;
 
 // O layout HTML de um ATO NORMATIVO (Portaria + Sumário/Corpo, sem capa -- NSCA 5-3, Art. 17, V, §1º).
 // Só a diagramação: escolher a versão, armazenar e servir o arquivo é do DocumentoHtmlService, que pede o
-// layout ao regime da espécie do documento (RegimesNormativos).
+// layout às regras da espécie do documento (RegrasDasEspecies).
 @Component
 public class LeiauteHtmlDeAtoNormativo implements LeiauteDoHtml {
 
@@ -52,7 +52,7 @@ public class LeiauteHtmlDeAtoNormativo implements LeiauteDoHtml {
     @Autowired
     private NumeracaoService numeracaoService;
 
-    // Rótulo dos anexos deste layout (ANEXO II, III...): é o do regime dos atos normativos.
+    // Rótulo dos anexos deste layout (ANEXO II, III...): é o dos atos normativos.
     private final RotuloDosAnexos rotuloDosAnexos = new RotuloDeAnexoDeAtoNormativo();
 
     // Só o Brasão da República: o Gládio Alado (brasaoFab) só aparecia na capa,

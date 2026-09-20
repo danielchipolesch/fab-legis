@@ -6,9 +6,9 @@ import br.com.danielchipolesch.application.dtos.itemPartePreliminarDtos.ItemPart
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.Documento;
 import br.com.danielchipolesch.domain.util.tiptap.XslFoContentRenderer;
 import tools.jackson.databind.ObjectMapper;
-import br.com.danielchipolesch.domain.regimes.LeiauteDoPdf;
-import br.com.danielchipolesch.domain.regimes.RotuloDosAnexos;
-import br.com.danielchipolesch.domain.regimes.atonormativo.RotuloDeAnexoDeAtoNormativo;
+import br.com.danielchipolesch.domain.regras.LeiauteDoPdf;
+import br.com.danielchipolesch.domain.regras.RotuloDosAnexos;
+import br.com.danielchipolesch.domain.regras.atonormativo.RotuloDeAnexoDeAtoNormativo;
 import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -41,7 +41,7 @@ public class DocumentoFoBuilder implements LeiauteDoPdf {
     @Autowired
     private NumeracaoService numeracaoService;
 
-    // Rótulo dos anexos deste layout (ANEXO II, III...): é o do regime dos atos normativos.
+    // Rótulo dos anexos deste layout (ANEXO II, III...): é o dos atos normativos.
     private final RotuloDosAnexos rotuloDosAnexos = new RotuloDeAnexoDeAtoNormativo();
 
     private String brasaoRepublica = "";

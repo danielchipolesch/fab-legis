@@ -1,23 +1,23 @@
-package br.com.danielchipolesch.domain.regimes.atonormativo;
+package br.com.danielchipolesch.domain.regras.atonormativo;
 
-import br.com.danielchipolesch.domain.regimes.CalculadoraDeNumeracaoDosElementos;
-import br.com.danielchipolesch.domain.regimes.EstruturaInicialDeNovoDocumento;
-import br.com.danielchipolesch.domain.regimes.LeiauteDoHtml;
-import br.com.danielchipolesch.domain.regimes.LeiauteDoPdf;
-import br.com.danielchipolesch.domain.regimes.RegimeDoDocumento;
-import br.com.danielchipolesch.domain.regimes.RegimeNormativo;
-import br.com.danielchipolesch.domain.regimes.RegrasDoCicloDeVidaDoDocumento;
-import br.com.danielchipolesch.domain.regimes.RotuloDosAnexos;
+import br.com.danielchipolesch.domain.regras.CalculadoraDeNumeracaoDosElementos;
+import br.com.danielchipolesch.domain.regras.EstruturaInicialDeNovoDocumento;
+import br.com.danielchipolesch.domain.regras.LeiauteDoHtml;
+import br.com.danielchipolesch.domain.regras.LeiauteDoPdf;
+import br.com.danielchipolesch.domain.regras.RegrasDaEspecieNormativa;
+import br.com.danielchipolesch.domain.regras.TipoDeRegras;
+import br.com.danielchipolesch.domain.regras.RegrasDoCicloDeVidaDoDocumento;
+import br.com.danielchipolesch.domain.regras.RotuloDosAnexos;
 import br.com.danielchipolesch.domain.services.CapitulosPadronizadosService;
 import br.com.danielchipolesch.domain.services.DocumentoFoBuilder;
 import br.com.danielchipolesch.domain.services.NumeracaoService;
 import org.springframework.stereotype.Component;
 
-// O regime dos atos normativos (DCA, ICA, NSCA...): LC 95/1998, Decreto 12.002/2024 e NSCA 5-3. Reúne as
+// As regras dos atos normativos (DCA, ICA, NSCA...): LC 95/1998, Decreto 12.002/2024 e NSCA 5-3. Reúne as
 // regras que já existiam espalhadas pelo sistema, sem alterar nenhuma -- cada uma agora atrás da sua
 // interface.
 @Component
-public class AtoNormativo implements RegimeDoDocumento {
+public class RegrasDeAtoNormativo implements RegrasDaEspecieNormativa {
 
     private final CalculadoraDeNumeracaoDosElementos numeracao;
     private final EstruturaInicialDeNovoDocumento estruturaInicial;
@@ -26,7 +26,7 @@ public class AtoNormativo implements RegimeDoDocumento {
     private final LeiauteDoHtml leiauteDoHtml;
     private final RegrasDoCicloDeVidaDoDocumento cicloDeVida;
 
-    public AtoNormativo(NumeracaoService numeracao,
+    public RegrasDeAtoNormativo(NumeracaoService numeracao,
                         CapitulosPadronizadosService estruturaInicial,
                         RotuloDeAnexoDeAtoNormativo rotuloDosAnexos,
                         DocumentoFoBuilder leiauteDoPdf,
@@ -40,7 +40,7 @@ public class AtoNormativo implements RegimeDoDocumento {
         this.cicloDeVida = cicloDeVida;
     }
 
-    @Override public RegimeNormativo regime() { return RegimeNormativo.ATO_NORMATIVO; }
+    @Override public TipoDeRegras tipo() { return TipoDeRegras.ATO_NORMATIVO; }
     @Override public CalculadoraDeNumeracaoDosElementos numeracao() { return numeracao; }
     @Override public EstruturaInicialDeNovoDocumento estruturaInicial() { return estruturaInicial; }
     @Override public RotuloDosAnexos rotuloDosAnexos() { return rotuloDosAnexos; }

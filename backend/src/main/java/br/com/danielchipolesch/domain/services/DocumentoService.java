@@ -23,7 +23,7 @@ import br.com.danielchipolesch.domain.handlers.exceptions.enums.DocumentoExcepti
 import br.com.danielchipolesch.domain.handlers.exceptions.StatusCannotBeUpdatedException;
 import br.com.danielchipolesch.domain.handlers.exceptions.enums.EspecieNormativaException;
 import br.com.danielchipolesch.domain.mappers.DocumentoMapper;
-import br.com.danielchipolesch.domain.regimes.RegimesNormativos;
+import br.com.danielchipolesch.domain.regras.RegrasDasEspecies;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.Anexo;
 import br.com.danielchipolesch.infrastructure.security.AutenticacaoUtil;
 import br.com.danielchipolesch.infrastructure.repositories.AnexoRepository;
@@ -81,7 +81,7 @@ public class DocumentoService {
     DocumentoHistoricoService documentoHistoricoService;
 
     @Autowired
-    RegimesNormativos regimes;
+    RegrasDasEspecies regras;
 
     @Autowired
     AnexoRepository anexoRepository;
@@ -110,8 +110,8 @@ public class DocumentoService {
                 .build();
 
         Documento salvo = documentoRepository.save(documento);
-        // A estrutura inicial é regra do regime da espécie (atos normativos: capítulos padronizados da NSCA 5-3).
-        regimes.para(especieNormativa).estruturaInicial().criarEm(salvo);
+        // A estrutura inicial é regra da espécie (atos normativos: capítulos padronizados da NSCA 5-3).
+        regras.para(especieNormativa).estruturaInicial().criarEm(salvo);
         documentoHistoricoService.registrar(salvo, TipoAlteracaoEnum.CRIACAO,
                 "Documento criado", null, SituacaoLocalEnum.RASCUNHO);
         return DocumentoMapper.documentoToDocumentoSemAnexoTextualResponseDto(salvo);

@@ -2,7 +2,7 @@ package br.com.danielchipolesch.domain.services;
 
 import br.com.danielchipolesch.application.dtos.anexoDtos.AnexoResponseDto;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.ItemAnexoParteNormativaTipoEnum;
-import br.com.danielchipolesch.domain.regimes.RotuloDosAnexos;
+import br.com.danielchipolesch.domain.regras.RotuloDosAnexos;
 
 import java.time.LocalDate;
 

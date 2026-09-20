@@ -1,6 +1,6 @@
 package br.com.danielchipolesch.application.dtos.itemAnexoParteNormativaDtos;
 
-import br.com.danielchipolesch.domain.regimes.ElementoNumeracao;
+import br.com.danielchipolesch.domain.regras.ElementoNumeracao;
 import br.com.danielchipolesch.domain.services.NumeracaoService;
 
 // Numeração calculada de um elemento da parte normativa — mesmo cálculo usado no PDF

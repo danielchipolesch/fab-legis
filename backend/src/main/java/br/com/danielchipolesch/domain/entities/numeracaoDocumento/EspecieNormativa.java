@@ -2,7 +2,7 @@ package br.com.danielchipolesch.domain.entities.numeracaoDocumento;
 
 import com.fasterxml.jackson.annotation.JsonIdentityInfo;
 import com.fasterxml.jackson.annotation.ObjectIdGenerators;
-import br.com.danielchipolesch.domain.regimes.RegimeNormativo;
+import br.com.danielchipolesch.domain.regras.TipoDeRegras;
 import jakarta.persistence.*;
 import lombok.Data;
 import org.hibernate.annotations.CreationTimestamp;
@@ -28,10 +28,10 @@ public class EspecieNormativa {
     @Column(name = "nm_especie_normativa", nullable = false)
     private String nome;
 
-    // Conjunto de regras a que a espécie obedece (numeração, criação, layout, ciclo de vida) -- ver RegimeNormativo.
+    // Conjunto de regras a que a espécie obedece (numeração, criação, layout, ciclo de vida) -- ver TipoDeRegras.
     @Enumerated(EnumType.STRING)
-    @Column(name = "st_regime", nullable = false, length = 30)
-    private RegimeNormativo regime = RegimeNormativo.ATO_NORMATIVO;
+    @Column(name = "st_tipo_regras", nullable = false, length = 30)
+    private TipoDeRegras tipoDeRegras = TipoDeRegras.ATO_NORMATIVO;
 
     @Column(name = "tx_descricao", nullable = false, columnDefinition = "TEXT")
     private String descricao;

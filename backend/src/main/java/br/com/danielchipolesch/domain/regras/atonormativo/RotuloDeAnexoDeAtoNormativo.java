@@ -1,6 +1,6 @@
-package br.com.danielchipolesch.domain.regimes.atonormativo;
+package br.com.danielchipolesch.domain.regras.atonormativo;
 
-import br.com.danielchipolesch.domain.regimes.RotuloDosAnexos;
+import br.com.danielchipolesch.domain.regras.RotuloDosAnexos;
 import br.com.danielchipolesch.domain.services.NumeracaoService;
 import org.springframework.stereotype.Component;
 

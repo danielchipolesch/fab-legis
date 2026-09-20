@@ -14,7 +14,7 @@ import br.com.danielchipolesch.domain.entities.estruturaDocumento.SituacaoBcaEnu
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.TipoAlteracaoEnum;
 import br.com.danielchipolesch.domain.handlers.exceptions.ResourceNotFoundException;
 import br.com.danielchipolesch.domain.mappers.DocumentoMapper;
-import br.com.danielchipolesch.domain.regimes.RegimesNormativos;
+import br.com.danielchipolesch.domain.regras.RegrasDasEspecies;
 import br.com.danielchipolesch.domain.util.tiptap.TipTapNode;
 import br.com.danielchipolesch.domain.util.tiptap.TipTapPlainTextExtractor;
 import br.com.danielchipolesch.infrastructure.notificacao.DocumentoPresencaEmitterRegistry;
@@ -53,9 +53,9 @@ public class DocumentoParteNormativaService {
     @Autowired
     DocumentoHistoricoService documentoHistoricoService;
 
-    // A numeração é regra do regime da espécie do documento (ver RegimesNormativos).
+    // A numeração é regra da espécie do documento (ver RegrasDasEspecies).
     @Autowired
-    RegimesNormativos regimes;
+    RegrasDasEspecies regras;
 
     @Autowired
     DocumentoConcorrenciaService concorrenciaService;
@@ -111,7 +111,7 @@ public class DocumentoParteNormativaService {
     // recalculada na mesma resposta do salvamento, sem um SELECT extra (a
     // lista já foi buscada ali pra montar a resposta de itens).
     public List<NumeracaoElementoResponseDto> calcularNumeracao(Documento documento, List<ItemAnexoParteNormativaResponseDto> normativos) {
-        return regimes.para(documento.getEspecieNormativa()).numeracao().calcular(normativos).entrySet().stream()
+        return regras.para(documento.getEspecieNormativa()).numeracao().calcular(normativos).entrySet().stream()
                 .map(e -> NumeracaoElementoResponseDto.from(e.getKey(), e.getValue()))
                 .toList();
     }

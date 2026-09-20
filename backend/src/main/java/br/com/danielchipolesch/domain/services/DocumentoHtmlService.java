@@ -1,6 +1,6 @@
 package br.com.danielchipolesch.domain.services;
 
-import br.com.danielchipolesch.domain.regimes.ElementoNumeracao;
+import br.com.danielchipolesch.domain.regras.ElementoNumeracao;
 import br.com.danielchipolesch.application.dtos.anexoDtos.AnexoResponseDto;
 import br.com.danielchipolesch.application.dtos.itemAnexoParteNormativaDtos.ItemAnexoParteNormativaResponseDto;
 import br.com.danielchipolesch.application.dtos.itemPartePreliminarDtos.ItemPartePreliminarResponseDto;
@@ -10,7 +10,7 @@ import br.com.danielchipolesch.domain.entities.estruturaDocumento.SituacaoBcaEnu
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.ElementoEmendaStatusEnum;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.ItemAnexoParteNormativaTipoEnum;
 import br.com.danielchipolesch.domain.handlers.exceptions.ResourceNotFoundException;
-import br.com.danielchipolesch.domain.regimes.RegimesNormativos;
+import br.com.danielchipolesch.domain.regras.RegrasDasEspecies;
 import br.com.danielchipolesch.domain.handlers.exceptions.enums.DocumentoException;
 import br.com.danielchipolesch.domain.util.tiptap.TipTapHtmlSerializer;
 import br.com.danielchipolesch.domain.util.tiptap.TipTapNode;
@@ -57,16 +57,16 @@ public class DocumentoHtmlService {
     @Autowired
     private ImagemService imagemService;
 
-    // O layout do HTML é regra do regime da espécie do documento (ver RegimesNormativos).
+    // O layout do HTML é regra da espécie do documento (ver RegrasDasEspecies).
     @Autowired
-    private RegimesNormativos regimes;
+    private RegrasDasEspecies regras;
 
     public String gerarHtml(
             Documento doc,
             List<ItemPartePreliminarResponseDto> preliminares,
             List<ItemAnexoParteNormativaResponseDto> normativos,
             List<AnexoResponseDto> anexos) {
-        return regimes.para(doc.getEspecieNormativa()).leiauteDoHtml().gerarHtml(doc, preliminares, normativos, anexos);
+        return regras.para(doc.getEspecieNormativa()).leiauteDoHtml().gerarHtml(doc, preliminares, normativos, anexos);
     }
 
     // Espelha DocumentoPdfService.streamPdf -- mesmo padrão de cópia armazenada vs.

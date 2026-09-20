@@ -1,6 +1,6 @@
 package br.com.danielchipolesch.domain.services;
 
-import br.com.danielchipolesch.domain.regimes.ElementoNumeracao;
+import br.com.danielchipolesch.domain.regras.ElementoNumeracao;
 import br.com.danielchipolesch.application.dtos.itemAnexoParteNormativaDtos.ItemAnexoParteNormativaResponseDto;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.ElementoEmendaStatusEnum;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.ItemAnexoParteNormativaTipoEnum;

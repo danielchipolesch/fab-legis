@@ -1,4 +1,4 @@
-package br.com.danielchipolesch.domain.regimes;
+package br.com.danielchipolesch.domain.regras;
 
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.Documento;
 

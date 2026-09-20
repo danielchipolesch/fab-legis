@@ -1,8 +1,8 @@
-package br.com.danielchipolesch.domain.regimes;
+package br.com.danielchipolesch.domain.regras;
 
 // O que um pedido de mudança de etapa significa em termos de negócio -- o mesmo destino (ex.: SEM_ETAPA)
 // quer dizer coisas diferentes conforme a origem. Quais ações existem e a partir de onde é decisão do
-// regime (RegrasDoCicloDeVidaDoDocumento): uma NPA não tem INICIAR_ALTERACAO nem CANCELAR_ALTERACAO.
+// tipo de regras (RegrasDoCicloDeVidaDoDocumento): uma NPA não tem INICIAR_ALTERACAO nem CANCELAR_ALTERACAO.
 public enum AcaoDeEtapa {
     MINUTAR,              // RASCUNHO -> MINUTA
     ENVIAR_PARA_REVISAO,  // MINUTA/EM_ALTERACAO -> EM_REVISAO (escolhe o revisor)

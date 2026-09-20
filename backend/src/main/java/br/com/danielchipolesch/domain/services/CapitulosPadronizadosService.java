@@ -4,7 +4,7 @@ import br.com.danielchipolesch.domain.entities.estruturaDocumento.Documento;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.ItemAnexoParteNormativa;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.ItemAnexoParteNormativaTipoEnum;
 import br.com.danielchipolesch.domain.entities.numeracaoDocumento.EspecieNormativa;
-import br.com.danielchipolesch.domain.regimes.EstruturaInicialDeNovoDocumento;
+import br.com.danielchipolesch.domain.regras.EstruturaInicialDeNovoDocumento;
 import br.com.danielchipolesch.infrastructure.repositories.ItemAnexoParteNormativaRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;

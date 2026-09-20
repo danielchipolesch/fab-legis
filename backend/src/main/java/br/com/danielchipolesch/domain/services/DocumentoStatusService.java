@@ -15,8 +15,8 @@ import br.com.danielchipolesch.domain.handlers.exceptions.ResourceNotFoundExcept
 import br.com.danielchipolesch.domain.handlers.exceptions.StatusCannotBeUpdatedException;
 import br.com.danielchipolesch.domain.handlers.exceptions.enums.DocumentoException;
 import br.com.danielchipolesch.domain.mappers.DocumentoMapper;
-import br.com.danielchipolesch.domain.regimes.AcaoDeEtapa;
-import br.com.danielchipolesch.domain.regimes.RegimesNormativos;
+import br.com.danielchipolesch.domain.regras.AcaoDeEtapa;
+import br.com.danielchipolesch.domain.regras.RegrasDasEspecies;
 import br.com.danielchipolesch.infrastructure.repositories.DocumentoRepository;
 import br.com.danielchipolesch.infrastructure.repositories.ItemAnexoParteNormativaRepository;
 import br.com.danielchipolesch.infrastructure.repositories.ItemParteFinalRepository;
@@ -65,9 +65,9 @@ public class DocumentoStatusService {
     @Autowired UsuarioRepository usuarioRepository;
     @Autowired PlatformTransactionManager transactionManager;
 
-    // As mudanças de etapa permitidas são regra do regime da espécie do documento: um ato normativo tem o
+    // As mudanças de etapa permitidas são regra da espécie do documento: um ato normativo tem o
     // ciclo completo (com alteração); uma NPA só publicação e revogação. Ver RegrasDoCicloDeVidaDoDocumento.
-    @Autowired RegimesNormativos regimes;
+    @Autowired RegrasDasEspecies regras;
 
     // Atômico de propósito: a mudança de etapa envolve várias tabelas (documento,
     // respaçamento de nr_ordem, portaria, histórico) e não pode ficar parcialmente aplicada
@@ -82,7 +82,7 @@ public class DocumentoStatusService {
         SituacaoLocalEnum destino = request.situacaoLocal();
         SituacaoBcaEnum bcaAnterior = documento.getSituacaoBca();
 
-        AcaoDeEtapa acao = regimes.para(documento.getEspecieNormativa()).cicloDeVida()
+        AcaoDeEtapa acao = regras.para(documento.getEspecieNormativa()).cicloDeVida()
                 .acaoPara(atual, destino, bcaAnterior).orElse(null);
         if (acao == null) {
             throw new StatusCannotBeUpdatedException("Transição não permitida: " + atual + " → " + destino

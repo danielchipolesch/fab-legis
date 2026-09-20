@@ -1,9 +1,9 @@
-package br.com.danielchipolesch.domain.regimes.atonormativo;
+package br.com.danielchipolesch.domain.regras.atonormativo;
 
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.SituacaoBcaEnum;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.SituacaoLocalEnum;
-import br.com.danielchipolesch.domain.regimes.AcaoDeEtapa;
-import br.com.danielchipolesch.domain.regimes.RegrasDoCicloDeVidaDoDocumento;
+import br.com.danielchipolesch.domain.regras.AcaoDeEtapa;
+import br.com.danielchipolesch.domain.regras.RegrasDoCicloDeVidaDoDocumento;
 import org.springframework.stereotype.Component;
 
 import java.util.Optional;
