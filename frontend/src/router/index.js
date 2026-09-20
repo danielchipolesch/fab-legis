@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import { Notify } from 'quasar'
 import { useAuthStore } from '@/stores/auth.js'
 
 const routes = [
@@ -103,6 +104,26 @@ router.beforeEach((to) => {
     return { name: 'home' }
   }
   return true
+})
+
+// Navegação que falha (ex.: a tela é carregada sob demanda e o módulo não pôde ser baixado -- app
+// atualizado desde que a página foi aberta, servidor reiniciando) não pode ser silenciosa: sem isto
+// o link parece "ativo" mas nada acontece. Mesmo feedback (canto inferior direito) das demais falhas.
+const ERRO_CARGA_MODULO = /dynamically imported module|Importing a module script failed|error loading dynamically|Failed to fetch/i
+
+router.onError((erro, to) => {
+  console.error('[router] Falha ao navegar:', erro)
+  const falhaDeCarga = ERRO_CARGA_MODULO.test(String(erro?.message ?? erro))
+  Notify.create({
+    type: 'negative',
+    message: falhaDeCarga
+      ? 'Não foi possível abrir esta tela: a aplicação foi atualizada ou perdeu a conexão com o servidor.'
+      : 'Não foi possível abrir esta tela. Tente novamente.',
+    timeout: falhaDeCarga ? 0 : 6000,
+    actions: falhaDeCarga
+      ? [{ label: 'Recarregar', color: 'white', handler: () => { window.location.href = to?.fullPath ?? '/' } }]
+      : [{ icon: 'mdi-close', color: 'white', round: true, dense: true }],
+  })
 })
 
 export default router

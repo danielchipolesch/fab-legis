@@ -168,8 +168,9 @@
             :key="'local-' + s.situacao"
             clickable
             outline
-            :color="s.bg"
+            :color="s.color"
             :text-color="s.fg"
+            class="text-weight-bold chip-resumo-local"
             size="sm"
             square
             data-testid="resumo-situacao-local"
@@ -672,7 +673,7 @@ onMounted(() => { carregar(); carregarEspecies() })
 function resumir(meta, contagens, ocultar = []) {
   return Object.entries(meta)
     .filter(([situacao]) => !ocultar.includes(situacao))
-    .map(([situacao, m]) => ({ situacao, label: m.label, bg: m.bg, fg: m.fg, count: contagens[situacao] ?? 0 }))
+    .map(([situacao, m]) => ({ situacao, label: m.label, bg: m.bg, fg: m.fg, color: m.color, count: contagens[situacao] ?? 0 }))
     .filter(s => s.count > 0)
 }
 const resumoBca = computed(() => resumir(SITUACAO_BCA_META, store.resumoSituacaoBca))
@@ -895,6 +896,8 @@ function limparFiltros() {
 </script>
 
 <style scoped>
+/* Contorno mais grosso: o outline padrão do Quasar (1px) some em chips pequenos. */
+.chip-resumo-local.q-chip--outline:before { border-width: 2px; }
 .text-truncate-2 {
   display: -webkit-box;
   -webkit-line-clamp: 2;
