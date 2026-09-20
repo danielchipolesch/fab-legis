@@ -40,6 +40,15 @@ public class GlobalExceptionHandler {
         return responder(HttpStatus.FORBIDDEN, body);
     }
 
+    // Todas as vagas de geração de PDF ocupadas (LimitadorGeracaoPdf): condição passageira.
+    @ExceptionHandler(SistemaOcupadoException.class)
+    public ResponseEntity<Map<String, Object>> handleSistemaOcupado(SistemaOcupadoException e, WebRequest request) {
+        Map<String, Object> body = ExceptionResponseUtil.buildErrorResponse(HttpStatus.SERVICE_UNAVAILABLE, e.getMessage(), request);
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .header("Retry-After", String.valueOf(e.getTentarNovamenteEmSegundos()))
+                .contentType(MediaType.APPLICATION_JSON).body(body);
+    }
+
     @ExceptionHandler(ResourceNotFoundException.class)
     public ResponseEntity<Map<String, Object>> handleResourceNotFound(ResourceNotFoundException e, WebRequest request) {
         Map<String, Object> body = ExceptionResponseUtil.buildErrorResponse(HttpStatus.NOT_FOUND, e.getMessage(), request);

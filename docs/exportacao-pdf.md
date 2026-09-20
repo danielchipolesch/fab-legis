@@ -54,6 +54,19 @@ Todo o documento — editor, prévia em tela, HTML exportado e PDF gerado — us
 
 O PDF gerado embute de fato os glifos da Carlito (confirmável inspecionando os bytes do PDF por entradas `BaseFont` como `Carlito`, `Carlito-Bold`, `Carlito-Italic`).
 
+## Limite de gerações simultâneas de PDF
+
+O Apache FOP monta o documento inteiro em memória e consome CPU; sem limite, uma rajada de visualizações ao vivo (versão em tramitação) ou de publicações derruba o backend. Por isso toda renderização de PDF — a ao vivo, a armazenada depois de aprovar/publicar/revogar e o PDF do quadro de justificativas — passa pelo `LimitadorGeracaoPdf`, um `Semaphore` justo (FIFO) **por instância**:
+
+| Propriedade (variável de ambiente) | Padrão | O que faz |
+|---|---|---|
+| `app.pdf.max-concorrentes` (`APP_PDF_MAX_CONCORRENTES`) | `2` | Quantas renderizações rodam ao mesmo tempo. Ajuste conforme CPU e memória do pod (2 a 4 é a faixa segura) |
+| `app.pdf.espera-maxima-segundos` (`APP_PDF_ESPERA_MAXIMA_SEGUNDOS`) | `30` | Quanto um pedido de tela espera por uma vaga |
+
+Passada a espera, o pedido recebe **`503` com `Retry-After`** e a mensagem "O sistema está gerando outros documentos no momento. Tente novamente em instantes." — a tela de visualização mostra a mensagem com o botão **Tentar novamente**. A geração armazenada (sem ninguém esperando) aguarda até 5 minutos por uma vaga. A renderização acontece **antes** de a resposta começar (o PDF vai para memória e só então é transmitido): com o streaming já iniciado os cabeçalhos teriam saído e não haveria como devolver `503`. O HTML não passa pelo limitador (é só texto). Cada réplica se protege sozinha, então o total escala com o número de réplicas.
+
+Métricas no Actuator/Prometheus: `fab.pdf.geracoes.em.andamento` e `fab.pdf.geracoes.aguardando`. Uma thread esperando por vaga já pode estar segurando uma conexão do pool do banco (transação aberta): não configure `max-concorrentes` e a espera de modo que as threads em espera esgotem o pool do Hikari.
+
 ## Revogação total: selo "REVOGADO"
 
 Uma **revogação total** (situação BCA `REVOGADO`) **não tacha nenhum elemento**: o documento continua com o texto normal e ganha só um selo vermelho "REVOGADO" no **canto superior direito da página que contém a parte preliminar** (a Portaria) — no PDF (`DocumentoFoFrontMatterBuilder.buildPortariaSequence`), no HTML (`.selo-revogado`) e na prévia do editor (`DocumentoPreview.vue`). O selo também aparece na versão em tramitação congelada da revogação aprovada (`EM_REVOGACAO`), para o publicador ver o que vai ser publicado (`VersoesDocumento.exibeSeloRevogado`). É diferente da **revogação parcial** (por elemento, via emenda), que continua sendo tachado + cláusula.

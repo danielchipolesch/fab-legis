@@ -43,7 +43,15 @@ public class MapaAlteracaoPdfService {
     @Autowired
     private ImagemService imagemService;
 
+    @Autowired
+    private LimitadorGeracaoPdf limitador;
+
     public byte[] gerarPdf(MapaAlteracaoPdfRequestDto req) {
+        // Mesmo limite de renderizações simultâneas do PDF do documento (o FOP é o gargalo).
+        return limitador.executar(() -> renderizar(req));
+    }
+
+    private byte[] renderizar(MapaAlteracaoPdfRequestDto req) {
         String fo = buildFo(req);
         try (var os = new ByteArrayOutputStream()) {
             Fop fop = FOP_FACTORY.newFop(MimeConstants.MIME_PDF, FOP_FACTORY.newFOUserAgent(), os);

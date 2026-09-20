@@ -248,6 +248,7 @@
                 <q-icon name="mdi-file-pdf-box" size="64px" class="q-mb-md" color="grey-4" />
                 <div class="text-body1 text-weight-medium q-mb-xs">PDF não disponível</div>
                 <div class="text-body2 text-center text-grey-5" style="max-width:480px">{{ erroPdf }}</div>
+                <q-btn flat color="primary" icon="mdi-refresh" label="Tentar novamente" class="q-mt-md" data-testid="pdf-tentar-novamente" ="carregarPdf" />
               </div>
 
               <q-inner-loading :showing="!documento || pdfIframeLoading" data-testid="pdf-carregando">

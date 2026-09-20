@@ -97,6 +97,7 @@ Via Docker Compose, todas as variáveis abaixo (exceto `PORT` do collab, que nã
 | `MINIO_ACCESS_KEY` / `MINIO_SECRET_KEY` | `minioadmin` / `minioadmin123` | Credenciais do MinIO |
 | `MINIO_BUCKET` | `fab-legis-imagens` | Bucket das imagens |
 | `MINIO_PUBLIC_URL` | `http://localhost:9000` | URL pública para servir as imagens |
+| `APP_PDF_MAX_CONCORRENTES` / `APP_PDF_ESPERA_MAXIMA_SEGUNDOS` | `2` / `30` | Renderizações de PDF simultâneas por instância e quanto um pedido espera por uma vaga antes do `503` — ver [Limite de gerações simultâneas de PDF](exportacao-pdf.md#limite-de-geracoes-simultaneas-de-pdf) |
 | `APP_OAUTH2_ISSUER` | `http://127.0.0.1:8081` | Endereço que o navegador usa para o Authorization Server (vira o claim `iss` do token — collab e frontend precisam concordar com esse valor). Usa `127.0.0.1`, não `localhost`, de propósito — ver aviso abaixo |
 | `APP_OAUTH2_REDIRECT_URI` | `http://127.0.0.1:5173/callback` | Rota de callback da SPA (troca o `code` por token) |
 | `APP_FRONTEND_LOGIN_URL` | `http://127.0.0.1:5173/login` | Tela de login (Vue) para onde o Authorization Server manda usuários não-autenticados |

@@ -10,6 +10,19 @@ function authHeaders() {
   return token ? { Authorization: `Bearer ${token}` } : {}
 }
 
+// Mensagem legível de uma resposta de erro: o backend responde JSON ({ message }), inclusive o 503
+// de "sistema ocupado" (todas as vagas de geração de PDF em uso -- ver LimitadorGeracaoPdf).
+async function mensagemDeErro(response) {
+  let msg = `Erro ${response.status}`
+  try {
+    const text = await response.text()
+    if (text) {
+      try { msg = JSON.parse(text).message ?? text } catch { msg = text }
+    }
+  } catch { /* noop */ }
+  return msg
+}
+
 function sanitize(str) {
   // Remove apenas caracteres proibidos em nomes de arquivo (Windows + Linux)
   return (str ?? '').replace(/[<>:"/\\|?*]/g, '').trim()
@@ -44,12 +57,7 @@ function htmlUrl(documentoId, versao) {
 export async function buscarPdfBlob(documentoId, versao) {
   const response = await fetch(pdfUrl(documentoId, versao), { method: 'GET', headers: authHeaders() })
   if (!response.ok) {
-    let msg = `Erro ${response.status}`
-    try {
-      const text = await response.text()
-      if (text) msg = text
-    } catch { /* noop */ }
-    throw new Error(msg)
+    throw new Error(await mensagemDeErro(response))
   }
   // Força o tipo: sem ele (ou com um genérico) o iframe mostra os bytes do PDF como texto.
   const blob = await response.blob()
@@ -58,12 +66,7 @@ export async function buscarPdfBlob(documentoId, versao) {
 
 async function baixarArquivo(response, filename) {
   if (!response.ok) {
-    let msg = `Erro ${response.status}`
-    try {
-      const text = await response.text()
-      if (text) msg = text
-    } catch { /* noop */ }
-    throw new Error(msg)
+    throw new Error(await mensagemDeErro(response))
   }
 
   const blob = await response.blob()
@@ -98,12 +101,7 @@ export async function gerarMapaAlteracaoPdf(documentoId, payload, filenameHint) 
   })
   if (!response.ok) {
     novaAba?.close()
-    let msg = `Erro ${response.status}`
-    try {
-      const text = await response.text()
-      if (text) msg = text
-    } catch { /* noop */ }
-    throw new Error(msg)
+    throw new Error(await mensagemDeErro(response))
   }
   const blob = await response.blob()
   // Empacota o blob num File nomeado: navegadores usam esse nome como sugestão ao

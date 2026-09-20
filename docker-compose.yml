@@ -65,6 +65,8 @@ services:
       APP_ADMIN_CPF: ${APP_ADMIN_CPF:-11144477735}
       APP_ADMIN_SENHA: ${APP_ADMIN_SENHA:-Admin@123}
       APP_ADMIN_NOME: ${APP_ADMIN_NOME:-Administrador}
+      APP_PDF_MAX_CONCORRENTES: ${APP_PDF_MAX_CONCORRENTES:-2}
+      APP_PDF_ESPERA_MAXIMA_SEGUNDOS: ${APP_PDF_ESPERA_MAXIMA_SEGUNDOS:-30}
     depends_on:
       postgres:
         condition: service_healthy

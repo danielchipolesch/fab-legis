@@ -50,6 +50,13 @@ public class DocumentoPdfService {
     @Autowired
     private AnexoRepository anexoRepository;
 
+    @Autowired
+    private LimitadorGeracaoPdf limitador;
+
+    // A geração armazenada (depois de aprovar/publicar/revogar) não tem ninguém esperando o
+    // resultado: pode aguardar bem mais por uma vaga que um pedido de tela.
+    private static final java.time.Duration ESPERA_GERACAO_ARMAZENADA = java.time.Duration.ofMinutes(5);
+
     // Cópia armazenada: transmite os bytes do MinIO direto para a resposta HTTP à
     // medida que chegam (StreamingResponseBody), sem materializar o PDF inteiro em
     // memória no backend — o antigo getObjectBytes() lia tudo com readAllBytes()
@@ -81,7 +88,9 @@ public class DocumentoPdfService {
             // URL presente mas não recuperável (objeto removido/inconsistência): recai
             // na renderização ao vivo em vez de falhar a exportação.
         }
-        byte[] renderizado = renderPdf(doc);
+        // Renderiza ANTES de devolver o corpo: assim, com todas as vagas ocupadas, ainda dá para
+        // responder 503 (depois de iniciado o streaming os cabeçalhos já saíram).
+        byte[] renderizado = limitador.executar(() -> renderPdf(doc));
         return outputStream -> outputStream.write(renderizado);
     }
 
@@ -96,7 +105,7 @@ public class DocumentoPdfService {
     @Transactional(propagation = Propagation.REQUIRES_NEW, readOnly = true)
     public String gerarEArmazenarPdf(Documento documento) {
         try {
-            byte[] pdfBytes = renderPdf(documento);
+            byte[] pdfBytes = limitador.executar(() -> renderPdf(documento), ESPERA_GERACAO_ARMAZENADA);
             String filename = "documento-" + documento.getId() + "-" + Instant.now().toEpochMilli() + ".pdf";
             return imagemService.uploadPdf(pdfBytes, filename);
         } catch (Exception e) {
