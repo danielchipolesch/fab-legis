@@ -4,6 +4,7 @@ import br.com.danielchipolesch.domain.entities.estruturaDocumento.Documento;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.ItemAnexoParteNormativa;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.ItemAnexoParteNormativaTipoEnum;
 import br.com.danielchipolesch.domain.entities.numeracaoDocumento.EspecieNormativa;
+import br.com.danielchipolesch.domain.regimes.EstruturaInicialDeNovoDocumento;
 import br.com.danielchipolesch.infrastructure.repositories.ItemAnexoParteNormativaRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -26,7 +27,7 @@ import static br.com.danielchipolesch.domain.entities.estruturaDocumento.ItemAne
 // capítulos do assunto entre as Disposições Preliminares e as Gerais e tudo se
 // renumera sozinho.
 @Service
-public class CapitulosPadronizadosService {
+public class CapitulosPadronizadosService implements EstruturaInicialDeNovoDocumento {
 
     @Autowired
     ItemAnexoParteNormativaRepository itemAnexoParteNormativaRepository;
@@ -115,7 +116,8 @@ public class CapitulosPadronizadosService {
         }
     }
 
-    public void criarEstruturaPadrao(Documento documento) {
+    @Override
+    public void criarEm(Documento documento) {
         persistir(ESTRUTURA, documento, null, Denominacao.de(documento.getEspecieNormativa()));
     }
 

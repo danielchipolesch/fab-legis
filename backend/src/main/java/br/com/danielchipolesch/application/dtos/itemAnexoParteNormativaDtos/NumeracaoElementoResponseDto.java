@@ -1,5 +1,6 @@
 package br.com.danielchipolesch.application.dtos.itemAnexoParteNormativaDtos;
 
+import br.com.danielchipolesch.domain.regimes.ElementoNumeracao;
 import br.com.danielchipolesch.domain.services.NumeracaoService;
 
 // Numeração calculada de um elemento da parte normativa — mesmo cálculo usado no PDF
@@ -12,7 +13,7 @@ public record NumeracaoElementoResponseDto(
         String letra,
         String label
 ) {
-    public static NumeracaoElementoResponseDto from(Long elementoId, NumeracaoService.ElementoNumeracao en) {
+    public static NumeracaoElementoResponseDto from(Long elementoId, ElementoNumeracao en) {
         return new NumeracaoElementoResponseDto(elementoId, en.numero(), en.letra(), en.label());
     }
 }

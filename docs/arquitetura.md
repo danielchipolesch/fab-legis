@@ -83,6 +83,23 @@ br.com.danielchipolesch
 
 **Seed automático:** os `runners` (`EspecieNormativaRunner`, `AssuntoBasicoRunner`) populam na inicialização as espécies normativas e os assuntos básicos oficiais do COMAER, cada um com sua descrição normativa completa — o catálogo já nasce pronto para uso.
 
+## Regimes normativos — regras por espécie atrás de interfaces
+
+Nem toda espécie normativa obedece às mesmas regras. Para o restante do sistema **nunca testar a espécie** de um documento, cada `EspecieNormativa` aponta para um **regime normativo** (`EspecieNormativa.regime`, coluna `st_regime`; hoje só `ATO_NORMATIVO`, o de DCA, ICA, NSCA...) e o regime entrega as regras por meio de interfaces — pacote `domain.regimes`:
+
+| Interface | O que o regime decide | Implementação em `ATO_NORMATIVO` |
+|---|---|---|
+| `CalculadoraDeNumeracaoDosElementos` | o rótulo de cada elemento da parte normativa | `NumeracaoService` |
+| `EstruturaInicialDeNovoDocumento` | os elementos com que um documento novo já nasce | `CapitulosPadronizadosService` (NSCA 5-3) |
+| `RotuloDosAnexos` | como os anexos são rotulados | `RotuloDeAnexoDeAtoNormativo` (ANEXO II, III…) |
+| `LeiauteDoPdf` | a diagramação do PDF (XSL-FO) | `DocumentoFoBuilder` |
+| `LeiauteDoHtml` | a diagramação do HTML | `LeiauteHtmlDeAtoNormativo` |
+| `RegrasDoCicloDeVidaDoDocumento` | as mudanças de etapa permitidas (`AcaoDeEtapa`) | `CicloDeVidaDeAtoNormativo` |
+
+`RegimeDoDocumento` reúne as regras de um regime (`AtoNormativo` é a implementação atual) e `RegimesNormativos.para(especie)` devolve o regime — todo `RegimeDoDocumento` registrado como bean entra sozinho, então acrescentar um regime **não exige mexer no registro nem nos serviços**. Quem só precisa da regra depende da interface: `DocumentoService.create` (estrutura inicial), `DocumentoParteNormativaService` (numeração), `DocumentoPdfService` e `DocumentoHtmlService` (layouts, que continuam dono da parte que não depende do regime: escolher a versão, gerar, armazenar e servir o arquivo) e `DocumentoStatusService` (ciclo de vida).
+
+**Regra para código novo:** um comportamento que varia por espécie entra como método de uma dessas interfaces (ou de uma interface nova), nunca como `if (espécie == …)` no serviço. Ver a proposta da NPA, o próximo regime, no [Roadmap](roadmap.md#npa-norma-padrao-de-acao-proposta-de-implementacao).
+
 ## Camadas do frontend
 
 ```

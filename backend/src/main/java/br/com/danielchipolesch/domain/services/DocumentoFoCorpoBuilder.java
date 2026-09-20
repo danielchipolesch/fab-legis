@@ -1,5 +1,6 @@
 package br.com.danielchipolesch.domain.services;
 
+import br.com.danielchipolesch.domain.regimes.ElementoNumeracao;
 import br.com.danielchipolesch.application.dtos.itemAnexoParteNormativaDtos.ItemAnexoParteNormativaResponseDto;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.ElementoEmendaStatusEnum;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.ItemAnexoParteNormativaTipoEnum;
@@ -51,7 +52,7 @@ final class DocumentoFoCorpoBuilder {
         sb.append(block(foEsc(titulo) + " (" + foEsc(ctx.docId()) + ")", "center", "12pt", "bold", "0", "10pt"));
         sb.append(block("SUMÁRIO", "center", "12pt", "bold", "0", "8pt"));
 
-        Map<Long, NumeracaoService.ElementoNumeracao> numbering = numeracaoService.calcular(normativos);
+        Map<Long, ElementoNumeracao> numbering = numeracaoService.calcular(normativos);
         sb.append(buildToc(numbering));
         sb.append("<fo:block space-after=\"1.2em\"/>\n");
         sb.append(buildCorpoNormativo(numbering));
@@ -64,22 +65,22 @@ final class DocumentoFoCorpoBuilder {
     // O cálculo em si vive em NumeracaoService (reutilizável, exposto via API —
     // GET /v1/documentos/{id}/numeracao) — aqui só resta acesso de conveniência.
 
-    private String capLabel(ItemAnexoParteNormativaResponseDto item, Map<Long, NumeracaoService.ElementoNumeracao> num) {
+    private String capLabel(ItemAnexoParteNormativaResponseDto item, Map<Long, ElementoNumeracao> num) {
         var en = num.get(item.id());
         return en != null ? en.label() : "";
     }
 
-    private String secLabel(ItemAnexoParteNormativaResponseDto item, Map<Long, NumeracaoService.ElementoNumeracao> num) {
+    private String secLabel(ItemAnexoParteNormativaResponseDto item, Map<Long, ElementoNumeracao> num) {
         var en = num.get(item.id());
         return en != null ? en.label() : "";
     }
 
-    private String subLabel(ItemAnexoParteNormativaResponseDto item, Map<Long, NumeracaoService.ElementoNumeracao> num) {
+    private String subLabel(ItemAnexoParteNormativaResponseDto item, Map<Long, ElementoNumeracao> num) {
         var en = num.get(item.id());
         return en != null ? en.label() : "";
     }
 
-    private String artLabel(ItemAnexoParteNormativaResponseDto item, Map<Long, NumeracaoService.ElementoNumeracao> num) {
+    private String artLabel(ItemAnexoParteNormativaResponseDto item, Map<Long, ElementoNumeracao> num) {
         var en = num.get(item.id());
         return en != null ? en.label() : "";
     }
@@ -88,7 +89,7 @@ final class DocumentoFoCorpoBuilder {
 
     private record TocEntry(String label, boolean bold, boolean indent1, boolean indent2, String anchor, String pg) {}
 
-    private String buildToc(Map<Long, NumeracaoService.ElementoNumeracao> num) {
+    private String buildToc(Map<Long, ElementoNumeracao> num) {
         List<TocEntry> entries = new ArrayList<>();
         boolean temAgrupamento = numeracaoService.temAgrupamento(normativos);
 
@@ -136,7 +137,7 @@ final class DocumentoFoCorpoBuilder {
         return item.elementTitle();
     }
 
-    private void walkToc(List<ItemAnexoParteNormativaResponseDto> items, List<TocEntry> entries, Map<Long, NumeracaoService.ElementoNumeracao> num) {
+    private void walkToc(List<ItemAnexoParteNormativaResponseDto> items, List<TocEntry> entries, Map<Long, ElementoNumeracao> num) {
         if (items == null) return;
         for (int i = 0; i < items.size(); i++) {
             var item = items.get(i);
@@ -166,7 +167,7 @@ final class DocumentoFoCorpoBuilder {
     }
 
     private void collectArtToc(List<ItemAnexoParteNormativaResponseDto> items,
-                               List<TocEntry> entries, Map<Long, NumeracaoService.ElementoNumeracao> num) {
+                               List<TocEntry> entries, Map<Long, ElementoNumeracao> num) {
         for (var item : items) {
             if (item.elementType() == ItemAnexoParteNormativaTipoEnum.ARTIGO) {
                 var en = num.get(item.id());
@@ -180,13 +181,13 @@ final class DocumentoFoCorpoBuilder {
 
     // ─── Corpo Normativo ──────────────────────────────────────────────────────
 
-    private String buildCorpoNormativo(Map<Long, NumeracaoService.ElementoNumeracao> num) {
+    private String buildCorpoNormativo(Map<Long, ElementoNumeracao> num) {
         var sb = new StringBuilder();
         renderNormItems(normativos, sb, num);
         return sb.toString();
     }
 
-    private void renderNormItems(List<ItemAnexoParteNormativaResponseDto> items, StringBuilder sb, Map<Long, NumeracaoService.ElementoNumeracao> num) {
+    private void renderNormItems(List<ItemAnexoParteNormativaResponseDto> items, StringBuilder sb, Map<Long, ElementoNumeracao> num) {
         if (items == null) return;
         for (var item : items) renderNormItem(item, sb, num);
     }
@@ -242,7 +243,7 @@ final class DocumentoFoCorpoBuilder {
           .append(refInline).append("</fo:block>\n");
     }
 
-    private void renderNormItem(ItemAnexoParteNormativaResponseDto item, StringBuilder sb, Map<Long, NumeracaoService.ElementoNumeracao> num) {
+    private void renderNormItem(ItemAnexoParteNormativaResponseDto item, StringBuilder sb, Map<Long, ElementoNumeracao> num) {
         String anc = "norm-" + item.id();
         switch (item.elementType()) {
             case CAPITULO -> {

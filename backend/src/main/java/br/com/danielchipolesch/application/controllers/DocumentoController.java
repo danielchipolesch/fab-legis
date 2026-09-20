@@ -314,7 +314,7 @@ public class DocumentoController {
         logAuditoriaService.registrar(dto.idDocumento(), dto.codigoDocumento(), AcaoAuditoriaEnum.EDITOU, "Conteúdo do documento");
         List<ItemAnexoParteNormativaResponseDto> normativos = documentoParteNormativaService
                 .getItensNormativosByDocumento(id).stream().map(ItemAnexoParteNormativaResponseDto::from).toList();
-        List<NumeracaoElementoResponseDto> numeracao = documentoParteNormativaService.calcularNumeracao(normativos);
+        List<NumeracaoElementoResponseDto> numeracao = documentoParteNormativaService.calcularNumeracao(documentoService.getById(id), normativos);
         return ResponseEntity.ok(new SecoesSaveResponseDto(normativos, numeracao));
     }
 

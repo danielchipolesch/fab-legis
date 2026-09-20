@@ -8,6 +8,7 @@ import br.com.danielchipolesch.domain.entities.estruturaDocumento.SituacaoBcaEnu
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.SituacaoLocalEnum;
 import br.com.danielchipolesch.domain.entities.numeracaoDocumento.AssuntoBasico;
 import br.com.danielchipolesch.domain.entities.numeracaoDocumento.EspecieNormativa;
+import br.com.danielchipolesch.domain.regimes.atonormativo.LeiauteHtmlDeAtoNormativo;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -26,9 +27,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 // MESMA regra do PDF e do editor -- em vigor nunca é renumerado, incluído por emenda
 // recebe letra (LC 95/1998; Decreto 12.002/2024, art. 14, IV). Ver docs/dominio.md e
 // a regra de consistência entre formatos no CLAUDE.md. Sem Spring nem banco.
-class DocumentoHtmlServiceTest {
+class LeiauteHtmlDeAtoNormativoTest {
 
-    private final DocumentoHtmlService service = new DocumentoHtmlService();
+    private final LeiauteHtmlDeAtoNormativo service = new LeiauteHtmlDeAtoNormativo();
 
     @BeforeEach
     void setUp() {

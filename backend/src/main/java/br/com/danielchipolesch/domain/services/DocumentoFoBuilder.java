@@ -6,6 +6,9 @@ import br.com.danielchipolesch.application.dtos.itemPartePreliminarDtos.ItemPart
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.Documento;
 import br.com.danielchipolesch.domain.util.tiptap.XslFoContentRenderer;
 import tools.jackson.databind.ObjectMapper;
+import br.com.danielchipolesch.domain.regimes.LeiauteDoPdf;
+import br.com.danielchipolesch.domain.regimes.RotuloDosAnexos;
+import br.com.danielchipolesch.domain.regimes.atonormativo.RotuloDeAnexoDeAtoNormativo;
 import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -25,7 +28,7 @@ import java.util.List;
  * bean singleton).
  */
 @Service
-public class DocumentoFoBuilder {
+public class DocumentoFoBuilder implements LeiauteDoPdf {
 
     private static final String FO_NS = "http://www.w3.org/1999/XSL/Format";
 
@@ -37,6 +40,9 @@ public class DocumentoFoBuilder {
 
     @Autowired
     private NumeracaoService numeracaoService;
+
+    // Rótulo dos anexos deste layout (ANEXO II, III...): é o do regime dos atos normativos.
+    private final RotuloDosAnexos rotuloDosAnexos = new RotuloDeAnexoDeAtoNormativo();
 
     private String brasaoRepublica = "";
     private String brasaoFab       = "";
@@ -58,6 +64,15 @@ public class DocumentoFoBuilder {
 
     // ─── Public API ───────────────────────────────────────────────────────────
 
+    // O layout do PDF de um ATO NORMATIVO (Portaria + Capa + Sumário + Corpo); ver LeiauteDoPdf.
+    @Override
+    public String gerarFo(Documento doc,
+                          List<ItemPartePreliminarResponseDto> preliminares,
+                          List<ItemAnexoParteNormativaResponseDto> normativos,
+                          List<AnexoResponseDto> anexos) {
+        return buildFo(doc, preliminares, normativos, anexos);
+    }
+
     public String buildFo(Documento doc,
                            List<ItemPartePreliminarResponseDto> preliminares,
                            List<ItemAnexoParteNormativaResponseDto> normativos,
@@ -71,7 +86,7 @@ public class DocumentoFoBuilder {
             renderer.setImageResolver(imagemService::getImageAsDataUri);
         }
         var ctx = new DocumentoFoContext(doc, preliminaresSeguro, objectMapper, renderer);
-        var frontMatter = new DocumentoFoFrontMatterBuilder(ctx, brasaoRepublica, brasaoFab, imagemService);
+        var frontMatter = new DocumentoFoFrontMatterBuilder(ctx, brasaoRepublica, brasaoFab, imagemService, rotuloDosAnexos);
         var corpo = new DocumentoFoCorpoBuilder(ctx, normativosSeguro, numeracaoService);
 
         var sb = new StringBuilder();

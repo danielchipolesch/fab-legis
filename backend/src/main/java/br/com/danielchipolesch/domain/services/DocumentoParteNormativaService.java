@@ -14,6 +14,7 @@ import br.com.danielchipolesch.domain.entities.estruturaDocumento.SituacaoBcaEnu
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.TipoAlteracaoEnum;
 import br.com.danielchipolesch.domain.handlers.exceptions.ResourceNotFoundException;
 import br.com.danielchipolesch.domain.mappers.DocumentoMapper;
+import br.com.danielchipolesch.domain.regimes.RegimesNormativos;
 import br.com.danielchipolesch.domain.util.tiptap.TipTapNode;
 import br.com.danielchipolesch.domain.util.tiptap.TipTapPlainTextExtractor;
 import br.com.danielchipolesch.infrastructure.notificacao.DocumentoPresencaEmitterRegistry;
@@ -52,8 +53,9 @@ public class DocumentoParteNormativaService {
     @Autowired
     DocumentoHistoricoService documentoHistoricoService;
 
+    // A numeração é regra do regime da espécie do documento (ver RegimesNormativos).
     @Autowired
-    NumeracaoService numeracaoService;
+    RegimesNormativos regimes;
 
     @Autowired
     DocumentoConcorrenciaService concorrenciaService;
@@ -101,15 +103,15 @@ public class DocumentoParteNormativaService {
     public List<NumeracaoElementoResponseDto> listarNumeracao(Long documentoId) {
         List<ItemAnexoParteNormativaResponseDto> normativos = getItensNormativosByDocumento(documentoId)
                 .stream().map(ItemAnexoParteNormativaResponseDto::from).toList();
-        return calcularNumeracao(normativos);
+        return calcularNumeracao(documentoRepository.findById(documentoId).orElseThrow(() -> new RuntimeException("Documento não encontrado")), normativos);
     }
 
     // Mesmo cálculo acima, mas a partir de uma lista já carregada -- usado por
     // saveSecoes() (DocumentoController) pra devolver a numeração recém-
     // recalculada na mesma resposta do salvamento, sem um SELECT extra (a
     // lista já foi buscada ali pra montar a resposta de itens).
-    public List<NumeracaoElementoResponseDto> calcularNumeracao(List<ItemAnexoParteNormativaResponseDto> normativos) {
-        return numeracaoService.calcular(normativos).entrySet().stream()
+    public List<NumeracaoElementoResponseDto> calcularNumeracao(Documento documento, List<ItemAnexoParteNormativaResponseDto> normativos) {
+        return regimes.para(documento.getEspecieNormativa()).numeracao().calcular(normativos).entrySet().stream()
                 .map(e -> NumeracaoElementoResponseDto.from(e.getKey(), e.getValue()))
                 .toList();
     }
@@ -129,7 +131,7 @@ public class DocumentoParteNormativaService {
         List<ItemParteFinalResponseDto> finais = getItensFinaisByDocumento(documentoId)
                 .stream().map(ItemParteFinalResponseDto::from).toList();
 
-        List<NumeracaoElementoResponseDto> numeracao = calcularNumeracao(normativos);
+        List<NumeracaoElementoResponseDto> numeracao = calcularNumeracao(documento, normativos);
 
         return DocumentoMapper.documentoToDocumentoComAnexoTextualResponseDto(documento, preliminares, normativos, finais, numeracao);
     }

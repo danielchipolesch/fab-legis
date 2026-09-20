@@ -15,6 +15,8 @@ import br.com.danielchipolesch.domain.handlers.exceptions.ResourceNotFoundExcept
 import br.com.danielchipolesch.domain.handlers.exceptions.StatusCannotBeUpdatedException;
 import br.com.danielchipolesch.domain.handlers.exceptions.enums.DocumentoException;
 import br.com.danielchipolesch.domain.mappers.DocumentoMapper;
+import br.com.danielchipolesch.domain.regimes.AcaoDeEtapa;
+import br.com.danielchipolesch.domain.regimes.RegimesNormativos;
 import br.com.danielchipolesch.infrastructure.repositories.DocumentoRepository;
 import br.com.danielchipolesch.infrastructure.repositories.ItemAnexoParteNormativaRepository;
 import br.com.danielchipolesch.infrastructure.repositories.ItemParteFinalRepository;
@@ -63,53 +65,9 @@ public class DocumentoStatusService {
     @Autowired UsuarioRepository usuarioRepository;
     @Autowired PlatformTransactionManager transactionManager;
 
-    // O que cada pedido de mudança de etapa significa em termos de negócio -- o mesmo
-    // destino (ex.: SEM_ETAPA) quer dizer coisas diferentes conforme a origem.
-    private enum Acao {
-        MINUTAR,              // RASCUNHO -> MINUTA
-        ENVIAR_PARA_REVISAO,  // MINUTA/EM_ALTERACAO -> EM_REVISAO (escolhe o revisor)
-        APROVAR,              // EM_REVISAO -> EM_PUBLICACAO (escolhe o publicador)
-        DEVOLVER,             // EM_REVISAO/EM_PUBLICACAO -> MINUTA ou EM_ALTERACAO
-        PUBLICAR,             // EM_PUBLICACAO -> SEM_ETAPA (registra portaria/BCA)
-        INICIAR_ALTERACAO,    // SEM_ETAPA -> EM_ALTERACAO (documento PUBLICADO)
-        CANCELAR_ALTERACAO,   // EM_ALTERACAO -> SEM_ETAPA (só sem alterações pendentes)
-        PEDIR_REVOGACAO,      // SEM_ETAPA -> ANALISE_REVOGACAO (documento PUBLICADO)
-        APROVAR_REVOGACAO,    // ANALISE_REVOGACAO -> EM_REVOGACAO (escolhe o publicador)
-        DEVOLVER_ANALISE,     // ANALISE_REVOGACAO -> SEM_ETAPA (o documento segue PUBLICADO)
-        REVOGAR,              // EM_REVOGACAO -> SEM_ETAPA (registra portaria/BCA; BCA = REVOGADO)
-        CANCELAR_DOCUMENTO    // RASCUNHO/MINUTA -> CANCELADO
-    }
-
-    // Devolver leva ao começo do trabalho: um documento já PUBLICADO volta para a alteração
-    // que estava fazendo; um nunca publicado, para a minuta.
-    private static SituacaoLocalEnum destinoDeDevolucao(SituacaoBcaEnum bca) {
-        return bca == SituacaoBcaEnum.PUBLICADO ? EM_ALTERACAO : MINUTA;
-    }
-
-    // Tabela de transições (docs/ciclo-de-vida.md). Só existe UMA etapa local por vez: por
-    // isso não há saída de EM_ALTERACAO para ANALISE_REVOGACAO -- para revogar, primeiro
-    // conclui-se ou cancela-se a alteração. EM_REVOGACAO só sai para REVOGADO.
-    private static Acao acaoPara(SituacaoLocalEnum atual, SituacaoLocalEnum destino, SituacaoBcaEnum bca) {
-        return switch (atual) {
-            case RASCUNHO          -> destino == MINUTA ? Acao.MINUTAR
-                                    : destino == CANCELADO ? Acao.CANCELAR_DOCUMENTO : null;
-            case MINUTA            -> destino == EM_REVISAO ? Acao.ENVIAR_PARA_REVISAO
-                                    : destino == CANCELADO ? Acao.CANCELAR_DOCUMENTO : null;
-            case EM_REVISAO        -> destino == EM_PUBLICACAO ? Acao.APROVAR
-                                    : destino == destinoDeDevolucao(bca) ? Acao.DEVOLVER : null;
-            case EM_PUBLICACAO     -> destino == SEM_ETAPA ? Acao.PUBLICAR
-                                    : destino == destinoDeDevolucao(bca) ? Acao.DEVOLVER : null;
-            case EM_ALTERACAO      -> destino == EM_REVISAO ? Acao.ENVIAR_PARA_REVISAO
-                                    : destino == SEM_ETAPA ? Acao.CANCELAR_ALTERACAO : null;
-            case ANALISE_REVOGACAO -> destino == EM_REVOGACAO ? Acao.APROVAR_REVOGACAO
-                                    : destino == SEM_ETAPA ? Acao.DEVOLVER_ANALISE : null;
-            case EM_REVOGACAO      -> destino == SEM_ETAPA ? Acao.REVOGAR : null;
-            case SEM_ETAPA         -> bca != SituacaoBcaEnum.PUBLICADO ? null
-                                    : destino == EM_ALTERACAO ? Acao.INICIAR_ALTERACAO
-                                    : destino == ANALISE_REVOGACAO ? Acao.PEDIR_REVOGACAO : null;
-            case CANCELADO         -> null;
-        };
-    }
+    // As mudanças de etapa permitidas são regra do regime da espécie do documento: um ato normativo tem o
+    // ciclo completo (com alteração); uma NPA só publicação e revogação. Ver RegrasDoCicloDeVidaDoDocumento.
+    @Autowired RegimesNormativos regimes;
 
     // Atômico de propósito: a mudança de etapa envolve várias tabelas (documento,
     // respaçamento de nr_ordem, portaria, histórico) e não pode ficar parcialmente aplicada
@@ -124,7 +82,8 @@ public class DocumentoStatusService {
         SituacaoLocalEnum destino = request.situacaoLocal();
         SituacaoBcaEnum bcaAnterior = documento.getSituacaoBca();
 
-        Acao acao = acaoPara(atual, destino, bcaAnterior);
+        AcaoDeEtapa acao = regimes.para(documento.getEspecieNormativa()).cicloDeVida()
+                .acaoPara(atual, destino, bcaAnterior).orElse(null);
         if (acao == null) {
             throw new StatusCannotBeUpdatedException("Transição não permitida: " + atual + " → " + destino
                     + " (situação BCA: " + bcaAnterior + ").");
@@ -132,32 +91,32 @@ public class DocumentoStatusService {
 
         // "Devolver" limpa a atribuição -- a próxima vez que o documento for enviado, alguém
         // (talvez outra pessoa) é escolhido de novo.
-        if (acao == Acao.DEVOLVER || acao == Acao.DEVOLVER_ANALISE) {
+        if (acao == AcaoDeEtapa.DEVOLVER || acao == AcaoDeEtapa.DEVOLVER_ANALISE) {
             documento.setRevisorAtribuido(null);
             documento.setPublicadorAtribuido(null);
         }
 
         // Enviar para revisão / pedir análise de revogação: exige a pessoa escolhida (papel
         // APROV, validado em DocumentoAcessoService.podeMudarStatus -- aqui só resolve o registro).
-        if (acao == Acao.ENVIAR_PARA_REVISAO || acao == Acao.PEDIR_REVOGACAO) {
+        if (acao == AcaoDeEtapa.ENVIAR_PARA_REVISAO || acao == AcaoDeEtapa.PEDIR_REVOGACAO) {
             documento.setRevisorAtribuido(buscarUsuario(request.revisorId(),
                     "É obrigatório escolher quem vai revisar."));
         }
 
         // Aprovar (o texto ou a revogação): exige a pessoa escolhida (papel PUBLIC) que vai
         // registrar a portaria/BCA.
-        if (acao == Acao.APROVAR) {
+        if (acao == AcaoDeEtapa.APROVAR) {
             documento.setPublicadorAtribuido(buscarUsuario(request.publicadorId(),
                     "É obrigatório escolher quem vai publicar."));
         }
-        if (acao == Acao.APROVAR_REVOGACAO) {
+        if (acao == AcaoDeEtapa.APROVAR_REVOGACAO) {
             documento.setPublicadorAtribuido(buscarUsuario(request.publicadorId(),
                     "É obrigatório escolher quem vai publicar a revogação."));
         }
 
         // Cancelar a alteração só é possível sem alterações pendentes: cada uma se desfaz elemento a
         // elemento (sidebar do editor). Nada é descartado em massa por aqui.
-        if (acao == Acao.CANCELAR_ALTERACAO && emendaService.temAlteracoesPendentes(id)) {
+        if (acao == AcaoDeEtapa.CANCELAR_ALTERACAO && emendaService.temAlteracoesPendentes(id)) {
             throw new StatusCannotBeUpdatedException("Há alterações pendentes neste documento. Desfaça cada uma "
                     + "no painel lateral do editor (ou envie a alteração para revisão) antes de cancelá-la.");
         }
@@ -168,10 +127,10 @@ public class DocumentoStatusService {
         // nunca mesclada com o PDF do documento (mesclar invalidaria uma eventual assinatura
         // digital futura na portaria) e nunca substituída: a de publicação é perene e as de
         // alteração e revogação são complementares a ela.
-        boolean primeiraPublicacao = acao == Acao.PUBLICAR && bcaAnterior == SituacaoBcaEnum.NAO_PUBLICADO;
-        boolean alterando = acao == Acao.PUBLICAR && bcaAnterior == SituacaoBcaEnum.PUBLICADO;
-        boolean revogando = acao == Acao.REVOGAR;
-        if (acao == Acao.PUBLICAR || revogando) {
+        boolean primeiraPublicacao = acao == AcaoDeEtapa.PUBLICAR && bcaAnterior == SituacaoBcaEnum.NAO_PUBLICADO;
+        boolean alterando = acao == AcaoDeEtapa.PUBLICAR && bcaAnterior == SituacaoBcaEnum.PUBLICADO;
+        boolean revogando = acao == AcaoDeEtapa.REVOGAR;
+        if (acao == AcaoDeEtapa.PUBLICAR || revogando) {
             registrarPortariaEBca(documento, request, primeiraPublicacao, alterando, revogando);
         }
 
@@ -256,15 +215,15 @@ public class DocumentoStatusService {
 
         // Cada transição de atribuição avisa só a pessoa escolhida -- nunca uma OM inteira
         // (ver PapelEnum: o modelo é de atribuição pessoal, não de "qualquer Aprovador pega").
-        if (acao == Acao.ENVIAR_PARA_REVISAO || acao == Acao.PEDIR_REVOGACAO) {
+        if (acao == AcaoDeEtapa.ENVIAR_PARA_REVISAO || acao == AcaoDeEtapa.PEDIR_REVOGACAO) {
             notificacaoService.notificarAtribuicao(documento.getRevisorAtribuido().getId(), documento.getId(), descricao,
                     "O documento " + descricao + " foi atribuído a você para revisão.");
         }
-        if (acao == Acao.APROVAR) {
+        if (acao == AcaoDeEtapa.APROVAR) {
             notificacaoService.notificarAtribuicao(documento.getPublicadorAtribuido().getId(), documento.getId(), descricao,
                     "O documento " + descricao + " foi atribuído a você para publicação.");
         }
-        if (acao == Acao.APROVAR_REVOGACAO) {
+        if (acao == AcaoDeEtapa.APROVAR_REVOGACAO) {
             notificacaoService.notificarAtribuicao(documento.getPublicadorAtribuido().getId(), documento.getId(), descricao,
                     "O documento " + descricao + " foi atribuído a você para publicar a revogação.");
         }

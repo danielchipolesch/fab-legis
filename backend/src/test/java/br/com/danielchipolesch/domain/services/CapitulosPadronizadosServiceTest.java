@@ -45,7 +45,7 @@ class CapitulosPadronizadosServiceTest {
         especie.setNome("Instrução do Comando da Aeronáutica");
         var doc = new Documento();
         doc.setEspecieNormativa(especie);
-        service.criarEstruturaPadrao(doc);
+        service.criarEm(doc);
     }
 
     private List<ItemAnexoParteNormativa> artigos() {

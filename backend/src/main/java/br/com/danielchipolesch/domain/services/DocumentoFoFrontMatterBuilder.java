@@ -2,6 +2,7 @@ package br.com.danielchipolesch.domain.services;
 
 import br.com.danielchipolesch.application.dtos.anexoDtos.AnexoResponseDto;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.ItemAnexoParteNormativaTipoEnum;
+import br.com.danielchipolesch.domain.regimes.RotuloDosAnexos;
 
 import java.time.LocalDate;
 
@@ -17,9 +18,11 @@ final class DocumentoFoFrontMatterBuilder {
     private final String brasaoRepublica;
     private final String brasaoFab;
     private final ImagemService imagemService;
+    private final RotuloDosAnexos rotuloDosAnexos;
 
     DocumentoFoFrontMatterBuilder(DocumentoFoContext ctx, String brasaoRepublica, String brasaoFab,
-                                   ImagemService imagemService) {
+                                   ImagemService imagemService, RotuloDosAnexos rotuloDosAnexos) {
+        this.rotuloDosAnexos = rotuloDosAnexos;
         this.ctx = ctx;
         this.brasaoRepublica = brasaoRepublica;
         this.brasaoFab = brasaoFab;
@@ -236,13 +239,12 @@ final class DocumentoFoFrontMatterBuilder {
         sb.append("  <fo:block text-align=\"right\" font-size=\"10pt\"><fo:page-number/></fo:block>\n");
         sb.append("</fo:static-content>\n");
         // Da 2ª página do anexo em diante: "Continuação do ANEXO X".
-        sb.append(buildContinuacaoAnexo("ANEXO " + NumeracaoService.toRoman(anexo.ordem() + 1)));
+        sb.append(buildContinuacaoAnexo(rotuloDosAnexos.rotulo(anexo.ordem())));
         sb.append(ctx.buildStaticContentWatermark());
         sb.append(ctx.buildStaticContentWatermark("wm-continuacao"));
         sb.append("<fo:flow flow-name=\"xsl-region-body\">\n");
 
-        String numRomano = NumeracaoService.toRoman(anexo.ordem() + 1);
-        sb.append(block("ANEXO " + numRomano, "center", "12pt", "bold", "0", "4pt"));
+        sb.append(block(rotuloDosAnexos.rotulo(anexo.ordem()), "center", "12pt", "bold", "0", "4pt"));
         sb.append(block(foEsc(anexo.titulo().toUpperCase()), "center", "12pt", "bold", "0", "12pt"));
 
         if (imagemService != null && anexo.urlImagem() != null && !anexo.urlImagem().isBlank()) {

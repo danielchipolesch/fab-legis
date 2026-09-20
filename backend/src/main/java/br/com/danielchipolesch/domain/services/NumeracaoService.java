@@ -3,6 +3,8 @@ package br.com.danielchipolesch.domain.services;
 import br.com.danielchipolesch.application.dtos.itemAnexoParteNormativaDtos.ItemAnexoParteNormativaResponseDto;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.ElementoEmendaStatusEnum;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.ItemAnexoParteNormativaTipoEnum;
+import br.com.danielchipolesch.domain.regimes.CalculadoraDeNumeracaoDosElementos;
+import br.com.danielchipolesch.domain.regimes.ElementoNumeracao;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -30,19 +32,14 @@ import static br.com.danielchipolesch.domain.entities.estruturaDocumento.ItemAne
 //   artigo incluído por emenda nunca perca seu sufixo de letra mesmo depois de
 //   alterado ou revogado.
 @Service
-public class NumeracaoService {
+public class NumeracaoService implements CalculadoraDeNumeracaoDosElementos {
 
     private static final Set<ItemAnexoParteNormativaTipoEnum> TIPOS_AGRUPAMENTO =
             Set.of(CAPITULO, SECAO_NORMATIVA, SUBSECAO_NORMATIVA);
 
-    // numero/letra: identidade permanente do elemento na estrutura. label: numero+letra
-    // já formatados conforme o tipo (romano p/ agrupamentos, ordinal/cardinal p/ artigo).
-    public record ElementoNumeracao(int numero, String letra, String label) {
-        public boolean semNumero() { return numero <= 0; }
-    }
-
     // ─── API pública ────────────────────────────────────────────────────────────
 
+    @Override
     public Map<Long, ElementoNumeracao> calcular(List<ItemAnexoParteNormativaResponseDto> normativos) {
         var flatArtigos = new ArrayList<ItemAnexoParteNormativaResponseDto>();
         collectArtigosFlat(normativos, flatArtigos);

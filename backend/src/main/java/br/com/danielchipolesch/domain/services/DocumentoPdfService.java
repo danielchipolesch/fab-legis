@@ -6,6 +6,7 @@ import br.com.danielchipolesch.application.dtos.itemPartePreliminarDtos.ItemPart
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.Documento;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.VersaoDocumentoEnum;
 import br.com.danielchipolesch.domain.handlers.exceptions.ResourceNotFoundException;
+import br.com.danielchipolesch.domain.regimes.RegimesNormativos;
 import br.com.danielchipolesch.domain.handlers.exceptions.enums.DocumentoException;
 import br.com.danielchipolesch.infrastructure.repositories.AnexoRepository;
 import br.com.danielchipolesch.infrastructure.repositories.DocumentoRepository;
@@ -42,7 +43,7 @@ public class DocumentoPdfService {
     private DocumentoParteNormativaService documentoParteNormativaService;
 
     @Autowired
-    private DocumentoFoBuilder documentoFoBuilder;
+    private RegimesNormativos regimes;
 
     @Autowired
     private ImagemService imagemService;
@@ -127,7 +128,8 @@ public class DocumentoPdfService {
         List<AnexoResponseDto> anexos = anexoRepository.findByDocumentoIdOrderByOrdemAsc(id)
                 .stream().map(AnexoResponseDto::from).toList();
 
-        String fo = documentoFoBuilder.buildFo(doc, preliminares, normativos, anexos);
+        // O layout do PDF é regra do regime da espécie (atos normativos: Portaria + Capa + Sumário + Corpo).
+        String fo = regimes.para(doc.getEspecieNormativa()).leiauteDoPdf().gerarFo(doc, preliminares, normativos, anexos);
 
         try (var os = new ByteArrayOutputStream()) {
             Fop fop = FOP_FACTORY.newFop(MimeConstants.MIME_PDF, FOP_FACTORY.newFOUserAgent(), os);
