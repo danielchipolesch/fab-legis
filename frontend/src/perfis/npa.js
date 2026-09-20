@@ -100,7 +100,8 @@ export function rotuloDoCorpo(el) {
 const COMANDO = 'COMANDO DA AERONÁUTICA'
 const DISTRIBUICAO = 'OSTENSIVA'
 const SEM_ANEXOS = 'NÃO HÁ'
-const EFETIVACAO_PENDENTE = 'A ser preenchida na publicação'
+const DATA_EM_BRANCO = '__ ___ ____'
+const MESES_ABREVIADOS = ['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ']
 const MESES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro',
   'novembro', 'dezembro']
 
@@ -110,9 +111,10 @@ function partesDaData(valor) {
   return m ? { ano: Number(m[1]), mes: Number(m[2]), dia: Number(m[3]) } : null
 }
 
-export function dataCurta(valor) {
+// Formato militar da data: "08 NOV 2026".
+export function dataMilitar(valor) {
   const d = partesDaData(valor)
-  return d ? `${String(d.dia).padStart(2, '0')}/${String(d.mes).padStart(2, '0')}/${d.ano}` : null
+  return d ? `${String(d.dia).padStart(2, '0')} ${MESES_ABREVIADOS[d.mes - 1]} ${d.ano}` : null
 }
 
 export function dataPorExtenso(valor) {
@@ -128,12 +130,22 @@ export function letraDoAnexo(ordem) {
   return letra
 }
 
-// "A - X; B - Y; e C - Z". Um só anexo: "A - X". Dois: "A - X; e B - Y".
+// Uma linha por anexo: "A - X;", "B - Y; e", "C - Z." (um só: "A - X."). Sem anexos: "NÃO HÁ".
 export function listaDeAnexos(anexos) {
-  if (!anexos?.length) return SEM_ANEXOS
-  const itens = [...anexos].sort((a, b) => a.ordem - b.ordem).map(a => `${letraDoAnexo(a.ordem)} - ${a.titulo}`)
-  if (itens.length === 1) return itens[0]
-  return itens.slice(0, -1).join('; ') + '; e ' + itens[itens.length - 1]
+  if (!anexos?.length) return [SEM_ANEXOS]
+  const ordenados = [...anexos].sort((a, b) => a.ordem - b.ordem)
+  return ordenados.map((a, i) => {
+    const fim = i === ordenados.length - 1 ? '.' : (i === ordenados.length - 2 ? '; e' : ';')
+    return `${letraDoAnexo(a.ordem)} - ${a.titulo}${fim}`
+  })
+}
+
+// As duas linhas da célula EFETIVAÇÃO: "BIO 15" e "02 ABR 2026" (só depois de publicada; senão, em branco). O número
+// vem da referência que o backend grava ("Boletim Interno Ostensivo nº 15, de ...") e a data, da data do Boletim.
+function efetivacao(documento, publicada) {
+  if (!publicada) return ['BIO __', DATA_EM_BRANCO]
+  const numero = /nº\s*(\d+)/.exec(documento.bca_referencia ?? '')?.[1] ?? '__'
+  return [`BIO ${numero}`, dataMilitar(documento.data_bca_referencia) ?? DATA_EM_BRANCO]
 }
 
 // documento: o documento do frontend (backendParaFrontend); campos: { setorEmissor, local, assinaturas,
@@ -148,8 +160,8 @@ export function cabecalho(documento, campos, anexos) {
   return {
     linhasDeCima: [COMANDO, (documento.om_nome ?? '').toUpperCase(), campos.setorEmissor],
     identificacao: documento.codigo_documento,
-    emissao: dataCurta(aprovacao) ?? '__/__/____',
-    efetivacao: publicada ? referencia : EFETIVACAO_PENDENTE,
+    emissao: dataMilitar(aprovacao) ?? DATA_EM_BRANCO,
+    efetivacao: efetivacao(documento, publicada),
     distribuicao: DISTRIBUICAO,
     assunto: documento.titulo,
     anexos: listaDeAnexos(anexos),

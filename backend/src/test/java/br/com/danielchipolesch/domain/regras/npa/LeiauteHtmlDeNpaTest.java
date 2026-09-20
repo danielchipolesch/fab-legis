@@ -99,7 +99,37 @@ class LeiauteHtmlDeNpaTest {
         }
         assertThat(html).contains("COMANDO DA AERONÁUTICA").contains("GRUPO DE APOIO")
                 .contains("DIVISÃO DE SUPORTE OPERACIONAL").contains("NPA-AGO-01").contains("OSTENSIVA")
-                .contains("12/03/2026");
+                .contains("12 MAR 2026");
+    }
+
+    @Test
+    void asCelulasDoCabecalhoSaoMescladasComoNoModelo() {
+        var html = html();
+
+        assertThat(html).contains("<td colspan=\"4\" class=\"topo\">").contains("<td colspan=\"2\" class=\"e\">DATAS</td>")
+                .contains("<td rowspan=\"3\" class=\"e\">").contains("<td rowspan=\"2\">DISTRIBUIÇÃO</td>")
+                .contains("<td class=\"e\">EMISSÃO</td><td class=\"e\">EFETIVAÇÃO</td>");
+        assertThat(html.indexOf("DATAS")).isLessThan(html.indexOf("EMISSÃO"));
+        assertThat(html.indexOf("EFETIVAÇÃO")).isLessThan(html.indexOf("OSTENSIVA"));
+    }
+
+    @Test
+    void oAssuntoEOsAnexosSaoJustificadosECadaAnexoFicaNaSuaLinha() {
+        var html = html(documento(SituacaoBcaEnum.NAO_PUBLICADO),
+                List.of(new AnexoResponseDto(1L, "Organograma", null, 1), new AnexoResponseDto(2L, "Fluxograma", null, 2)));
+
+        assertThat(html).contains("<td colspan=\"3\" class=\"j\">Funcionamento &lt;da&gt; Divisão</td>")
+                .contains("<td colspan=\"3\" class=\"j\"><div>A - Organograma; e</div><div>B - Fluxograma.</div></td>");
+    }
+
+    @Test
+    void aIdentificacaoTemCelulaPropriaAbaixoDoDomEAsBordasDoCabecalhoSaoAsDaMoldura() {
+        var html = html();
+
+        assertThat(html).contains("<td class=\"e\">NPA-AGO-01</td>");
+        // Sem borda de cima nem laterais na tabela (são as da moldura), e a mesma espessura em todas as linhas.
+        assertThat(html).contains("table.cabecalho td { border-bottom: 1px solid #000;").contains("td.e { border-right: 1px solid #000; }");
+        assertThat(html).contains(".moldura { position: relative; border: 1px solid #000; }").doesNotContain("table.cabecalho { border");
     }
 
     @Test
@@ -129,7 +159,9 @@ class LeiauteHtmlDeNpaTest {
 
     @Test
     void oTextoEAlinhadoAEsquerdaComoNosDemaisHtmlDaNsca() {
-        assertThat(html()).contains("text-align: left").doesNotContain("text-align: justify");
+        // O corpo (body) é alinhado à esquerda; só o assunto e os anexos do cabeçalho são justificados, como no modelo.
+        assertThat(html()).contains("text-align: left; margin: 0");
+        assertThat(html()).contains("td.j { text-align: justify; }");
     }
 
     @Test
@@ -150,7 +182,7 @@ class LeiauteHtmlDeNpaTest {
 
     @Test
     void aPublicacaoNoBoletimInternoSoApareceDepoisDePublicada() {
-        assertThat(html()).doesNotContain("Publicada no").contains("A ser preenchida na publicação");
+        assertThat(html()).doesNotContain("Publicada no").contains("BIO __");
 
         var doc = documento(SituacaoBcaEnum.PUBLICADO);
         doc.setBcaReferencia("Boletim Interno Ostensivo nº 15, de 2 de abril de 2026");
@@ -158,7 +190,7 @@ class LeiauteHtmlDeNpaTest {
         var html = html(doc, List.of());
 
         assertThat(html).contains("(Publicada no Boletim Interno Ostensivo nº 15, de 2 de abril de 2026)")
-                .doesNotContain("A ser preenchida");
+                .contains("BIO 15").contains("02 ABR 2026");
     }
 
     @Test
@@ -172,7 +204,7 @@ class LeiauteHtmlDeNpaTest {
         var html = html(documento(SituacaoBcaEnum.NAO_PUBLICADO),
                 List.of(new AnexoResponseDto(1L, "Organograma", null, 1), new AnexoResponseDto(2L, "Fluxograma", null, 2)));
 
-        assertThat(html).contains("A - Organograma; e B - Fluxograma")
+        assertThat(html).contains("<div>A - Organograma; e</div>").contains("<div>B - Fluxograma.</div>")
                 .contains(">ANEXO A<").contains(">ANEXO B<").doesNotContain("ANEXO II");
     }
 

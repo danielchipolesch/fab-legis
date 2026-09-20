@@ -32,8 +32,13 @@ import static br.com.danielchipolesch.domain.services.DocumentoFoContext.foEsc;
 public class DocumentoFoNpaBuilder implements LeiauteDoPdf {
 
     private static final String FO_NS = "http://www.w3.org/1999/XSL/Format";
-    private static final String MOLDURA = "0.75pt solid #000000";
-    private static final String LINHA_DA_TABELA = "0.5pt solid #000000";
+    // A mesma espessura na moldura e em todas as linhas do cabeçalho.
+    private static final String LINHA = "0.75pt solid #000000";
+
+    // O texto fica recuado da moldura (o cabeçalho, não): start-indent é absoluto, então o recuo do texto e o da alínea
+    // (o do texto + 1 cm) partem dele.
+    private static final String RECUO_DO_TEXTO = "6pt";
+    private static final String RECUO_DA_ALINEA = "34.35pt";
 
     private final ObjectMapper objectMapper;
     private final ImagemService imagemService;
@@ -85,16 +90,15 @@ public class DocumentoFoNpaBuilder implements LeiauteDoPdf {
         return """
               <fo:simple-page-master master-name="npa-primeira"
                   page-width="21cm" page-height="29.7cm"
-                  margin-top="2cm" margin-bottom="2cm" margin-left="2cm" margin-right="2cm">
-                <fo:region-body region-name="xsl-region-body" margin="0.3cm"/>
+                  margin-top="2.5cm" margin-bottom="2.5cm" margin-left="2.5cm" margin-right="2.5cm">
+                <fo:region-body region-name="xsl-region-body"/>
                 <fo:region-before region-name="wm" extent="0pt" overflow="visible"/>
                 <fo:region-end region-name="npa-moldura-primeira" extent="0pt" overflow="visible"/>
               </fo:simple-page-master>
               <fo:simple-page-master master-name="npa-demais"
                   page-width="21cm" page-height="29.7cm"
-                  margin-top="2cm" margin-bottom="2cm" margin-left="2cm" margin-right="2cm">
-                <fo:region-body region-name="xsl-region-body" margin-top="1.1cm" margin-bottom="0.3cm"
-                    margin-left="0.3cm" margin-right="0.3cm"/>
+                  margin-top="1.7cm" margin-bottom="2.5cm" margin-left="2.5cm" margin-right="2.5cm">
+                <fo:region-body region-name="xsl-region-body" margin-top="0.8cm"/>
                 <fo:region-before region-name="npa-numero-da-pagina" extent="0.8cm" display-align="after"/>
                 <fo:region-start region-name="wm-continuacao" extent="0pt" overflow="visible"/>
                 <fo:region-end region-name="npa-moldura-demais" extent="0pt" overflow="visible"/>
@@ -108,11 +112,12 @@ public class DocumentoFoNpaBuilder implements LeiauteDoPdf {
             """;
     }
 
-    // A moldura de cada master: 17 x 25,7 cm na primeira página; nas demais começa 0,8 cm mais abaixo, sob o "n/total".
-    private static String moldura(String regiao, String topo, String altura) {
+    // A moldura é o retângulo da área do corpo: 16 x 24,7 cm, a 2,5 cm das bordas, igual em todas as páginas (o "n/total"
+    // fica na margem de cima, acima dela). A largura e a altura descontam a espessura da borda, que o FOP soma por fora.
+    private static String moldura(String regiao) {
         return "<fo:static-content flow-name=\"" + regiao + "\">\n"
-                + "  <fo:block-container absolute-position=\"fixed\" top=\"" + topo + "\" left=\"2cm\" width=\"17cm\" height=\"" + altura
-                + "\" border=\"" + MOLDURA + "\"><fo:block/></fo:block-container>\n"
+                + "  <fo:block-container absolute-position=\"fixed\" top=\"2.5cm\" left=\"2.5cm\" width=\"452.04pt\" height=\"698.66pt\""
+                + " border=\"" + LINHA + "\"><fo:block/></fo:block-container>\n"
                 + "</fo:static-content>\n";
     }
 
@@ -125,8 +130,8 @@ public class DocumentoFoNpaBuilder implements LeiauteDoPdf {
           .append("  <fo:block text-align=\"right\" font-size=\"10pt\"><fo:page-number/>/")
           .append("<fo:page-number-citation-last ref-id=\"npa-fim\"/></fo:block>\n")
           .append("</fo:static-content>\n");
-        sb.append(moldura("npa-moldura-primeira", "2cm", "25.7cm"));
-        sb.append(moldura("npa-moldura-demais", "2.8cm", "24.9cm"));
+        sb.append(moldura("npa-moldura-primeira"));
+        sb.append(moldura("npa-moldura-demais"));
         sb.append(ctx.buildStaticContentWatermark());
         sb.append(ctx.buildStaticContentWatermark("wm-continuacao"));
         sb.append("<fo:flow flow-name=\"xsl-region-body\">\n");
@@ -140,8 +145,11 @@ public class DocumentoFoNpaBuilder implements LeiauteDoPdf {
         }
 
         sb.append(tabelaDoCabecalho(cabecalho));
+        // O texto fica um pouco recuado da moldura; o cabeçalho, não (suas bordas são as da moldura).
+        sb.append("<fo:block start-indent=\"6pt\" end-indent=\"6pt\" space-before=\"8pt\">\n");
         for (var item : normativos) renderizar(ctx, item, numeros, sb);
         sb.append(fecho(cabecalho));
+        sb.append("</fo:block>\n");
         sb.append("<fo:block id=\"npa-fim\"/>\n");
         sb.append("</fo:flow>\n</fo:page-sequence>\n");
         return sb.toString();
@@ -149,56 +157,87 @@ public class DocumentoFoNpaBuilder implements LeiauteDoPdf {
 
     // ─── Cabeçalho ────────────────────────────────────────────────────────────
 
-    private static String celula(String conteudo, int colunas, int linhas) {
-        return "<fo:table-cell border=\"" + LINHA_DA_TABELA + "\" padding=\"3pt\""
+    // A tabela começa colada à moldura: as bordas de cima, da esquerda e da direita do cabeçalho SÃO a borda da página
+    // (a moldura), então as células só desenham as linhas internas -- a de baixo de cada linha e a da direita de cada
+    // coluna que não é a última. Todas com a mesma espessura da moldura.
+    //
+    // As alturas são as do modelo (Anexo XII) e valem para o conteúdo da linha; o FOP soma o padding de cima e de baixo
+    // (3 pt cada), então "48" é uma linha de 54 pt no papel. Não dependem de o conteúdo caber: são mínimos.
+    private static String celula(String conteudo, int colunas, int linhas, boolean bordaDireita,
+                                 String alinhamentoVertical, String padding) {
+        return "<fo:table-cell padding=\"" + padding + "\" border-bottom=\"" + LINHA + "\""
+                + (bordaDireita ? " border-right=\"" + LINHA + "\"" : "")
                 + (colunas > 1 ? " number-columns-spanned=\"" + colunas + "\"" : "")
                 + (linhas > 1 ? " number-rows-spanned=\"" + linhas + "\"" : "")
-                + " display-align=\"center\">" + conteudo + "</fo:table-cell>\n";
+                + " display-align=\"" + alinhamentoVertical + "\">" + conteudo + "</fo:table-cell>\n";
     }
 
-    private static String rotulo(String texto) {
-        return "<fo:block font-weight=\"bold\" text-align=\"center\">" + foEsc(texto) + "</fo:block>";
+    private static String celula(String conteudo, int colunas, int linhas, boolean bordaDireita, String alinhamentoVertical) {
+        return celula(conteudo, colunas, linhas, bordaDireita, alinhamentoVertical, "3pt");
     }
 
-    private static String texto(String texto) {
+    private static String centralizado(String texto) {
         return "<fo:block text-align=\"center\">" + foEsc(texto) + "</fo:block>";
     }
 
-    // Quatro colunas: a da esquerda (DOM + identificação, e os rótulos ASSUNTO/ANEXOS) e três de conteúdo.
+    private static String linha(int alturaDoConteudoEmPt, String... celulas) {
+        return "<fo:table-row height=\"" + alturaDoConteudoEmPt + "pt\">\n" + String.join("", celulas) + "</fo:table-row>\n";
+    }
+
+    // Reproduz o modelo do Anexo XII: quatro colunas (A = DOM, identificação e rótulos; B e C = datas; D = distribuição).
+    //   linha 1  Comando, OM e setor emissor, nas quatro colunas
+    //   linha 2  [A: DOM ......] [B-C: DATAS .........] [D: DISTRIBUIÇÃO ]
+    //   linha 3  [A: .........] [B: EMISSÃO] [C: EFETIVAÇÃO] [D ..........]
+    //   linha 4  [A: .........] [B: valor] [C: valor, 2 linhas] [D: OSTENSIVA]
+    //   linha 5  [A: ASSUNTO] [B-D: assunto, justificado]
+    //   linha 6  [A: ANEXOS] [B-D: um anexo por linha, justificado]
+    // O DOM ocupa as linhas 2 a 4 da coluna A e a identificação fica numa célula própria, embaixo dele, separada por uma
+    // linha -- é um bloco com borda no pé da célula do DOM, porque no modelo a divisória cai no meio da linha 4.
     private static String tabelaDoCabecalho(CabecalhoDaNpa c) {
         var sb = new StringBuilder();
-        sb.append("<fo:table table-layout=\"fixed\" width=\"100%\" border=\"").append(LINHA_DA_TABELA)
-          .append("\" font-size=\"10pt\" space-after=\"10pt\">\n");
-        sb.append("<fo:table-column column-width=\"proportional-column-width(30)\"/>\n");
+        sb.append("<fo:table table-layout=\"fixed\" width=\"100%\" border-collapse=\"separate\" font-size=\"11pt\">\n");
+        sb.append("<fo:table-column column-width=\"proportional-column-width(24.5)\"/>\n");
+        sb.append("<fo:table-column column-width=\"proportional-column-width(25)\"/>\n");
+        sb.append("<fo:table-column column-width=\"proportional-column-width(26.5)\"/>\n");
         sb.append("<fo:table-column column-width=\"proportional-column-width(24)\"/>\n");
-        sb.append("<fo:table-column column-width=\"proportional-column-width(23)\"/>\n");
-        sb.append("<fo:table-column column-width=\"proportional-column-width(23)\"/>\n");
         sb.append("<fo:table-body>\n");
 
-        // Linha 1: o espaço do DOM (distintivo da OM, tratado depois) e a identificação; Comando, OM e setor.
-        var identificacao = "<fo:block-container height=\"2.2cm\"><fo:block/></fo:block-container>"
-                + "<fo:block font-weight=\"bold\" text-align=\"center\">" + foEsc(c.identificacao()) + "</fo:block>";
         var linhasDeCima = new StringBuilder();
-        for (String linha : c.linhasDeCima()) {
-            linhasDeCima.append("<fo:block font-weight=\"bold\" text-align=\"center\">").append(foEsc(linha)).append("</fo:block>");
+        for (String texto : c.linhasDeCima()) {
+            linhasDeCima.append("<fo:block font-weight=\"bold\" text-align=\"center\">").append(foEsc(texto)).append("</fo:block>");
         }
-        sb.append("<fo:table-row>\n").append(celula(identificacao, 1, 3)).append(celula(linhasDeCima.toString(), 3, 1))
-          .append("</fo:table-row>\n");
+        sb.append(linha(48, celula(linhasDeCima.toString(), 4, 1, false, "after")));
 
-        // Linha 2: DATAS.
-        sb.append("<fo:table-row>\n").append(celula(rotulo("DATAS"), 1, 1))
-          .append(celula(rotulo("EMISSÃO") + texto(c.emissao()), 1, 1))
-          .append(celula(rotulo("EFETIVAÇÃO") + texto(c.efetivacao()), 1, 1)).append("</fo:table-row>\n");
+        var domEIdentificacao = "<fo:block-container height=\"27.5pt\" border-top=\"" + LINHA + "\" display-align=\"center\">"
+                + centralizado(c.identificacao()) + "</fo:block-container>";
+        sb.append(linha(15,
+                celula(domEIdentificacao, 1, 3, true, "after", "0pt"),               // linhas 2 a 4
+                celula(centralizado("DATAS"), 2, 1, true, "center"),
+                celula(centralizado("DISTRIBUIÇÃO"), 1, 2, false, "center")));         // linhas 2 e 3
 
-        // Linha 3: DISTRIBUIÇÃO.
-        sb.append("<fo:table-row>\n").append(celula(rotulo("DISTRIBUIÇÃO"), 1, 1))
-          .append(celula(texto(c.distribuicao()), 2, 1)).append("</fo:table-row>\n");
+        sb.append(linha(16,
+                celula(centralizado("EMISSÃO"), 1, 1, true, "center"),
+                celula(centralizado("EFETIVAÇÃO"), 1, 1, true, "center")));
 
-        // Linhas 4 e 5: ASSUNTO e ANEXOS.
-        sb.append("<fo:table-row>\n").append(celula(rotulo("ASSUNTO"), 1, 1))
-          .append(celula(texto(c.assunto()), 3, 1)).append("</fo:table-row>\n");
-        sb.append("<fo:table-row>\n").append(celula(rotulo("ANEXOS"), 1, 1))
-          .append(celula(texto(c.anexos()), 3, 1)).append("</fo:table-row>\n");
+        var efetivacao = new StringBuilder();
+        for (String texto : c.efetivacao()) efetivacao.append(centralizado(texto));
+        sb.append(linha(55,
+                celula(centralizado(c.emissao()), 1, 1, true, "center"),
+                celula(efetivacao.toString(), 1, 1, true, "center"),
+                celula(centralizado(c.distribuicao()), 1, 1, false, "center")));
+
+        sb.append(linha(29,
+                celula(centralizado("ASSUNTO"), 1, 1, true, "center"),
+                celula("<fo:block text-align=\"justify\">" + foEsc(c.assunto()) + "</fo:block>", 3, 1, false, "center",
+                        "3pt 3pt 3pt 6pt")));
+
+        var anexos = new StringBuilder();
+        for (String texto : c.anexos()) {
+            anexos.append("<fo:block text-align=\"justify\" space-before=\"2pt\" space-after=\"2pt\">").append(foEsc(texto)).append("</fo:block>");
+        }
+        sb.append(linha(20,
+                celula(centralizado("ANEXOS"), 1, 1, true, "center"),
+                celula(anexos.toString(), 3, 1, false, "center", "3pt 3pt 3pt 6pt")));
 
         sb.append("</fo:table-body>\n</fo:table>\n");
         return sb.toString();
@@ -221,8 +260,8 @@ public class DocumentoFoNpaBuilder implements LeiauteDoPdf {
             case SECAO_NORMATIVA, SUBSECAO_NORMATIVA -> sb.append("<fo:block space-before=\"8pt\" space-after=\"4pt\" keep-with-next=\"always\">")
                     .append("<fo:inline font-weight=\"bold\">").append(numero).append("</fo:inline>  ")
                     .append("<fo:inline text-decoration=\"underline\">").append(foEsc(titulo)).append("</fo:inline></fo:block>\n");
-            case PARAGRAFO -> texto(ctx, item, "<fo:inline font-weight=\"bold\">" + numero + "</fo:inline>", "0pt", sb);
-            case ALINEA -> texto(ctx, item, numero, "1cm", sb);
+            case PARAGRAFO -> texto(ctx, item, "<fo:inline font-weight=\"bold\">" + numero + "</fo:inline>", RECUO_DO_TEXTO, sb);
+            case ALINEA -> texto(ctx, item, numero, RECUO_DA_ALINEA, sb);
             default -> {
                 // Fora da gramática da NPA (a hierarquia o recusa no salvamento): não é desenhado.
             }

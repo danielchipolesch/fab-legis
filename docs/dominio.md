@@ -142,6 +142,7 @@ O cabeçalho da NPA é uma tabela de campos, não uma parte preliminar. Os campo
 | **Assinaturas** | `CamposDaNpa.assinaturas` — blocos em **texto livre**: um rótulo ("Elaborado por", "Visto", "Proposto por", "Aprovo"…) e até 6 linhas abaixo dele; até 10 blocos |
 | **Assunto** | título do documento |
 | **Distribuição** | sempre **OSTENSIVA** (constante das regras da NPA) |
+| **Emissão / Efetivação** | data da aprovação e `BIO <número>` + data do Boletim Interno, no formato militar (`08 NOV 2026`) |
 
 Nascem com orientação entre colchetes (`[SETOR EMISSOR]`, `[Local]`, dois blocos de assinatura: "Elaborado por" e "Aprovo") para o autor preencher, e depois de a NPA ser publicada não mudam mais.
 

@@ -9,42 +9,50 @@
         <div v-if="wmText" class="wm-overlay" :style="{ color: wmColor }">{{ wmText }}</div>
         <div v-if="seloRevogado" class="selo-revogado" data-testid="selo-revogado">REVOGADO</div>
 
+        <!-- O cabeçalho é o do modelo do Anexo XII (mesma grade do PDF): as bordas de cima e dos lados são as da moldura. -->
         <table class="cabecalho">
+          <colgroup><col style="width:24.5%"><col style="width:25%"><col style="width:26.5%"><col style="width:24%"></colgroup>
           <tbody>
-            <tr>
-              <td rowspan="3" class="col-dom">
-                <div class="dom" />
-                <strong>{{ c.identificacao }}</strong>
-              </td>
-              <td colspan="3">
+            <tr style="height:72px">
+              <td colspan="4" class="topo">
                 <div v-for="(linha, i) in c.linhasDeCima" :key="i" class="rotulo">{{ linha }}</div>
               </td>
             </tr>
-            <tr>
-              <td class="rotulo">DATAS</td>
-              <td><div class="rotulo">EMISSÃO</div>{{ c.emissao }}</td>
-              <td><div class="rotulo">EFETIVAÇÃO</div>{{ c.efetivacao }}</td>
+            <tr style="height:28px">
+              <td rowspan="3" class="e" />
+              <td colspan="2" class="e">DATAS</td>
+              <td rowspan="2">DISTRIBUIÇÃO</td>
             </tr>
-            <tr>
-              <td class="rotulo">DISTRIBUIÇÃO</td>
-              <td colspan="2">{{ c.distribuicao }}</td>
+            <tr style="height:29px">
+              <td class="e">EMISSÃO</td>
+              <td class="e">EFETIVAÇÃO</td>
             </tr>
-            <tr>
-              <td class="rotulo">ASSUNTO</td>
-              <td colspan="3">{{ c.assunto }}</td>
+            <tr style="height:44px">
+              <td rowspan="2" class="e">{{ c.emissao }}</td>
+              <td rowspan="2" class="e"><div v-for="(linha, i) in c.efetivacao" :key="i">{{ linha }}</div></td>
+              <td rowspan="2">{{ c.distribuicao }}</td>
             </tr>
-            <tr>
-              <td class="rotulo">ANEXOS</td>
-              <td colspan="3">{{ c.anexos }}</td>
+            <tr style="height:37px">
+              <td class="e">{{ c.identificacao }}</td>
+            </tr>
+            <tr style="height:47px">
+              <td class="e">ASSUNTO</td>
+              <td colspan="3" class="j">{{ c.assunto }}</td>
+            </tr>
+            <tr style="height:40px">
+              <td class="e">ANEXOS</td>
+              <td colspan="3" class="j"><div v-for="(linha, i) in c.anexos" :key="i">{{ linha }}</div></td>
             </tr>
           </tbody>
         </table>
+
+        <div class="corpo">
 
         <template v-for="item in itens" :key="item.el.id">
           <div
             :id="'prev-' + item.el.id"
             class="npa-el"
-            :class="[`npa-${item.el.tipo}`, { 'npa-el--selecionado': item.el.id === selectedElementId }]"
+            :class="`npa-${item.el.tipo}`"
           >
             <template v-if="item.el.tipo === 'capitulo'">
               <span class="num">{{ item.el._caminho }}</span>&nbsp;&nbsp;{{ (item.el.titulo || '').toUpperCase() }}
@@ -65,6 +73,7 @@
         </div>
         <div v-if="c.publicadaNo" class="publicada">{{ c.publicadaNo }}</div>
         <div v-if="c.revogadaNo" class="publicada">{{ c.revogadaNo }}</div>
+        </div>
       </div>
 
       <!-- Anexos de imagem: no PDF vêm ao final, cada um em sua página, rotulados A, B, C… -->
@@ -228,13 +237,13 @@ async function resolverImagens() {
 .pdf-page:not(.pdf-page--anexo)::before {
   content: '';
   position: absolute;
-  inset: 76px;
+  inset: 94px;
   border: 1px solid #000;
   pointer-events: none;
 }
-/* O conteúdo fica dentro da moldura. */
+/* O conteúdo começa na própria moldura (2,5 cm das bordas): as bordas do cabeçalho são as dela. */
 .pdf-page:not(.pdf-page--anexo) > * { position: relative; }
-.pdf-page:not(.pdf-page--anexo) { padding: 92px; }
+.pdf-page:not(.pdf-page--anexo) { padding: 94px; }
 
 .wm-overlay {
   position: absolute;
@@ -261,14 +270,15 @@ async function resolverImagens() {
   z-index: 11;
 }
 
-table.cabecalho { width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 14px; text-align: center; }
-table.cabecalho td { border: 1px solid #000; padding: 3px 5px; vertical-align: middle; }
-table.cabecalho .col-dom { width: 30%; }
-table.cabecalho .dom { height: 84px; }
+table.cabecalho { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 14px; text-align: center; }
+table.cabecalho td { border-bottom: 1px solid #000; padding: 3px 6px; vertical-align: middle; }
+table.cabecalho td.e { border-right: 1px solid #000; }
+table.cabecalho td.j { text-align: justify; }
+table.cabecalho td.topo { vertical-align: bottom; }
 .rotulo { font-weight: 700; }
+.corpo { padding: 10px 10px 12px; }
 
-.npa-el { padding: 2px 4px; margin: 2px -4px; border-radius: 2px; text-align: left; }
-.npa-el--selecionado { background: rgba(255, 213, 79, 0.35); }
+.npa-el { padding: 2px 0; text-align: left; }
 .npa-capitulo { font-weight: 700; margin-top: 14px; }
 .npa-secao_normativa, .npa-subsecao_normativa { margin-top: 8px; }
 .npa-alinea { margin-left: 38px; }

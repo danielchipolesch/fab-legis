@@ -149,22 +149,109 @@ class DocumentoFoNpaBuilderTest {
         }
         assertThat(texto).contains("COMANDO DA AERONÁUTICA").contains("GRUPO DE APOIO")
                 .contains("DIVISÃO DE SUPORTE OPERACIONAL").contains("NPA-AGO-01")
-                .contains("OSTENSIVA").contains("Funcionamento da Divisão").contains("12/03/2026");
+                .contains("OSTENSIVA").contains("Funcionamento da Divisão").contains("12 MAR 2026");
+    }
+
+    // ─── O cabeçalho é o do modelo (Anexo XII) ──────────────────────────────────────
+
+    @Test
+    void asCelulasDoCabecalhoSaoMescladasComoNoModelo() {
+        var fo = fo(rascunho(), estruturaPequena(), List.of());
+
+        // Comando/OM/setor ocupam as quatro colunas; DATAS ocupa as duas de EMISSÃO e EFETIVAÇÃO; ASSUNTO e ANEXOS,
+        // as três colunas de conteúdo.
+        assertThat(ocorrencias(fo, "number-columns-spanned=\"4\"")).isEqualTo(1);
+        assertThat(ocorrencias(fo, "number-columns-spanned=\"2\"")).isEqualTo(1);
+        assertThat(ocorrencias(fo, "number-columns-spanned=\"3\"")).isEqualTo(2);
+        // O DOM ocupa três linhas da primeira coluna e DISTRIBUIÇÃO tem a altura de DATAS + EMISSÃO/EFETIVAÇÃO.
+        assertThat(ocorrencias(fo, "number-rows-spanned=\"3\"")).isEqualTo(1);
+        assertThat(ocorrencias(fo, "number-rows-spanned=\"2\"")).isEqualTo(1);
+    }
+
+    @Test
+    void osRotulosFicamAcimaDosValoresECadaValorNaCelulaDoSeuRotulo() throws Exception {
+        var doc = documento(SituacaoBcaEnum.PUBLICADO, SituacaoLocalEnum.SEM_ETAPA);
+        doc.setBcaReferencia("Boletim Interno Ostensivo nº 20, de 11 de novembro de 2026");
+        doc.setDtBcaReferencia(Timestamp.valueOf("2026-11-11 00:00:00"));
+
+        var texto = textoCorrido(arvoreDeAreas(fo(doc, estruturaPequena(), List.of())));
+
+        // DATAS, depois EMISSÃO e EFETIVAÇÃO (lado a lado, numa linha só de rótulos) e só então os valores.
+        var datas = texto.indexOf("DATAS");
+        var emissao = texto.indexOf("EMISSÃO");
+        var efetivacao = texto.indexOf("EFETIVAÇÃO");
+        assertThat(datas).isPositive().isLessThan(emissao);
+        assertThat(emissao).isLessThan(efetivacao);
+        assertThat(efetivacao).isLessThan(texto.indexOf("12 MAR 2026"));
+        assertThat(texto.indexOf("12 MAR 2026")).isLessThan(texto.indexOf("BIO 20"));
+        // DISTRIBUIÇÃO é o rótulo de OSTENSIVA, que só aparece na linha dos valores.
+        assertThat(texto.indexOf("DISTRIBUIÇÃO")).isLessThan(texto.indexOf("OSTENSIVA"));
+    }
+
+    @Test
+    void aEfetivacaoTemDuasLinhasOBoletimEADataComoNoModelo() {
+        var doc = documento(SituacaoBcaEnum.PUBLICADO, SituacaoLocalEnum.SEM_ETAPA);
+        doc.setBcaReferencia("Boletim Interno Ostensivo nº 20, de 11 de novembro de 2026");
+        doc.setDtBcaReferencia(Timestamp.valueOf("2026-11-11 00:00:00"));
+
+        var fo = fo(doc, estruturaPequena(), List.of());
+
+        assertThat(fo).contains("<fo:block text-align=\"center\">BIO 20</fo:block><fo:block text-align=\"center\">11 NOV 2026</fo:block>");
+    }
+
+    @Test
+    void oAssuntoEOsAnexosSaoJustificadosECadaAnexoFicaNaSuaLinha() {
+        var fo = fo(rascunho(), estruturaPequena(), List.of(anexo(1, "Organograma"), anexo(2, "Fluxograma")));
+
+        assertThat(fo).contains("<fo:block text-align=\"justify\">Funcionamento da Divisão</fo:block>");
+        assertThat(fo).contains(">A - Organograma; e</fo:block>").contains(">B - Fluxograma.</fo:block>");
+        assertThat(ocorrencias(fo, "text-align=\"justify\" space-before=\"2pt\"")).isEqualTo(2);
+    }
+
+    @Test
+    void aIdentificacaoTemCelulaPropriaSeparadaDoDom() {
+        var fo = fo(rascunho(), estruturaPequena(), List.of());
+
+        // O DOM é a célula da primeira coluna; a identificação é um bloco com linha em cima, no pé dessa célula.
+        assertThat(fo).contains("<fo:block-container height=\"27.5pt\" border-top=\"0.75pt solid #000000\"");
+        assertThat(fo.indexOf("NPA-AGO-01")).isGreaterThan(fo.indexOf("border-top=\"0.75pt solid #000000\""));
+    }
+
+    @Test
+    void todasAsLinhasDoCabecalhoTemAMesmaEspessuraDaMoldura() {
+        var fo = fo(rascunho(), estruturaPequena(), List.of());
+
+        var espessuras = new java.util.TreeSet<String>();
+        var m = java.util.regex.Pattern.compile("\\bborder(?:-top|-right|-bottom|-left)?=\"([^\"]+)\"").matcher(fo);
+        while (m.find()) espessuras.add(m.group(1));
+
+        // Sem o selo de revogação (vermelho, outra espessura), só existe UMA definição de linha no documento inteiro.
+        assertThat(espessuras).containsExactly("0.75pt solid #000000");
+    }
+
+    @Test
+    void oCabecalhoNaoTemBordaPropriaNoTopoNemNasLateraisPoisSaoAsDaMoldura() {
+        var fo = fo(rascunho(), estruturaPequena(), List.of());
+
+        // A moldura é o retângulo da área do corpo, a 2,5 cm das bordas, e o corpo não tem margem própria: a tabela
+        // começa exatamente nela. As células só têm borda embaixo e (as que não são da última coluna) à direita.
+        assertThat(fo).contains("top=\"2.5cm\" left=\"2.5cm\"");
+        assertThat(fo).contains("<fo:region-body region-name=\"xsl-region-body\"/>");
+        assertThat(fo).doesNotContain("border-left=").doesNotContain("<fo:table-cell padding=\"3pt\" border=");
     }
 
     @Test
     void aEfetivacaoSoApareceDepoisDePublicada() throws Exception {
         var naoPublicada = textoCorrido(arvoreDeAreas(fo(rascunho(), estruturaPequena(), List.of())));
-        assertThat(naoPublicada).contains("A ser preenchida na publicação").doesNotContain("Publicada no");
+        assertThat(naoPublicada).contains("BIO __").doesNotContain("Publicada no");
 
         var doc = documento(SituacaoBcaEnum.PUBLICADO, SituacaoLocalEnum.SEM_ETAPA);
         doc.setBcaReferencia("Boletim Interno Ostensivo nº 15, de 2 de abril de 2026");
         doc.setDtBcaReferencia(Timestamp.valueOf("2026-04-02 08:00:00"));
         var publicada = textoCorrido(arvoreDeAreas(fo(doc, estruturaPequena(), List.of())));
 
-        assertThat(publicada).doesNotContain("A ser preenchida")
-                .contains("EFETIVAÇÃO")
-                .contains("Boletim Interno Ostensivo nº 15, de 2 de abril de 2026")
+        assertThat(publicada).doesNotContain("BIO __")
+                .contains("EFETIVAÇÃO").contains("BIO 15").contains("02 ABR 2026")
                 .contains("(Publicada no Boletim Interno Ostensivo nº 15, de 2 de abril de 2026)");
     }
 
@@ -173,7 +260,7 @@ class DocumentoFoNpaBuilderTest {
         var texto = textoCorrido(arvoreDeAreas(fo(rascunho(), estruturaPequena(),
                 List.of(anexo(1, "Organograma"), anexo(2, "Fluxograma"), anexo(3, "Quadro")))));
 
-        assertThat(texto).contains("A - Organograma; B - Fluxograma; e C - Quadro");
+        assertThat(texto).contains("A - Organograma; B - Fluxograma; e C - Quadro.");
     }
 
     @Test
@@ -219,7 +306,7 @@ class DocumentoFoNpaBuilderTest {
 
         var texto = textoCorrido(arvoreDeAreas(fo(doc, estruturaPequena(), List.of())));
 
-        assertThat(texto).contains("__/__/____").contains("Brasília, ___ de __________ de ____");
+        assertThat(texto).contains("__ ___ ____").contains("Brasília, ___ de __________ de ____");
     }
 
     @Test

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   filhosPermitidos, permite, renumerar, rotulo, rotuloDoCorpo, letraDaAlinea, letraDoAnexo, listaDeAnexos,
-  cabecalho, dataCurta, dataPorExtenso,
+  cabecalho, dataMilitar, dataPorExtenso,
 } from './npa.js'
 
 // Espelho de HierarquiaDeNpaTest, NumeracaoDeNpaTest e CabecalhoDaNpaTest (backend): os mesmos cenários, de
@@ -158,18 +158,19 @@ describe('lista de anexos', () => {
   const anexo = (ordem, titulo) => ({ ordem, titulo })
 
   it('sem anexos: NÃO HÁ', () => {
-    expect(listaDeAnexos([])).toBe('NÃO HÁ')
-    expect(listaDeAnexos(null)).toBe('NÃO HÁ')
+    expect(listaDeAnexos([])).toEqual(['NÃO HÁ'])
+    expect(listaDeAnexos(null)).toEqual(['NÃO HÁ'])
   })
 
   it('segue o formato do layout', () => {
-    expect(listaDeAnexos([anexo(1, 'Organograma')])).toBe('A - Organograma')
-    expect(listaDeAnexos([anexo(1, 'Organograma'), anexo(2, 'Fluxograma')])).toBe('A - Organograma; e B - Fluxograma')
-    expect(listaDeAnexos([anexo(1, 'X'), anexo(2, 'Y'), anexo(3, 'Z')])).toBe('A - X; B - Y; e C - Z')
+    // Uma linha por anexo: ";" entre eles, "; e" no penúltimo e "." no último.
+    expect(listaDeAnexos([anexo(1, 'Organograma')])).toEqual(['A - Organograma.'])
+    expect(listaDeAnexos([anexo(1, 'Organograma'), anexo(2, 'Fluxograma')])).toEqual(['A - Organograma; e', 'B - Fluxograma.'])
+    expect(listaDeAnexos([anexo(1, 'X'), anexo(2, 'Y'), anexo(3, 'Z')])).toEqual(['A - X;', 'B - Y; e', 'C - Z.'])
   })
 
   it('usa a ordem, mesmo que venham desordenados', () => {
-    expect(listaDeAnexos([anexo(2, 'Y'), anexo(1, 'X')])).toBe('A - X; e B - Y')
+    expect(listaDeAnexos([anexo(2, 'Y'), anexo(1, 'X')])).toEqual(['A - X; e', 'B - Y.'])
   })
 
   it('letra do anexo', () => {
@@ -195,8 +196,8 @@ describe('cabeçalho e fecho', () => {
   })
 
   it('a emissão é a data da aprovação ou em branco', () => {
-    expect(cabecalho(doc(), campos, []).emissao).toBe('__/__/____')
-    expect(cabecalho(doc({ data_aprovacao: '2026-03-05T10:00:00' }), campos, []).emissao).toBe('05/03/2026')
+    expect(cabecalho(doc(), campos, []).emissao).toBe('__ ___ ____')
+    expect(cabecalho(doc({ data_aprovacao: '2026-03-05T10:00:00' }), campos, []).emissao).toBe('05 MAR 2026')
   })
 
   it('o fecho usa o local e a data da aprovação por extenso', () => {
@@ -206,18 +207,17 @@ describe('cabeçalho e fecho', () => {
 
   it('a efetivação e a linha da publicação só existem depois de publicada', () => {
     const antes = cabecalho(doc(), campos, [])
-    expect(antes.efetivacao).toBe('A ser preenchida na publicação')
+    expect(antes.efetivacao).toEqual(['BIO __', '__ ___ ____'])
     expect(antes.publicadaNo).toBeNull()
 
     const ref = 'Boletim Interno Ostensivo nº 15, de 2 de abril de 2026'
-    const depois = cabecalho(doc({ situacao_bca: 'PUBLICADO', bca_referencia: ` ${ref} ` }), campos, [])
-    expect(depois.efetivacao).toBe(ref)
+    const depois = cabecalho(doc({ situacao_bca: 'PUBLICADO', bca_referencia: ` ${ref} `, data_bca_referencia: '2026-04-02T00:00:00' }), campos, [])
+    expect(depois.efetivacao).toEqual(['BIO 15', '02 ABR 2026'])
     expect(depois.publicadaNo).toBe(`(Publicada no ${ref})`)
   })
 
   it('publicada sem referência mostra os espaços em branco', () => {
-    expect(cabecalho(doc({ situacao_bca: 'PUBLICADO' }), campos, []).efetivacao)
-      .toBe('Boletim Interno Ostensivo nº __, de __ de ______ de ____')
+    expect(cabecalho(doc({ situacao_bca: 'PUBLICADO' }), campos, []).efetivacao).toEqual(['BIO __', '__ ___ ____'])
   })
 
   it('a NPA revogada continua mostrando a publicação e ganha a linha da revogação', () => {
@@ -229,8 +229,9 @@ describe('cabeçalho e fecho', () => {
   })
 
   it('datas sem fuso: o dia não recua', () => {
-    expect(dataCurta('2026-03-01T00:00:00')).toBe('01/03/2026')
+    expect(dataMilitar('2026-03-01T00:00:00')).toBe('01 MAR 2026')
+    expect(dataMilitar('2026-12-31')).toBe('31 DEZ 2026')
     expect(dataPorExtenso('2026-03-01')).toBe('1 de março de 2026')
-    expect(dataCurta(null)).toBeNull()
+    expect(dataMilitar(null)).toBeNull()
   })
 })

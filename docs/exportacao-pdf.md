@@ -41,8 +41,20 @@ Os **Anexos** (arquivos vinculados ao documento, `AnexoController`) também vira
 
 A [NPA](dominio.md#npa-norma-padrao-de-acao) tem layout próprio (Anexo XII da NSCA 5-3), escolhido pelas regras da espécie (`LeiauteDoPdf`/`LeiauteDoHtml`): **sem portaria, capa nem sumário**.
 
-- **Moldura:** todo o conteúdo dentro de uma moldura que **continua em todas as páginas**. No PDF ela é um retângulo de posição fixa em conteúdo estático (o FOP não admite borda na região do corpo); no HTML, uma borda em volta do documento.
-- **Cabeçalho** (primeira página): tabela de 4 colunas — espaço reservado ao **DOM** (distintivo da OM, tratado depois) e a **identificação** logo abaixo; três linhas centralizadas em negrito (Comando, OM, setor emissor); **DATAS** (EMISSÃO = data da aprovação; EFETIVAÇÃO = Boletim Interno nº e data, só depois de publicada); **DISTRIBUIÇÃO** (sempre OSTENSIVA); **ASSUNTO** (o título); **ANEXOS** (`A - X; B - Y; e C - Z`, gerado dos próprios anexos; `NÃO HÁ` sem anexos).
+- **Moldura:** todo o conteúdo dentro de uma moldura de 16 cm de largura, a 2,5 cm das bordas da página, que **continua em todas as páginas**. No PDF ela é um retângulo de posição fixa em conteúdo estático (o FOP não admite borda na região do corpo); no HTML, uma borda em volta do documento. A moldura e **todas as linhas do cabeçalho têm a mesma espessura**.
+- **Cabeçalho** (primeira página): a tabela do modelo do Anexo XII, **colada à moldura** — as bordas de cima e dos lados do cabeçalho *são* as da página; as células só desenham as linhas internas. Quatro colunas (A, B, C, D), com células mescladas:
+
+    | Linha | Coluna A | Colunas B–C | Coluna D |
+    |---|---|---|---|
+    | 1 | Comando, OM e setor emissor (três linhas centralizadas, em negrito) — as quatro colunas | | |
+    | 2 | **DOM** (linhas 2 a 4) | **DATAS** (mescla B e C) | **DISTRIBUIÇÃO** (linhas 2 e 3) |
+    | 3 | ↑ | **EMISSÃO** · **EFETIVAÇÃO** (lado a lado, só rótulos) | ↑ |
+    | 4 | ↑ | valores: `08 NOV 2026` · `BIO 20` / `11 NOV 2026` (duas linhas) | `OSTENSIVA` |
+    | (pé da A) | **identificação**, em célula própria abaixo do DOM, separada por uma linha | | |
+    | 5 | **ASSUNTO** | o título, **justificado** (B–D) | |
+    | 6 | **ANEXOS** | um anexo por linha, **justificado** (B–D): `A - X;` · `B - Y; e` · `C - Z.` (`NÃO HÁ` sem anexos) | |
+
+    Datas no formato militar (`08 NOV 2026`); a EFETIVAÇÃO é `BIO <número>` e a data do Boletim, só depois de publicada (antes, `BIO __` e `__ ___ ____`).
 - **Numeração de páginas (só no PDF):** `n/total` no alto das páginas 2 em diante, acima da moldura; a primeira página não leva número, e o total não conta os anexos de imagem.
 - **Corpo:** numerado pelo caminho (`1`, `1.1`, `1.1.1.1`, alínea `a)`); número do capítulo/seção/subseção em negrito, título do capítulo em maiúsculas e negrito, título da seção **sublinhado**. Texto justificado no PDF e alinhado à esquerda no HTML (NSCA 5-3, art. 8, XXI).
 - **Fecho:** `Local, dd de mês de aaaa` (data da aprovação) e os **blocos de assinatura em texto livre**; se publicada, a linha `(Publicada no Boletim Interno Ostensivo nº __, de __ de ____)`.

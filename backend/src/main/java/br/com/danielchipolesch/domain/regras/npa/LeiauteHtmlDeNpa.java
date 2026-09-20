@@ -62,8 +62,10 @@ public class LeiauteHtmlDeNpa implements LeiauteDoHtml {
             sb.append("<div class=\"selo-revogado\">REVOGADO</div>\n");
         }
         sb.append(tabelaDoCabecalho(cabecalho));
+        sb.append("<div class=\"corpo\">\n");
         for (var item : normativosSeguro) renderizar(item, numeros, sb);
         sb.append(fecho(cabecalho));
+        sb.append("</div>\n");
         sb.append("</div>\n");
         sb.append(anexos(anexosSeguro));
         sb.append("</body>\n</html>");
@@ -77,12 +79,15 @@ public class LeiauteHtmlDeNpa implements LeiauteDoHtml {
             body { font-family: 'Calibri', 'Carlito', 'Segoe UI', Arial, sans-serif; font-size: 12pt; line-height: 1.25;
                    color: #000; text-align: left; margin: 0; }
             @media screen { body { padding: 0 16px; } }
-            .moldura { position: relative; border: 1px solid #000; padding: 10px 12px; }
+            .moldura { position: relative; border: 1px solid #000; }
+            .corpo { padding: 10px 10px 12px; }
             .selo-revogado { position: absolute; top: 8px; right: 8px; border: 2px solid #C00000; color: #C00000;
                              font-weight: bold; font-size: 14pt; padding: 2pt 8pt; text-align: center; }
-            table.cabecalho { width: 100%; border-collapse: collapse; font-size: 10pt; margin-bottom: 14px; }
-            table.cabecalho td { border: 1px solid #000; padding: 3px 5px; text-align: center; vertical-align: middle; }
-            table.cabecalho .dom { height: 2.2cm; }
+            table.cabecalho { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 12pt; }
+            table.cabecalho td { border-bottom: 1px solid #000; padding: 3px 6px; text-align: center; vertical-align: middle; }
+            table.cabecalho td.e { border-right: 1px solid #000; }
+            table.cabecalho td.j { text-align: justify; }
+            table.cabecalho td.topo { vertical-align: bottom; }
             .rotulo { font-weight: bold; }
             .capitulo { font-weight: bold; margin: 16px 0 6px; text-align: left; }
             .secao { margin: 10px 0 4px; }
@@ -107,17 +112,27 @@ public class LeiauteHtmlDeNpa implements LeiauteDoHtml {
 
     // ─── Cabeçalho ────────────────────────────────────────────────────────────
 
+    // Reproduz o modelo do Anexo XII (ver DocumentoFoNpaBuilder.tabelaDoCabecalho): quatro colunas, o DOM nas linhas 2 a 4
+    // da primeira e a identificação numa célula própria logo abaixo dele. As bordas de cima, da esquerda e da direita do
+    // cabeçalho são as da moldura; as células só desenham as linhas internas, todas com a mesma espessura da moldura.
     private static String tabelaDoCabecalho(CabecalhoDaNpa c) {
         var sb = new StringBuilder("<table class=\"cabecalho\">\n");
-        sb.append("<tr><td rowspan=\"3\" style=\"width:30%\"><div class=\"dom\">&nbsp;</div><b>").append(esc(c.identificacao())).append("</b></td>")
-          .append("<td colspan=\"3\">");
+        sb.append("<colgroup><col style=\"width:24.5%\"/><col style=\"width:25%\"/><col style=\"width:26.5%\"/><col style=\"width:24%\"/></colgroup>\n");
+        sb.append("<tr style=\"height:72px\"><td colspan=\"4\" class=\"topo\">");
         for (String linha : c.linhasDeCima()) sb.append("<div class=\"rotulo\">").append(esc(linha)).append("</div>");
         sb.append("</td></tr>\n");
-        sb.append("<tr><td class=\"rotulo\">DATAS</td><td><div class=\"rotulo\">EMISSÃO</div>").append(esc(c.emissao()))
-          .append("</td><td><div class=\"rotulo\">EFETIVAÇÃO</div>").append(esc(c.efetivacao())).append("</td></tr>\n");
-        sb.append("<tr><td class=\"rotulo\">DISTRIBUIÇÃO</td><td colspan=\"2\">").append(esc(c.distribuicao())).append("</td></tr>\n");
-        sb.append("<tr><td class=\"rotulo\">ASSUNTO</td><td colspan=\"3\">").append(esc(c.assunto())).append("</td></tr>\n");
-        sb.append("<tr><td class=\"rotulo\">ANEXOS</td><td colspan=\"3\">").append(esc(c.anexos())).append("</td></tr>\n");
+        sb.append("<tr style=\"height:28px\"><td rowspan=\"3\" class=\"e\">&nbsp;</td><td colspan=\"2\" class=\"e\">DATAS</td>")
+          .append("<td rowspan=\"2\">DISTRIBUIÇÃO</td></tr>\n");
+        sb.append("<tr style=\"height:29px\"><td class=\"e\">EMISSÃO</td><td class=\"e\">EFETIVAÇÃO</td></tr>\n");
+        sb.append("<tr style=\"height:44px\"><td rowspan=\"2\" class=\"e\">").append(esc(c.emissao())).append("</td>")
+          .append("<td rowspan=\"2\" class=\"e\">");
+        for (String linha : c.efetivacao()) sb.append("<div>").append(esc(linha)).append("</div>");
+        sb.append("</td><td rowspan=\"2\">").append(esc(c.distribuicao())).append("</td></tr>\n");
+        sb.append("<tr style=\"height:37px\"><td class=\"e\">").append(esc(c.identificacao())).append("</td></tr>\n");
+        sb.append("<tr style=\"height:47px\"><td class=\"e\">ASSUNTO</td><td colspan=\"3\" class=\"j\">").append(esc(c.assunto())).append("</td></tr>\n");
+        sb.append("<tr style=\"height:40px\"><td class=\"e\">ANEXOS</td><td colspan=\"3\" class=\"j\">");
+        for (String linha : c.anexos()) sb.append("<div>").append(esc(linha)).append("</div>");
+        sb.append("</td></tr>\n");
         sb.append("</table>\n");
         return sb.toString();
     }

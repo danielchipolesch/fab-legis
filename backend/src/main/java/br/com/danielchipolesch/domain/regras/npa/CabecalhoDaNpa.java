@@ -8,19 +8,22 @@ import br.com.danielchipolesch.domain.entities.estruturaDocumento.SituacaoBcaEnu
 
 import java.sql.Timestamp;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.regex.Pattern;
 
 // Os textos do cabeçalho e do fecho de uma NPA, já resolvidos, para PDF, HTML e prévia mostrarem exatamente o mesmo
 // (cada formato só decide como desenhá-los -- ver "Consistência entre formatos" no CLAUDE.md).
 //
 //   linhasDeCima : Comando, OM e setor emissor (centralizadas, em negrito)
 //   identificacao: texto livre informado na criação (fica abaixo do DOM)
-//   emissao      : data da aprovação (dd/mm/aaaa) -- espaços em branco enquanto não aprovada
-//   efetivacao   : Boletim Interno nº e data da publicação -- só depois de publicada
+//   emissao      : data da aprovação no formato militar ("08 NOV 2026") -- espaços em branco enquanto não aprovada
+//   efetivacao   : duas linhas, como no modelo: "BIO 15" e a data do Boletim ("02 ABR 2026") -- em branco enquanto
+//                  não publicada
 //   distribuicao : sempre OSTENSIVA
 //   assunto      : o título do documento
-//   anexos       : "A - Título; B - Título; e C - Título", gerado dos próprios anexos
+//   anexos       : uma linha por anexo ("A - Título;", "B - Título; e", "C - Título."), gerada dos próprios anexos
 //   localEData   : "Local, dd de mês de aaaa" do fecho (data da aprovação)
 //   publicadaNo  : "(Publicada no Boletim Interno Ostensivo nº __, de __ de ____)" -- só depois de publicada; senão null
 //   revogadaNo   : "(Revogada pelo Boletim Interno Ostensivo nº __, de __ de ____)" -- só depois de revogada; senão null
@@ -28,10 +31,10 @@ public record CabecalhoDaNpa(
         List<String> linhasDeCima,
         String identificacao,
         String emissao,
-        String efetivacao,
+        List<String> efetivacao,
         String distribuicao,
         String assunto,
-        String anexos,
+        List<String> anexos,
         String localEData,
         List<AssinaturaDaNpaDto> assinaturas,
         String publicadaNo,
@@ -40,8 +43,12 @@ public record CabecalhoDaNpa(
     static final String COMANDO = "COMANDO DA AERONÁUTICA";
     static final String DISTRIBUICAO = "OSTENSIVA";
     static final String SEM_ANEXOS = "NÃO HÁ";
-    static final String DATA_EM_BRANCO = "__/__/____";
-    static final String EFETIVACAO_PENDENTE = "A ser preenchida na publicação";
+    static final String DATA_EM_BRANCO = "__ ___ ____";
+
+    // O número do Boletim dentro da referência gravada por PublicacaoDeNpa ("Boletim Interno Ostensivo nº 15, de ...").
+    private static final Pattern NUMERO_DO_BOLETIM = Pattern.compile("nº\\s*(\\d+)");
+
+    private static final String[] MESES_ABREVIADOS = {"JAN", "FEV", "MAR", "ABR", "MAI", "JUN", "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"};
 
     private static final String[] MESES = {"janeiro", "fevereiro", "março", "abril", "maio", "junho",
             "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"};
@@ -52,8 +59,8 @@ public record CabecalhoDaNpa(
         return new CabecalhoDaNpa(
                 List.of(COMANDO, doc.getOm().getNome().toUpperCase(), campos.setorEmissor()),
                 doc.getIdentificacao(),
-                doc.getDtAprovacao() != null ? dataCurta(doc.getDtAprovacao()) : DATA_EM_BRANCO,
-                publicada ? boletim : EFETIVACAO_PENDENTE,
+                doc.getDtAprovacao() != null ? dataMilitar(doc.getDtAprovacao()) : DATA_EM_BRANCO,
+                efetivacao(doc, publicada),
                 DISTRIBUICAO,
                 doc.getTituloDocumento(),
                 listaDeAnexos(anexos),
@@ -73,20 +80,31 @@ public record CabecalhoDaNpa(
                 : "Boletim Interno Ostensivo nº __, de __ de ______ de ____";
     }
 
-    // "A - X; B - Y; e C - Z". Um só anexo: "A - X". Dois: "A - X; e B - Y".
-    static String listaDeAnexos(List<AnexoResponseDto> anexos) {
-        if (anexos == null || anexos.isEmpty()) return SEM_ANEXOS;
-        var ordenados = anexos.stream().sorted(Comparator.comparing(AnexoResponseDto::ordem)).toList();
-        var itens = ordenados.stream()
-                .map(a -> RotuloDeAnexoDeNpa.letra(a.ordem()) + " - " + a.titulo())
-                .toList();
-        if (itens.size() == 1) return itens.get(0);
-        return String.join("; ", itens.subList(0, itens.size() - 1)) + "; e " + itens.get(itens.size() - 1);
+    // As duas linhas da célula EFETIVAÇÃO: "BIO 15" e "02 ABR 2026" (só depois de publicada; senão, em branco).
+    private static List<String> efetivacao(Documento doc, boolean publicada) {
+        if (!publicada) return List.of("BIO __", DATA_EM_BRANCO);
+        var m = doc.getBcaReferencia() != null ? NUMERO_DO_BOLETIM.matcher(doc.getBcaReferencia()) : null;
+        String numero = m != null && m.find() ? m.group(1) : "__";
+        return List.of("BIO " + numero, doc.getDtBcaReferencia() != null ? dataMilitar(doc.getDtBcaReferencia()) : DATA_EM_BRANCO);
     }
 
-    static String dataCurta(Timestamp ts) {
+    // Uma linha por anexo, na ordem: "A - X;", "B - Y; e", "C - Z." (um só: "A - X."). Sem anexos: "NÃO HÁ".
+    static List<String> listaDeAnexos(List<AnexoResponseDto> anexos) {
+        if (anexos == null || anexos.isEmpty()) return List.of(SEM_ANEXOS);
+        var ordenados = anexos.stream().sorted(Comparator.comparing(AnexoResponseDto::ordem)).toList();
+        var linhas = new ArrayList<String>();
+        for (int i = 0; i < ordenados.size(); i++) {
+            var a = ordenados.get(i);
+            String fim = i == ordenados.size() - 1 ? "." : (i == ordenados.size() - 2 ? "; e" : ";");
+            linhas.add(RotuloDeAnexoDeNpa.letra(a.ordem()) + " - " + a.titulo() + fim);
+        }
+        return linhas;
+    }
+
+    // Formato militar da data: "08 NOV 2026".
+    static String dataMilitar(Timestamp ts) {
         LocalDate d = ts.toLocalDateTime().toLocalDate();
-        return String.format("%02d/%02d/%d", d.getDayOfMonth(), d.getMonthValue(), d.getYear());
+        return String.format("%02d %s %d", d.getDayOfMonth(), MESES_ABREVIADOS[d.getMonthValue() - 1], d.getYear());
     }
 
     static String dataPorExtenso(Timestamp ts) {

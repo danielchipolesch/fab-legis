@@ -51,10 +51,10 @@ class CabecalhoDaNpaTest {
     @Test
     void aEmissaoEADataDaAprovacaoOuEmBranco() {
         var doc = documento(SituacaoBcaEnum.NAO_PUBLICADO);
-        assertThat(CabecalhoDaNpa.de(doc, CAMPOS, List.of()).emissao()).isEqualTo("__/__/____");
+        assertThat(CabecalhoDaNpa.de(doc, CAMPOS, List.of()).emissao()).isEqualTo("__ ___ ____");
 
         doc.setDtAprovacao(Timestamp.valueOf("2026-03-05 10:00:00"));
-        assertThat(CabecalhoDaNpa.de(doc, CAMPOS, List.of()).emissao()).isEqualTo("05/03/2026");
+        assertThat(CabecalhoDaNpa.de(doc, CAMPOS, List.of()).emissao()).isEqualTo("05 MAR 2026");
     }
 
     @Test
@@ -69,7 +69,7 @@ class CabecalhoDaNpaTest {
     @Test
     void aEfetivacaoEALinhaDaPublicacaoSoExistemDepoisDePublicada() {
         var naoPublicada = CabecalhoDaNpa.de(documento(SituacaoBcaEnum.NAO_PUBLICADO), CAMPOS, List.of());
-        assertThat(naoPublicada.efetivacao()).isEqualTo("A ser preenchida na publicação");
+        assertThat(naoPublicada.efetivacao()).containsExactly("BIO __", "__ ___ ____");
         assertThat(naoPublicada.publicadaNo()).isNull();
 
         var doc = documento(SituacaoBcaEnum.PUBLICADO);
@@ -77,7 +77,7 @@ class CabecalhoDaNpaTest {
         doc.setDtBcaReferencia(Timestamp.valueOf("2026-04-02 08:00:00"));
         var publicada = CabecalhoDaNpa.de(doc, CAMPOS, List.of());
 
-        assertThat(publicada.efetivacao()).isEqualTo("Boletim Interno Ostensivo nº 15, de 2 de abril de 2026");
+        assertThat(publicada.efetivacao()).containsExactly("BIO 15", "02 ABR 2026");
         assertThat(publicada.publicadaNo()).isEqualTo("(Publicada no Boletim Interno Ostensivo nº 15, de 2 de abril de 2026)");
     }
 
@@ -85,7 +85,7 @@ class CabecalhoDaNpaTest {
     void publicadaSemNumeroNemDataMostraOsEspacosEmBranco() {
         var c = CabecalhoDaNpa.de(documento(SituacaoBcaEnum.PUBLICADO), CAMPOS, List.of());
 
-        assertThat(c.efetivacao()).isEqualTo("Boletim Interno Ostensivo nº __, de __ de ______ de ____");
+        assertThat(c.efetivacao()).containsExactly("BIO __", "__ ___ ____");
         assertThat(c.revogadaNo()).isNull();
     }
 
@@ -103,22 +103,29 @@ class CabecalhoDaNpaTest {
     }
 
     @Test
+    void aDataNoFormatoMilitarUsaMesAbreviadoEmMaiusculas() {
+        assertThat(CabecalhoDaNpa.dataMilitar(Timestamp.valueOf("2026-01-08 10:00:00"))).isEqualTo("08 JAN 2026");
+        assertThat(CabecalhoDaNpa.dataMilitar(Timestamp.valueOf("2026-12-31 10:00:00"))).isEqualTo("31 DEZ 2026");
+    }
+
+    @Test
     void semAnexosDizNaoHa() {
-        assertThat(CabecalhoDaNpa.listaDeAnexos(List.of())).isEqualTo("NÃO HÁ");
-        assertThat(CabecalhoDaNpa.listaDeAnexos(null)).isEqualTo("NÃO HÁ");
+        assertThat(CabecalhoDaNpa.listaDeAnexos(List.of())).containsExactly("NÃO HÁ");
+        assertThat(CabecalhoDaNpa.listaDeAnexos(null)).containsExactly("NÃO HÁ");
     }
 
     @Test
     void aListaDeAnexosSegueOFormatoDoLayout() {
-        assertThat(CabecalhoDaNpa.listaDeAnexos(List.of(anexo(1, "Organograma")))).isEqualTo("A - Organograma");
+        // Uma linha por anexo: ";" entre eles, "; e" no penúltimo e "." no último.
+        assertThat(CabecalhoDaNpa.listaDeAnexos(List.of(anexo(1, "Organograma")))).containsExactly("A - Organograma.");
         assertThat(CabecalhoDaNpa.listaDeAnexos(List.of(anexo(1, "Organograma"), anexo(2, "Fluxograma"))))
-                .isEqualTo("A - Organograma; e B - Fluxograma");
+                .containsExactly("A - Organograma; e", "B - Fluxograma.");
         assertThat(CabecalhoDaNpa.listaDeAnexos(List.of(anexo(1, "X"), anexo(2, "Y"), anexo(3, "Z"))))
-                .isEqualTo("A - X; B - Y; e C - Z");
+                .containsExactly("A - X;", "B - Y; e", "C - Z.");
     }
 
     @Test
     void osAnexosSaoListadosPelaOrdemMesmoQueVenhamDesordenados() {
-        assertThat(CabecalhoDaNpa.listaDeAnexos(List.of(anexo(2, "Y"), anexo(1, "X")))).isEqualTo("A - X; e B - Y");
+        assertThat(CabecalhoDaNpa.listaDeAnexos(List.of(anexo(2, "Y"), anexo(1, "X")))).containsExactly("A - X; e", "B - Y.");
     }
 }
