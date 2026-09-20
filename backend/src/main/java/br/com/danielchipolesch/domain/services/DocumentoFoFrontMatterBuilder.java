@@ -58,6 +58,15 @@ final class DocumentoFoFrontMatterBuilder {
         sb.append(ctx.buildStaticContentWatermark());
         sb.append("<fo:flow flow-name=\"xsl-region-body\">\n");
 
+        // Revogação total: selo vermelho no canto superior direito da página da parte preliminar
+        // (nenhum elemento é tachado -- ver VersoesDocumento.exibeSeloRevogado).
+        if (VersoesDocumento.exibeSeloRevogado(ctx.doc)) {
+            sb.append("<fo:block-container absolute-position=\"absolute\" top=\"0cm\" right=\"0cm\" width=\"3.6cm\"")
+              .append(" border=\"1.5pt solid #C00000\" padding=\"3pt\">")
+              .append("<fo:block text-align=\"center\" font-size=\"14pt\" font-weight=\"bold\" color=\"#C00000\">REVOGADO</fo:block>")
+              .append("</fo:block-container>\n");
+        }
+
         // Cabeçalho
         if (!brasaoRepublica.isBlank()) {
             sb.append("<fo:block text-align=\"center\">")

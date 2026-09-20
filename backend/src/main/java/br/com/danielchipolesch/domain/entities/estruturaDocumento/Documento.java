@@ -40,9 +40,17 @@ public class Documento extends RepresentationModel<Documento> {
     @Column(name = "nm_titulo_documento", nullable = false)
     private String tituloDocumento;
 
-    @Column(name = "st_documento", nullable = false, columnDefinition = "VARCHAR(30)")
+    // Situação BCA: a situação REAL, que espelha o repositório oficial -- só muda quando
+    // portaria + BCA são registrados (ver SituacaoBcaEnum e DocumentoStatusService).
+    @Column(name = "st_situacao_bca", nullable = false, columnDefinition = "VARCHAR(30)")
     @Enumerated(EnumType.STRING)
-    private DocumentoStatusEnum documentoStatus;
+    private SituacaoBcaEnum situacaoBca = SituacaoBcaEnum.NAO_PUBLICADO;
+
+    // Situação Local: a etapa INTERNA em curso (ver SituacaoLocalEnum). Nunca substitui a
+    // situação BCA -- os dois aparecem juntos.
+    @Column(name = "st_situacao_local", nullable = false, columnDefinition = "VARCHAR(30)")
+    @Enumerated(EnumType.STRING)
+    private SituacaoLocalEnum situacaoLocal;
 
     @Column(name = "dt_criacao", updatable = false)
     @CreationTimestamp
@@ -67,6 +75,9 @@ public class Documento extends RepresentationModel<Documento> {
     @Column(name = "dt_cancelamento")
     private Timestamp dtCancelamento;
 
+    // Versão VIGENTE (a que a situação BCA descreve): só é gravada/substituída quando uma
+    // portaria + BCA são registrados -- nunca por uma etapa interna. Vazia enquanto o
+    // documento é NAO_PUBLICADO.
     @Column(name = "url_pdf")
     private String urlPdf;
 
@@ -74,6 +85,16 @@ public class Documento extends RepresentationModel<Documento> {
     // HTML e PDF são sempre regenerados juntos, nunca um sem o outro.
     @Column(name = "url_html")
     private String urlHtml;
+
+    // Versão EM TRAMITAÇÃO congelada (EM_PUBLICACAO/EM_REVOGACAO), para o publicador ver
+    // exatamente o que será publicado. Descartada ao publicar, devolver ou cancelar. Nas
+    // etapas em que o texto ainda muda (RASCUNHO/MINUTA/EM_ALTERACAO/EM_REVISAO) a versão
+    // em tramitação é gerada em tempo de execução, nunca armazenada.
+    @Column(name = "url_pdf_tramitacao")
+    private String urlPdfTramitacao;
+
+    @Column(name = "url_html_tramitacao")
+    private String urlHtmlTramitacao;
 
     @Column(name = "nr_replicas", nullable = false, columnDefinition = "INTEGER NOT NULL DEFAULT 0")
     private int qtdReplicas = 0;

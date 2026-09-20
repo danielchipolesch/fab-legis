@@ -4,7 +4,8 @@ import br.com.danielchipolesch.application.dtos.itemAnexoParteNormativaDtos.Item
 import br.com.danielchipolesch.application.dtos.itemAnexoParteNormativaDtos.NumeracaoElementoResponseDto;
 import br.com.danielchipolesch.application.dtos.itemParteFinalDtos.ItemParteFinalResponseDto;
 import br.com.danielchipolesch.application.dtos.itemPartePreliminarDtos.ItemPartePreliminarResponseDto;
-import br.com.danielchipolesch.domain.entities.estruturaDocumento.DocumentoStatusEnum;
+import br.com.danielchipolesch.domain.entities.estruturaDocumento.SituacaoBcaEnum;
+import br.com.danielchipolesch.domain.entities.estruturaDocumento.SituacaoLocalEnum;
 import com.fasterxml.jackson.annotation.JsonFormat;
 
 import java.sql.Timestamp;
@@ -19,7 +20,8 @@ public record DocumentoResponseComAnexoTextualDto(
         Integer numeroSecundario,
         String codigoDocumento,
         String tituloDocumento,
-        DocumentoStatusEnum statusDocumento,
+        SituacaoBcaEnum situacaoBca,
+        SituacaoLocalEnum situacaoLocal,
 
         @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss", timezone = "America/Sao_Paulo")
         Timestamp dtCriacao,

@@ -1,26 +1,35 @@
 package br.com.danielchipolesch.application.dtos.documentoDtos;
 
-import br.com.danielchipolesch.domain.entities.estruturaDocumento.DocumentoStatusEnum;
+import br.com.danielchipolesch.domain.entities.estruturaDocumento.SituacaoLocalEnum;
 import jakarta.validation.constraints.NotNull;
 
 import java.time.LocalDate;
 
+// Pedido de mudança de etapa (situação LOCAL) -- a situação BCA nunca é pedida: ela
+// muda como CONSEQUÊNCIA de registrar uma portaria + BCA (ver DocumentoStatusService).
+// SEM_ETAPA como destino significa "concluir a etapa em curso", e o que isso faz
+// depende de onde o documento está:
+//   EM_PUBLICACAO     -> publicar (edição ou alteração): exige portaria/BCA/PDF
+//   EM_REVOGACAO      -> revogar (situação BCA passa a REVOGADO): exige portaria/BCA/PDF
+//   ANALISE_REVOGACAO -> devolver o pedido de revogação (o documento segue PUBLICADO)
+//   EM_ALTERACAO      -> cancelar a alteração (descarta o que estava pendente)
 public record DocumentoStatusRequestDto(
 
         @NotNull
-        DocumentoStatusEnum status,
+        SituacaoLocalEnum situacaoLocal,
 
         // Obrigatório só ao enviar para revisão/análise de revogação (destino
         // EM_REVISAO/ANALISE_REVOGACAO) -- id de quem, com papel APROV na mesma OM, vai
         // revisar. Ver DocumentoStatusService/DocumentoAcessoService.
         Long revisorId,
 
-        // Obrigatório só ao aprovar (destino APROVADO/ALTERADO, que já cascata para
-        // EM_PUBLICACAO) ou ao aprovar uma revogação (destino EM_REVOGACAO) -- id de
-        // quem, com papel PUBLIC na mesma OM, vai publicar/formalizar.
+        // Obrigatório só ao aprovar (EM_REVISAO -> EM_PUBLICACAO) ou ao aprovar uma
+        // revogação (ANALISE_REVOGACAO -> EM_REVOGACAO) -- id de quem, com papel PUBLIC na
+        // mesma OM, vai publicar/formalizar.
         Long publicadorId,
 
-        // Obrigatórios apenas ao publicar (transição para PUBLICADO)
+        // Obrigatórios ao publicar (EM_PUBLICACAO -> SEM_ETAPA) e ao revogar
+        // (EM_REVOGACAO -> SEM_ETAPA) -- não ao devolver nem ao cancelar.
         String orgaoPortaria,
         String setorPortaria,
         String numeroPortaria,
@@ -28,11 +37,12 @@ public record DocumentoStatusRequestDto(
         Integer numeroBca,
         LocalDate dataBca,
 
-        // Também obrigatórios apenas ao publicar -- a parte preliminar do
-        // documento (epígrafe/ementa/preâmbulo/fecho/assinatura) só existe de
-        // fato a partir da publicação, então é coletada aqui, não durante a
-        // edição (ver DocumentoStatusService.changeStatus). Cada campo é uma
-        // string JSON no mesmo formato usado por "conteudo" em SecaoItemRequestDto.
+        // Parte preliminar (epígrafe/ementa/preâmbulo/fecho/assinatura): obrigatória
+        // SÓ na PRIMEIRA publicação (a portaria de publicação é a única que aparece nela e
+        // nunca é substituída). Alteração e revogação ignoram estes campos -- aparecem por
+        // cláusula em cada elemento (alteração) ou no selo REVOGADO (revogação total).
+        // Cada campo é uma string JSON no mesmo formato usado por "conteudo" em
+        // SecaoItemRequestDto.
         String epigrafe,
         String ementa,
         String preambulo,
@@ -40,7 +50,7 @@ public record DocumentoStatusRequestDto(
         String assinatura,
 
         // URL (MinIO) do PDF da portaria já enviado via POST .../portaria-pdf
-        // antes deste request -- concatenado ao PDF gerado do documento.
+        // antes deste request.
         String portariaPdfUrl
 ) {
 }

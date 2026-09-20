@@ -3,7 +3,7 @@ package br.com.danielchipolesch.domain.services;
 import br.com.danielchipolesch.application.dtos.documentoDtos.DocumentoHistoricoResponseDto;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.Documento;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.DocumentoHistorico;
-import br.com.danielchipolesch.domain.entities.estruturaDocumento.DocumentoStatusEnum;
+import br.com.danielchipolesch.domain.entities.estruturaDocumento.SituacaoLocalEnum;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.TipoAlteracaoEnum;
 import br.com.danielchipolesch.infrastructure.repositories.DocumentoHistoricoRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,8 +22,8 @@ public class DocumentoHistoricoService {
     public void registrar(Documento documento,
                           TipoAlteracaoEnum tipo,
                           String descricao,
-                          DocumentoStatusEnum statusAnterior,
-                          DocumentoStatusEnum statusNovo) {
+                          SituacaoLocalEnum statusAnterior,
+                          SituacaoLocalEnum statusNovo) {
         DocumentoHistorico h = new DocumentoHistorico();
         h.setDocumento(documento);
         h.setTipoAlteracao(tipo);

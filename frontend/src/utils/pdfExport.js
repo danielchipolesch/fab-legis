@@ -351,7 +351,7 @@ export async function exportToPdf(documento) {
   const [pdfMake, brasao] = await Promise.all([getPdfMake(), loadBrasao()])
 
   const docId  = buildDocId(documento)
-  const status = documento.status
+  const status = documento.situacao_local === 'EM_PUBLICACAO' ? 'APROVADO' : documento.situacao_local
   const wm     = WATERMARK_CFG[status] ?? null
 
   // Número de páginas de pré-texto (capa + portaria + sumário)

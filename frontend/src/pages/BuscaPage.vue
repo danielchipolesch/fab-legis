@@ -53,8 +53,8 @@
             class="q-py-md"
           >
             <q-item-section avatar top>
-              <q-icon :name="STATUS_META[item.statusDocumento]?.icon ?? 'mdi-file-outline'"
-                      :color="STATUS_META[item.statusDocumento]?.color ?? 'grey'" />
+              <q-icon :name="situacaoBcaMeta(item.situacaoBca).icon"
+                      :color="situacaoBcaMeta(item.situacaoBca).color" />
             </q-item-section>
             <q-item-section>
               <q-item-label class="text-weight-medium">
@@ -63,7 +63,8 @@
               </q-item-label>
               <q-item-label caption class="q-mt-xs">
                 <q-badge outline color="primary" class="q-mr-sm">{{ TIPO_LABEL[item.tipoItem] ?? item.tipoItem }}</q-badge>
-                <q-badge :color="STATUS_META[item.statusDocumento]?.color ?? 'grey'">{{ STATUS_META[item.statusDocumento]?.label ?? item.statusDocumento }}</q-badge>
+                <q-badge :color="situacaoBcaMeta(item.situacaoBca).color">{{ situacaoBcaMeta(item.situacaoBca).label }}</q-badge>
+                <q-badge v-if="temEtapaEmCurso(item.situacaoLocal)" outline :color="situacaoLocalMeta(item.situacaoLocal).color" class="q-ml-xs">{{ situacaoLocalMeta(item.situacaoLocal).label }}</q-badge>
               </q-item-label>
               <q-item-label caption class="q-mt-sm text-body2 text-grey-9" v-html="destacarTrecho(item.trecho)" />
             </q-item-section>
@@ -87,7 +88,7 @@
 
 <script setup>
 import { useBuscaStore } from '@/stores/busca.js'
-import { STATUS_META } from '@/utils/statusDocumento.js'
+import { situacaoBcaMeta, situacaoLocalMeta, temEtapaEmCurso } from '@/utils/statusDocumento.js'
 
 const store = useBuscaStore()
 

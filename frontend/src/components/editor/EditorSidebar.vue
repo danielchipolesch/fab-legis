@@ -23,7 +23,7 @@
 
     <!-- Status -->
     <div class="q-px-sm q-pb-sm">
-      <StatusBadge v-if="documento?.status" :status="documento.status" size="sm" />
+      <StatusBadge v-if="documento?.situacao_bca" :situacao-bca="documento.situacao_bca" :situacao-local="documento.situacao_local" size="sm" />
     </div>
 
     <q-separator />
@@ -496,7 +496,7 @@
         <div class="text-caption text-weight-bold text-grey-6 text-uppercase q-mb-sm">Situação</div>
         <div class="row q-col-gutter-sm q-mb-md">
           <div class="col-8">
-            <q-input :model-value="props.documento?.status" label="Situação" outlined dense disable />
+            <q-input :model-value="situacaoTexto" label="Situação" outlined dense disable />
           </div>
           <div class="col-4">
             <q-input :model-value="props.documento?.qtd_replicas" label="Réplicas" outlined dense disable />
@@ -617,6 +617,7 @@
 import { reactive, ref, computed, watch } from 'vue'
 import { useQuasar } from 'quasar'
 import StatusBadge from '@/components/common/StatusBadge.vue'
+import { situacaoBcaMeta, situacaoLocalMeta, temEtapaEmCurso } from '@/utils/statusDocumento.js'
 import { formatLabel, elementIcon } from '@/utils/numbering.js'
 import { useEditorStore } from '@/stores/editor.js'
 import { useDocumentosStore } from '@/stores/documentos.js'
@@ -668,7 +669,13 @@ const metaEditavel = computed(() => !props.isEmAlteracao)
 // OM impressa na capa (NSCA 5-3, Art. 17, II) -- mais restrito que metaEditavel
 // de propósito: só faz sentido trocar a OM que assina o ato enquanto o
 // documento ainda não avançou pra revisão (ver DocumentoService.update).
-const omEditavel = computed(() => ['RASCUNHO', 'MINUTA'].includes(props.documento?.status))
+const omEditavel = computed(() => ['RASCUNHO', 'MINUTA'].includes(props.documento?.situacao_local))
+const situacaoTexto = computed(() => {
+  const d = props.documento
+  if (!d) return ''
+  const bca = situacaoBcaMeta(d.situacao_bca).label
+  return temEtapaEmCurso(d.situacao_local) ? `${bca} · ${situacaoLocalMeta(d.situacao_local).label}` : bca
+})
 
 // Catálogo real de OMs da FAB passou de 1 (seed antigo) pra 300+ (ver
 // V1__initial.sql) -- uma lista desse tamanho sem busca é impraticável de rolar.

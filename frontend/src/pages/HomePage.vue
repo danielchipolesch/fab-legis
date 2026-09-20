@@ -1,4 +1,5 @@
-<template>
+    situacaoBca: store.filtros.situacaoBca || undefined,
+    situacaoLocal: store.filtros.situacaoLocal || undefined,<template>
   <q-page class="q-pa-xl">
 
     <!-- Page header -->
@@ -102,16 +103,31 @@
           </div>
           <div class="col-6 col-md-2">
             <q-select
-              v-model="store.filtros.status"
-              :options="statusOptions"
-              label="Situação"
+              v-model="store.filtros.situacaoBca"
+              :options="situacaoBcaOptions"
+              label="Situação BCA"
               outlined
               dense
               clearable
+              emit-value
+              map-options
               hide-bottom-space
             />
           </div>
-          <div class="col-12 col-md-4 row justify-end items-center" style="gap:8px">
+          <div class="col-6 col-md-2">
+            <q-select
+              v-model="store.filtros.situacaoLocal"
+              :options="situacaoLocalOptions"
+              label="Situação Local"
+              outlined
+              dense
+              clearable
+              emit-value
+              map-options
+              hide-bottom-space
+            />
+          </div>
+          <div class="col-12 col-md-2 row justify-end items-center" style="gap:8px">
             <q-btn flat @click="limparFiltros">
               <q-icon left name="mdi-filter-off" />
               Limpar
@@ -132,16 +148,32 @@
         </div>
 
         <!-- Summary chips -->
-        <div class="row q-gutter-sm q-mt-md">
+        <div class="row q-gutter-sm q-mt-md items-center">
           <q-chip
-            v-for="s in statusSummary"
-            :key="s.status"
+            v-for="s in resumoBca"
+            :key="'bca-' + s.situacao"
             clickable
             :color="s.bg"
             :text-color="s.fg"
             size="sm"
             square
-            @click="store.filtros.status = store.filtros.status === s.status ? null : s.status"
+            data-testid="resumo-situacao-bca"
+            @click="store.filtros.situacaoBca = store.filtros.situacaoBca === s.situacao ? null : s.situacao"
+          >
+            {{ s.label }}: <strong class="q-ml-xs">{{ s.count }}</strong>
+          </q-chip>
+          <q-separator v-if="resumoBca.length && resumoLocal.length" vertical inset />
+          <q-chip
+            v-for="s in resumoLocal"
+            :key="'local-' + s.situacao"
+            clickable
+            outline
+            :color="s.bg"
+            :text-color="s.fg"
+            size="sm"
+            square
+            data-testid="resumo-situacao-local"
+            @click="store.filtros.situacaoLocal = store.filtros.situacaoLocal === s.situacao ? null : s.situacao"
           >
             {{ s.label }}: <strong class="q-ml-xs">{{ s.count }}</strong>
           </q-chip>
@@ -187,7 +219,7 @@
 
           <template #body-cell-status="props">
             <q-td :props="props">
-              <StatusBadge :status="props.row.status" />
+              <StatusBadge :situacao-bca="props.row.situacao_bca" :situacao-local="props.row.situacao_local" />
             </q-td>
           </template>
 
@@ -282,7 +314,7 @@
                     <q-list dense style="min-width:200px">
                       <q-item
                         v-for="opt in statusActions(props.row)"
-                        :key="opt.status"
+                        :key="opt.destino"
                         clickable
                         v-close-popup
                         @click="confirmarMudancaStatus(props.row, opt)"
@@ -340,7 +372,7 @@
                 <q-item-label caption>{{ formatarData(doc.data_criacao) }}</q-item-label>
               </q-item-section>
               <q-item-section side top>
-                <StatusBadge :status="doc.status" size="xs" />
+                <StatusBadge :situacao-bca="doc.situacao_bca" :situacao-local="doc.situacao_local" size="xs" />
               </q-item-section>
             </q-item>
 
@@ -447,7 +479,8 @@
         <q-card-section class="q-pt-none">
           O documento
           <strong>{{ dialog.target?.especie }} {{ dialog.target?.numero_basico }}<template v-if="dialog.target?.numero_secundario">-{{ dialog.target?.numero_secundario }}</template></strong>
-          terá sua situação alterada para <strong>{{ dialog.statusOpt?.status }}</strong>.
+          <template v-if="dialog.statusOpt?.descricao">{{ dialog.statusOpt.descricao }}</template>
+          <template v-else>terá sua etapa alterada para <strong>{{ dialog.statusOpt?.rotuloDestino }}</strong>.</template>
         </q-card-section>
         <q-card-actions align="right" class="q-pb-md q-px-md">
           <q-btn flat label="Cancelar" :disable="alterandoStatus" v-close-popup />
@@ -501,7 +534,7 @@ import NovoDocumentoDialog from '@/components/common/NovoDocumentoDialog.vue'
 import SelecionarPessoaDialog from '@/components/editor/SelecionarPessoaDialog.vue'
 import { gerarPdf } from '@/services/pdfService.js'
 import { listEspeciesNormativas, normalizeEspecie } from '@/api/referencias.js'
-import { STATUS_META } from '@/utils/statusDocumento.js'
+import { SITUACAO_BCA_META, SITUACAO_LOCAL_META } from '@/utils/statusDocumento.js'
 
 const $q = useQuasar()
 const store = useDocumentosStore()
@@ -522,10 +555,12 @@ async function carregarEspecies() {
     $q.notify({ type: 'negative', message: `Erro ao carregar espécies normativas: ${e?.message ?? 'erro desconhecido'}` })
   }
 }
-const statusOptions = [
-  'RASCUNHO', 'MINUTA', 'EM_REVISAO', 'APROVADO', 'EM_PUBLICACAO', 'PUBLICADO',
-  'EM_ALTERACAO', 'ALTERADO', 'ANALISE_REVOGACAO', 'EM_REVOGACAO', 'CANCELADO', 'REVOGADO',
-]
+// Filtros: as duas situações são independentes (ver utils/statusDocumento.js). SEM_ETAPA fica
+// de fora do filtro local -- "sem etapa em curso" não é uma situação que alguém procure.
+const situacaoBcaOptions = Object.entries(SITUACAO_BCA_META).map(([value, m]) => ({ value, label: m.label }))
+const situacaoLocalOptions = Object.entries(SITUACAO_LOCAL_META)
+  .filter(([value]) => value !== 'SEM_ETAPA')
+  .map(([value, m]) => ({ value, label: m.label }))
 
 const columns = [
   { name: 'especie',        label: 'Espécie',        field: 'especie',        align: 'center', sortable: true,  style: 'width: 100px' },
@@ -533,7 +568,7 @@ const columns = [
   { name: 'titulo',         label: 'Título',         field: 'titulo',         align: 'center', sortable: true },
   { name: 'assunto_basico', label: 'Assunto Básico', field: 'assunto_basico', align: 'center', sortable: true },
   { name: 'data_criacao',   label: 'Data',           field: 'data_criacao',   align: 'center', sortable: true,  style: 'width: 120px' },
-  { name: 'status',         label: 'Situação',       field: 'status',         align: 'center', sortable: true,  style: 'width: 140px' },
+  { name: 'status',         label: 'Situação',       field: 'situacao_bca',        align: 'center', sortable: true,  style: 'width: 140px' },
   { name: 'replicas',       label: 'Réplicas',       field: 'qtd_replicas',   align: 'center', sortable: true,  style: 'width: 90px' },
   { name: 'actions',        label: 'Ações',          field: 'actions',        align: 'center', sortable: false, style: 'width: 220px' },
 ]
@@ -547,7 +582,7 @@ const SORT_FIELD_MAP = {
   titulo: 'tituloDocumento',
   assunto_basico: 'assuntoBasico.nome',
   data_criacao: 'dtCriacao',
-  status: 'documentoStatus',
+  status: 'situacaoBca',
   replicas: 'qtdReplicas',
 }
 
@@ -576,7 +611,8 @@ async function carregar() {
     aba: store.abaAtiva,
     busca: store.filtros.busca || undefined,
     especieSigla: store.filtros.especie || undefined,
-    status: store.filtros.status || undefined,
+    situacaoBca: store.filtros.situacaoBca || undefined,
+    situacaoLocal: store.filtros.situacaoLocal || undefined,
     page: store.tablePagination.page - 1,
     size: store.tablePagination.rowsPerPage,
     sortBy: SORT_FIELD_MAP[store.tablePagination.sortBy] ?? 'dtCriacao',
@@ -609,7 +645,7 @@ watch(() => store.filtros.busca, () => {
   clearTimeout(buscaTimer)
   buscaTimer = setTimeout(() => { store.tablePagination.page = 1; carregar() }, 350)
 })
-watch([() => store.abaAtiva, () => store.filtros.especie, () => store.filtros.status], () => {
+watch([() => store.abaAtiva, () => store.filtros.especie, () => store.filtros.situacaoBca, () => store.filtros.situacaoLocal], () => {
   store.tablePagination.page = 1
   carregar()
 })
@@ -621,23 +657,17 @@ watch(() => store.refreshSignal, () => { carregar() })
 
 onMounted(() => { carregar(); carregarEspecies() })
 
-// Mesma fonte que StatusBadge.vue (coluna Situação da tabela) -- ver
-// utils/statusDocumento.js. Antes era uma cópia mantida à mão aqui, com cores
-// repetidas entre situações diferentes.
-const STATUS_CFG = STATUS_META
-
-// store.resumoStatus já vem do servidor com aba/busca/espécie aplicados (ver
+// store.resumoSituacaoBca/resumoSituacaoLocal já vem do servidor com aba/busca/espécie aplicados (ver
 // DocumentoService.getResumo) -- o número no chip bate com o que aparece na tabela ao
 // clicar nele, mesma garantia de antes, só que calculada no backend agora.
-const statusSummary = computed(() =>
-  Object.entries(STATUS_CFG).map(([status, cfg]) => ({
-    status,
-    label: cfg.label,
-    bg: cfg.bg,
-    fg: cfg.fg,
-    count: store.resumoStatus[status] ?? 0,
-  })).filter(s => s.count > 0)
-)
+function resumir(meta, contagens, ocultar = []) {
+  return Object.entries(meta)
+    .filter(([situacao]) => !ocultar.includes(situacao))
+    .map(([situacao, m]) => ({ situacao, label: m.label, bg: m.bg, fg: m.fg, count: contagens[situacao] ?? 0 }))
+    .filter(s => s.count > 0)
+}
+const resumoBca = computed(() => resumir(SITUACAO_BCA_META, store.resumoSituacaoBca))
+const resumoLocal = computed(() => resumir(SITUACAO_LOCAL_META, store.resumoSituacaoLocal, ['SEM_ETAPA']))
 
 // O ícone da HomePage sempre abre em modo leitura (visualizar), mesmo para o
 // revisor atribuído durante EM_REVISAO -- ele entra no editor de propósito, pelo
@@ -651,7 +681,7 @@ const statusSummary = computed(() =>
 // só vem preenchido (true/false) na listagem paginada -- ver
 // DocumentoResponseSemAnexoTextualDto.ehAutorOuCoautor/backendParaFrontend.
 function statusPermiteEdicao(doc) {
-  return ['RASCUNHO', 'MINUTA', 'EM_ALTERACAO'].includes(doc.status)
+  return ['RASCUNHO', 'MINUTA', 'EM_ALTERACAO'].includes(doc.situacao_local)
 }
 
 function temPosseDocumento(doc) {
@@ -676,7 +706,7 @@ function tooltipEditar(doc) {
 // também exige autor/coautor, não só o status; sem isso "Excluir" aparecia no
 // menu "⋮" pra Rascunho/Minuta de qualquer pessoa da mesma OM.
 function canDelete(doc) {
-  return ['RASCUNHO', 'MINUTA'].includes(doc.status) && temPosseDocumento(doc)
+  return ['RASCUNHO', 'MINUTA'].includes(doc.situacao_local) && temPosseDocumento(doc)
 }
 
 // Mesmo critério que decide o que aparece dentro do menu "⋮" -- se nada
@@ -699,22 +729,35 @@ function docRoute(doc) {
 // uma restrita a quem tem a atribuição pessoal daquela etapa -- por isso não
 // aparecem mais aqui.
 function statusActions(doc) {
-  const transitions = {
-    RASCUNHO: auth.isEditor
-      ? [{ status: 'MINUTA', label: 'Enviar para Minuta', icon: 'mdi-file-edit-outline' }]
-      : [],
-    MINUTA: auth.isEditor
-      ? [{ status: 'EM_REVISAO', label: 'Enviar para Revisão', icon: 'mdi-account-arrow-right-outline', escolherPessoa: true }]
-      : [],
-    EM_ALTERACAO: auth.isEditor
-      ? [{ status: 'EM_REVISAO', label: 'Enviar Alteração para Revisão', icon: 'mdi-account-arrow-right-outline', escolherPessoa: true }]
-      : [],
-    PUBLICADO: [
-      ...(auth.isAprovador ? [{ status: 'EM_ALTERACAO', label: 'Iniciar Alteração', icon: 'mdi-pencil-lock-outline' }] : []),
-      ...(auth.isEditor ? [{ status: 'ANALISE_REVOGACAO', label: 'Enviar para Revogação', icon: 'mdi-file-remove-outline', escolherPessoa: true }] : []),
-    ],
+  const publicado = doc.situacao_bca === 'PUBLICADO'
+  switch (doc.situacao_local) {
+    case 'RASCUNHO':
+      return auth.isEditor
+        ? [{ destino: 'MINUTA', label: 'Enviar para Minuta', icon: 'mdi-file-edit-outline', rotuloDestino: 'Minuta' }]
+        : []
+    case 'MINUTA':
+      return auth.isEditor
+        ? [{ destino: 'EM_REVISAO', label: 'Enviar para Revisão', icon: 'mdi-account-arrow-right-outline', escolherPessoa: true }]
+        : []
+    case 'EM_ALTERACAO':
+      return [
+        ...(auth.isEditor ? [{ destino: 'EM_REVISAO', label: 'Enviar Alteração para Revisão', icon: 'mdi-account-arrow-right-outline', escolherPessoa: true }] : []),
+        // Desistir da alteração: o documento segue PUBLICADO com a versão vigente (SEM_ETAPA =
+        // concluir a etapa, aqui, cancelando-a). Só sem alterações pendentes: cada uma se desfaz
+        // elemento a elemento, no painel lateral do editor.
+        ...(auth.isAprovador || auth.isEditor ? [{
+          destino: 'SEM_ETAPA', label: 'Cancelar Alteração', icon: 'mdi-close-circle-outline',
+          descricao: 'terá a alteração cancelada e continua PUBLICADO, com a versão vigente. Só é possível sem alterações pendentes: desfaça-as antes, elemento a elemento, no painel lateral do editor.',
+        }] : []),
+      ]
+    case 'SEM_ETAPA':
+      return publicado ? [
+        ...(auth.isAprovador ? [{ destino: 'EM_ALTERACAO', label: 'Iniciar Alteração', icon: 'mdi-pencil-lock-outline', rotuloDestino: 'Em Alteração' }] : []),
+        ...(auth.isEditor ? [{ destino: 'ANALISE_REVOGACAO', label: 'Enviar para Revogação', icon: 'mdi-file-remove-outline', escolherPessoa: true }] : []),
+      ] : []
+    default:
+      return []
   }
-  return transitions[doc.status] ?? []
 }
 
 function confirmarMudancaStatus(doc, opt) {
@@ -740,7 +783,7 @@ async function executarMudancaStatus() {
 
   alterandoStatus.value = true
   try {
-    await store.changeStatus(alvo.id, opt.status)
+    await store.changeStatus(alvo.id, opt.destino)
     await fecharDialogStatus()
   } catch (e) {
     $q.notify({ type: 'negative', message: `Erro ao mudar situação: ${e?.message ?? 'erro desconhecido'}` })
@@ -761,7 +804,7 @@ async function executarEnvioPessoa(usuarioId) {
 
   alterandoStatus.value = true
   try {
-    await store.changeStatus(alvo.id, opt.status, { revisorId: usuarioId })
+    await store.changeStatus(alvo.id, opt.destino, { revisorId: usuarioId })
     dialog.pessoa = false
     await fecharDialogStatus()
   } catch (e) {
@@ -837,7 +880,8 @@ async function excluir() {
 function limparFiltros() {
   store.filtros.busca = ''
   store.filtros.especie = null
-  store.filtros.status = null
+  store.filtros.situacaoBca = null
+  store.filtros.situacaoLocal = null
 }
 </script>
 

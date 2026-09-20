@@ -55,6 +55,7 @@ function apiItemParaFrontend(item) {
     justificativaEmenda: item.justificativaEmenda ?? null,
     clausulaEmenda: item.clausulaEmenda ?? null,
     clausulaEmendaAnterior: item.clausulaEmendaAnterior ?? null,
+    clausulaRenumeracao: item.clausulaRenumeracao ?? null,
     incluidoPorEmenda: item.incluidoPorEmenda ?? false,
     filhos: sortEmendaItens(item.children ?? []).map(apiItemParaFrontend),
   }
@@ -198,7 +199,10 @@ export function backendParaFrontend(doc) {
     data_cancelamento: parseDtCriacao(doc.dtCancelamento),
     data_em_alteracao: parseDtCriacao(doc.dtEmAlteracao),
     data_alterado:     parseDtCriacao(doc.dtAlterado),
-    status: doc.statusDocumento,
+    // Situação BCA (real: NAO_PUBLICADO/PUBLICADO/REVOGADO) e Situação Local (etapa interna;
+    // SEM_ETAPA quando não há nenhuma em curso) -- ver SituacaoBcaEnum/SituacaoLocalEnum.
+    situacao_bca: doc.situacaoBca,
+    situacao_local: doc.situacaoLocal,
     // Ver Documento.revisorAtribuido/publicadorAtribuido no backend -- quem pode
     // agir/editar o documento agora, enquanto ele estiver em EM_REVISAO/
     // EM_PUBLICACAO/ANALISE_REVOGACAO/EM_REVOGACAO.
@@ -248,13 +252,14 @@ export function frontendParaBackendCreate(payload) {
 // listAuditoria em api/auditoria.js: devolve o Page cru ({content, totalElements, ...}),
 // só mapeando os itens de content pro formato do frontend.
 export async function listDocumentosPaginado({
-  aba, busca, especieSigla, status, page = 0, size = 15, sortBy = 'dtCriacao', descending = true,
+  aba, busca, especieSigla, situacaoBca, situacaoLocal, page = 0, size = 15, sortBy = 'dtCriacao', descending = true,
 } = {}) {
   const params = new URLSearchParams()
   if (aba) params.set('aba', aba)
   if (busca) params.set('busca', busca)
   if (especieSigla) params.set('especieSigla', especieSigla)
-  if (status) params.set('status', status)
+  if (situacaoBca) params.set('situacaoBca', situacaoBca)
+  if (situacaoLocal) params.set('situacaoLocal', situacaoLocal)
   params.set('page', page)
   params.set('size', size)
   params.set('sortBy', sortBy)
@@ -285,9 +290,9 @@ function filaParaFrontend(doc) {
     id: doc.idDocumento,
     codigo_documento: doc.codigoDocumento,
     titulo: doc.tituloDocumento,
-    status: doc.statusDocumento,
+    situacao_bca: doc.situacaoBca,
+    situacao_local: doc.situacaoLocal,
     autores: doc.autores ?? [],
-    ja_publicado_antes: !!doc.jaPublicadoAntes,
   }
 }
 
@@ -339,13 +344,14 @@ export async function updateDocumento(id, data) {
   return backendParaFrontend(result)
 }
 
-export async function changeDocumentoStatus(id, novoStatus, refs) {
-  const body = { status: novoStatus }
+// situacaoLocal: a nova Situação Local. SEM_ETAPA = concluir a etapa em curso (publicar, revogar,
+// devolver a análise de revogação ou cancelar a alteração, conforme a origem).
+export async function changeDocumentoStatus(id, situacaoLocal, refs) {
+  const body = { situacaoLocal }
   if (refs) {
     // revisorId: quem vai revisar (destino EM_REVISAO/ANALISE_REVOGACAO), escolhido
-    // pelo Editor. publicadorId: quem vai publicar (destino APROVADO/ALTERADO, que já
-    // cascateia pra EM_PUBLICACAO no backend, ou EM_REVOGACAO), escolhido pelo
-    // Aprovador -- ver SelecionarPessoaDialog.vue/DocumentoStatusRequestDto.
+    // pelo Editor. publicadorId: quem vai publicar (destino EM_PUBLICACAO ou EM_REVOGACAO),
+    // escolhido pelo Aprovador -- ver SelecionarPessoaDialog.vue/DocumentoStatusRequestDto.
     body.revisorId       = refs.revisorId ?? null
     body.publicadorId    = refs.publicadorId ?? null
     body.orgaoPortaria   = refs.orgaoPortaria ?? null

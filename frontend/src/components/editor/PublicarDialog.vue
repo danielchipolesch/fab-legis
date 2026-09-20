@@ -1,18 +1,22 @@
 <template>
   <q-dialog :model-value="modelValue" @update:model-value="$emit('update:modelValue', $event)" :persistent="enviando">
     <q-card style="min-width:420px;max-width:760px;width:100%">
-      <q-card-section class="text-h6">{{ isRevogacao ? 'Revogar documento' : 'Publicar documento' }}?</q-card-section>
+      <q-card-section class="text-h6">{{ isRevogacao ? 'Revogar documento' : (primeiraPublicacao ? 'Publicar documento' : 'Publicar alteração') }}?</q-card-section>
       <q-card-section class="q-pt-none">
         O documento
         <strong>{{ documento?.especie }} {{ documento?.numero_basico }}<template v-if="documento?.numero_secundario">-{{ documento.numero_secundario }}</template></strong>
-        terá sua situação alterada para <strong>{{ isRevogacao ? 'REVOGADO' : 'PUBLICADO' }}</strong>.
+        <template v-if="isRevogacao">terá sua situação BCA alterada para <strong>REVOGADO</strong>.</template>
+        <template v-else-if="primeiraPublicacao">terá sua situação BCA alterada para <strong>PUBLICADO</strong>.</template>
+        <template v-else>continua <strong>PUBLICADO</strong>; a alteração passa a valer e a versão vigente é substituída.</template>
       </q-card-section>
       <q-separator />
       <q-card-section class="q-pt-md q-pb-sm column q-gutter-y-md">
         <div class="text-caption text-grey-7">
           {{ isRevogacao
             ? 'Informe os dados da Portaria e do BCA que revogam este documento:'
-            : 'Informe os dados da Portaria e do BCA que registram esta publicação:' }}
+            : (primeiraPublicacao
+              ? 'Informe os dados da Portaria e do BCA que registram esta publicação:'
+              : 'Informe os dados da Portaria e do BCA que registram esta alteração:') }}
         </div>
         <div class="row q-col-gutter-md">
           <q-input
@@ -83,65 +87,66 @@
             :disable="enviando"
           />
         </div>
-        <template v-if="isRepublicacao">
+        <template v-if="isAlteracao">
           <q-separator />
           <div class="text-caption text-grey-7">Prévia da cláusula:</div>
           <div class="text-body2 text-italic">{{ previewClausula }}</div>
         </template>
 
-        <!-- Parte preliminar do documento -- só existe de fato a partir da
-             publicação, então é coletada aqui, não durante a edição. Não se
-             aplica à revogação, que não republica o conteúdo do documento. -->
-        <template v-if="!isRevogacao">
-          <q-separator />
-          <div class="text-caption text-grey-7">
-            Parte preliminar do documento publicado:
-          </div>
-          <q-input
-            v-model="form.epigrafe"
-            label="Epígrafe *"
-            outlined dense
-            placeholder="Ex: Portaria DIRAD/PP6 n° 1.731, de 24 de agosto de 2026"
-            lazy-rules
-            :rules="[v => !!v?.trim() || 'Informe a epígrafe']"
-            :disable="enviando"
-          />
-          <q-input
-            v-model="form.ementa"
-            type="textarea" autogrow
-            label="Ementa *"
-            outlined dense
-            lazy-rules
-            :rules="[v => !!v?.trim() || 'Informe a ementa']"
-            :disable="enviando"
-          />
-          <q-input
-            v-model="form.preambulo"
-            type="textarea" autogrow
-            label="Preâmbulo *"
-            outlined dense
-            lazy-rules
-            :rules="[v => !!v?.trim() || 'Informe o preâmbulo']"
-            :disable="enviando"
-          />
-          <q-input
-            v-model="form.fecho"
-            type="textarea" autogrow
-            label="Fecho *"
-            outlined dense
-            lazy-rules
-            :rules="[v => !!v?.trim() || 'Informe o fecho']"
-            :disable="enviando"
-          />
-          <q-input
-            v-model="form.assinatura"
-            type="textarea" autogrow
-            label="Assinatura *"
-            outlined dense
-            lazy-rules
-            :rules="[v => !!v?.trim() || 'Informe a assinatura']"
-            :disable="enviando"
-          />
+        <!-- Parte preliminar do documento -- só existe de fato a partir da primeira
+             publicação, então é coletada aqui (e só aqui), não durante a edição. A portaria de
+             publicação é a única que aparece nela e nunca é substituída: alteração e revogação
+             pedem apenas portaria, BCA e o PDF. -->
+        <template v-if="primeiraPublicacao">
+        <q-separator />
+        <div class="text-caption text-grey-7">
+          Parte preliminar do documento publicado:
+        </div>
+        <q-input
+          v-model="form.epigrafe"
+          label="Epígrafe *"
+          outlined dense
+          placeholder="Ex: Portaria DIRAD/PP6 n° 1.731, de 24 de agosto de 2026"
+          lazy-rules
+          :rules="[v => !!v?.trim() || 'Informe a epígrafe']"
+          :disable="enviando"
+        />
+        <q-input
+          v-model="form.ementa"
+          type="textarea" autogrow
+          label="Ementa *"
+          outlined dense
+          lazy-rules
+          :rules="[v => !!v?.trim() || 'Informe a ementa']"
+          :disable="enviando"
+        />
+        <q-input
+          v-model="form.preambulo"
+          type="textarea" autogrow
+          label="Preâmbulo *"
+          outlined dense
+          lazy-rules
+          :rules="[v => !!v?.trim() || 'Informe o preâmbulo']"
+          :disable="enviando"
+        />
+        <q-input
+          v-model="form.fecho"
+          type="textarea" autogrow
+          label="Fecho *"
+          outlined dense
+          lazy-rules
+          :rules="[v => !!v?.trim() || 'Informe o fecho']"
+          :disable="enviando"
+        />
+        <q-input
+          v-model="form.assinatura"
+          type="textarea" autogrow
+          label="Assinatura *"
+          outlined dense
+          lazy-rules
+          :rules="[v => !!v?.trim() || 'Informe a assinatura']"
+          :disable="enviando"
+        />
         </template>
 
         <q-separator />
@@ -186,21 +191,24 @@ import { useQuasar } from 'quasar'
 import { useAuthStore } from '@/stores/auth.js'
 import { jDoc, jPara, jText } from '@/stores/documentos.js'
 import { BASE_URL } from '@/api/client.js'
+import { ehRevogacao, ehPrimeiraPublicacao, ehAlteracaoPublicada } from '@/utils/fluxoDocumento.js'
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
   documento: { type: Object, default: null },
-  // Republicação (a partir de ALTERADO/EM_REVOGACAO de um documento já publicado
-  // antes) exige a mesma cláusula/tela de revogar -- distingue só a prévia da
-  // cláusula e o rótulo, a via de disparo é sempre a mesma (ver PublicacaoPage.vue).
-  isRevogacao: { type: Boolean, default: false },
-  isRepublicacao: { type: Boolean, default: false },
   enviando: { type: Boolean, default: false },
 })
 const emit = defineEmits(['update:modelValue', 'confirmar'])
 
 const $q = useQuasar()
 const auth = useAuthStore()
+
+// O tipo de portaria decorre da situação do documento (nada a informar na tela): a primeira
+// publicação coleta a parte preliminar; a alteração pede só portaria/BCA/PDF e aparece como
+// cláusula nos elementos; a revogação (total) também, e só o selo REVOGADO a representa.
+const isRevogacao = computed(() => !!props.documento && ehRevogacao(props.documento))
+const primeiraPublicacao = computed(() => !!props.documento && ehPrimeiraPublicacao(props.documento))
+const isAlteracao = computed(() => !!props.documento && ehAlteracaoPublicada(props.documento))
 
 function formVazio() {
   return {
@@ -293,8 +301,9 @@ const erros = computed(() => {
     errs.push('A data do BCA não pode ser anterior à da alteração anterior.')
   }
 
-  // Revogar não republica o conteúdo do documento -- não exige a parte preliminar.
-  if (!props.isRevogacao) {
+  // A parte preliminar só é exigida na primeira publicação (espelha
+  // DocumentoStatusService.registrarPortariaEBca).
+  if (primeiraPublicacao.value) {
     if (!form.epigrafe?.trim()) errs.push('Informe a epígrafe.')
     if (!form.ementa?.trim()) errs.push('Informe a ementa.')
     if (!form.preambulo?.trim()) errs.push('Informe o preâmbulo.')
@@ -320,11 +329,13 @@ function confirmar() {
     dataPortaria: form.dataPortaria,
     numeroBca: parseInt(form.numeroBca, 10),
     dataBca: form.dataBca,
-    epigrafe: props.isRevogacao ? undefined : jDoc(jPara(jText(form.epigrafe.trim()))),
-    ementa: props.isRevogacao ? undefined : jDoc(jPara(jText(form.ementa.trim()))),
-    preambulo: props.isRevogacao ? undefined : jDoc(jPara(jText(form.preambulo.trim()))),
-    fecho: props.isRevogacao ? undefined : jDoc(jPara(jText(form.fecho.trim()))),
-    assinatura: props.isRevogacao ? undefined : jDoc(jPara(jText(form.assinatura.trim()))),
+    ...(primeiraPublicacao.value ? {
+      epigrafe: jDoc(jPara(jText(form.epigrafe.trim()))),
+      ementa: jDoc(jPara(jText(form.ementa.trim()))),
+      preambulo: jDoc(jPara(jText(form.preambulo.trim()))),
+      fecho: jDoc(jPara(jText(form.fecho.trim()))),
+      assinatura: jDoc(jPara(jText(form.assinatura.trim()))),
+    } : {}),
     portariaPdfUrl: form.portariaPdfUrl,
   })
 }

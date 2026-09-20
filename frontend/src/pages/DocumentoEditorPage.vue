@@ -445,21 +445,22 @@ const documentoId    = computed(() => route.params.id)
 const documento      = computed(() => editorStore.documento)
 const selectedElement = computed(() => editorStore.selectedElement)
 
-const isEmAlteracao = computed(() => documento.value?.status === 'EM_ALTERACAO')
+const isEmAlteracao = computed(() => documento.value?.situacao_local === 'EM_ALTERACAO')
 
-// Editável por posse (RASCUNHO/MINUTA/EM_ALTERACAO) OU por quem foi atribuído
-// como revisor enquanto o documento estiver EM_REVISAO (ver
-// Documento.revisorAtribuido no backend/roadmap "revisar e editar"). Todos os
-// demais status (aprovação/publicação/revogação em andamento, já publicado,
-// cancelado) são sempre somente-leitura -- em especial EM_PUBLICACAO em diante,
-// onde ninguém mais edita o conteúdo.
-const isReadonly = computed(() => {
-  const status = documento.value?.status
-  if (status === 'EM_REVISAO') {
-    return documento.value?.revisor_atribuido_id !== String(auth.usuario?.id)
+// Editável por posse (RASCUNHO/MINUTA/EM_ALTERACAO) OU por quem foi atribuído como revisor
+// enquanto o documento (ainda NÃO publicado) estiver EM_REVISAO (ver Documento.revisorAtribuido
+// no backend). Todas as demais etapas (publicação/revogação em andamento, sem etapa,
+// cancelado) e a revisão de uma alteração de documento PUBLICADO são somente-leitura: o texto
+// vigente só muda por emenda, na etapa EM_ALTERACAO.
+function podeEditarAgora(doc) {
+  if (!doc) return false
+  const local = doc.situacao_local
+  if (local === 'EM_REVISAO') {
+    return doc.situacao_bca !== 'PUBLICADO' && doc.revisor_atribuido_id === String(auth.usuario?.id)
   }
-  return !['RASCUNHO', 'MINUTA', 'EM_ALTERACAO'].includes(status)
-})
+  return ['RASCUNHO', 'MINUTA', 'EM_ALTERACAO'].includes(local)
+}
+const isReadonly = computed(() => !podeEditarAgora(documento.value))
 
 // Elemento ALTERADO por emenda: o texto vigente fica em conteudoEmenda, não em
 // conteudo (que preserva o original para o tachado no preview). Demais status
@@ -610,11 +611,8 @@ onMounted(async () => {
       return
     }
 
-    // Mesma regra de isReadonly: editável por posse (RASCUNHO/MINUTA/EM_ALTERACAO)
-    // ou pelo revisor atribuído enquanto EM_REVISAO -- fora daí, manda pro viewer.
-    const editavelAgora = ['RASCUNHO', 'MINUTA', 'EM_ALTERACAO'].includes(doc.status)
-      || (doc.status === 'EM_REVISAO' && doc.revisor_atribuido_id === String(auth.usuario?.id))
-    if (!editavelAgora) {
+    // Mesma regra de isReadonly -- fora dela, manda pro viewer.
+    if (!podeEditarAgora(doc)) {
       router.replace({ name: 'documento-visualizar', params: { id: documentoId.value }, query: route.query })
       return
     }

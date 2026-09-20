@@ -103,13 +103,14 @@ export const useEditorStore = defineStore('editor', {
     async save() {
       const store = useDocumentosStore()
       await store.saveDocumento(this.documento)
-      if (this.hasUserEdit && this.documento?.status === 'RASCUNHO') {
+      if (this.hasUserEdit && this.documento?.situacao_local === 'RASCUNHO') {
         await store.changeStatus(this.documentoId, 'MINUTA')
         this.hasUserEdit = false
       }
       const atualizado = store.getById(this.documentoId)
-      if (atualizado?.status && this.documento) {
-        this.documento.status = atualizado.status
+      if (atualizado?.situacao_local && this.documento) {
+        this.documento.situacao_bca = atualizado.situacao_bca
+        this.documento.situacao_local = atualizado.situacao_local
       }
       // Mantém a versão local em dia com a do banco após salvar -- é ela que
       // vai como versaoEsperada no próximo salvamento (ver

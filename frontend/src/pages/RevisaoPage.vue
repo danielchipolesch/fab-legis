@@ -32,7 +32,7 @@
 
         <template #body-cell-status="props">
           <q-td :props="props">
-            <StatusBadge :status="props.row.status" />
+            <StatusBadge :situacao-bca="props.row.situacao_bca" :situacao-local="props.row.situacao_local" />
           </q-td>
         </template>
 
@@ -45,7 +45,7 @@
                 :to="rotaAbrir(props.row)"
               >
                 <q-tooltip anchor="top middle" self="bottom middle">
-                  {{ props.row.status === 'EM_REVISAO' ? 'Abrir e revisar' : 'Abrir' }}
+                  {{ props.row.situacao_local === 'EM_REVISAO' ? 'Abrir e revisar' : 'Abrir' }}
                 </q-tooltip>
               </q-btn>
               <q-btn
@@ -54,7 +54,7 @@
                 @click="abrirAprovacao(props.row)"
               >
                 <q-tooltip anchor="top middle" self="bottom middle">
-                  {{ props.row.status === 'ANALISE_REVOGACAO' ? 'Aprovar revogação' : 'Aprovar' }}
+                  {{ props.row.situacao_local === 'ANALISE_REVOGACAO' ? 'Aprovar revogação' : 'Aprovar' }}
                 </q-tooltip>
               </q-btn>
               <q-btn
@@ -80,7 +80,7 @@
     <SelecionarPessoaDialog
       v-model="dialogAprovar"
       papel="PUBLIC"
-      :titulo="alvo?.status === 'ANALISE_REVOGACAO' ? 'Aprovar revogação' : 'Aprovar'"
+      :titulo="alvo?.situacao_local === 'ANALISE_REVOGACAO' ? 'Aprovar revogação' : 'Aprovar'"
       :descricao="alvo ? `Escolha quem vai publicar ${alvo.codigo_documento}` : ''"
       acao-label="Aprovar"
       :enviando="enviando"
@@ -97,6 +97,7 @@ import * as documentosApi from '@/api/documentos.js'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import SelecionarPessoaDialog from '@/components/editor/SelecionarPessoaDialog.vue'
 import { caixaAlta } from '@/utils/texto.js'
+import { destinoDeAprovacao, destinoDeDevolucao } from '@/utils/fluxoDocumento.js'
 
 const $q = useQuasar()
 const store = useDocumentosStore()
@@ -108,7 +109,7 @@ const columns = [
   { name: 'codigo',   label: 'Código',   field: 'codigo_documento', align: 'center', style: 'width: 120px' },
   { name: 'titulo',   label: 'Título',   field: 'titulo',           align: 'center' },
   { name: 'autores',  label: 'Autores',  field: 'autores',          align: 'center' },
-  { name: 'status',   label: 'Situação', field: 'status',           align: 'center', style: 'width: 160px' },
+  { name: 'status',   label: 'Situação', field: 'situacao_bca',         align: 'center', style: 'width: 160px' },
   { name: 'actions',  label: 'Ações',    field: 'actions',          align: 'center', style: 'width: 140px' },
 ]
 
@@ -130,22 +131,9 @@ onMounted(carregar)
 // documento), então continua indo pra visualização. As duas preservam a
 // origem pro breadcrumb voltar pra cá.
 function rotaAbrir(doc) {
-  return doc.status === 'EM_REVISAO'
+  return doc.situacao_local === 'EM_REVISAO'
     ? { name: 'documento-editar', params: { id: doc.id }, query: { origem: 'revisao' } }
     : { name: 'documento-visualizar', params: { id: doc.id }, query: { origem: 'revisao' } }
-}
-
-// EM_REVISAO resolve pra APROVADO (fluxo normal) ou ALTERADO (ciclo de alteração)
-// conforme o documento já tenha sido publicado antes -- mesmo discriminante do
-// backend (ver DocumentoStatusService.jaPublicadoAntes), pra mandar o status certo.
-function alvoAprovacao(doc) {
-  if (doc.status === 'ANALISE_REVOGACAO') return 'EM_REVOGACAO'
-  return doc.ja_publicado_antes ? 'ALTERADO' : 'APROVADO'
-}
-
-function alvoDevolucao(doc) {
-  if (doc.status === 'ANALISE_REVOGACAO') return 'PUBLICADO'
-  return doc.ja_publicado_antes ? 'EM_ALTERACAO' : 'MINUTA'
 }
 
 const dialogAprovar = ref(false)
@@ -161,7 +149,7 @@ async function confirmarAprovacao(publicadorId) {
   if (!alvo.value || enviando.value) return
   enviando.value = true
   try {
-    await store.changeStatus(alvo.value.id, alvoAprovacao(alvo.value), { publicadorId })
+    await store.changeStatus(alvo.value.id, destinoDeAprovacao(alvo.value), { publicadorId })
     dialogAprovar.value = false
     alvo.value = null
     await carregar()
@@ -174,7 +162,7 @@ async function confirmarAprovacao(publicadorId) {
 
 async function devolver(doc) {
   try {
-    await store.changeStatus(doc.id, alvoDevolucao(doc))
+    await store.changeStatus(doc.id, destinoDeDevolucao(doc))
     await carregar()
   } catch (e) {
     $q.notify({ type: 'negative', message: `Erro ao devolver: ${e?.message ?? 'erro desconhecido'}` })

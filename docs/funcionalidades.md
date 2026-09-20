@@ -30,7 +30,7 @@ Geração de PDF **server-side** via **Apache FOP 2.10 / XSL-FO**, e de HTML **s
 
 Página dedicada (`ComparisonPage.vue`) alimentada pelo histórico real de emendas (`EmendaHistorico`, agrupado por ciclo de publicação) — não por snapshots do documento. Ver [Ciclo de emenda](ciclo-de-vida.md#ciclo-de-emenda-alterando-um-ato-ja-publicado) e [Quadro de Justificativas](ciclo-de-vida.md#quadro-de-justificativas-das-modificacoes-propostas).
 
-Para documentos em `ALTERADO`, a mesma página (e também a tela de visualização) oferece o botão **Texto Sugerido**, que gera automaticamente um rascunho da portaria de alteração — ver [Texto sugerido da portaria (NSCA 5-3, Art. 22)](exportacao-pdf.md#texto-sugerido-da-portaria-nsca-5-3-art-22).
+Para documentos com uma alteração aguardando publicação (`PUBLICADO` + `EM_PUBLICACAO`), a mesma página (e também a tela de visualização) oferece o botão **Texto Sugerido**, que gera automaticamente um rascunho da portaria de alteração — ver [Texto sugerido da portaria (NSCA 5-3, Art. 22)](exportacao-pdf.md#texto-sugerido-da-portaria-nsca-5-3-art-22).
 
 ## Visualização do documento
 
@@ -38,13 +38,13 @@ A `DocumentViewerPage` exibe o documento em modo leitura com seções expansíve
 
 | Seção | Conteúdo |
 |---|---|
-| **Informações do Documento** | Metadados (espécie, número, título, assunto, código, status) e linha do tempo de datas por status |
+| **Informações do Documento** | Metadados (espécie, número, título, assunto, código, **situação BCA** e **situação local**) e linha do tempo das transições (publicação, alteração publicada, alteração cancelada, revogação...) |
 | **Portarias** | Lista de todas as portarias registradas para o documento — edição, alterações (numeradas sequencialmente) e revogação — cada uma com órgão/setor, número, data, BCA e link de download do PDF |
-| **Visualização do Documento** | Iframe com o PDF armazenado (disponível a partir de `APROVADO`) ou mensagem de indisponibilidade; exibe `q-inner-loading` enquanto o PDF carrega |
+| **Visualização do Documento** | Iframe com o PDF, carregado só com a seção aberta. Mostra por padrão a **versão em tramitação** (se houver etapa local em curso) e oferece o alternador para a **versão vigente (BCA)**; sem etapa em curso, mostra direto a vigente. Ver [Versões do documento](ciclo-de-vida.md#versoes-do-documento-vigente-em-tramitacao) |
 | **Anexos** | Upload/listagem/remoção de arquivos vinculados ao documento (`AnexoController`), incluídos como páginas próprias na exportação em PDF e em HTML |
 | **Histórico de Versões** | Acesso direto à página de comparação de versões |
 
-Ações disponíveis na topbar: baixar PDF (rascunho gerado sob demanda), ver texto sugerido da portaria (quando `ALTERADO`), clonar e navegar para a comparação de versões.
+Ações disponíveis na topbar: baixar PDF e HTML (com menu para escolher a versão vigente ou em tramitação quando as duas existem), ver texto sugerido da portaria (quando há alteração aguardando publicação), clonar e navegar para a comparação de versões.
 
 ## Gestão do acervo
 
@@ -65,7 +65,7 @@ Implementada com **`tsvector`/`GIN` do próprio PostgreSQL** (sem Elasticsearch)
 Duas telas dedicadas, cada uma restrita a quem tem o papel correspondente e mostrando só a **fila pessoal** de quem está logado (documentos atribuídos a ela, nunca o acervo inteiro):
 
 - **Revisão** (`/revisao`, `RevisaoPage.vue`, papel Aprovador) — tabela com **código, título, autores, situação e ações**; documentos em `EM_REVISAO`/`ANALISE_REVOGACAO` atribuídos ao usuário. Abrir (editável enquanto `EM_REVISAO`), Aprovar (escolhendo pessoalmente quem publica) e Devolver.
-- **Publicação** (`/publicacao`, `PublicacaoPage.vue`, papel Publicador) — mesma tabela; documentos em `EM_PUBLICACAO`/`EM_REVOGACAO` atribuídos ao usuário. Abrir (só leitura), Publicar/Revogar (formulário de Portaria/BCA, `PublicarDialog.vue`) e Devolver.
+- **Publicação** (`/publicacao`, `PublicacaoPage.vue`, papel Publicador) — mesma tabela; documentos em `EM_PUBLICACAO`/`EM_REVOGACAO` atribuídos ao usuário. Abrir (só leitura), Publicar/Revogar (formulário de Portaria/BCA e parte preliminar, `PublicarDialog.vue`) e Devolver (só para `EM_PUBLICACAO`; uma revogação aprovada só pode ser formalizada).
 
 Cada uma tem seu próprio breadcrumb (Início → Revisão/Publicação), e um documento aberto a partir de qualquer uma delas carrega essa origem consigo (`?origem=revisao|publicacao`) — o breadcrumb do editor/visualizador então volta para a fila de onde a pessoa veio, não para o acervo geral (`HomePage`).
 

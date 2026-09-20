@@ -1,6 +1,7 @@
 package br.com.danielchipolesch.domain.services;
 
 import br.com.danielchipolesch.application.dtos.itemAnexoParteNormativaDtos.ItemAnexoParteNormativaResponseDto;
+import br.com.danielchipolesch.domain.entities.estruturaDocumento.ElementoEmendaStatusEnum;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.ItemAnexoParteNormativaTipoEnum;
 import org.springframework.stereotype.Service;
 
@@ -48,6 +49,74 @@ public class NumeracaoService {
         Map<Long, ElementoNumeracao> resultado = new HashMap<>();
         assignNumbering(normativos, resultado, flatArtigos, new int[]{0});
         return resultado;
+    }
+
+    // Parágrafos de UM artigo (numeração local ao artigo, por isso fora de calcular(), que
+    // cobre capítulo/seção/subseção/artigo): devolve o número/letra/rótulo de cada um, na
+    // mesma ordem da lista ("Parágrafo único", "§ 1º", "§ 2º-A"...).
+    //
+    // Parágrafo em vigor NUNCA é renumerado (Decreto nº 12.002/2024, art. 14, IV): o
+    // incluído por emenda que ainda tem algum parágrafo ORIGINAL depois dele recebe letra
+    // (§ 2º-A) sem consumir a contagem; ao final da sequência recebe número normal. Como
+    // nos demais níveis, "original" é tudo que não foi incluído por emenda -- inclusive o
+    // REVOGADO, que mantém o número que tinha -- e a decisão usa a marca permanente
+    // incluidoPorEmenda, não o status ao vivo (alterar um incluído não muda o rótulo dos
+    // anteriores). Espelha renumberElementsEmAlteracao (frontend/src/utils/numbering.js).
+    // Parágrafo único que passou a "§ Nº" porque o artigo ganhou um 2º parágrafo (o ÚNICO caso de
+    // renumeração de parágrafo: Decreto 12.002/2024, art. 14, IV). Nesse caso a linha "Parágrafo
+    // único. texto" sai riscada e o texto se repete sob o novo número, com a cláusula de
+    // renumeração -- nas prévias, PDF, HTML e no texto sugerido da portaria.
+    //
+    // Só vale para um único EM VIGOR: num documento ainda NAO_PUBLICADO a numeração é livre, e um
+    // único incluído por emenda ainda pendente (nunca publicado) também não estava em vigor.
+    // Depois da publicação da alteração a cláusula fica congelada (clausulaRenumeracao != null) e o
+    // riscado é permanente.
+    public static boolean unicoRenumerado(List<ItemAnexoParteNormativaResponseDto> paragrafos,
+                                          ItemAnexoParteNormativaResponseDto paragrafo,
+                                          boolean documentoPublicado) {
+        if (paragrafo.elementType() != PARAGRAFO_UNICO || paragrafos.size() < 2) return false;
+        if (paragrafo.clausulaRenumeracao() != null) return true;
+        boolean inclusaoPendente = paragrafo.emendaStatus() == ElementoEmendaStatusEnum.INCLUIDO
+                && paragrafo.clausulaEmenda() == null;
+        return documentoPublicado && !inclusaoPendente;
+    }
+
+    // Cláusula da renumeração de um parágrafo único: a congelada na publicação da alteração ou, se
+    // ainda pendente, a ao vivo com o mesmo placeholder XYZ/ABC das demais cláusulas pendentes.
+    public static String clausulaRenumeracao(ItemAnexoParteNormativaResponseDto paragrafoUnico) {
+        return paragrafoUnico.clausulaRenumeracao() != null ? paragrafoUnico.clausulaRenumeracao()
+                : "(redação dada pela Portaria DIRAD n° XYZ, de DD de MÊS de AAAA,"
+                  + " publicada no BCA n° ABC, de DD de mês de AAAA)";
+    }
+
+    public static List<ElementoNumeracao> numerarParagrafos(List<ItemAnexoParteNormativaResponseDto> paragrafos) {
+        var resultado = new ArrayList<ElementoNumeracao>();
+        boolean unicoOnly = paragrafos.size() == 1 && paragrafos.get(0).elementType() == PARAGRAFO_UNICO;
+        if (unicoOnly) {
+            resultado.add(new ElementoNumeracao(0, null, "Parágrafo único"));
+            return resultado;
+        }
+        int pNum = 0, letterIdx = 0;
+        for (int i = 0; i < paragrafos.size(); i++) {
+            boolean isIncluido = paragrafos.get(i).incluidoPorEmenda();
+            boolean atEnd = isIncluido && !temParagrafoOriginalDepois(paragrafos, i);
+            String letra = null;
+            if (!isIncluido || atEnd) {
+                pNum++;
+                letterIdx = 0;
+            } else {
+                letra = letterFor(letterIdx++);
+            }
+            resultado.add(new ElementoNumeracao(pNum, letra, "§ " + comSufixoLetra(pNum, letra)));
+        }
+        return resultado;
+    }
+
+    private static boolean temParagrafoOriginalDepois(List<ItemAnexoParteNormativaResponseDto> paragrafos, int idx) {
+        for (int i = idx + 1; i < paragrafos.size(); i++) {
+            if (!paragrafos.get(i).incluidoPorEmenda()) return true;
+        }
+        return false;
     }
 
     // Ponto de referência de um artigo para intervalos de sumário (ex.: "13-A").

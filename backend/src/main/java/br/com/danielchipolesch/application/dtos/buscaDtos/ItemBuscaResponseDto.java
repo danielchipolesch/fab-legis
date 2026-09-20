@@ -1,6 +1,7 @@
 package br.com.danielchipolesch.application.dtos.buscaDtos;
 
-import br.com.danielchipolesch.domain.entities.estruturaDocumento.DocumentoStatusEnum;
+import br.com.danielchipolesch.domain.entities.estruturaDocumento.SituacaoBcaEnum;
+import br.com.danielchipolesch.domain.entities.estruturaDocumento.SituacaoLocalEnum;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.ItemAnexoParteNormativaTipoEnum;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.SecaoDocumentoEnum;
 
@@ -13,7 +14,8 @@ public record ItemBuscaResponseDto(
         String codigoAssuntoBasico,
         Integer numeroSecundario,
         String tituloDocumento,
-        DocumentoStatusEnum statusDocumento,
+        SituacaoBcaEnum situacaoBca,
+        SituacaoLocalEnum situacaoLocal,
         SecaoDocumentoEnum secao,
         ItemAnexoParteNormativaTipoEnum tipoItem,
         Long elementoId,

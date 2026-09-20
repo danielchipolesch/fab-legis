@@ -32,7 +32,7 @@
 
         <template #body-cell-status="props">
           <q-td :props="props">
-            <StatusBadge :status="props.row.status" />
+            <StatusBadge :situacao-bca="props.row.situacao_bca" :situacao-local="props.row.situacao_local" />
           </q-td>
         </template>
 
@@ -52,10 +52,13 @@
                 @click="abrirPublicacao(props.row)"
               >
                 <q-tooltip anchor="top middle" self="bottom middle">
-                  {{ props.row.status === 'EM_REVOGACAO' ? 'Revogar' : 'Publicar' }}
+                  {{ ehRevogacao(props.row) ? 'Revogar' : 'Publicar' }}
                 </q-tooltip>
               </q-btn>
+              <!-- Revogação aprovada (EM_REVOGACAO) só tem uma saída: ser formalizada
+                   (REVOGADO) -- não há para onde devolver. -->
               <q-btn
+                v-if="podeDevolverPublicacao(props.row)"
                 icon="mdi-undo"
                 size="sm" flat round dense color="negative"
                 @click="devolver(props.row)"
@@ -78,8 +81,6 @@
     <PublicarDialog
       v-model="dialogPublicar"
       :documento="alvo"
-      :is-revogacao="alvo?.status === 'EM_REVOGACAO'"
-      :is-republicacao="alvo?.status !== 'EM_REVOGACAO' && !!alvo?.data_publicacao"
       :enviando="enviando"
       @confirmar="confirmarPublicacao"
     />
@@ -94,6 +95,7 @@ import * as documentosApi from '@/api/documentos.js'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import PublicarDialog from '@/components/editor/PublicarDialog.vue'
 import { caixaAlta } from '@/utils/texto.js'
+import { DESTINO_DE_CONCLUSAO, destinoDeDevolucao, ehRevogacao, podeDevolverPublicacao } from '@/utils/fluxoDocumento.js'
 
 const $q = useQuasar()
 const store = useDocumentosStore()
@@ -105,7 +107,7 @@ const columns = [
   { name: 'codigo',   label: 'Código',   field: 'codigo_documento', align: 'center', style: 'width: 120px' },
   { name: 'titulo',   label: 'Título',   field: 'titulo',           align: 'center' },
   { name: 'autores',  label: 'Autores',  field: 'autores',          align: 'center' },
-  { name: 'status',   label: 'Situação', field: 'status',           align: 'center', style: 'width: 160px' },
+  { name: 'status',   label: 'Situação', field: 'situacao_bca',         align: 'center', style: 'width: 160px' },
   { name: 'actions',  label: 'Ações',    field: 'actions',          align: 'center', style: 'width: 140px' },
 ]
 
@@ -120,17 +122,6 @@ async function carregar() {
   }
 }
 onMounted(carregar)
-
-// EM_PUBLICACAO resolve pro alvo final PUBLICADO; EM_REVOGACAO resolve pra
-// REVOGADO -- ambos exigem o formulário de portaria/BCA (ver PublicarDialog.vue).
-function alvoPublicacao(doc) {
-  return doc.status === 'EM_REVOGACAO' ? 'REVOGADO' : 'PUBLICADO'
-}
-
-function alvoDevolucao(doc) {
-  if (doc.status === 'EM_REVOGACAO') return 'PUBLICADO'
-  return doc.ja_publicado_antes ? 'EM_ALTERACAO' : 'MINUTA'
-}
 
 const dialogPublicar = ref(false)
 const alvo = ref(null)
@@ -152,7 +143,7 @@ async function confirmarPublicacao(refs) {
   if (!alvo.value || enviando.value) return
   enviando.value = true
   try {
-    await store.changeStatus(alvo.value.id, alvoPublicacao(alvo.value), refs)
+    await store.changeStatus(alvo.value.id, DESTINO_DE_CONCLUSAO, refs)
     dialogPublicar.value = false
     alvo.value = null
     await carregar()
@@ -165,7 +156,7 @@ async function confirmarPublicacao(refs) {
 
 async function devolver(doc) {
   try {
-    await store.changeStatus(doc.id, alvoDevolucao(doc))
+    await store.changeStatus(doc.id, destinoDeDevolucao(doc))
     await carregar()
   } catch (e) {
     $q.notify({ type: 'negative', message: `Erro ao devolver: ${e?.message ?? 'erro desconhecido'}` })

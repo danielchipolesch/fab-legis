@@ -2,7 +2,7 @@ package br.com.danielchipolesch.domain.services;
 
 import br.com.danielchipolesch.application.dtos.itemPartePreliminarDtos.ItemPartePreliminarResponseDto;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.Documento;
-import br.com.danielchipolesch.domain.entities.estruturaDocumento.DocumentoStatusEnum;
+import br.com.danielchipolesch.domain.entities.estruturaDocumento.SituacaoLocalEnum;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.ItemAnexoParteNormativaTipoEnum;
 import br.com.danielchipolesch.domain.util.tiptap.TipTapNode;
 import br.com.danielchipolesch.domain.util.tiptap.XslFoContentRenderer;
@@ -60,30 +60,30 @@ final class DocumentoFoContext {
     String buildStaticContentWatermark() {
         String open  = "<fo:static-content flow-name=\"wm\">\n";
         String close = "</fo:static-content>\n";
-        DocumentoStatusEnum status = doc.getDocumentoStatus();
-        boolean showWm = status == DocumentoStatusEnum.RASCUNHO
-                      || status == DocumentoStatusEnum.MINUTA
-                      || status == DocumentoStatusEnum.EM_ALTERACAO
-                      || status == DocumentoStatusEnum.EM_REVISAO
-                      || status == DocumentoStatusEnum.APROVADO
-                      || status == DocumentoStatusEnum.ALTERADO;
+        // A marca d'água descreve a ETAPA LOCAL da versão em tramitação. A versão VIGENTE (a que
+        // a situação BCA descreve) sai sempre sem marca d'água: é gerada com o documento em
+        // SEM_ETAPA (ver DocumentoStatusService), então nunca cai em nenhum dos casos abaixo.
+        SituacaoLocalEnum status = doc.getSituacaoLocal();
+        boolean showWm = status == SituacaoLocalEnum.RASCUNHO
+                      || status == SituacaoLocalEnum.MINUTA
+                      || status == SituacaoLocalEnum.EM_ALTERACAO
+                      || status == SituacaoLocalEnum.EM_REVISAO
+                      || status == SituacaoLocalEnum.EM_PUBLICACAO;
         if (!showWm) return open + "  <fo:block/>\n" + close;
 
-        // O PDF é regravado (com a marca d'água do momento) ao entrar em EM_REVISAO
-        // (revisor vê "em revisão" ao abrir) e ao aprovar/aprovar alteração (fica
-        // "aprovado" enquanto aguarda publicação -- ver DocumentoStatusService,
-        // gatilhos de regenerarPdf). PUBLICADO/REVOGADO não entram aqui: o ato
-        // definitivo não leva marca d'água nenhuma.
+        // O PDF em tramitação é gerado sob demanda enquanto o texto ainda muda e congelado ao
+        // aprovar (EM_PUBLICACAO, que carrega a marca "APROVADO" enquanto aguarda a publicação
+        // de fato -- ver DocumentoStatusService).
         String label = switch (status) {
             case EM_ALTERACAO -> "EM ALTERAÇÃO";
             case EM_REVISAO -> "EM REVISÃO";
-            case APROVADO, ALTERADO -> "APROVADO";
+            case EM_PUBLICACAO -> "APROVADO";
             default -> foEsc(status.name());
         };
         String color = switch (status) {
             case EM_ALTERACAO -> "#DDCCAA"; // tom laranja
             case EM_REVISAO -> "#BBCCEE";   // tom azul
-            case APROVADO, ALTERADO -> "#BBDDBB"; // tom verde
+            case EM_PUBLICACAO -> "#BBDDBB"; // tom verde
             default -> "#DDBBBB";           // rascunho/minuta -- rosa já existente
         };
         var sb = new StringBuilder();

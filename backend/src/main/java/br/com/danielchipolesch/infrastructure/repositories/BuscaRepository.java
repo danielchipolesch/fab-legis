@@ -1,7 +1,8 @@
 package br.com.danielchipolesch.infrastructure.repositories;
 
 import br.com.danielchipolesch.application.dtos.buscaDtos.ItemBuscaResponseDto;
-import br.com.danielchipolesch.domain.entities.estruturaDocumento.DocumentoStatusEnum;
+import br.com.danielchipolesch.domain.entities.estruturaDocumento.SituacaoBcaEnum;
+import br.com.danielchipolesch.domain.entities.estruturaDocumento.SituacaoLocalEnum;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.ItemAnexoParteNormativaTipoEnum;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.SecaoDocumentoEnum;
 import jakarta.persistence.EntityManager;
@@ -37,7 +38,7 @@ public class BuscaRepository {
     // usuário precisar aprender operadores de tsquery.
     private static final String UNIAO_SQL = """
             SELECT d.id_documento, en.sg_especie_normativa, ab.cd_assunto_basico, d.nr_numero_secundario,
-                   d.nm_titulo_documento, d.st_documento, 'PARTE_PRELIMINAR', p.sg_tipo_item, p.id_portaria,
+                   d.nm_titulo_documento, d.st_situacao_bca, d.st_situacao_local, 'PARTE_PRELIMINAR', p.sg_tipo_item, p.id_portaria,
                    ts_rank_cd(p.tsv_busca, websearch_to_tsquery('portuguese_unaccent', ?1)) AS relevancia,
                    ts_headline('portuguese_unaccent', coalesce(p.tx_conteudo_completo, ''),
                        websearch_to_tsquery('portuguese_unaccent', ?1),
@@ -51,7 +52,7 @@ public class BuscaRepository {
             UNION ALL
 
             SELECT d.id_documento, en.sg_especie_normativa, ab.cd_assunto_basico, d.nr_numero_secundario,
-                   d.nm_titulo_documento, d.st_documento, 'PARTE_NORMATIVA', i.sg_tipo_item, i.id_item,
+                   d.nm_titulo_documento, d.st_situacao_bca, d.st_situacao_local, 'PARTE_NORMATIVA', i.sg_tipo_item, i.id_item,
                    ts_rank_cd(i.tsv_busca, websearch_to_tsquery('portuguese_unaccent', ?1)),
                    ts_headline('portuguese_unaccent', coalesce(i.tx_conteudo_completo, ''),
                        websearch_to_tsquery('portuguese_unaccent', ?1),
@@ -65,7 +66,7 @@ public class BuscaRepository {
             UNION ALL
 
             SELECT d.id_documento, en.sg_especie_normativa, ab.cd_assunto_basico, d.nr_numero_secundario,
-                   d.nm_titulo_documento, d.st_documento, 'PARTE_FINAL', f.sg_tipo_item, f.id_item,
+                   d.nm_titulo_documento, d.st_situacao_bca, d.st_situacao_local, 'PARTE_FINAL', f.sg_tipo_item, f.id_item,
                    ts_rank_cd(f.tsv_busca, websearch_to_tsquery('portuguese_unaccent', ?1)),
                    ts_headline('portuguese_unaccent', coalesce(f.tx_conteudo_completo, ''),
                        websearch_to_tsquery('portuguese_unaccent', ?1),
@@ -103,11 +104,12 @@ public class BuscaRepository {
                 (String) linha[2],
                 linha[3] != null ? ((Number) linha[3]).intValue() : null,
                 (String) linha[4],
-                DocumentoStatusEnum.valueOf((String) linha[5]),
-                SecaoDocumentoEnum.valueOf((String) linha[6]),
-                ItemAnexoParteNormativaTipoEnum.valueOf((String) linha[7]),
-                ((Number) linha[8]).longValue(),
-                (String) linha[10]
+                SituacaoBcaEnum.valueOf((String) linha[5]),
+                SituacaoLocalEnum.valueOf((String) linha[6]),
+                SecaoDocumentoEnum.valueOf((String) linha[7]),
+                ItemAnexoParteNormativaTipoEnum.valueOf((String) linha[8]),
+                ((Number) linha[9]).longValue(),
+                (String) linha[11]
         );
     }
 }

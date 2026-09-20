@@ -5,7 +5,7 @@ O FAB Legis foi desenhado para crescer. As linhas de evolução abaixo estão or
 ## Curto prazo — consolidar o núcleo
 
 - **Migração para Keycloak/SSO** — o Authorization Server embutido (Spring Authorization Server, OAuth2 + PKCE, ver [Autenticação e Colaboração](autenticacao.md)) foi desenhado para essa troca ser só de emissor de token: as *claims* já espelham as do Keycloak, e `DocumentoAcessoService` não referencia nada do mecanismo de autenticação em si.
-- **Cobertura de testes** — testes unitários dos serviços de domínio (com destaque para a numeração e as transições de status) e testes de integração dos controllers com Testcontainers.
+- **Cobertura de testes** — a numeração (backend e `numbering.js` no frontend) e as transições de situação já têm testes unitários (ver [Instalação — Testes](instalacao.md#testes)). Faltam os demais serviços de domínio (ciclo de emenda, regras de acesso), o restante da lógica do frontend (ex.: `stores/editor.js`) e testes de integração dos controllers com Testcontainers — estes dependem de o ambiente de CI/CD ter Docker disponível.
 - **Exportação DOCX nativa** — o HTML portável produzido pelo editor já foi pensado para isso; falta o conversor no backend.
 
 ## Médio prazo — fluxo de trabalho completo

@@ -1,7 +1,7 @@
 package br.com.danielchipolesch.infrastructure.repositories;
 
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.Documento;
-import br.com.danielchipolesch.domain.entities.estruturaDocumento.DocumentoStatusEnum;
+import br.com.danielchipolesch.domain.entities.estruturaDocumento.SituacaoLocalEnum;
 import br.com.danielchipolesch.domain.entities.numeracaoDocumento.AssuntoBasico;
 import br.com.danielchipolesch.domain.entities.numeracaoDocumento.EspecieNormativa;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -24,8 +24,8 @@ public interface DocumentoRepository extends JpaRepository<Documento, Long>, Jpa
     // Fila pessoal das telas de Revisão/Publicação (ver RevisaoPage.vue/
     // PublicacaoPage.vue) -- sem paginação de propósito: é o que está atribuído a UMA
     // pessoa, não o acervo inteiro, volume esperado é baixo.
-    List<Documento> findByRevisorAtribuidoIdAndDocumentoStatusIn(Long revisorId, Collection<DocumentoStatusEnum> status);
-    List<Documento> findByPublicadorAtribuidoIdAndDocumentoStatusIn(Long publicadorId, Collection<DocumentoStatusEnum> status);
+    List<Documento> findByRevisorAtribuidoIdAndSituacaoLocalIn(Long revisorId, Collection<SituacaoLocalEnum> status);
+    List<Documento> findByPublicadorAtribuidoIdAndSituacaoLocalIn(Long publicadorId, Collection<SituacaoLocalEnum> status);
 //    List<Documento> findByEspecieNormativaAndAssuntoBasico(
 //            @Param("documentationTypeName") String documentationTypeAcronym,
 //            @Param("basicSubjectName") String basicSubjectName

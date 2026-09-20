@@ -10,7 +10,7 @@ import br.com.danielchipolesch.application.dtos.itemAnexoParteNormativaDtos.Seco
 import br.com.danielchipolesch.application.dtos.itemParteFinalDtos.ItemParteFinalResponseDto;
 import br.com.danielchipolesch.application.dtos.itemPartePreliminarDtos.ItemPartePreliminarResponseDto;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.*;
-import br.com.danielchipolesch.domain.entities.estruturaDocumento.DocumentoStatusEnum;
+import br.com.danielchipolesch.domain.entities.estruturaDocumento.SituacaoBcaEnum;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.TipoAlteracaoEnum;
 import br.com.danielchipolesch.domain.handlers.exceptions.ResourceNotFoundException;
 import br.com.danielchipolesch.domain.mappers.DocumentoMapper;
@@ -141,11 +141,14 @@ public class DocumentoParteNormativaService {
         Documento documento = documentoRepository.findById(documentoId)
                 .orElseThrow(() -> new RuntimeException("Documento não encontrado"));
 
-        if (documento.getDocumentoStatus() == DocumentoStatusEnum.EM_ALTERACAO
-                || documento.getDocumentoStatus() == DocumentoStatusEnum.ALTERADO) {
+        // Um documento PUBLICADO (situação BCA) nunca é reescrito em massa, em nenhuma etapa
+        // local (alteração em elaboração, revisão da alteração, aguardando publicação): o texto
+        // vigente só muda por emenda, elemento a elemento -- é o que preserva a redação anterior
+        // riscada e a numeração (LC 95/1998).
+        if (documento.getSituacaoBca() == SituacaoBcaEnum.PUBLICADO) {
             throw new IllegalStateException(
-                    "Documento em alteração (ou aguardando republicação): utilize os endpoints de emenda "
-                    + "para modificar elementos individualmente, nunca o salvamento em massa.");
+                    "Documento publicado: utilize os endpoints de emenda para modificar elementos "
+                    + "individualmente, nunca o salvamento em massa.");
         }
 
         if (request.itens() == null) return;

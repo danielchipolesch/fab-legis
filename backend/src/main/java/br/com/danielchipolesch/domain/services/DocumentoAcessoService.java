@@ -1,7 +1,7 @@
 package br.com.danielchipolesch.domain.services;
 
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.Documento;
-import br.com.danielchipolesch.domain.entities.estruturaDocumento.DocumentoStatusEnum;
+import br.com.danielchipolesch.domain.entities.estruturaDocumento.SituacaoLocalEnum;
 import br.com.danielchipolesch.domain.entities.usuario.PapelEnum;
 import br.com.danielchipolesch.domain.entities.usuario.Usuario;
 import br.com.danielchipolesch.infrastructure.repositories.DocumentoCompartilhamentoRepository;
@@ -26,8 +26,8 @@ import java.util.Set;
 @Service
 public class DocumentoAcessoService {
 
-    private static final Set<DocumentoStatusEnum> STATUS_EXCLUIVEIS = EnumSet.of(
-            DocumentoStatusEnum.RASCUNHO, DocumentoStatusEnum.MINUTA);
+    private static final Set<SituacaoLocalEnum> STATUS_EXCLUIVEIS = EnumSet.of(
+            SituacaoLocalEnum.RASCUNHO, SituacaoLocalEnum.MINUTA);
 
     @Autowired
     private DocumentoRepository documentoRepository;
@@ -37,14 +37,14 @@ public class DocumentoAcessoService {
 
     // Autor/coautor com papel EDIT -- exceto durante EM_REVISAO, onde a pessoa
     // ATRIBUÍDA como revisora (papel APROV) também pode editar (ver
-    // DocumentoStatusEnum.EM_REVISAO). Fora daí (EM_PUBLICACAO em diante, ou o
+    // SituacaoLocalEnum.EM_REVISAO). Fora daí (EM_PUBLICACAO em diante, ou o
     // fluxo de revogação inteiro) ninguém edita, nem o autor.
     public boolean podeEditar(Long documentoId, Authentication auth) {
         Usuario usuario = usuarioDe(auth);
         Documento doc = documentoRepository.findById(documentoId).orElse(null);
         if (doc == null) return false;
 
-        if (doc.getDocumentoStatus() == DocumentoStatusEnum.EM_REVISAO
+        if (doc.getSituacaoLocal() == SituacaoLocalEnum.EM_REVISAO
                 && doc.getRevisorAtribuido() != null
                 && doc.getRevisorAtribuido().getId().equals(usuario.getId())) {
             return true;
@@ -69,56 +69,68 @@ public class DocumentoAcessoService {
     public boolean podeExcluir(Long documentoId, Authentication auth) {
         Documento doc = documentoRepository.findById(documentoId).orElse(null);
         if (doc == null) return false;
-        if (!STATUS_EXCLUIVEIS.contains(doc.getDocumentoStatus())) return false;
+        if (!STATUS_EXCLUIVEIS.contains(doc.getSituacaoLocal())) return false;
         return podeEditar(documentoId, auth);
     }
 
-    private static final Set<DocumentoStatusEnum> STATUS_ENTRADA_REVISOR = EnumSet.of(
-            DocumentoStatusEnum.EM_REVISAO, DocumentoStatusEnum.ANALISE_REVOGACAO);
-    private static final Set<DocumentoStatusEnum> STATUS_ACAO_REVISOR = EnumSet.of(
-            DocumentoStatusEnum.APROVADO, DocumentoStatusEnum.ALTERADO, DocumentoStatusEnum.EM_REVOGACAO,
-            DocumentoStatusEnum.MINUTA, DocumentoStatusEnum.EM_ALTERACAO, DocumentoStatusEnum.PUBLICADO);
-    private static final Set<DocumentoStatusEnum> STATUS_ACAO_PUBLICADOR = EnumSet.of(
-            DocumentoStatusEnum.PUBLICADO, DocumentoStatusEnum.REVOGADO,
-            DocumentoStatusEnum.MINUTA, DocumentoStatusEnum.EM_ALTERACAO);
+    private static final Set<SituacaoLocalEnum> DESTINOS_ENTRADA_REVISOR = EnumSet.of(
+            SituacaoLocalEnum.EM_REVISAO, SituacaoLocalEnum.ANALISE_REVOGACAO);
+    // O que o revisor atribuído pode pedir a partir de EM_REVISAO/ANALISE_REVOGACAO: aprovar
+    // (EM_PUBLICACAO / EM_REVOGACAO) ou devolver (MINUTA / EM_ALTERACAO / SEM_ETAPA).
+    private static final Set<SituacaoLocalEnum> DESTINOS_ACAO_REVISOR = EnumSet.of(
+            SituacaoLocalEnum.EM_PUBLICACAO, SituacaoLocalEnum.EM_REVOGACAO,
+            SituacaoLocalEnum.MINUTA, SituacaoLocalEnum.EM_ALTERACAO, SituacaoLocalEnum.SEM_ETAPA);
+    // O que o publicador atribuído pode pedir a partir de EM_PUBLICACAO/EM_REVOGACAO: registrar
+    // a portaria (SEM_ETAPA) ou devolver (MINUTA / EM_ALTERACAO -- só de EM_PUBLICACAO).
+    private static final Set<SituacaoLocalEnum> DESTINOS_ACAO_PUBLICADOR = EnumSet.of(
+            SituacaoLocalEnum.SEM_ETAPA, SituacaoLocalEnum.MINUTA, SituacaoLocalEnum.EM_ALTERACAO);
 
-    // Cada transição do fluxo de revisão/publicação tem um dono diferente,
-    // dependendo de ONDE o documento está agora e para ONDE está indo -- ver
-    // DocumentoStatusEnum/DocumentoStatusService para a tabela completa.
-    public boolean podeMudarStatus(Long documentoId, DocumentoStatusEnum novoStatus, Authentication auth) {
+    // Cada transição do fluxo de revisão/publicação tem um dono diferente, dependendo de ONDE
+    // o documento está agora e para ONDE está indo -- ver SituacaoLocalEnum/DocumentoStatusService
+    // para a tabela completa. Aqui só se decide QUEM pode pedir; se a transição em si é válida é
+    // coisa do DocumentoStatusService.
+    public boolean podeMudarStatus(Long documentoId, SituacaoLocalEnum destino, Authentication auth) {
         Usuario usuario = usuarioDe(auth);
         Documento doc = documentoRepository.findById(documentoId).orElse(null);
         if (doc == null) return false;
-        DocumentoStatusEnum statusAtual = doc.getDocumentoStatus();
+        SituacaoLocalEnum atual = doc.getSituacaoLocal();
 
-        // Enviar para revisão/análise de revogação: quem tem posse de editar.
-        if (STATUS_ENTRADA_REVISOR.contains(novoStatus)) {
+        // Enviar para revisão / pedir análise de revogação: quem tem posse de editar.
+        if (DESTINOS_ENTRADA_REVISOR.contains(destino)) {
             return podeEditar(documentoId, auth);
         }
 
-        // Única transição sem atribuição pessoal prévia: qualquer papel APROV
-        // da mesma OM pode reabrir um documento publicado para alteração.
-        if (novoStatus == DocumentoStatusEnum.EM_ALTERACAO && statusAtual == DocumentoStatusEnum.PUBLICADO) {
-            return usuario.getPapeis().contains(PapelEnum.APROV) && doc.getOm().getId().equals(usuario.getOm().getId());
+        // Única transição sem atribuição pessoal prévia: qualquer papel APROV da mesma OM pode
+        // reabrir um documento publicado para alteração -- e desistir dela (cancelar), além de
+        // quem já conduz a edição (autor/coautor).
+        if (destino == SituacaoLocalEnum.EM_ALTERACAO && atual == SituacaoLocalEnum.SEM_ETAPA) {
+            return ehAprovadorDaOm(doc, usuario);
+        }
+        if (destino == SituacaoLocalEnum.SEM_ETAPA && atual == SituacaoLocalEnum.EM_ALTERACAO) {
+            return ehAprovadorDaOm(doc, usuario) || podeEditar(documentoId, auth);
         }
 
-        // A partir de EM_REVISAO/ANALISE_REVOGACAO, só quem foi atribuído como
-        // revisor decide o próximo passo (aprovar, aprovar revogação ou devolver).
-        if (statusAtual == DocumentoStatusEnum.EM_REVISAO || statusAtual == DocumentoStatusEnum.ANALISE_REVOGACAO) {
-            if (!STATUS_ACAO_REVISOR.contains(novoStatus)) return false;
+        // A partir de EM_REVISAO/ANALISE_REVOGACAO, só quem foi atribuído como revisor decide o
+        // próximo passo (aprovar, aprovar revogação ou devolver).
+        if (atual == SituacaoLocalEnum.EM_REVISAO || atual == SituacaoLocalEnum.ANALISE_REVOGACAO) {
+            if (!DESTINOS_ACAO_REVISOR.contains(destino)) return false;
             return doc.getRevisorAtribuido() != null && doc.getRevisorAtribuido().getId().equals(usuario.getId());
         }
 
-        // A partir de EM_PUBLICACAO/EM_REVOGACAO, só quem foi atribuído como
-        // publicador decide o próximo passo (publicar, revogar ou devolver).
-        if (statusAtual == DocumentoStatusEnum.EM_PUBLICACAO || statusAtual == DocumentoStatusEnum.EM_REVOGACAO) {
-            if (!STATUS_ACAO_PUBLICADOR.contains(novoStatus)) return false;
+        // A partir de EM_PUBLICACAO/EM_REVOGACAO, só quem foi atribuído como publicador decide o
+        // próximo passo (publicar, revogar ou devolver).
+        if (atual == SituacaoLocalEnum.EM_PUBLICACAO || atual == SituacaoLocalEnum.EM_REVOGACAO) {
+            if (!DESTINOS_ACAO_PUBLICADOR.contains(destino)) return false;
             return doc.getPublicadorAtribuido() != null && doc.getPublicadorAtribuido().getId().equals(usuario.getId());
         }
 
-        // Demais transições (ex.: RASCUNHO/MINUTA -> CANCELADO) seguem a mesma
-        // posse de editar -- quem conduz o rascunho decide cancelá-lo.
+        // Demais transições (ex.: RASCUNHO/MINUTA -> CANCELADO) seguem a mesma posse de editar --
+        // quem conduz o rascunho decide cancelá-lo.
         return podeEditar(documentoId, auth);
+    }
+
+    private boolean ehAprovadorDaOm(Documento doc, Usuario usuario) {
+        return usuario.getPapeis().contains(PapelEnum.APROV) && doc.getOm().getId().equals(usuario.getOm().getId());
     }
 
     private boolean ehAutor(Documento doc, Usuario usuario) {

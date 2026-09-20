@@ -479,7 +479,10 @@ public class EmendaService {
     // antes de aceitar a mudança, para que este método a veja como pendente de novo.
     @Transactional
     public void consolidarPublicacao(Long docId, String portariaReferencia, String bcaReferencia) {
-        for (var item : normativaRepository.findAllByDocumentoId(docId)) {
+        var normativos = normativaRepository.findAllByDocumentoId(docId);
+        // ANTES do laço abaixo: decide quem estava em vigor pelo estado ainda não consolidado.
+        consolidarRenumeracaoDeUnicos(normativos, portariaReferencia, bcaReferencia);
+        for (var item : normativos) {
             if (!precisaConsolidar(item.getEmendaStatus(), item.getClausulaEmenda())) continue;
             item.setClausulaEmenda(buildClausula(item.getEmendaStatus(), portariaReferencia, bcaReferencia));
             normativaRepository.save(item);
@@ -500,6 +503,31 @@ public class EmendaService {
         historicoRepository.marcarCicloPendentes(docId, portariaReferencia + " (" + bcaReferencia + ")");
     }
 
+    // Parágrafo único em vigor que ganhou irmãos numerados neste ciclo passa a "§ Nº": congela a
+    // cláusula da renumeração (a linha do parágrafo único fica riscada para sempre). Ver
+    // NumeracaoService.unicoRenumerado.
+    private void consolidarRenumeracaoDeUnicos(List<ItemAnexoParteNormativa> normativos,
+                                               String portariaReferencia, String bcaReferencia) {
+        for (var pai : normativos) {
+            var paragrafos = pai.getChildren() == null ? List.<ItemAnexoParteNormativa>of()
+                    : pai.getChildren().stream()
+                        .filter(c -> c.getTipo() == ItemAnexoParteNormativaTipoEnum.PARAGRAFO
+                                  || c.getTipo() == ItemAnexoParteNormativaTipoEnum.PARAGRAFO_UNICO)
+                        .toList();
+            if (paragrafos.size() < 2) continue;
+            for (var p : paragrafos) {
+                boolean inclusaoPendente = p.getEmendaStatus() == ElementoEmendaStatusEnum.INCLUIDO
+                        && p.getClausulaEmenda() == null;
+                if (p.getTipo() == ItemAnexoParteNormativaTipoEnum.PARAGRAFO_UNICO
+                        && p.getClausulaRenumeracao() == null && !inclusaoPendente) {
+                    p.setClausulaRenumeracao("(redação dada pela " + portariaReferencia
+                            + ", publicada no " + bcaReferencia + ")");
+                    normativaRepository.save(p);
+                }
+            }
+        }
+    }
+
     // Retorna false quando não há nada pendente (INALTERADO) ou quando o elemento já
     // foi consolidado numa publicação anterior (clausulaEmenda já preenchida — nesse
     // caso, se uma nova emenda tiver sido feita sobre ele, emendar() já limpou
@@ -511,7 +539,7 @@ public class EmendaService {
 
     private String buildClausula(ElementoEmendaStatusEnum status, String portariaReferencia, String bcaReferencia) {
         String acao = switch (status) {
-            case ALTERADO -> "alterado";
+            case ALTERADO -> "redação dada";
             case REVOGADO -> "revogado";
             case INCLUIDO -> "incluído";
             default -> "modificado";
@@ -618,12 +646,27 @@ public class EmendaService {
         );
     }
 
+    // Há alguma emenda ainda pendente (não publicada) neste documento? Usado para só permitir
+    // cancelar a alteração (EM_ALTERACAO -> SEM_ETAPA, ver DocumentoStatusService) quando NÃO resta
+    // nada a desfazer: cada alteração pendente é desfeita elemento a elemento (DESFAZER, pela
+    // sidebar do editor) -- o cancelamento não descarta nada em massa, para nunca apagar trabalho
+    // sem o usuário ver.
+    @Transactional(readOnly = true)
+    public boolean temAlteracoesPendentes(Long docId) {
+        return normativaRepository.findAllByDocumentoId(docId).stream()
+                        .anyMatch(i -> precisaConsolidar(i.getEmendaStatus(), i.getClausulaEmenda()))
+                || preliminarRepository.findByDocumentoIdOrderByElementOrderAsc(docId).stream()
+                        .anyMatch(i -> precisaConsolidar(i.getEmendaStatus(), i.getClausulaEmenda()))
+                || finalRepository.findByDocumentoIdOrderByElementOrderAsc(docId).stream()
+                        .anyMatch(i -> precisaConsolidar(i.getEmendaStatus(), i.getClausulaEmenda()));
+    }
+
     // ─── Utilitários ──────────────────────────────────────────────────────────────
 
     private Documento carregarEmAlteracao(Long docId) {
         Documento doc = documentoRepository.findById(docId)
                 .orElseThrow(() -> new RuntimeException(DOC_NAO_ENCONTRADO));
-        if (doc.getDocumentoStatus() != DocumentoStatusEnum.EM_ALTERACAO) {
+        if (doc.getSituacaoLocal() != SituacaoLocalEnum.EM_ALTERACAO) {
             throw new IllegalStateException(DOC_NAO_EM_ALTERACAO);
         }
         return doc;

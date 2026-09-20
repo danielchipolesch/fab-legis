@@ -23,7 +23,9 @@ import br.com.danielchipolesch.application.dtos.usuarioDtos.CompartilharDocument
 import br.com.danielchipolesch.application.dtos.usuarioDtos.CompartilhamentoResponseDto;
 import br.com.danielchipolesch.domain.entities.auditoria.AcaoAuditoriaEnum;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.Documento;
-import br.com.danielchipolesch.domain.entities.estruturaDocumento.DocumentoStatusEnum;
+import br.com.danielchipolesch.domain.entities.estruturaDocumento.SituacaoBcaEnum;
+import br.com.danielchipolesch.domain.entities.estruturaDocumento.SituacaoLocalEnum;
+import br.com.danielchipolesch.domain.entities.estruturaDocumento.VersaoDocumentoEnum;
 import br.com.danielchipolesch.domain.entities.usuario.Usuario;
 import br.com.danielchipolesch.domain.mappers.DocumentoMapper;
 import br.com.danielchipolesch.domain.services.DocumentoCompartilhamentoService;
@@ -175,7 +177,8 @@ public class DocumentoController {
             @RequestParam(required = false) String aba,
             @RequestParam(required = false) String busca,
             @RequestParam(required = false) String especieSigla,
-            @RequestParam(required = false) DocumentoStatusEnum status,
+            @RequestParam(required = false) SituacaoBcaEnum situacaoBca,
+            @RequestParam(required = false) SituacaoLocalEnum situacaoLocal,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "15") int size,
             @RequestParam(defaultValue = "dtCriacao") String sortBy,
@@ -184,7 +187,7 @@ public class DocumentoController {
         Usuario usuario = ((UsuarioPrincipal) authentication.getPrincipal()).getUsuario();
         Sort sort = descending ? Sort.by(sortBy).descending() : Sort.by(sortBy).ascending();
         Page<Documento> resultado = documentoService.getAllPaginado(
-                usuario.getId(), usuario.getOm().getId(), aba, busca, especieSigla, status,
+                usuario.getId(), usuario.getOm().getId(), aba, busca, especieSigla, situacaoBca, situacaoLocal,
                 PageRequest.of(page, size, sort));
         // 1 query pra página inteira (não 1 por linha) -- ver
         // DocumentoCompartilhamentoService.listarIdsCompartilhadosComUsuario.
@@ -221,14 +224,14 @@ public class DocumentoController {
                 usuario.getId(), usuario.getOm().getId(), aba, busca, especieSigla));
     }
 
-    @PreAuthorize("@documentoAcessoService.podeMudarStatus(#id, #request.status, authentication)")
+    @PreAuthorize("@documentoAcessoService.podeMudarStatus(#id, #request.situacaoLocal, authentication)")
     @PatchMapping("{id}/status")
     public ResponseEntity<EntityModel<DocumentoResponseSemAnexoTextualDto>> changeStatus(
             @PathVariable(value = "id") Long id,
             @RequestBody @Valid DocumentoStatusRequestDto request) throws RuntimeException {
         DocumentoResponseSemAnexoTextualDto dto = documentoStatusService.changeStatus(id, request);
         logAuditoriaService.registrar(dto.idDocumento(), dto.codigoDocumento(), AcaoAuditoriaEnum.MUDOU_STATUS,
-                "Nova situação: " + request.status());
+                "Nova situação local: " + request.situacaoLocal());
         return ResponseEntity.ok(toModel(dto));
     }
 
@@ -398,9 +401,13 @@ public class DocumentoController {
     }
 
     @GetMapping(value = "{id}/pdf", produces = "application/pdf")
-    public ResponseEntity<StreamingResponseBody> getPdf(@PathVariable(value = "id") Long id) {
-        StreamingResponseBody body = documentoPdfService.streamPdf(id);
+    public ResponseEntity<StreamingResponseBody> getPdf(@PathVariable(value = "id") Long id,
+            @RequestParam(required = false) VersaoDocumentoEnum versao) {
+        StreamingResponseBody body = documentoPdfService.streamPdf(id, versao);
+        // contentType explícito: com StreamingResponseBody o produces do mapeamento não vira o
+        // cabeçalho Content-Type, e sem ele o navegador trata o blob como binário genérico.
         return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_PDF)
                 .header("Content-Disposition", "inline; filename=\"documento-" + id + ".pdf\"")
                 .header("Cache-Control", "no-store")
                 .body(body);
@@ -410,9 +417,11 @@ public class DocumentoController {
     // ver comentário no topo de SecurityConfig): qualquer usuário autenticado exporta
     // qualquer documento, nos dois formatos.
     @GetMapping(value = "{id}/html", produces = "text/html;charset=UTF-8")
-    public ResponseEntity<StreamingResponseBody> getHtml(@PathVariable(value = "id") Long id) {
-        StreamingResponseBody body = documentoHtmlService.streamHtml(id);
+    public ResponseEntity<StreamingResponseBody> getHtml(@PathVariable(value = "id") Long id,
+            @RequestParam(required = false) VersaoDocumentoEnum versao) {
+        StreamingResponseBody body = documentoHtmlService.streamHtml(id, versao);
         return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType("text/html;charset=UTF-8"))
                 .header("Content-Disposition", "inline; filename=\"documento-" + id + ".html\"")
                 .header("Cache-Control", "no-store")
                 .body(body);

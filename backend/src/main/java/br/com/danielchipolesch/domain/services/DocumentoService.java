@@ -7,7 +7,8 @@ import br.com.danielchipolesch.application.dtos.documentoDtos.DocumentoResponseS
 import br.com.danielchipolesch.application.dtos.documentoDtos.DocumentoResumoResponseDto;
 import br.com.danielchipolesch.domain.builders.DocumentoBuilder;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.Documento;
-import br.com.danielchipolesch.domain.entities.estruturaDocumento.DocumentoStatusEnum;
+import br.com.danielchipolesch.domain.entities.estruturaDocumento.SituacaoBcaEnum;
+import br.com.danielchipolesch.domain.entities.estruturaDocumento.SituacaoLocalEnum;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.TipoAlteracaoEnum;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.ElementoEmendaStatusEnum;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.ItemAnexoParteNormativa;
@@ -102,7 +103,7 @@ public class DocumentoService {
                 .assuntoBasico(assuntoBasico)
                 .numeroSecundario(secondaryNumber)
                 .tituloDocumento(request.tituloDocumento())
-                .documentoStatus(DocumentoStatusEnum.RASCUNHO)
+                .situacaoLocal(SituacaoLocalEnum.RASCUNHO)
                 .autor(usuarioAtual)
                 .om(usuarioAtual.getOm())
                 .build();
@@ -110,7 +111,7 @@ public class DocumentoService {
         Documento salvo = documentoRepository.save(documento);
         capitulosPadronizadosService.criarEstruturaPadrao(salvo);
         documentoHistoricoService.registrar(salvo, TipoAlteracaoEnum.CRIACAO,
-                "Documento criado", null, DocumentoStatusEnum.RASCUNHO);
+                "Documento criado", null, SituacaoLocalEnum.RASCUNHO);
         return DocumentoMapper.documentoToDocumentoSemAnexoTextualResponseDto(salvo);
     }
 
@@ -122,16 +123,16 @@ public class DocumentoService {
     // Fila pessoal de RevisaoPage.vue -- documentos atribuídos a ESTE usuário como
     // revisor, tanto no fluxo normal (EM_REVISAO) quanto na revogação (ANALISE_REVOGACAO).
     public List<DocumentoFilaResponseDto> getMinhaRevisao(Long usuarioId) {
-        return documentoRepository.findByRevisorAtribuidoIdAndDocumentoStatusIn(usuarioId,
-                        List.of(DocumentoStatusEnum.EM_REVISAO, DocumentoStatusEnum.ANALISE_REVOGACAO))
+        return documentoRepository.findByRevisorAtribuidoIdAndSituacaoLocalIn(usuarioId,
+                        List.of(SituacaoLocalEnum.EM_REVISAO, SituacaoLocalEnum.ANALISE_REVOGACAO))
                 .stream().map(this::toFilaResponseDto).toList();
     }
 
     // Fila pessoal de PublicacaoPage.vue -- documentos atribuídos a ESTE usuário como
     // publicador, tanto no fluxo normal (EM_PUBLICACAO) quanto na revogação (EM_REVOGACAO).
     public List<DocumentoFilaResponseDto> getMinhaPublicacao(Long usuarioId) {
-        return documentoRepository.findByPublicadorAtribuidoIdAndDocumentoStatusIn(usuarioId,
-                        List.of(DocumentoStatusEnum.EM_PUBLICACAO, DocumentoStatusEnum.EM_REVOGACAO))
+        return documentoRepository.findByPublicadorAtribuidoIdAndSituacaoLocalIn(usuarioId,
+                        List.of(SituacaoLocalEnum.EM_PUBLICACAO, SituacaoLocalEnum.EM_REVOGACAO))
                 .stream().map(this::toFilaResponseDto).toList();
     }
 
@@ -147,9 +148,9 @@ public class DocumentoService {
                         documento.getAssuntoBasico().getCodigo(),
                         documento.getNumeroSecundario()),
                 documento.getTituloDocumento(),
-                documento.getDocumentoStatus(),
-                autores,
-                documento.getDtPublicacao() != null
+                documento.getSituacaoBca(),
+                documento.getSituacaoLocal(),
+                autores
         );
     }
 
@@ -169,20 +170,21 @@ public class DocumentoService {
     // inteiro, e aceita os mesmos filtros que a HomePage já mostrava (mas calculava
     // no navegador, sobre um array carregado uma vez) -- ver DocumentoSpecifications.
     public Page<Documento> getAllPaginado(Long usuarioId, Long omId, String aba, String busca,
-                                           String especieSigla, DocumentoStatusEnum status,
-                                           Pageable pageable) {
+                                           String especieSigla, SituacaoBcaEnum situacaoBca,
+                                           SituacaoLocalEnum situacaoLocal, Pageable pageable) {
         Specification<Documento> spec = DocumentoSpecifications.aba(aba, usuarioId, omId)
                 .and(DocumentoSpecifications.busca(busca))
                 .and(DocumentoSpecifications.especieSigla(especieSigla))
-                .and(DocumentoSpecifications.status(status));
+                .and(DocumentoSpecifications.situacaoBca(situacaoBca))
+                .and(DocumentoSpecifications.situacaoLocal(situacaoLocal));
         return documentoRepository.findAll(spec, pageable);
     }
 
-    // Contagens pros badges das 4 abas (porAba -- ignora busca/espécie/status de
+    // Contagens pros badges das 4 abas (porAba -- ignora busca/espécie/situação de
     // propósito, é uma referência estável que não muda enquanto o usuário filtra, mesmo
     // comportamento de contagemAbas em HomePage.vue) e pros chips de situação da aba
-    // ativa (porStatus, com aba/busca/espécie aplicados, um count() por valor de
-    // DocumentoStatusEnum -- mesmo comportamento de statusSummary). Um
+    // ativa (porSituacaoBca e porSituacaoLocal, com aba/busca/espécie aplicados, um count()
+    // por valor de cada enum -- mesmo comportamento de statusSummary). Um
     // Specification.count() por número, sem GROUP BY: mantém tudo dentro do que
     // JpaSpecificationExecutor já oferece, sem query nativa.
     public DocumentoResumoResponseDto getResumo(Long usuarioId, Long omId, String aba, String busca, String especieSigla) {
@@ -194,13 +196,18 @@ public class DocumentoService {
         Specification<Documento> comAbaBuscaEEspecie = DocumentoSpecifications.aba(aba, usuarioId, omId)
                 .and(DocumentoSpecifications.busca(busca))
                 .and(DocumentoSpecifications.especieSigla(especieSigla));
-        Map<String, Long> porStatus = new LinkedHashMap<>();
-        for (DocumentoStatusEnum statusEnum : DocumentoStatusEnum.values()) {
-            long total = documentoRepository.count(comAbaBuscaEEspecie.and(DocumentoSpecifications.status(statusEnum)));
-            if (total > 0) porStatus.put(statusEnum.name(), total);
+        Map<String, Long> porSituacaoBca = new LinkedHashMap<>();
+        for (SituacaoBcaEnum situacao : SituacaoBcaEnum.values()) {
+            long total = documentoRepository.count(comAbaBuscaEEspecie.and(DocumentoSpecifications.situacaoBca(situacao)));
+            if (total > 0) porSituacaoBca.put(situacao.name(), total);
+        }
+        Map<String, Long> porSituacaoLocal = new LinkedHashMap<>();
+        for (SituacaoLocalEnum situacao : SituacaoLocalEnum.values()) {
+            long total = documentoRepository.count(comAbaBuscaEEspecie.and(DocumentoSpecifications.situacaoLocal(situacao)));
+            if (total > 0) porSituacaoLocal.put(situacao.name(), total);
         }
 
-        return new DocumentoResumoResponseDto(porAba, porStatus);
+        return new DocumentoResumoResponseDto(porAba, porSituacaoBca, porSituacaoLocal);
     }
 
     @Transactional
@@ -218,9 +225,9 @@ public class DocumentoService {
         // stores/documentos.js) roda pra qualquer alteração de árvore -- inclusive
         // as feitas pelo revisor atribuído, que já pode editar essa etapa.
         var statusPermiteAtualizacao = EnumSet.of(
-                DocumentoStatusEnum.RASCUNHO, DocumentoStatusEnum.MINUTA,
-                DocumentoStatusEnum.EM_ALTERACAO, DocumentoStatusEnum.EM_REVISAO);
-        if (!statusPermiteAtualizacao.contains(documento.getDocumentoStatus())) {
+                SituacaoLocalEnum.RASCUNHO, SituacaoLocalEnum.MINUTA,
+                SituacaoLocalEnum.EM_ALTERACAO, SituacaoLocalEnum.EM_REVISAO);
+        if (!statusPermiteAtualizacao.contains(documento.getSituacaoLocal())) {
             throw new StatusCannotBeUpdatedException(DocumentoException.CANNOT_BE_UPDATED.getMessage());
         }
 
@@ -241,8 +248,8 @@ public class DocumentoService {
         // com o valor já vigente, então essa checagem o torna um no-op ali.
         boolean omAlterada = false;
         if (request.omId() != null && !request.omId().equals(documento.getOm().getId())) {
-            var statusPermiteAlterarOm = documento.getDocumentoStatus() == DocumentoStatusEnum.RASCUNHO
-                    || documento.getDocumentoStatus() == DocumentoStatusEnum.MINUTA;
+            var statusPermiteAlterarOm = documento.getSituacaoLocal() == SituacaoLocalEnum.RASCUNHO
+                    || documento.getSituacaoLocal() == SituacaoLocalEnum.MINUTA;
             if (!statusPermiteAlterarOm) {
                 throw new StatusCannotBeUpdatedException(
                         "A organização militar só pode ser alterada enquanto o documento está em Rascunho ou Minuta.");
@@ -277,8 +284,8 @@ public class DocumentoService {
         Documento documento = documentoRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException(DocumentoException.NOT_FOUND.getMessage()));
 
-        DocumentoStatusEnum status = documento.getDocumentoStatus();
-        if (status != DocumentoStatusEnum.RASCUNHO && status != DocumentoStatusEnum.MINUTA) {
+        SituacaoLocalEnum status = documento.getSituacaoLocal();
+        if (status != SituacaoLocalEnum.RASCUNHO && status != SituacaoLocalEnum.MINUTA) {
             throw new StatusCannotBeUpdatedException(DocumentoException.CANNOT_BE_DELETED.getMessage());
         }
 
@@ -309,7 +316,7 @@ public class DocumentoService {
                 .assuntoBasico(documentoAntigo.getAssuntoBasico())
                 .numeroSecundario(secondaryNumber)
                 .tituloDocumento(documentoAntigo.getTituloDocumento())
-                .documentoStatus(DocumentoStatusEnum.RASCUNHO)
+                .situacaoLocal(SituacaoLocalEnum.RASCUNHO)
                 .autor(usuarioAtual)
                 .om(usuarioAtual.getOm())
                 .build();
@@ -355,7 +362,7 @@ public class DocumentoService {
         }
 
         documentoHistoricoService.registrar(clonado, TipoAlteracaoEnum.CLONAGEM,
-                "Clonado do documento #" + id, null, DocumentoStatusEnum.RASCUNHO);
+                "Clonado do documento #" + id, null, SituacaoLocalEnum.RASCUNHO);
         return DocumentoMapper.documentoToDocumentoSemAnexoTextualResponseDto(clonado);
     }
 

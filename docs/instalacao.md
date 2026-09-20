@@ -224,6 +224,40 @@ O backend expõe **Spring Boot Actuator** com **Micrometer** (`spring-boot-start
 6. Testar o fluxo de login completo (não só que a tela carrega) — é o único jeito de pegar um `Host` sobrescrito ou uma rota de proxy faltando antes que um usuário real esbarre nisso.
 7. Se for conectar um coletor de métricas externo, decidir como ele vai autenticar contra `/actuator/prometheus` (ver seção 6) — não deixar a decisão pra depois do deploy.
 
+## Testes
+
+### Backend
+
+Os testes unitários do backend (JUnit 5 + Mockito, sem Spring e sem banco) cobrem as regras de negócio — hoje a **numeração** (`NumeracaoServiceTest`) e as **transições de situação** (`DocumentoStatusServiceTest`, que segue o diagrama de [Ciclo de Vida](ciclo-de-vida.md)). Ficam em `backend/src/test/java`, no mesmo pacote da classe testada. Regra do projeto: mudou uma regra de negócio, o teste muda junto (ver `CLAUDE.md`).
+
+Não é preciso ter JDK nem Maven instalados — o comando abaixo roda tudo num container descartável (a primeira execução baixa as dependências para o volume `fab-legis-m2-cache`; as seguintes são rápidas):
+
+```bash
+# Linux / macOS / CI
+docker run --rm -v "$(pwd)/backend:/app" -v fab-legis-m2-cache:/root/.m2 -w /app \
+  eclipse-temurin:25-jdk-alpine sh -c "apk add --no-cache maven >/dev/null && mvn -B test"
+
+# Windows (Git Bash)
+MSYS_NO_PATHCONV=1 docker run --rm -v "$(pwd -W)/backend:/app" -v fab-legis-m2-cache:/root/.m2 -w /app \
+  eclipse-temurin:25-jdk-alpine sh -c "apk add --no-cache maven >/dev/null && mvn -B test"
+```
+
+Com JDK e Maven locais, basta `mvn test` dentro de `backend/`. Para rodar só uma classe: `mvn test -Dtest=NumeracaoServiceTest`.
+
+`mvn test` roda **apenas os testes unitários**. Testes de integração (que sobem o contexto do Spring e precisam de PostgreSQL) levam `@Tag("integration")` e ficam de fora; para incluí-los, com o banco no ar: `mvn test -DexcludedGroups=nenhum`. Hoje o único é `FabLegisApplicationTests` (verifica que o contexto sobe).
+
+### Frontend
+
+Os testes do frontend usam **Vitest** (o runner de testes do ecossistema Vite/Vue — reaproveita a mesma configuração e o mesmo `@` de importação do app). Ficam ao lado do código (`frontend/src/utils/numbering.test.js`) e cobrem hoje a numeração (`numbering.js`, que espelha o `NumeracaoService` do backend) e as regras do fluxo de situações que as telas decidem (`fluxoDocumento.js`: destinos de aprovar/devolver/publicar, versões, selo de revogado). Com o Docker:
+
+```bash
+docker compose run --rm --build --no-deps frontend npm test
+```
+
+Sem Docker (com Node 22 local): `npm install` e `npm test` dentro de `frontend/`; `npm run test:watch` reexecuta a cada alteração.
+
+Nenhum teste está desabilitado no momento. Quando um teste descrever uma regra documentada que o código ainda não cumpre, ele fica desabilitado (`@Disabled` no backend, `it.skip` no frontend) **com o motivo**, para o alvo não se perder — ver a regra no `CLAUDE.md`.
+
 ## Servindo esta documentação técnica
 
 O serviço `docs` do `docker compose.yml` empacota esta documentação (MkDocs Material) como um site estático servido por Nginx (`docs/Dockerfile`: builda com `mkdocs build --strict`, depois serve com `docs/nginx.conf`) — faz parte do `docker compose up -d`/`docker compose up --build` normal, junto com os demais serviços, disponível em `http://localhost:8000`.

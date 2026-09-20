@@ -4,9 +4,10 @@ import br.com.danielchipolesch.application.dtos.documentoDtos.DocumentoResponseS
 import br.com.danielchipolesch.application.dtos.documentoDtos.DocumentoStatusRequestDto;
 import br.com.danielchipolesch.application.dtos.itemAnexoParteNormativaDtos.SecaoItemRequestDto;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.Documento;
-import br.com.danielchipolesch.domain.entities.estruturaDocumento.DocumentoStatusEnum;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.ItemAnexoParteNormativaTipoEnum;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.SecaoDocumentoEnum;
+import br.com.danielchipolesch.domain.entities.estruturaDocumento.SituacaoBcaEnum;
+import br.com.danielchipolesch.domain.entities.estruturaDocumento.SituacaoLocalEnum;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.TipoAlteracaoEnum;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.TipoPortariaPublicacaoEnum;
 import br.com.danielchipolesch.domain.entities.usuario.Usuario;
@@ -23,13 +24,26 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.function.Consumer;
 
+import static br.com.danielchipolesch.domain.entities.estruturaDocumento.SituacaoLocalEnum.*;
+
+// Máquina de etapas do documento (situação LOCAL) e a única que muda a situação BCA.
+// A situação BCA é a REAL (espelha o repositório oficial) e só muda ao registrar portaria +
+// BCA: EDICAO -> PUBLICADO, REVOGACAO -> REVOGADO; uma ALTERACAO mantém PUBLICADO. Toda
+// etapa interna (revisão, alteração em curso, análise de revogação...) é situação local e
+// nunca tira o documento de PUBLICADO. Ver docs/ciclo-de-vida.md e SituacaoLocalEnum.
 @Service
 public class DocumentoStatusService {
 
@@ -47,294 +61,361 @@ public class DocumentoStatusService {
     @Autowired DocumentoParteNormativaService documentoParteNormativaService;
     @Autowired PortariaPublicacaoService portariaPublicacaoService;
     @Autowired UsuarioRepository usuarioRepository;
+    @Autowired PlatformTransactionManager transactionManager;
 
-    // Atômico de propósito: a mudança de status envolve várias tabelas (documento,
-    // respaçamento de nr_ordem, histórico) e não pode ficar parcialmente aplicada se
-    // alguma etapa falhar — foi exatamente essa falta de atomicidade que permitiu o
-    // status mudar no banco mesmo quando respacarElementOrders lançava exceção.
+    // O que cada pedido de mudança de etapa significa em termos de negócio -- o mesmo
+    // destino (ex.: SEM_ETAPA) quer dizer coisas diferentes conforme a origem.
+    private enum Acao {
+        MINUTAR,              // RASCUNHO -> MINUTA
+        ENVIAR_PARA_REVISAO,  // MINUTA/EM_ALTERACAO -> EM_REVISAO (escolhe o revisor)
+        APROVAR,              // EM_REVISAO -> EM_PUBLICACAO (escolhe o publicador)
+        DEVOLVER,             // EM_REVISAO/EM_PUBLICACAO -> MINUTA ou EM_ALTERACAO
+        PUBLICAR,             // EM_PUBLICACAO -> SEM_ETAPA (registra portaria/BCA)
+        INICIAR_ALTERACAO,    // SEM_ETAPA -> EM_ALTERACAO (documento PUBLICADO)
+        CANCELAR_ALTERACAO,   // EM_ALTERACAO -> SEM_ETAPA (só sem alterações pendentes)
+        PEDIR_REVOGACAO,      // SEM_ETAPA -> ANALISE_REVOGACAO (documento PUBLICADO)
+        APROVAR_REVOGACAO,    // ANALISE_REVOGACAO -> EM_REVOGACAO (escolhe o publicador)
+        DEVOLVER_ANALISE,     // ANALISE_REVOGACAO -> SEM_ETAPA (o documento segue PUBLICADO)
+        REVOGAR,              // EM_REVOGACAO -> SEM_ETAPA (registra portaria/BCA; BCA = REVOGADO)
+        CANCELAR_DOCUMENTO    // RASCUNHO/MINUTA -> CANCELADO
+    }
+
+    // Devolver leva ao começo do trabalho: um documento já PUBLICADO volta para a alteração
+    // que estava fazendo; um nunca publicado, para a minuta.
+    private static SituacaoLocalEnum destinoDeDevolucao(SituacaoBcaEnum bca) {
+        return bca == SituacaoBcaEnum.PUBLICADO ? EM_ALTERACAO : MINUTA;
+    }
+
+    // Tabela de transições (docs/ciclo-de-vida.md). Só existe UMA etapa local por vez: por
+    // isso não há saída de EM_ALTERACAO para ANALISE_REVOGACAO -- para revogar, primeiro
+    // conclui-se ou cancela-se a alteração. EM_REVOGACAO só sai para REVOGADO.
+    private static Acao acaoPara(SituacaoLocalEnum atual, SituacaoLocalEnum destino, SituacaoBcaEnum bca) {
+        return switch (atual) {
+            case RASCUNHO          -> destino == MINUTA ? Acao.MINUTAR
+                                    : destino == CANCELADO ? Acao.CANCELAR_DOCUMENTO : null;
+            case MINUTA            -> destino == EM_REVISAO ? Acao.ENVIAR_PARA_REVISAO
+                                    : destino == CANCELADO ? Acao.CANCELAR_DOCUMENTO : null;
+            case EM_REVISAO        -> destino == EM_PUBLICACAO ? Acao.APROVAR
+                                    : destino == destinoDeDevolucao(bca) ? Acao.DEVOLVER : null;
+            case EM_PUBLICACAO     -> destino == SEM_ETAPA ? Acao.PUBLICAR
+                                    : destino == destinoDeDevolucao(bca) ? Acao.DEVOLVER : null;
+            case EM_ALTERACAO      -> destino == EM_REVISAO ? Acao.ENVIAR_PARA_REVISAO
+                                    : destino == SEM_ETAPA ? Acao.CANCELAR_ALTERACAO : null;
+            case ANALISE_REVOGACAO -> destino == EM_REVOGACAO ? Acao.APROVAR_REVOGACAO
+                                    : destino == SEM_ETAPA ? Acao.DEVOLVER_ANALISE : null;
+            case EM_REVOGACAO      -> destino == SEM_ETAPA ? Acao.REVOGAR : null;
+            case SEM_ETAPA         -> bca != SituacaoBcaEnum.PUBLICADO ? null
+                                    : destino == EM_ALTERACAO ? Acao.INICIAR_ALTERACAO
+                                    : destino == ANALISE_REVOGACAO ? Acao.PEDIR_REVOGACAO : null;
+            case CANCELADO         -> null;
+        };
+    }
+
+    // Atômico de propósito: a mudança de etapa envolve várias tabelas (documento,
+    // respaçamento de nr_ordem, portaria, histórico) e não pode ficar parcialmente aplicada
+    // se alguma etapa falhar.
     @Transactional
     public DocumentoResponseSemAnexoTextualDto changeStatus(Long id, DocumentoStatusRequestDto request) throws RuntimeException {
 
         Documento documento = documentoRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException(DocumentoException.NOT_FOUND.getMessage()));
 
-        DocumentoStatusEnum novoStatus = request.status();
-        DocumentoStatusEnum current = documento.getDocumentoStatus();
-        // Alguém já revisou este documento antes (mesmo que em ciclo anterior de emenda)?
-        // Discrimina fluxo normal (nunca publicado) de ciclo de alteração (já publicado
-        // ao menos uma vez) em todos os pontos que precisam saber -- ver comentários abaixo.
-        boolean jaPublicadoAntes = documento.getDtPublicacao() != null;
+        SituacaoLocalEnum atual = documento.getSituacaoLocal();
+        SituacaoLocalEnum destino = request.situacaoLocal();
+        SituacaoBcaEnum bcaAnterior = documento.getSituacaoBca();
 
-        boolean transicaoValida = switch (novoStatus) {
-            // MINUTA nunca é alcançável a partir de ALTERADO/EM_REVISAO-de-alteração: um
-            // documento que passou por EM_ALTERACAO carrega numeração com sufixo de letra e
-            // elementos marcados (INCLUIDO/ALTERADO/REVOGADO) que a renumeração simples de
-            // MINUTA não entende — só é permitido a partir do fluxo normal.
-            case MINUTA            -> current == DocumentoStatusEnum.RASCUNHO
-                    || (current == DocumentoStatusEnum.EM_REVISAO && !jaPublicadoAntes)
-                    || (current == DocumentoStatusEnum.EM_PUBLICACAO && !jaPublicadoAntes);
-            case EM_REVISAO        -> current == DocumentoStatusEnum.MINUTA || current == DocumentoStatusEnum.EM_ALTERACAO;
-            // Só alcançável a partir de EM_REVISAO -- e só quando a "identidade" da revisão
-            // bate com o status: nunca publicado -> aprova pro fluxo normal; já publicado
-            // antes -> aprova pra ciclo de alteração.
-            case APROVADO          -> current == DocumentoStatusEnum.EM_REVISAO && !jaPublicadoAntes;
-            case ALTERADO          -> current == DocumentoStatusEnum.EM_REVISAO && jaPublicadoAntes;
-            // Nunca pedido diretamente pelo cliente -- consequência interna e imediata de
-            // aprovar (ver cascatearParaPublicacao abaixo). Listado aqui só pra
-            // transicaoValida aceitar a escrita que o próprio serviço faz.
-            case EM_PUBLICACAO     -> current == DocumentoStatusEnum.APROVADO || current == DocumentoStatusEnum.ALTERADO;
-            case PUBLICADO         -> current == DocumentoStatusEnum.EM_PUBLICACAO || current == DocumentoStatusEnum.EM_REVOGACAO;
-            // PUBLICADO -> aqui é a ação livre "Iniciar Alteração" (papel APROV da OM, sem
-            // atribuição prévia); as demais são "devolver" de dentro do ciclo de alteração já
-            // em andamento (só quando já publicado antes, ver MINUTA acima pro espelho).
-            case EM_ALTERACAO      -> current == DocumentoStatusEnum.PUBLICADO
-                    || ((current == DocumentoStatusEnum.EM_REVISAO || current == DocumentoStatusEnum.EM_PUBLICACAO) && jaPublicadoAntes);
-            case ANALISE_REVOGACAO -> current == DocumentoStatusEnum.PUBLICADO;
-            case EM_REVOGACAO      -> current == DocumentoStatusEnum.ANALISE_REVOGACAO;
-            case REVOGADO          -> current == DocumentoStatusEnum.EM_REVOGACAO;
-            case CANCELADO         -> current == DocumentoStatusEnum.RASCUNHO || current == DocumentoStatusEnum.MINUTA;
-            default                -> false;
-        };
-
-        if (!transicaoValida) {
-            throw new StatusCannotBeUpdatedException(DocumentoException.CANNOT_BE_UPDATED.getMessage());
+        Acao acao = acaoPara(atual, destino, bcaAnterior);
+        if (acao == null) {
+            throw new StatusCannotBeUpdatedException("Transição não permitida: " + atual + " → " + destino
+                    + " (situação BCA: " + bcaAnterior + ").");
         }
 
-        // "Devolver" (EM_REVISAO/EM_PUBLICACAO -> MINUTA/EM_ALTERACAO, ANALISE_REVOGACAO/
-        // EM_REVOGACAO -> PUBLICADO) limpa a atribuição -- a próxima vez que o documento for
-        // enviado, alguém (talvez outra pessoa) é escolhido de novo.
-        boolean devolvendo = (current == DocumentoStatusEnum.EM_REVISAO || current == DocumentoStatusEnum.EM_PUBLICACAO)
-                && (novoStatus == DocumentoStatusEnum.MINUTA || novoStatus == DocumentoStatusEnum.EM_ALTERACAO)
-                || (current == DocumentoStatusEnum.ANALISE_REVOGACAO || current == DocumentoStatusEnum.EM_REVOGACAO)
-                        && novoStatus == DocumentoStatusEnum.PUBLICADO;
-        if (devolvendo) {
+        // "Devolver" limpa a atribuição -- a próxima vez que o documento for enviado, alguém
+        // (talvez outra pessoa) é escolhido de novo.
+        if (acao == Acao.DEVOLVER || acao == Acao.DEVOLVER_ANALISE) {
             documento.setRevisorAtribuido(null);
             documento.setPublicadorAtribuido(null);
         }
 
-        // Enviar para revisão/análise de revogação: exige a pessoa escolhida (papel APROV,
-        // validado em DocumentoAcessoService.podeMudarStatus -- aqui só resolve o registro).
-        if (novoStatus == DocumentoStatusEnum.EM_REVISAO || novoStatus == DocumentoStatusEnum.ANALISE_REVOGACAO) {
+        // Enviar para revisão / pedir análise de revogação: exige a pessoa escolhida (papel
+        // APROV, validado em DocumentoAcessoService.podeMudarStatus -- aqui só resolve o registro).
+        if (acao == Acao.ENVIAR_PARA_REVISAO || acao == Acao.PEDIR_REVOGACAO) {
             documento.setRevisorAtribuido(buscarUsuario(request.revisorId(),
                     "É obrigatório escolher quem vai revisar."));
         }
 
-        // Aprovar a revogação: exige a pessoa escolhida (papel PUBLIC) que vai formalizá-la.
-        if (novoStatus == DocumentoStatusEnum.EM_REVOGACAO) {
+        // Aprovar (o texto ou a revogação): exige a pessoa escolhida (papel PUBLIC) que vai
+        // registrar a portaria/BCA.
+        if (acao == Acao.APROVAR) {
+            documento.setPublicadorAtribuido(buscarUsuario(request.publicadorId(),
+                    "É obrigatório escolher quem vai publicar."));
+        }
+        if (acao == Acao.APROVAR_REVOGACAO) {
             documento.setPublicadorAtribuido(buscarUsuario(request.publicadorId(),
                     "É obrigatório escolher quem vai publicar a revogação."));
         }
 
-        // Publicar (primeira publicação a partir de APROVADO ou republicação a partir de
-        // ALTERADO) e revogar exigem portaria e BCA de referência -- cada uma vira um
-        // registro próprio em PortariaPublicacao (ver abaixo), nunca mesclada com o PDF
-        // do documento (mesclar invalidaria uma eventual assinatura digital futura na
-        // portaria). A aprovação em si (MINUTA -> APROVADO, EM_ALTERACAO -> ALTERADO) não
-        // exige nada além da confirmação de status.
-        boolean requerPortaria = novoStatus == DocumentoStatusEnum.PUBLICADO || novoStatus == DocumentoStatusEnum.REVOGADO;
-        if (requerPortaria) {
-            String orgaoPortaria = request.orgaoPortaria();
-            String setorPortaria = request.setorPortaria();
-            String numeroPortaria = request.numeroPortaria();
-            LocalDate dataPortaria = request.dataPortaria();
-            Integer numeroBca = request.numeroBca();
-            LocalDate dataBca = request.dataBca();
-
-            if (orgaoPortaria == null || orgaoPortaria.isBlank()
-                    || setorPortaria == null || setorPortaria.isBlank()
-                    || numeroPortaria == null || numeroPortaria.isBlank() || dataPortaria == null
-                    || numeroBca == null || dataBca == null || isBlank(request.portariaPdfUrl())) {
-                throw new StatusCannotBeUpdatedException(
-                        "É obrigatório informar a portaria, o BCA de referência e o PDF da portaria.");
-            }
-            // A parte preliminar (epígrafe/ementa/preâmbulo/fecho/assinatura) só passa a
-            // existir de fato com a publicação -- por isso é coletada aqui, não durante a
-            // edição (ver Documento.java). Revogar não republica o conteúdo do documento,
-            // então não exige esses campos.
-            boolean publicando = novoStatus == DocumentoStatusEnum.PUBLICADO;
-            if (publicando && (isBlank(request.epigrafe()) || isBlank(request.ementa()) || isBlank(request.preambulo())
-                    || isBlank(request.fecho()) || isBlank(request.assinatura()))) {
-                throw new StatusCannotBeUpdatedException(
-                        "Para publicar um documento é obrigatório informar epígrafe, ementa, preâmbulo, "
-                        + "fecho e assinatura.");
-            }
-            // O BCA é publicado apenas em dias úteis, então nunca passa de 366 (dias do ano).
-            if (numeroBca < 1 || numeroBca > 366) {
-                throw new StatusCannotBeUpdatedException(
-                        "O número do BCA deve estar entre 1 e 366.");
-            }
-            if (documento.getDtPortariaReferencia() != null
-                    && dataPortaria.isBefore(documento.getDtPortariaReferencia().toLocalDateTime().toLocalDate())) {
-                throw new StatusCannotBeUpdatedException(
-                        "A data da portaria não pode ser anterior à da alteração anterior.");
-            }
-            if (documento.getDtBcaReferencia() != null
-                    && dataBca.isBefore(documento.getDtBcaReferencia().toLocalDateTime().toLocalDate())) {
-                throw new StatusCannotBeUpdatedException(
-                        "A data do BCA não pode ser anterior à da alteração anterior.");
-            }
-
-            String orgaoSetor = (setorPortaria != null && !setorPortaria.isBlank())
-                    ? orgaoPortaria.strip() + "/" + setorPortaria.strip()
-                    : orgaoPortaria.strip();
-            documento.setPortariaReferencia("Portaria " + orgaoSetor + " n° " + numeroPortaria.strip()
-                    + ", de " + formatarDataPorExtenso(dataPortaria));
-            documento.setBcaReferencia("BCA n° " + numeroBca + ", de " + formatarDataPorExtenso(dataBca));
-            documento.setDtPortariaReferencia(Timestamp.valueOf(dataPortaria.atStartOfDay()));
-            documento.setDtBcaReferencia(Timestamp.valueOf(dataBca.atStartOfDay()));
-
-            // Tipo da portaria: revogação é sempre REVOGACAO; publicar um documento já
-            // publicado antes (veio do ciclo de alteração) é uma alteração (numerada
-            // automaticamente); publicar pela primeira vez é a edição original.
-            TipoPortariaPublicacaoEnum tipoPortaria = !publicando ? TipoPortariaPublicacaoEnum.REVOGACAO
-                    : (jaPublicadoAntes ? TipoPortariaPublicacaoEnum.ALTERACAO : TipoPortariaPublicacaoEnum.EDICAO);
-            portariaPublicacaoService.registrar(documento, tipoPortaria, orgaoPortaria, setorPortaria,
-                    numeroPortaria, dataPortaria, numeroBca, dataBca, request.portariaPdfUrl());
-
-            if (publicando) {
-                // Substitui a parte preliminar do documento pelo conteúdo informado
-                // nesta publicação (mesma lógica de "apaga tudo e recria" já usada
-                // por DocumentoParteNormativaService.salvarSecoes durante a edição,
-                // só que agora só roda aqui).
-                documentoParteNormativaService.salvarItensPreliminares(documento, List.of(
-                        new SecaoItemRequestDto(null, SecaoDocumentoEnum.PARTE_PRELIMINAR, ItemAnexoParteNormativaTipoEnum.EPIGRAFE, 1, null, request.epigrafe(), null, null),
-                        new SecaoItemRequestDto(null, SecaoDocumentoEnum.PARTE_PRELIMINAR, ItemAnexoParteNormativaTipoEnum.EMENTA, 2, null, request.ementa(), null, null),
-                        new SecaoItemRequestDto(null, SecaoDocumentoEnum.PARTE_PRELIMINAR, ItemAnexoParteNormativaTipoEnum.PREAMBULO, 3, null, request.preambulo(), null, null),
-                        new SecaoItemRequestDto(null, SecaoDocumentoEnum.PARTE_PRELIMINAR, ItemAnexoParteNormativaTipoEnum.FECHO, 4, null, request.fecho(), null, null),
-                        new SecaoItemRequestDto(null, SecaoDocumentoEnum.PARTE_PRELIMINAR, ItemAnexoParteNormativaTipoEnum.ASSINATURA, 5, null, request.assinatura(), null, null)
-                ));
-
-                // Só há emendas pendentes a consolidar quando esta publicação é de um ciclo
-                // de alteração (já publicado antes); a primeira publicação nunca passou por
-                // EM_ALTERACAO, então não há nada para consolidar.
-                if (jaPublicadoAntes) {
-                    emendaService.consolidarPublicacao(id, documento.getPortariaReferencia(), documento.getBcaReferencia());
-                }
-            }
+        // Cancelar a alteração só é possível sem alterações pendentes: cada uma se desfaz elemento a
+        // elemento (sidebar do editor). Nada é descartado em massa por aqui.
+        if (acao == Acao.CANCELAR_ALTERACAO && emendaService.temAlteracoesPendentes(id)) {
+            throw new StatusCannotBeUpdatedException("Há alterações pendentes neste documento. Desfaça cada uma "
+                    + "no painel lateral do editor (ou envie a alteração para revisão) antes de cancelá-la.");
         }
+
+        // Publicar (EM_PUBLICACAO -> SEM_ETAPA) e revogar (EM_REVOGACAO -> SEM_ETAPA) são os
+        // únicos momentos em que uma portaria + BCA são registradas -- e, portanto, os únicos em
+        // que a situação BCA muda. Cada portaria vira um registro próprio em PortariaPublicacao,
+        // nunca mesclada com o PDF do documento (mesclar invalidaria uma eventual assinatura
+        // digital futura na portaria) e nunca substituída: a de publicação é perene e as de
+        // alteração e revogação são complementares a ela.
+        boolean primeiraPublicacao = acao == Acao.PUBLICAR && bcaAnterior == SituacaoBcaEnum.NAO_PUBLICADO;
+        boolean alterando = acao == Acao.PUBLICAR && bcaAnterior == SituacaoBcaEnum.PUBLICADO;
+        boolean revogando = acao == Acao.REVOGAR;
+        if (acao == Acao.PUBLICAR || revogando) {
+            registrarPortariaEBca(documento, request, primeiraPublicacao, alterando, revogando);
+        }
+
+        // Situação BCA: a única transição que a altera.
+        SituacaoBcaEnum novaBca = switch (acao) {
+            case PUBLICAR -> SituacaoBcaEnum.PUBLICADO;
+            case REVOGAR  -> SituacaoBcaEnum.REVOGADO;
+            default       -> bcaAnterior;
+        };
+        documento.setSituacaoBca(novaBca);
 
         Timestamp agora = Timestamp.from(Instant.now());
-        switch (novoStatus) {
-            case MINUTA            -> documento.setDtMinuta(agora);
-            case EM_REVISAO        -> documento.setDtEmRevisao(agora);
-            case APROVADO          -> documento.setDtAprovacao(agora);
-            case ALTERADO          -> documento.setDtAlterado(agora);
-            case EM_PUBLICACAO     -> documento.setDtEmPublicacao(agora);
-            case PUBLICADO         -> documento.setDtPublicacao(agora);
-            case EM_ALTERACAO      -> documento.setDtEmAlteracao(agora);
-            case ANALISE_REVOGACAO -> documento.setDtAnaliseRevogacao(agora);
-            case EM_REVOGACAO      -> documento.setDtEmRevogacao(agora);
-            case REVOGADO          -> documento.setDtRevogacao(agora);
-            case CANCELADO         -> documento.setDtCancelamento(agora);
-            default                -> { }
+        switch (acao) {
+            case MINUTAR              -> documento.setDtMinuta(agora);
+            case ENVIAR_PARA_REVISAO  -> documento.setDtEmRevisao(agora);
+            // Timestamp próprio para a aprovação de uma alteração (dtAlterado), para não
+            // sobrescrever a aprovação original do fluxo da primeira publicação.
+            case APROVAR              -> {
+                if (bcaAnterior == SituacaoBcaEnum.NAO_PUBLICADO) documento.setDtAprovacao(agora);
+                else documento.setDtAlterado(agora);
+                documento.setDtEmPublicacao(agora);
+            }
+            case DEVOLVER             -> {
+                if (destino == MINUTA) documento.setDtMinuta(agora);
+                else documento.setDtEmAlteracao(agora);
+            }
+            case INICIAR_ALTERACAO    -> documento.setDtEmAlteracao(agora);
+            // dtPublicacao é a data da PRIMEIRA publicação; as das alterações estão nas portarias
+            // (PortariaPublicacao) e nas cláusulas de cada elemento.
+            case PUBLICAR             -> { if (primeiraPublicacao) documento.setDtPublicacao(agora); }
+            case PEDIR_REVOGACAO      -> documento.setDtAnaliseRevogacao(agora);
+            case APROVAR_REVOGACAO    -> documento.setDtEmRevogacao(agora);
+            case REVOGAR              -> documento.setDtRevogacao(agora);
+            case CANCELAR_DOCUMENTO   -> documento.setDtCancelamento(agora);
+            case DEVOLVER_ANALISE, CANCELAR_ALTERACAO -> { }
         }
 
-        documento.setDocumentoStatus(novoStatus);
-        // saveAndFlush, não save: o @Version só incrementa no flush, que por
-        // padrão só aconteceria no commit -- depois deste método já ter
-        // retornado o DTO. Sem o flush explícito, o DTO de resposta carrega a
-        // versão ANTIGA, e o próximo salvamento do editor usa essa versão
-        // desatualizada como versaoEsperada, gerando um 409 mesmo sendo o
-        // mesmo usuário -- ver DocumentoConcorrenciaService. Isso é
-        // especialmente comum aqui: RASCUNHO->MINUTA dispara em toda primeira
-        // edição de um documento novo (ver editor.js save()).
+        documento.setSituacaoLocal(destino);
+        // saveAndFlush, não save: o @Version só incrementa no flush, que por padrão só
+        // aconteceria no commit -- depois deste método já ter retornado o DTO. Sem o flush
+        // explícito, o DTO de resposta carrega a versão ANTIGA, e o próximo salvamento do editor
+        // usa essa versão desatualizada como versaoEsperada, gerando um 409 mesmo sendo o mesmo
+        // usuário -- ver DocumentoConcorrenciaService. Isso é especialmente comum aqui:
+        // RASCUNHO->MINUTA dispara em toda primeira edição de um documento novo (ver editor.js save()).
         documentoRepository.saveAndFlush(documento);
 
-        // Ao entrar em EM_ALTERACAO, espaça os elementOrder (×100) para que novos
-        // elementos incluídos por emenda possam ser inseridos em posições intermediárias.
-        if (novoStatus == DocumentoStatusEnum.EM_ALTERACAO) {
+        // Ao entrar em EM_ALTERACAO, espaça os elementOrder (×100) para que novos elementos
+        // incluídos por emenda possam ser inseridos em posições intermediárias.
+        if (destino == EM_ALTERACAO) {
             normativaRepository.respacarElementOrders(id);
             preliminarRepository.respacarElementOrders(id);
             finalRepository.respacarElementOrders(id);
         }
 
-        // O PDF e o HTML são gerados e salvos no MinIO nestas transições, e só nelas:
-        // exportações subsequentes (independente da tela/botão) sempre servem essa
-        // cópia em vez de renderizar de novo — ver DocumentoPdfService.streamPdf/
-        // DocumentoHtmlService.streamHtml. PUBLICADO/REVOGADO precisam regenerar
-        // mesmo que ALTERADO já tenha uma cópia, pois é só aí que portaria/BCA reais
-        // substituem o placeholder e (na publicação) consolidarPublicacao acima
-        // congela as cláusulas de emenda — o conteúdo muda. Os dois formatos são
-        // sempre regenerados juntos: nunca um sem o outro (ver docs/exportacao-pdf.md).
-        if (novoStatus == DocumentoStatusEnum.APROVADO
-                || novoStatus == DocumentoStatusEnum.ALTERADO
-                || novoStatus == DocumentoStatusEnum.PUBLICADO
-                || novoStatus == DocumentoStatusEnum.REVOGADO) {
-            regenerarPdf(documento, novoStatus);
-            regenerarHtml(documento, novoStatus);
+        // PDF/HTML: o arquivo VIGENTE só é (re)gerado ao registrar portaria/BCA -- é a versão
+        // que a situação BCA descreve e não pode mudar por uma etapa interna. A versão EM
+        // TRAMITAÇÃO é congelada quando o conteúdo deixa de mudar (aprovar), para o publicador
+        // ver exatamente o que será publicado, e descartada ao devolver/cancelar/publicar.
+        // Nas etapas em que o texto ainda muda ela é gerada sob demanda, nunca armazenada.
+        // Os dois formatos são sempre gerados juntos (ver docs/exportacao-pdf.md).
+        switch (acao) {
+            case APROVAR, APROVAR_REVOGACAO -> aposCommit(documento, this::gerarVersaoEmTramitacao);
+            case PUBLICAR, REVOGAR -> {
+                // A versão em tramitação acaba de ser publicada/revogada: descarta já (na transação).
+                documento.setUrlPdfTramitacao(null);
+                documento.setUrlHtmlTramitacao(null);
+                aposCommit(documento, this::gerarVersaoVigente);
+            }
+            case DEVOLVER, DEVOLVER_ANALISE, CANCELAR_ALTERACAO, CANCELAR_DOCUMENTO -> descartarVersaoEmTramitacao(documento);
+            default -> { }
         }
+
+        String descricaoHistorico = atual.name() + " → " + destino.name()
+                + (novaBca != bcaAnterior ? " (situação BCA: " + bcaAnterior + " → " + novaBca + ")" : "");
+        documentoHistoricoService.registrar(documento, TipoAlteracaoEnum.ALTERACAO_STATUS,
+                descricaoHistorico, atual, destino);
 
         String descricao = String.format("%s %s-%d",
                 documento.getEspecieNormativa().getSigla(),
                 documento.getAssuntoBasico().getCodigo(),
                 documento.getNumeroSecundario());
 
-        documentoHistoricoService.registrar(documento, TipoAlteracaoEnum.ALTERACAO_STATUS,
-                current.name() + " → " + novoStatus.name(), current, novoStatus);
-
-        // Cada transição de atribuição avisa só a pessoa escolhida -- nunca uma OM
-        // inteira (ver PapelEnum: o modelo agora é de atribuição pessoal, não mais
-        // "qualquer Aprovador pega").
-        if (novoStatus == DocumentoStatusEnum.EM_REVISAO || novoStatus == DocumentoStatusEnum.ANALISE_REVOGACAO) {
+        // Cada transição de atribuição avisa só a pessoa escolhida -- nunca uma OM inteira
+        // (ver PapelEnum: o modelo é de atribuição pessoal, não de "qualquer Aprovador pega").
+        if (acao == Acao.ENVIAR_PARA_REVISAO || acao == Acao.PEDIR_REVOGACAO) {
             notificacaoService.notificarAtribuicao(documento.getRevisorAtribuido().getId(), documento.getId(), descricao,
                     "O documento " + descricao + " foi atribuído a você para revisão.");
         }
-        if (novoStatus == DocumentoStatusEnum.EM_REVOGACAO) {
+        if (acao == Acao.APROVAR) {
+            notificacaoService.notificarAtribuicao(documento.getPublicadorAtribuido().getId(), documento.getId(), descricao,
+                    "O documento " + descricao + " foi atribuído a você para publicação.");
+        }
+        if (acao == Acao.APROVAR_REVOGACAO) {
             notificacaoService.notificarAtribuicao(documento.getPublicadorAtribuido().getId(), documento.getId(), descricao,
                     "O documento " + descricao + " foi atribuído a você para publicar a revogação.");
-        }
-
-        // Aprovar (fluxo normal ou de alteração) nunca fica parado em APROVADO/ALTERADO
-        // esperando uma ação separada -- o próprio Aprovador já escolhe, no mesmo ato,
-        // quem vai publicar (ver DocumentoStatusRequestDto.publicadorId), então o
-        // serviço cascateia direto para EM_PUBLICACAO na mesma transação.
-        if (novoStatus == DocumentoStatusEnum.APROVADO || novoStatus == DocumentoStatusEnum.ALTERADO) {
-            cascatearParaPublicacao(documento, request.publicadorId(), descricao);
         }
 
         return DocumentoMapper.documentoToDocumentoSemAnexoTextualResponseDto(documento);
     }
 
-    private void regenerarPdf(Documento documento, DocumentoStatusEnum novoStatus) {
-        try {
-            String urlPdf = documentoPdfService.gerarEArmazenarPdf(documento);
-            documento.setUrlPdf(urlPdf);
-            documentoRepository.saveAndFlush(documento);
-        } catch (Exception e) {
-            // Não-fatal: a mudança de status não pode falhar por causa do PDF —
-            // streamPdf cai de volta para renderização ao vivo quando urlPdf está
-            // ausente. Mas o erro precisa ficar visível, senão a causa de um PDF
-            // armazenado desatualizado/ausente é impossível de diagnosticar.
-            log.error("Falha ao gerar/armazenar PDF do documento {} na transição para {}",
-                    documento.getId(), novoStatus, e);
+    // Valida e registra a portaria + BCA (publicação ou revogação). A parte preliminar
+    // (epígrafe/ementa/preâmbulo/fecho/assinatura) é coletada e gravada SÓ na primeira
+    // publicação: a portaria de publicação é a única que aparece nela e nunca é substituída.
+    // Alteração e revogação exigem apenas portaria (órgão, setor, número, data), BCA e o PDF, e
+    // aparecem por cláusula nos elementos (alteração) ou pelo selo REVOGADO (revogação total).
+    private void registrarPortariaEBca(Documento documento, DocumentoStatusRequestDto request,
+                                       boolean primeiraPublicacao, boolean alterando, boolean revogando) {
+        String orgaoPortaria = request.orgaoPortaria();
+        String setorPortaria = request.setorPortaria();
+        String numeroPortaria = request.numeroPortaria();
+        LocalDate dataPortaria = request.dataPortaria();
+        Integer numeroBca = request.numeroBca();
+        LocalDate dataBca = request.dataBca();
+
+        if (isBlank(orgaoPortaria) || isBlank(setorPortaria) || isBlank(numeroPortaria) || dataPortaria == null
+                || numeroBca == null || dataBca == null || isBlank(request.portariaPdfUrl())) {
+            throw new StatusCannotBeUpdatedException(
+                    "É obrigatório informar a portaria, o BCA de referência e o PDF da portaria.");
+        }
+        if (primeiraPublicacao && (isBlank(request.epigrafe()) || isBlank(request.ementa()) || isBlank(request.preambulo())
+                || isBlank(request.fecho()) || isBlank(request.assinatura()))) {
+            throw new StatusCannotBeUpdatedException(
+                    "Para publicar um documento pela primeira vez é obrigatório informar epígrafe, ementa, "
+                    + "preâmbulo, fecho e assinatura.");
+        }
+        // O BCA é publicado apenas em dias úteis, então nunca passa de 366 (dias do ano).
+        if (numeroBca < 1 || numeroBca > 366) {
+            throw new StatusCannotBeUpdatedException("O número do BCA deve estar entre 1 e 366.");
+        }
+        if (documento.getDtPortariaReferencia() != null
+                && dataPortaria.isBefore(documento.getDtPortariaReferencia().toLocalDateTime().toLocalDate())) {
+            throw new StatusCannotBeUpdatedException(
+                    "A data da portaria não pode ser anterior à da alteração anterior.");
+        }
+        if (documento.getDtBcaReferencia() != null
+                && dataBca.isBefore(documento.getDtBcaReferencia().toLocalDateTime().toLocalDate())) {
+            throw new StatusCannotBeUpdatedException(
+                    "A data do BCA não pode ser anterior à da alteração anterior.");
+        }
+
+        String orgaoSetor = orgaoPortaria.strip() + "/" + setorPortaria.strip();
+        documento.setPortariaReferencia("Portaria " + orgaoSetor + " n° " + numeroPortaria.strip()
+                + ", de " + formatarDataPorExtenso(dataPortaria));
+        documento.setBcaReferencia("BCA n° " + numeroBca + ", de " + formatarDataPorExtenso(dataBca));
+        documento.setDtPortariaReferencia(Timestamp.valueOf(dataPortaria.atStartOfDay()));
+        documento.setDtBcaReferencia(Timestamp.valueOf(dataBca.atStartOfDay()));
+
+        // Tipo da portaria: revogação é sempre REVOGACAO; publicar um documento já PUBLICADO é
+        // uma alteração (numerada automaticamente); publicar pela primeira vez é a edição original.
+        TipoPortariaPublicacaoEnum tipoPortaria = revogando ? TipoPortariaPublicacaoEnum.REVOGACAO
+                : (alterando ? TipoPortariaPublicacaoEnum.ALTERACAO : TipoPortariaPublicacaoEnum.EDICAO);
+        portariaPublicacaoService.registrar(documento, tipoPortaria, orgaoPortaria, setorPortaria,
+                numeroPortaria, dataPortaria, numeroBca, dataBca, request.portariaPdfUrl());
+
+        if (primeiraPublicacao) {
+            // A parte preliminar só passa a existir de fato com a primeira publicação -- por isso
+            // é coletada aqui, não durante a edição (ver Documento.java). Mesma lógica de "apaga
+            // tudo e recria" de DocumentoParteNormativaService.salvarSecoes, só que agora só roda
+            // aqui, uma única vez.
+            documentoParteNormativaService.salvarItensPreliminares(documento, List.of(
+                    new SecaoItemRequestDto(null, SecaoDocumentoEnum.PARTE_PRELIMINAR, ItemAnexoParteNormativaTipoEnum.EPIGRAFE, 1, null, request.epigrafe(), null, null),
+                    new SecaoItemRequestDto(null, SecaoDocumentoEnum.PARTE_PRELIMINAR, ItemAnexoParteNormativaTipoEnum.EMENTA, 2, null, request.ementa(), null, null),
+                    new SecaoItemRequestDto(null, SecaoDocumentoEnum.PARTE_PRELIMINAR, ItemAnexoParteNormativaTipoEnum.PREAMBULO, 3, null, request.preambulo(), null, null),
+                    new SecaoItemRequestDto(null, SecaoDocumentoEnum.PARTE_PRELIMINAR, ItemAnexoParteNormativaTipoEnum.FECHO, 4, null, request.fecho(), null, null),
+                    new SecaoItemRequestDto(null, SecaoDocumentoEnum.PARTE_PRELIMINAR, ItemAnexoParteNormativaTipoEnum.ASSINATURA, 5, null, request.assinatura(), null, null)
+            ));
+        }
+        if (alterando) {
+            // Só há emendas pendentes a consolidar numa ALTERAÇÃO publicada; a primeira publicação
+            // nunca passou por EM_ALTERACAO e a revogação não consolida nada.
+            emendaService.consolidarPublicacao(documento.getId(), documento.getPortariaReferencia(), documento.getBcaReferencia());
         }
     }
 
-    // Espelha regenerarPdf -- mesma justificativa pro try/catch não-fatal.
-    private void regenerarHtml(Documento documento, DocumentoStatusEnum novoStatus) {
-        try {
-            String urlHtml = documentoHtmlService.gerarEArmazenarHtml(documento);
-            documento.setUrlHtml(urlHtml);
-            documentoRepository.saveAndFlush(documento);
-        } catch (Exception e) {
-            log.error("Falha ao gerar/armazenar HTML do documento {} na transição para {}",
-                    documento.getId(), novoStatus, e);
+    // ─── Arquivos (PDF + HTML) ───────────────────────────────────────────────────
+
+    // Os arquivos são gerados DEPOIS do commit da mudança de etapa. DocumentoPdfService/
+    // DocumentoHtmlService leem o documento numa transação própria (REQUIRES_NEW, readOnly) e só
+    // enxergam o que já foi confirmado: gerar dentro da transação em curso produziria um arquivo
+    // com as cláusulas de emenda ainda pendentes (placeholder XYZ/ABC) em vez das que
+    // EmendaService.consolidarPublicacao acabou de congelar, e com a situação BCA antiga. Sem
+    // transação em andamento (testes unitários), gera na hora.
+    private void aposCommit(Documento documento, Consumer<Documento> geracao) {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            geracao.accept(documento);
+            return;
         }
+        Long id = documento.getId();
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                try {
+                    var tx = new TransactionTemplate(transactionManager);
+                    tx.setPropagationBehavior(Propagation.REQUIRES_NEW.value());
+                    tx.executeWithoutResult(status -> documentoRepository.findById(id).ifPresent(geracao));
+                } catch (Exception e) {
+                    log.error("Falha ao gerar os arquivos do documento {} após a mudança de etapa", id, e);
+                }
+            }
+        });
     }
 
-    private void cascatearParaPublicacao(Documento documento, Long publicadorId, String descricao) {
-        DocumentoStatusEnum anterior = documento.getDocumentoStatus();
-        documento.setPublicadorAtribuido(buscarUsuario(publicadorId,
-                "É obrigatório escolher quem vai publicar."));
-        documento.setDtEmPublicacao(Timestamp.from(Instant.now()));
-        documento.setDocumentoStatus(DocumentoStatusEnum.EM_PUBLICACAO);
+
+    // Versão VIGENTE: a que a situação BCA descreve. Substitui a anterior e descarta a versão
+    // em tramitação (o que estava em tramitação acaba de ser publicado ou revogado).
+    private void gerarVersaoVigente(Documento documento) {
+        documento.setUrlPdfTramitacao(null);
+        documento.setUrlHtmlTramitacao(null);
+        try {
+            documento.setUrlPdf(documentoPdfService.gerarEArmazenarPdf(documento));
+        } catch (Exception e) {
+            // Não-fatal: a mudança de etapa não pode falhar por causa do PDF -- streamPdf cai de
+            // volta para renderização ao vivo quando a cópia armazenada está ausente. Mas o erro
+            // precisa ficar visível, senão a causa de um PDF armazenado desatualizado/ausente é
+            // impossível de diagnosticar.
+            log.error("Falha ao gerar/armazenar o PDF vigente do documento {}", documento.getId(), e);
+        }
+        try {
+            documento.setUrlHtml(documentoHtmlService.gerarEArmazenarHtml(documento));
+        } catch (Exception e) {
+            log.error("Falha ao gerar/armazenar o HTML vigente do documento {}", documento.getId(), e);
+        }
         documentoRepository.saveAndFlush(documento);
+    }
 
-        documentoHistoricoService.registrar(documento, TipoAlteracaoEnum.ALTERACAO_STATUS,
-                anterior.name() + " → " + DocumentoStatusEnum.EM_PUBLICACAO.name(), anterior, DocumentoStatusEnum.EM_PUBLICACAO);
+    // Versão EM TRAMITAÇÃO congelada (EM_PUBLICACAO/EM_REVOGACAO): a vigente não é tocada.
+    private void gerarVersaoEmTramitacao(Documento documento) {
+        try {
+            documento.setUrlPdfTramitacao(documentoPdfService.gerarEArmazenarPdf(documento));
+        } catch (Exception e) {
+            log.error("Falha ao gerar/armazenar o PDF em tramitação do documento {}", documento.getId(), e);
+        }
+        try {
+            documento.setUrlHtmlTramitacao(documentoHtmlService.gerarEArmazenarHtml(documento));
+        } catch (Exception e) {
+            log.error("Falha ao gerar/armazenar o HTML em tramitação do documento {}", documento.getId(), e);
+        }
+        documentoRepository.saveAndFlush(documento);
+    }
 
-        notificacaoService.notificarAtribuicao(documento.getPublicadorAtribuido().getId(), documento.getId(), descricao,
-                "O documento " + descricao + " foi atribuído a você para publicação.");
+    private void descartarVersaoEmTramitacao(Documento documento) {
+        documento.setUrlPdfTramitacao(null);
+        documento.setUrlHtmlTramitacao(null);
+        documentoRepository.saveAndFlush(documento);
     }
 
     private Usuario buscarUsuario(Long usuarioId, String mensagemSeAusente) {

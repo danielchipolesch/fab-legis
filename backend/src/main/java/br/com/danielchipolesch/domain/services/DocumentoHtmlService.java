@@ -4,7 +4,8 @@ import br.com.danielchipolesch.application.dtos.anexoDtos.AnexoResponseDto;
 import br.com.danielchipolesch.application.dtos.itemAnexoParteNormativaDtos.ItemAnexoParteNormativaResponseDto;
 import br.com.danielchipolesch.application.dtos.itemPartePreliminarDtos.ItemPartePreliminarResponseDto;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.Documento;
-import br.com.danielchipolesch.domain.entities.estruturaDocumento.DocumentoStatusEnum;
+import br.com.danielchipolesch.domain.entities.estruturaDocumento.VersaoDocumentoEnum;
+import br.com.danielchipolesch.domain.entities.estruturaDocumento.SituacaoBcaEnum;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.ElementoEmendaStatusEnum;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.ItemAnexoParteNormativaTipoEnum;
 import br.com.danielchipolesch.domain.handlers.exceptions.ResourceNotFoundException;
@@ -42,16 +43,6 @@ import java.util.regex.Pattern;
 @Service
 public class DocumentoHtmlService {
 
-    // Mesmas situações em que o PDF tem cópia armazenada e confiável (ver
-    // DocumentoPdfService.STATUS_COM_PDF_ARMAZENADO) -- HTML e PDF são gerados e
-    // armazenados juntos, nas mesmas transições de status (DocumentoStatusService),
-    // então servidos da mesma forma: cópia do MinIO quando disponível, renderização
-    // ao vivo fora dessas situações (nunca em EM_REVISAO, pelo mesmo motivo: o
-    // revisor atribuído pode editar o conteúdo nessa etapa).
-    private static final Set<DocumentoStatusEnum> STATUS_COM_HTML_ARMAZENADO = EnumSet.of(
-            DocumentoStatusEnum.APROVADO, DocumentoStatusEnum.ALTERADO, DocumentoStatusEnum.EM_PUBLICACAO,
-            DocumentoStatusEnum.PUBLICADO, DocumentoStatusEnum.REVOGADO);
-
     @Autowired
     private ObjectMapper objectMapper;
 
@@ -66,6 +57,9 @@ public class DocumentoHtmlService {
 
     @Autowired
     private ImagemService imagemService;
+
+    @Autowired
+    private NumeracaoService numeracaoService;
 
     // Só o Brasão da República: o Gládio Alado (brasaoFab) só aparecia na capa,
     // dispensada em HTML (NSCA 5-3, Art. 17, V, §1º).
@@ -90,7 +84,7 @@ public class DocumentoHtmlService {
             List<ItemPartePreliminarResponseDto> preliminares,
             List<ItemAnexoParteNormativaResponseDto> normativos,
             List<AnexoResponseDto> anexos) {
-        return new Generator(doc, preliminares, normativos, anexos, brasaoRepublica, objectMapper, imagemService).gerar();
+        return new Generator(doc, preliminares, normativos, anexos, brasaoRepublica, objectMapper, imagemService, numeracaoService).gerar();
     }
 
     // Espelha DocumentoPdfService.streamPdf -- mesmo padrão de cópia armazenada vs.
@@ -98,12 +92,17 @@ public class DocumentoHtmlService {
     // streaming incremental: ao contrário do PDF, que pode passar de 1MB com
     // imagens embutidas, justificando StreamingResponseBody, o HTML deste tamanho
     // não compensa a complexidade extra).
-    public StreamingResponseBody streamHtml(Long documentoId) {
+    public StreamingResponseBody streamHtml(Long documentoId, VersaoDocumentoEnum pedida) {
         Documento doc = documentoRepository.findById(documentoId)
                 .orElseThrow(() -> new ResourceNotFoundException(DocumentoException.NOT_FOUND.getMessage()));
 
-        if (STATUS_COM_HTML_ARMAZENADO.contains(doc.getDocumentoStatus()) && doc.getUrlHtml() != null) {
-            InputStream armazenado = imagemService.getObjectStream(doc.getUrlHtml());
+        // Mesma regra do PDF (ver DocumentoPdfService.streamPdf e VersoesDocumento).
+        VersaoDocumentoEnum versao = VersoesDocumento.resolver(doc, pedida);
+        String urlArmazenada = versao == VersaoDocumentoEnum.VIGENTE ? doc.getUrlHtml()
+                : (VersoesDocumento.emTramitacaoArmazenada(doc) ? doc.getUrlHtmlTramitacao() : null);
+
+        if (urlArmazenada != null) {
+            InputStream armazenado = imagemService.getObjectStream(urlArmazenada);
             if (armazenado != null) {
                 return outputStream -> {
                     try (armazenado) {
@@ -111,7 +110,7 @@ public class DocumentoHtmlService {
                     }
                 };
             }
-            // urlHtml presente mas não recuperável (objeto removido/inconsistência): recai
+            // URL presente mas não recuperável (objeto removido/inconsistência): recai
             // na renderização ao vivo em vez de falhar a exportação.
         }
         byte[] renderizado = renderHtml(doc).getBytes(StandardCharsets.UTF_8);
@@ -189,8 +188,8 @@ public class DocumentoHtmlService {
         private final String brasaoRepublica;
         private final ObjectMapper objectMapper;
         private final ImagemService imagemService;
-
-        private int artCount = 0;
+        private final NumeracaoService numeracaoService;
+        private final Map<Long, NumeracaoService.ElementoNumeracao> numeracao;
 
         Generator(Documento doc,
                   List<ItemPartePreliminarResponseDto> preliminares,
@@ -198,7 +197,8 @@ public class DocumentoHtmlService {
                   List<AnexoResponseDto> anexos,
                   String brasaoRepublica,
                   ObjectMapper objectMapper,
-                  ImagemService imagemService) {
+                  ImagemService imagemService,
+                  NumeracaoService numeracaoService) {
             this.doc = doc;
             this.preliminares    = preliminares != null ? preliminares : List.of();
             this.normativos      = normativos   != null ? normativos   : List.of();
@@ -206,6 +206,8 @@ public class DocumentoHtmlService {
             this.brasaoRepublica = brasaoRepublica;
             this.objectMapper    = objectMapper;
             this.imagemService   = imagemService;
+            this.numeracaoService = numeracaoService;
+            this.numeracao       = numeracaoService.calcular(this.normativos);
         }
 
         // ─── Entry point ─────────────────────────────────────────────────────────
@@ -253,6 +255,11 @@ public class DocumentoHtmlService {
                     .page-break { margin-bottom: 40px; padding-bottom: 24px; border-bottom: 1px solid #ddd; }
                 }
                 .page-break { page-break-after: always; }
+                /* Selo da revogação total: canto superior direito da página da Portaria (também
+                   na impressão). Nenhum elemento é tachado -- só o selo. */
+                .page-break { position: relative; }
+                .selo-revogado { position: absolute; top: 0; right: 0; border: 2px solid #C00000; color: #C00000;
+                                 font-weight: bold; font-size: 14pt; padding: 2pt 8pt; text-align: center; }
                 /* NSCA 5-3, Art. 18: cabeçalho antecede a epígrafe em HTML: Brasão da
                    República alinhado à esquerda, verticalmente centralizado ao lado das
                    3 linhas (não empilhado acima delas), demais elementos centralizados
@@ -342,6 +349,9 @@ public class DocumentoHtmlService {
         private String buildPortaria() {
             var sb = new StringBuilder();
             sb.append("<div class=\"page-break\">\n");
+            if (VersoesDocumento.exibeSeloRevogado(doc)) {
+                sb.append("<div class=\"selo-revogado\">REVOGADO</div>\n");
+            }
 
             // Cabeçalho (NSCA 5-3, Art. 18): Brasão à esquerda (parágrafo único),
             // demais elementos centralizados -- inclui a OM que elaborou o ato como
@@ -471,21 +481,21 @@ public class DocumentoHtmlService {
 
         private record TocEntry(String label, String cssClass, String pg, String anchor) {}
 
+        // Rótulo (romano/ordinal, com o sufixo de letra de emenda) de um capítulo, seção,
+        // subseção ou artigo -- vem do mesmo NumeracaoService que o PDF usa, nunca de
+        // contadores próprios: artigo e unidades superiores em vigor não podem ser
+        // renumerados (LC 95/1998), então um "Art. 5º-A" precisa sair assim no HTML também.
+        private String rotulo(ItemAnexoParteNormativaResponseDto item) {
+            var n = numeracao.get(item.id());
+            return n != null ? n.label() : "";
+        }
+
         private String buildToc() {
             List<TocEntry> entries = new ArrayList<>();
-            boolean temAgrupamento = normativos.stream().anyMatch(el ->
-                    el.elementType() == ItemAnexoParteNormativaTipoEnum.CAPITULO
-                    || el.elementType() == ItemAnexoParteNormativaTipoEnum.SECAO_NORMATIVA
-                    || el.elementType() == ItemAnexoParteNormativaTipoEnum.SUBSECAO_NORMATIVA);
-
-            Map<Long, Integer> artNumMap = new java.util.HashMap<>();
-            assignArtNums(normativos, new int[]{0}, artNumMap);
-
-            int[] capNum = {0}, secNum = {0}, subSecNum = {0};
-            if (temAgrupamento) {
-                walkToc(normativos, entries, artNumMap, capNum, secNum, subSecNum);
+            if (numeracaoService.temAgrupamento(normativos)) {
+                walkToc(normativos, entries);
             } else {
-                collectArticleToc(normativos, entries, new int[]{0});
+                collectArticleToc(normativos, entries);
             }
 
             if (entries.isEmpty()) return "";
@@ -510,168 +520,137 @@ public class DocumentoHtmlService {
             return sb.toString();
         }
 
-        private void assignArtNums(List<ItemAnexoParteNormativaResponseDto> items,
-                                   int[] counter, Map<Long, Integer> out) {
-            for (var item : items) {
-                if (item.elementType() == ItemAnexoParteNormativaTipoEnum.ARTIGO) {
-                    counter[0]++;
-                    out.put(item.id(), counter[0]);
-                }
-                if (item.children() != null) assignArtNums(item.children(), counter, out);
-            }
-        }
-
-        private void walkToc(List<ItemAnexoParteNormativaResponseDto> items, List<TocEntry> entries,
-                             Map<Long, Integer> artNums, int[] cap, int[] sec, int[] sub) {
-            for (var item : items) {
+        private void walkToc(List<ItemAnexoParteNormativaResponseDto> items, List<TocEntry> entries) {
+            for (int i = 0; i < items.size(); i++) {
+                var item = items.get(i);
                 switch (item.elementType()) {
                     case CAPITULO -> {
-                        cap[0]++; sec[0] = 0; sub[0] = 0;
                         String t = item.elementTitle() != null ? " - " + item.elementTitle().toUpperCase() : "";
-                        entries.add(new TocEntry("CAPÍTULO " + toRoman(cap[0]) + t,
-                                "toc-capitulo", artRange(item.children(), artNums), "norm-" + item.id()));
-                        if (item.children() != null) walkToc(item.children(), entries, artNums, cap, sec, sub);
+                        entries.add(new TocEntry("CAPÍTULO " + rotulo(item) + t, "toc-capitulo",
+                                numeracaoService.intervaloArtigos(item, items, i, numeracao), "norm-" + item.id()));
+                        if (item.children() != null) walkToc(item.children(), entries);
                     }
                     case SECAO_NORMATIVA -> {
-                        sec[0]++; sub[0] = 0;
                         String t = item.elementTitle() != null ? " - " + item.elementTitle() : "";
-                        entries.add(new TocEntry("Seção " + toRoman(sec[0]) + t,
-                                "toc-secao", artRange(item.children(), artNums), "norm-" + item.id()));
-                        if (item.children() != null) walkToc(item.children(), entries, artNums, cap, sec, sub);
+                        entries.add(new TocEntry("Seção " + rotulo(item) + t, "toc-secao",
+                                numeracaoService.intervaloArtigos(item, items, i, numeracao), "norm-" + item.id()));
+                        if (item.children() != null) walkToc(item.children(), entries);
                     }
                     case SUBSECAO_NORMATIVA -> {
-                        sub[0]++;
                         String t = item.elementTitle() != null ? " - " + item.elementTitle() : "";
-                        entries.add(new TocEntry("Subseção " + toRoman(sub[0]) + t,
-                                "toc-subsecao", artRange(item.children(), artNums), "norm-" + item.id()));
-                        if (item.children() != null) walkToc(item.children(), entries, artNums, cap, sec, sub);
+                        entries.add(new TocEntry("Subseção " + rotulo(item) + t, "toc-subsecao",
+                                numeracaoService.intervaloArtigos(item, items, i, numeracao), "norm-" + item.id()));
+                        if (item.children() != null) walkToc(item.children(), entries);
                     }
                     default -> {}
                 }
             }
         }
 
-        private void collectArticleToc(List<ItemAnexoParteNormativaResponseDto> items,
-                                       List<TocEntry> entries, int[] idx) {
+        private void collectArticleToc(List<ItemAnexoParteNormativaResponseDto> items, List<TocEntry> entries) {
             for (var item : items) {
                 if (item.elementType() == ItemAnexoParteNormativaTipoEnum.ARTIGO) {
-                    idx[0]++;
-                    entries.add(new TocEntry("Art. " + ordinalOrCardinal(idx[0]), "toc-artigo",
-                            fmtNum(idx[0]), "norm-" + item.id()));
+                    entries.add(new TocEntry("Art. " + rotulo(item), "toc-artigo",
+                            numeracaoService.pontoFinalArtigo(item, numeracao), "norm-" + item.id()));
                 }
             }
-        }
-
-        private String artRange(List<ItemAnexoParteNormativaResponseDto> children, Map<Long, Integer> artNums) {
-            if (children == null || children.isEmpty()) return "";
-            int first = -1, last = -1;
-            for (var item : collectAllArt(children)) {
-                int n = artNums.getOrDefault(item.id(), -1);
-                if (n < 0) continue;
-                if (first < 0) first = n;
-                last = n;
-            }
-            if (first < 0) return "";
-            return first == last ? fmtNum(first) : fmtNum(first) + "/" + fmtNum(last);
-        }
-
-        private List<ItemAnexoParteNormativaResponseDto> collectAllArt(List<ItemAnexoParteNormativaResponseDto> items) {
-            var result = new ArrayList<ItemAnexoParteNormativaResponseDto>();
-            if (items == null) return result;
-            for (var item : items) {
-                if (item.elementType() == ItemAnexoParteNormativaTipoEnum.ARTIGO) result.add(item);
-                result.addAll(collectAllArt(item.children()));
-            }
-            return result;
-        }
-
-        private String fmtNum(int n) {
-            return n <= 9 ? n + "º" : comSeparadorMilhar(n);
         }
 
         // ─── Corpo normativo ─────────────────────────────────────────────────────
 
         private String buildCorpoNormativo() {
-            artCount = 0;
             var sb = new StringBuilder();
-            renderNormItems(normativos, sb, new int[]{0}, new int[]{0}, new int[]{0});
+            renderNormItems(normativos, sb);
             return sb.toString();
         }
 
-        private void renderNormItems(List<ItemAnexoParteNormativaResponseDto> items,
-                                     StringBuilder sb, int[] capNum, int[] secNum, int[] subSecNum) {
+        private void renderNormItems(List<ItemAnexoParteNormativaResponseDto> items, StringBuilder sb) {
             if (items == null) return;
-            for (var item : items) renderNormItem(item, sb, capNum, secNum, subSecNum);
+            for (var item : items) renderNormItem(item, sb);
         }
 
-        private void renderNormItem(ItemAnexoParteNormativaResponseDto item,
-                                    StringBuilder sb, int[] capNum, int[] secNum, int[] subSecNum) {
+        private void renderNormItem(ItemAnexoParteNormativaResponseDto item, StringBuilder sb) {
             switch (item.elementType()) {
                 case CAPITULO -> {
-                    capNum[0]++; secNum[0] = 0; subSecNum[0] = 0;
                     sb.append("<div class=\"capitulo-heading\" id=\"norm-").append(item.id()).append("\">");
-                    sb.append("<p class=\"cap-numero\">CAPÍTULO ").append(toRoman(capNum[0])).append("</p>");
-                    if (item.elementTitle() != null && !item.elementTitle().isBlank())
-                        sb.append("<p class=\"cap-titulo\">").append(esc(item.elementTitle().toUpperCase())).append("</p>");
+                    sb.append("<p class=\"cap-numero\">CAPÍTULO ").append(rotulo(item)).append("</p>");
+                    renderGroupingEmenda(sb, item.elementTitle(), item.tituloEmenda(), true, "cap-titulo",
+                            item.emendaStatus(), item.clausulaEmenda(), item.clausulaEmendaAnterior());
                     sb.append("</div>\n");
-                    renderNormItems(item.children(), sb, capNum, secNum, subSecNum);
+                    renderNormItems(item.children(), sb);
                 }
                 case SECAO_NORMATIVA -> {
-                    secNum[0]++; subSecNum[0] = 0;
                     sb.append("<div class=\"secao-heading\" id=\"norm-").append(item.id()).append("\">");
-                    sb.append("<p class=\"sec-numero\"><strong>Seção ").append(toRoman(secNum[0])).append("</strong></p>");
-                    if (item.elementTitle() != null && !item.elementTitle().isBlank())
-                        sb.append("<p class=\"sec-titulo\"><strong>").append(esc(item.elementTitle())).append("</strong></p>");
+                    sb.append("<p class=\"sec-numero\"><strong>Seção ").append(rotulo(item)).append("</strong></p>");
+                    renderGroupingEmenda(sb, item.elementTitle(), item.tituloEmenda(), false, "sec-titulo",
+                            item.emendaStatus(), item.clausulaEmenda(), item.clausulaEmendaAnterior());
                     sb.append("</div>\n");
-                    renderNormItems(item.children(), sb, capNum, secNum, subSecNum);
+                    renderNormItems(item.children(), sb);
                 }
                 case SUBSECAO_NORMATIVA -> {
-                    subSecNum[0]++;
                     sb.append("<div class=\"secao-heading\" id=\"norm-").append(item.id()).append("\">");
-                    sb.append("<p class=\"sec-numero\"><strong>Subseção ").append(toRoman(subSecNum[0])).append("</strong></p>");
-                    if (item.elementTitle() != null && !item.elementTitle().isBlank())
-                        sb.append("<p class=\"sec-titulo\"><strong>").append(esc(item.elementTitle())).append("</strong></p>");
+                    sb.append("<p class=\"sec-numero\"><strong>Subseção ").append(rotulo(item)).append("</strong></p>");
+                    renderGroupingEmenda(sb, item.elementTitle(), item.tituloEmenda(), false, "sec-titulo",
+                            item.emendaStatus(), item.clausulaEmenda(), item.clausulaEmendaAnterior());
                     sb.append("</div>\n");
-                    renderNormItems(item.children(), sb, capNum, secNum, subSecNum);
+                    renderNormItems(item.children(), sb);
                 }
                 case ARTIGO -> {
-                    artCount++;
                     sb.append("<a id=\"norm-").append(item.id()).append("\"></a>");
-                    renderBodyEl(sb, "Art. " + ordinalOrCardinal(artCount) + S2, true,
-                            item.elementContent(), item.emendaStatus(), item.conteudoEmenda());
+                    renderBodyEl(sb, "Art. " + rotulo(item) + S2, true,
+                            item.elementContent(), item.emendaStatus(), item.conteudoEmenda(),
+                                item.clausulaEmenda(), item.clausulaEmendaAnterior());
                     renderArtigoChildren(item.children(), sb);
                 }
                 default -> renderBodyEl(sb, "", false, item.elementContent(),
-                        item.emendaStatus(), item.conteudoEmenda());
+                        item.emendaStatus(), item.conteudoEmenda(),
+                                item.clausulaEmenda(), item.clausulaEmendaAnterior());
             }
         }
 
         private void renderArtigoChildren(List<ItemAnexoParteNormativaResponseDto> children, StringBuilder sb) {
             if (children == null) return;
-            long parCount = children.stream()
+            // Mesma regra do PDF (parágrafo em vigor nunca é renumerado; incluído por emenda
+            // recebe letra): vem de NumeracaoService.numerarParagrafos -- ver o comentário lá.
+            var paragrafos = children.stream()
                     .filter(c -> c.elementType() == ItemAnexoParteNormativaTipoEnum.PARAGRAFO
                               || c.elementType() == ItemAnexoParteNormativaTipoEnum.PARAGRAFO_UNICO)
-                    .count();
-            int parNum = 0, incisoNum = 0;
+                    .toList();
+            var numeracaoParagrafos = NumeracaoService.numerarParagrafos(paragrafos);
+            int parIdx = 0, incisoNum = 0;
             for (var child : children) {
                 switch (child.elementType()) {
                     case PARAGRAFO, PARAGRAFO_UNICO -> {
-                        parNum++;
-                        boolean unico = parCount == 1 && child.elementType() == ItemAnexoParteNormativaTipoEnum.PARAGRAFO_UNICO;
-                        String parLabel = unico ? "Parágrafo único." + S2 : "§ " + ordinalOrCardinal(parNum) + S2;
+                        var n = numeracaoParagrafos.get(parIdx++);
+                        String parLabel = n.semNumero() ? "Parágrafo único." + S2 : n.label() + S2;
+                        // Parágrafo único que virou "§ Nº": a linha inteira "Parágrafo único. texto"
+                        // sai riscada e o texto se repete sob o novo número, com a cláusula.
+                        boolean renumerado = NumeracaoService.unicoRenumerado(paragrafos, child,
+                                doc.getSituacaoBca() != SituacaoBcaEnum.NAO_PUBLICADO);
+                        if (renumerado) {
+                            renderBodyElStyled(sb, "Parágrafo único." + S2, false, child.elementContent(),
+                                    "emenda-strikethrough");
+                        }
                         renderBodyEl(sb, parLabel, false, child.elementContent(),
-                                child.emendaStatus(), child.conteudoEmenda());
+                                child.emendaStatus(), child.conteudoEmenda(),
+                                child.clausulaEmenda(), child.clausulaEmendaAnterior());
+                        if (renumerado) {
+                            sb.append("<span class=\"emenda-ref-block\">")
+                              .append(esc(NumeracaoService.clausulaRenumeracao(child))).append("</span>\n");
+                        }
                         renderIncisoChildren(child.children(), sb);
                     }
                     case INCISO -> {
                         incisoNum++;
                         String incLabel = toRoman(incisoNum) + S1 + "-" + S1;
                         renderBodyEl(sb, incLabel, false, child.elementContent(),
-                                child.emendaStatus(), child.conteudoEmenda());
+                                child.emendaStatus(), child.conteudoEmenda(),
+                                child.clausulaEmenda(), child.clausulaEmendaAnterior());
                         renderAlineaChildren(child.children(), sb);
                     }
                     default -> renderBodyEl(sb, "", false, child.elementContent(),
-                            child.emendaStatus(), child.conteudoEmenda());
+                            child.emendaStatus(), child.conteudoEmenda(),
+                                child.clausulaEmenda(), child.clausulaEmendaAnterior());
                 }
             }
         }
@@ -683,7 +662,8 @@ public class DocumentoHtmlService {
                 if (child.elementType() == ItemAnexoParteNormativaTipoEnum.INCISO) {
                     n++;
                     renderBodyEl(sb, toRoman(n) + S1 + "-" + S1, false, child.elementContent(),
-                            child.emendaStatus(), child.conteudoEmenda());
+                            child.emendaStatus(), child.conteudoEmenda(),
+                                child.clausulaEmenda(), child.clausulaEmendaAnterior());
                     renderAlineaChildren(child.children(), sb);
                 }
             }
@@ -696,7 +676,8 @@ public class DocumentoHtmlService {
                 if (child.elementType() == ItemAnexoParteNormativaTipoEnum.ALINEA) {
                     n++;
                     renderBodyEl(sb, toLetter(n) + ")" + S1, false, child.elementContent(),
-                            child.emendaStatus(), child.conteudoEmenda());
+                            child.emendaStatus(), child.conteudoEmenda(),
+                                child.clausulaEmenda(), child.clausulaEmendaAnterior());
                     renderSubAlineaChildren(child.children(), sb);
                 }
             }
@@ -709,15 +690,23 @@ public class DocumentoHtmlService {
                 if (child.elementType() == ItemAnexoParteNormativaTipoEnum.SUB_ALINEA) {
                     n++;
                     renderBodyEl(sb, n + "." + S1, false, child.elementContent(),
-                            child.emendaStatus(), child.conteudoEmenda());
+                            child.emendaStatus(), child.conteudoEmenda(),
+                                child.clausulaEmenda(), child.clausulaEmendaAnterior());
                 }
             }
         }
 
         // conteudo     = original published content (shown struck through for ALTERADO/REVOGADO)
         // conteudoEmenda = new amendment content (shown as current text for ALTERADO)
+        // Mesmas regras do PDF (DocumentoFoCorpoBuilder.renderBodyEl):
+        //   clausulaEmenda         = cláusula CONGELADA na publicação daquela emenda (a portaria/BCA
+        //                            daquela alteração, não a da última publicação); null enquanto
+        //                            a emenda está pendente -> placeholder XYZ/ABC
+        //   clausulaEmendaAnterior = cláusula da redação anterior, mostrada riscada junto do texto
+        //                            que ela descreve
         private void renderBodyEl(StringBuilder sb, String label, boolean labelBold, String conteudo,
-                                   ElementoEmendaStatusEnum emendaStatus, String conteudoEmenda) {
+                                   ElementoEmendaStatusEnum emendaStatus, String conteudoEmenda,
+                                   String clausulaEmenda, String clausulaEmendaAnterior) {
             if (emendaStatus == null || emendaStatus == ElementoEmendaStatusEnum.INALTERADO) {
                 renderBodyEl(sb, label, labelBold, conteudo);
                 return;
@@ -725,18 +714,50 @@ public class DocumentoHtmlService {
             switch (emendaStatus) {
                 case REVOGADO -> {
                     renderBodyElStyled(sb, label, labelBold, conteudo, "emenda-strikethrough");
-                    sb.append(buildEmendaRef(emendaStatus));
+                    sb.append(buildEmendaRefAnterior(clausulaEmendaAnterior));
+                    sb.append(buildEmendaRef(emendaStatus, clausulaEmenda));
                 }
                 case ALTERADO -> {
                     renderBodyElStyled(sb, label, labelBold, conteudo, "emenda-strikethrough");
+                    sb.append(buildEmendaRefAnterior(clausulaEmendaAnterior));
                     renderBodyElStyled(sb, label, labelBold, conteudoEmenda, "emenda-incluido");
-                    sb.append(buildEmendaRef(emendaStatus));
+                    sb.append(buildEmendaRef(emendaStatus, clausulaEmenda));
                 }
                 case INCLUIDO -> {
                     renderBodyElStyled(sb, label, labelBold, conteudo, "emenda-incluido");
-                    sb.append(buildEmendaRef(emendaStatus));
+                    sb.append(buildEmendaRef(emendaStatus, clausulaEmenda));
                 }
             }
+        }
+
+        // Cabeçalho de capítulo/seção/subseção ciente de emenda (espelha
+        // DocumentoFoCorpoBuilder.renderGroupingHeading): título original riscado para
+        // REVOGADO/ALTERADO, novo título para ALTERADO/INCLUIDO e a cláusula da emenda.
+        private void renderGroupingEmenda(StringBuilder sb, String titulo, String tituloEmenda, boolean uppercase,
+                                          String classeTitulo, ElementoEmendaStatusEnum status,
+                                          String clausulaEmenda, String clausulaEmendaAnterior) {
+            boolean negrito = classeTitulo.startsWith("sec");
+            java.util.function.Function<String, String> fmt = t -> {
+                String e = esc(uppercase ? t.toUpperCase() : t);
+                return negrito ? "<strong>" + e + "</strong>" : e;
+            };
+            boolean temTitulo = titulo != null && !titulo.isBlank();
+            if (status == null || status == ElementoEmendaStatusEnum.INALTERADO) {
+                if (temTitulo) sb.append("<p class=\"").append(classeTitulo).append("\">").append(fmt.apply(titulo)).append("</p>");
+                return;
+            }
+            if ((status == ElementoEmendaStatusEnum.REVOGADO || status == ElementoEmendaStatusEnum.ALTERADO) && temTitulo) {
+                sb.append("<p class=\"").append(classeTitulo).append(" emenda-strikethrough\">")
+                  .append(fmt.apply(titulo)).append("</p>");
+                sb.append(buildEmendaRefAnterior(clausulaEmendaAnterior));
+            }
+            if (status == ElementoEmendaStatusEnum.ALTERADO || status == ElementoEmendaStatusEnum.INCLUIDO) {
+                String texto = status == ElementoEmendaStatusEnum.ALTERADO ? tituloEmenda : titulo;
+                if (texto != null && !texto.isBlank()) {
+                    sb.append("<p class=\"").append(classeTitulo).append("\">").append(fmt.apply(texto)).append("</p>");
+                }
+            }
+            sb.append(buildEmendaRef(status, clausulaEmenda));
         }
 
         private void renderBodyElStyled(StringBuilder sb, String label, boolean labelBold,
@@ -759,22 +780,24 @@ public class DocumentoHtmlService {
             }
         }
 
-        private String buildEmendaRef(ElementoEmendaStatusEnum status) {
+        private String buildEmendaRefAnterior(String clausulaEmendaAnterior) {
+            if (clausulaEmendaAnterior == null || clausulaEmendaAnterior.isBlank()) return "";
+            return "<span class=\"emenda-ref-block emenda-strikethrough\">" + esc(clausulaEmendaAnterior) + "</span>\n";
+        }
+
+        private String buildEmendaRef(ElementoEmendaStatusEnum status, String clausulaEmenda) {
             String acao = switch (status) {
-                case ALTERADO -> "alterado";
+                case ALTERADO -> "redação dada";
                 case REVOGADO -> "revogado";
                 case INCLUIDO -> "incluído";
                 default       -> "modificado";
             };
-            String portaria = doc.getPortariaReferencia();
-            String bca      = doc.getBcaReferencia();
-            String ref;
-            if (portaria != null && !portaria.isBlank() && bca != null && !bca.isBlank()) {
-                ref = "(" + acao + " pela " + portaria + ", publicada no " + bca + ")";
-            } else {
-                ref = "(" + acao + " pela Portaria DIRAD n° XYZ, de DD de MÊS de AAAA,"
-                        + " publicada no BCA n° ABC, de DD de mês de AAAA)";
-            }
+            // Emenda já publicada: a cláusula congelada (portaria/BCA DAQUELA alteração). Pendente:
+            // sempre o placeholder XYZ/ABC -- nunca a portaria da última publicação, que não tem
+            // relação com a emenda em curso (mesma regra do PDF: DocumentoFoCorpoBuilder.emendaRefInline).
+            String ref = clausulaEmenda != null ? clausulaEmenda
+                    : "(" + acao + " pela Portaria DIRAD n° XYZ, de DD de MÊS de AAAA,"
+                      + " publicada no BCA n° ABC, de DD de mês de AAAA)";
             return "<span class=\"emenda-ref-block\">" + esc(ref) + "</span>\n";
         }
 
@@ -923,13 +946,6 @@ public class DocumentoHtmlService {
             return String.valueOf((char) ('a' + n - 1));
         }
 
-        private static String comSeparadorMilhar(int n) {
-            return String.format("%,d", n).replace(",", ".");
-        }
-
-        private static String ordinalOrCardinal(int n) {
-            return n <= 9 ? n + "º" : comSeparadorMilhar(n) + ".";
-        }
 
         private static String esc(String s) {
             if (s == null) return "";

@@ -275,45 +275,23 @@ final class DocumentoFoCorpoBuilder {
         }
     }
 
-    // Parágrafo INCLUIDO entre dois já em vigor (não-INCLUIDO/não-REVOGADO): sufixo de
-    // letra permanente (§ 2º-A), sem deslocar a numeração dos seguintes — mesma regra
-    // já aplicada a capítulo/seção/subseção/artigo em NumeracaoService. Vedação expressa
-    // do Decreto nº 12.002/2024, art. 14, IV (renumeração de parágrafo já em vigor).
-    private boolean hasActiveParagrafoAfter(List<ItemAnexoParteNormativaResponseDto> paragrafos, int idx) {
-        for (int i = idx + 1; i < paragrafos.size(); i++) {
-            var s = paragrafos.get(i);
-            if (s.emendaStatus() != ElementoEmendaStatusEnum.INCLUIDO
-                    && s.emendaStatus() != ElementoEmendaStatusEnum.REVOGADO) return true;
-        }
-        return false;
-    }
-
     // Rótulo "§ Nº" (com sufixo de letra quando aplicável) de cada parágrafo, calculado
-    // uma vez para todos os filhos do artigo antes da renderização.
+    // uma vez para todos os filhos do artigo antes da renderização. A regra de numeração
+    // (parágrafo em vigor nunca é renumerado) mora em NumeracaoService.numerarParagrafos.
     private Map<ItemAnexoParteNormativaResponseDto, String> labelParagrafos(
             List<ItemAnexoParteNormativaResponseDto> paragrafos) {
         Map<ItemAnexoParteNormativaResponseDto, String> labels = new HashMap<>();
-        boolean unicoOnly = paragrafos.size() == 1
-                && paragrafos.get(0).elementType() == ItemAnexoParteNormativaTipoEnum.PARAGRAFO_UNICO;
-        if (unicoOnly) {
-            labels.put(paragrafos.get(0), "Parágrafo único.  ");
-            return labels;
-        }
-        int pNum = 0, letterIdx = 0;
+        var numeracao = NumeracaoService.numerarParagrafos(paragrafos);
         for (int i = 0; i < paragrafos.size(); i++) {
-            var p = paragrafos.get(i);
-            boolean isIncluido = p.incluidoPorEmenda();
-            boolean atEnd = isIncluido && !hasActiveParagrafoAfter(paragrafos, i);
-            String letra = null;
-            if (!isIncluido || atEnd) {
-                pNum++;
-                letterIdx = 0;
-            } else {
-                letra = NumeracaoService.letterFor(letterIdx++);
-            }
-            labels.put(p, "§ " + NumeracaoService.comSufixoLetra(pNum, letra) + "  ");
+            var n = numeracao.get(i);
+            // "Parágrafo único" leva ponto final; "§ Nº" não.
+            labels.put(paragrafos.get(i), n.label() + (n.semNumero() ? ".  " : "  "));
         }
         return labels;
+    }
+
+    private boolean documentoPublicado() {
+        return ctx.doc.getSituacaoBca() != br.com.danielchipolesch.domain.entities.estruturaDocumento.SituacaoBcaEnum.NAO_PUBLICADO;
     }
 
     private void renderArtigoFilhos(List<ItemAnexoParteNormativaResponseDto> filhos, StringBuilder sb) {
@@ -327,8 +305,19 @@ final class DocumentoFoCorpoBuilder {
         for (var child : filhos) {
             switch (child.elementType()) {
                 case PARAGRAFO, PARAGRAFO_UNICO -> {
-                    renderBodyEl(sb, null, parLabels.get(child),
+                    // Parágrafo único que virou "§ Nº": a linha inteira "Parágrafo único. texto" sai
+                    // riscada e o texto se repete sob o novo número, com a cláusula de renumeração.
+                    boolean renumerado = NumeracaoService.unicoRenumerado(paragrafos, child, documentoPublicado());
+                    if (renumerado) {
+                        renderStrikethroughBlock(sb, "", "Parágrafo único.  ", false, child.elementContent());
+                    }
+                    var tmp = new StringBuilder();
+                    renderBodyEl(tmp, null, parLabels.get(child),
                             false, child.elementContent(), child.emendaStatus(), child.conteudoEmenda(), child.clausulaEmenda(), child.clausulaEmendaAnterior());
+                    if (renumerado) {
+                        insertBeforeLastBlockClose(tmp, wrapEmendaInline(NumeracaoService.clausulaRenumeracao(child)));
+                    }
+                    sb.append(tmp);
                     renderIncisoFilhos(child.children(), sb);
                 }
                 case INCISO -> {
@@ -541,7 +530,7 @@ final class DocumentoFoCorpoBuilder {
     // de valer para aquele elemento.
     private String emendaRefInline(ElementoEmendaStatusEnum status) {
         String acao = switch (status) {
-            case ALTERADO -> "alterado";
+            case ALTERADO -> "redação dada";
             case REVOGADO -> "revogado";
             case INCLUIDO -> "incluído";
             default -> "modificado";

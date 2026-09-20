@@ -29,12 +29,31 @@ function buildFilename(documento, extensao) {
   return partes.join('_') + '.' + extensao
 }
 
-function pdfUrl(documentoId) {
-  return `${API_BASE}/documentos/${documentoId}/pdf`
+// versao: 'VIGENTE' (a da Situação BCA) ou 'TRAMITACAO' (a da etapa local em curso). Sem ela, o
+// backend serve a em tramitação, se houver, senão a vigente (ver VersoesDocumento no backend).
+function pdfUrl(documentoId, versao) {
+  return `${API_BASE}/documentos/${documentoId}/pdf${versao ? `?versao=${versao}` : ''}`
 }
 
-function htmlUrl(documentoId) {
-  return `${API_BASE}/documentos/${documentoId}/html`
+function htmlUrl(documentoId, versao) {
+  return `${API_BASE}/documentos/${documentoId}/html${versao ? `?versao=${versao}` : ''}`
+}
+
+// Só o blob do PDF (para exibir num iframe, sem baixar) -- a versão em tramitação é renderizada
+// na hora pelo backend quando o texto ainda muda, então quem chama deve pedir só sob demanda.
+export async function buscarPdfBlob(documentoId, versao) {
+  const response = await fetch(pdfUrl(documentoId, versao), { method: 'GET', headers: authHeaders() })
+  if (!response.ok) {
+    let msg = `Erro ${response.status}`
+    try {
+      const text = await response.text()
+      if (text) msg = text
+    } catch { /* noop */ }
+    throw new Error(msg)
+  }
+  // Força o tipo: sem ele (ou com um genérico) o iframe mostra os bytes do PDF como texto.
+  const blob = await response.blob()
+  return new Blob([blob], { type: 'application/pdf' })
 }
 
 async function baixarArquivo(response, filename) {
@@ -58,13 +77,13 @@ async function baixarArquivo(response, filename) {
   URL.revokeObjectURL(url)
 }
 
-export async function gerarPdf(documento) {
-  const response = await fetch(pdfUrl(documento.id), { method: 'GET', headers: authHeaders() })
+export async function gerarPdf(documento, versao) {
+  const response = await fetch(pdfUrl(documento.id, versao), { method: 'GET', headers: authHeaders() })
   await baixarArquivo(response, buildFilename(documento, 'pdf'))
 }
 
-export async function gerarHtml(documento) {
-  const response = await fetch(htmlUrl(documento.id), { method: 'GET', headers: authHeaders() })
+export async function gerarHtml(documento, versao) {
+  const response = await fetch(htmlUrl(documento.id, versao), { method: 'GET', headers: authHeaders() })
   await baixarArquivo(response, buildFilename(documento, 'html'))
 }
 

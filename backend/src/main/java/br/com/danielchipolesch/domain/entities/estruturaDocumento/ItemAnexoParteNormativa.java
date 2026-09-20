@@ -68,6 +68,13 @@ public class ItemAnexoParteNormativa {
     @Column(name = "tx_clausula_emenda_anterior", columnDefinition = "TEXT")
     private String clausulaEmendaAnterior;
 
+    // Só para PARAGRAFO_UNICO: cláusula congelada de quando ele passou a "§ Nº" por causa de um
+    // 2º parágrafo incluído por emenda (a linha "Parágrafo único" sai riscada e o texto se repete
+    // sob o novo número). Preenchida em EmendaService.consolidarPublicacao; enquanto null, a
+    // renumeração ainda é pendente (cláusula ao vivo com placeholder).
+    @Column(name = "tx_clausula_renumeracao", columnDefinition = "TEXT")
+    private String clausulaRenumeracao;
+
     // Permanente, independente de emendaStatus — usada só pela numeração com sufixo de
     // letra (ex.: "Art. 5-A"). emendaStatus é livre para evoluir (INCLUIDO -> ALTERADO
     // -> REVOGADO) sem nunca perder a marca de inclusão, senão a numeração sequencial

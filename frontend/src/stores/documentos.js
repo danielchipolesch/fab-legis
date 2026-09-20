@@ -6,7 +6,9 @@ import * as api from '@/api/documentos.js'
 function renumerarSecaoNormativa(doc) {
   const normativa = doc.secoes?.find(s => s.tipo === 'parte_normativa')
   if (!normativa?.elementos?.length) return
-  if (doc.status === 'EM_ALTERACAO' || doc.status === 'ALTERADO') {
+  // Documento já publicado (PUBLICADO ou REVOGADO): numeração por emenda (elemento em vigor nunca
+  // é renumerado), em qualquer etapa local.
+  if (doc.situacao_bca && doc.situacao_bca !== 'NAO_PUBLICADO') {
     renumberElementsEmAlteracao(normativa.elementos)
   } else {
     renumberElements(normativa.elementos)
@@ -75,7 +77,8 @@ export const useDocumentosStore = defineStore('documents', {
     documentos: [],
     totalElements: 0,
     resumoAbas: { meus: 0, minha_om: 0, outras_oms: 0, revogados: 0 },
-    resumoStatus: {},
+    resumoSituacaoBca: {},
+    resumoSituacaoLocal: {},
     loading: false,
     anexosPorDocumento: {},
     portariasPorDocumento: {},
@@ -92,7 +95,7 @@ export const useDocumentosStore = defineStore('documents', {
     // adiciona uma segunda chamada.
     viewMode: 'tabela',
     abaAtiva: 'meus',
-    filtros: { busca: '', especie: null, status: null },
+    filtros: { busca: '', especie: null, situacaoBca: null, situacaoLocal: null },
     tablePagination: { page: 1, rowsPerPage: 15, sortBy: 'data_criacao', descending: true, rowsNumber: 0 },
     // Incrementado quando algo fora da própria tela (ex.: alguém te adicionou
     // como coautor -- ver notificação DOCUMENTO_COMPARTILHADO em
@@ -132,7 +135,8 @@ export const useDocumentosStore = defineStore('documents', {
     async fetchResumo(params) {
       const resp = await api.getResumoDocumentos(params)
       this.resumoAbas = resp?.porAba ?? { meus: 0, minha_om: 0, outras_oms: 0, revogados: 0 }
-      this.resumoStatus = resp?.porStatus ?? {}
+      this.resumoSituacaoBca = resp?.porSituacaoBca ?? {}
+      this.resumoSituacaoLocal = resp?.porSituacaoLocal ?? {}
     },
 
     async fetchComHistoricoEmenda() {
@@ -223,8 +227,8 @@ export const useDocumentosStore = defineStore('documents', {
       return atualizado
     },
 
-    async changeStatus(id, novoStatus, refs) {
-      const atualizado = await api.changeDocumentoStatus(id, novoStatus, refs)
+    async changeStatus(id, situacaoLocal, refs) {
+      const atualizado = await api.changeDocumentoStatus(id, situacaoLocal, refs)
       if (atualizado) {
         const idx = this.documentos.findIndex(d => String(d.id) === String(id))
         if (idx !== -1) this.documentos[idx] = { ...this.documentos[idx], ...atualizado }
@@ -248,8 +252,8 @@ export const useDocumentosStore = defineStore('documents', {
 
     async deleteDocumento(id) {
       const doc = this.documentos.find(d => String(d.id) === String(id))
-      if (doc && !['RASCUNHO', 'MINUTA'].includes(doc.status)) {
-        throw new Error(`Não é possível excluir um documento com situação "${doc.status}". Somente documentos em RASCUNHO ou MINUTA podem ser excluídos.`)
+      if (doc && !['RASCUNHO', 'MINUTA'].includes(doc.situacao_local)) {
+        throw new Error(`Não é possível excluir um documento com situação local "${doc.situacao_local}". Somente documentos em RASCUNHO ou MINUTA podem ser excluídos.`)
       }
       await api.deleteDocumento(id)
       this.documentos = this.documentos.filter(d => String(d.id) !== String(id))

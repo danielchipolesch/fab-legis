@@ -1,7 +1,7 @@
 package br.com.danielchipolesch.domain.builders;
 
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.Documento;
-import br.com.danielchipolesch.domain.entities.estruturaDocumento.DocumentoStatusEnum;
+import br.com.danielchipolesch.domain.entities.estruturaDocumento.SituacaoLocalEnum;
 import br.com.danielchipolesch.domain.entities.numeracaoDocumento.AssuntoBasico;
 import br.com.danielchipolesch.domain.entities.numeracaoDocumento.EspecieNormativa;
 import br.com.danielchipolesch.domain.entities.usuario.OrganizacaoMilitar;
@@ -13,7 +13,7 @@ public class DocumentoBuilder {
     private AssuntoBasico assuntoBasico;
     private Integer numeroSecundario;
     private String tituloDocumento;
-    private DocumentoStatusEnum documentoStatusEnum;
+    private SituacaoLocalEnum situacaoLocal;
     private Usuario autor;
     private OrganizacaoMilitar om;
 
@@ -37,8 +37,8 @@ public class DocumentoBuilder {
         return this;
     }
 
-    public DocumentoBuilder documentoStatus(DocumentoStatusEnum documentoStatusEnum) {
-        this.documentoStatusEnum = documentoStatusEnum;
+    public DocumentoBuilder situacaoLocal(SituacaoLocalEnum situacaoLocal) {
+        this.situacaoLocal = situacaoLocal;
         return this;
     }
 
@@ -58,7 +58,7 @@ public class DocumentoBuilder {
         documento.setAssuntoBasico(this.assuntoBasico);
         documento.setNumeroSecundario(this.numeroSecundario);
         documento.setTituloDocumento(this.tituloDocumento);
-        documento.setDocumentoStatus(this.documentoStatusEnum);
+        documento.setSituacaoLocal(this.situacaoLocal);
         documento.setAutor(this.autor);
         documento.setOm(this.om);
         return documento;

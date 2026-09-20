@@ -24,7 +24,7 @@
         </q-breadcrumbs>
         <h1 class="text-h5 text-weight-bold text-primary q-my-none q-mt-xs">Comparação de Versões</h1>
       </div>
-      <StatusBadge v-if="documento" :status="documento.status" />
+      <StatusBadge v-if="documento" :situacao-bca="documento.situacao_bca" :situacao-local="documento.situacao_local" />
     </div>
 
     <template v-if="loading">
@@ -146,7 +146,7 @@
           </div>
           <div class="row justify-end q-gutter-x-sm">
             <q-btn
-              v-if="documento?.status === 'EM_PUBLICACAO' && !!documento?.data_publicacao"
+              v-if="documento && ehAlteracaoPublicada(documento)"
               size="sm"
               outline
               color="primary"
@@ -247,11 +247,12 @@ import { useRoute } from 'vue-router'
 import { useDocumentosStore } from '@/stores/documentos.js'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import DiffViewer from '@/components/comparison/DiffViewer.vue'
-import { formatReferenciaLabel } from '@/utils/numbering.js'
+import { formatReferenciaLabel, itensRenumeracaoUnico } from '@/utils/numbering.js'
 import { gerarTextoSugeridoPortaria } from '@/utils/textoSugeridoPortaria.js'
 import { generateHTML } from '@tiptap/html'
 import { editorExtensions } from '@/editor/extensions.js'
 import { gerarMapaAlteracaoPdf } from '@/services/pdfService.js'
+import { ehAlteracaoPublicada } from '@/utils/fluxoDocumento.js'
 import { useQuasar } from 'quasar'
 
 function conteudoToHtml(conteudo) {
@@ -282,7 +283,11 @@ onMounted(async () => {
 })
 
 const documento = computed(() => store.getById(route.params.id))
-const mapaAlteracao = computed(() => store.mapaAlteracaoPorDocumento[String(route.params.id)] ?? [])
+// + a renumeração de parágrafo único (não é emenda do elemento, mas a portaria precisa transcrevê-la).
+const mapaAlteracao = computed(() => [
+  ...(store.mapaAlteracaoPorDocumento[String(route.params.id)] ?? []),
+  ...itensRenumeracaoUnico(documento.value),
+])
 const portarias = computed(() => store.portariasPorDocumento[String(route.params.id)] ?? [])
 
 const docId = computed(() => documento.value?.codigo_documento ?? '')
@@ -296,7 +301,7 @@ const docLabel = computed(() => {
 // Só Rascunho/Minuta oferecem o atalho de voltar para o editor pelo
 // breadcrumb -- as demais situações não têm edição direta de conteúdo (ver
 // "Regra de imutabilidade" no README).
-const podeEditar = computed(() => ['RASCUNHO', 'MINUTA'].includes(documento.value?.status))
+const podeEditar = computed(() => ['RASCUNHO', 'MINUTA'].includes(documento.value?.situacao_local))
 
 // Ciclos disponíveis: agrupamento de cicloReferencia (a lista já vem ordenada por
 // dtEmenda desc do backend, então o primeiro id visto de cada ciclo já é o mais

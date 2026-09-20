@@ -4,7 +4,7 @@ import br.com.danielchipolesch.application.dtos.anexoDtos.AnexoResponseDto;
 import br.com.danielchipolesch.application.dtos.documentoDtos.DocumentoStatusRequestDto;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.Anexo;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.Documento;
-import br.com.danielchipolesch.domain.entities.estruturaDocumento.DocumentoStatusEnum;
+import br.com.danielchipolesch.domain.entities.estruturaDocumento.SituacaoLocalEnum;
 import br.com.danielchipolesch.domain.handlers.exceptions.ResourceNotFoundException;
 import br.com.danielchipolesch.domain.handlers.exceptions.enums.DocumentoException;
 import br.com.danielchipolesch.infrastructure.repositories.AnexoRepository;
@@ -55,9 +55,9 @@ public class AnexoService {
 
         AnexoResponseDto resultado = AnexoResponseDto.from(anexoRepository.save(anexo));
 
-        if (documento.getDocumentoStatus() == DocumentoStatusEnum.RASCUNHO) {
+        if (documento.getSituacaoLocal() == SituacaoLocalEnum.RASCUNHO) {
             documentoStatusService.changeStatus(documentoId, new DocumentoStatusRequestDto(
-                    DocumentoStatusEnum.MINUTA, null, null, null, null, null, null,
+                    SituacaoLocalEnum.MINUTA, null, null, null, null, null, null,
                     null, null, null, null, null, null, null, null));
         }
 

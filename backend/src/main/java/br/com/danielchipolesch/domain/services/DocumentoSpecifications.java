@@ -2,7 +2,8 @@ package br.com.danielchipolesch.domain.services;
 
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.Documento;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.DocumentoCompartilhamento;
-import br.com.danielchipolesch.domain.entities.estruturaDocumento.DocumentoStatusEnum;
+import br.com.danielchipolesch.domain.entities.estruturaDocumento.SituacaoBcaEnum;
+import br.com.danielchipolesch.domain.entities.estruturaDocumento.SituacaoLocalEnum;
 import jakarta.persistence.criteria.CommonAbstractCriteria;
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.Predicate;
@@ -40,7 +41,7 @@ public class DocumentoSpecifications {
             );
             case "minha_om" -> (root, query, cb) -> cb.equal(root.get("om").get("id"), omId);
             case "outras_oms" -> (root, query, cb) -> cb.notEqual(root.get("om").get("id"), omId);
-            case "revogados" -> (root, query, cb) -> cb.equal(root.get("documentoStatus"), DocumentoStatusEnum.REVOGADO);
+            case "revogados" -> (root, query, cb) -> cb.equal(root.get("situacaoBca"), SituacaoBcaEnum.REVOGADO);
             default -> (root, query, cb) -> null;
         };
     }
@@ -73,8 +74,13 @@ public class DocumentoSpecifications {
         return (root, query, cb) -> cb.equal(root.get("especieNormativa").get("sigla"), sigla);
     }
 
-    public static Specification<Documento> status(DocumentoStatusEnum status) {
-        if (status == null) return (root, query, cb) -> null;
-        return (root, query, cb) -> cb.equal(root.get("documentoStatus"), status);
+    public static Specification<Documento> situacaoBca(SituacaoBcaEnum situacao) {
+        if (situacao == null) return (root, query, cb) -> null;
+        return (root, query, cb) -> cb.equal(root.get("situacaoBca"), situacao);
+    }
+
+    public static Specification<Documento> situacaoLocal(SituacaoLocalEnum situacao) {
+        if (situacao == null) return (root, query, cb) -> null;
+        return (root, query, cb) -> cb.equal(root.get("situacaoLocal"), situacao);
     }
 }

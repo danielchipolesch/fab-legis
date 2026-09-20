@@ -4,7 +4,7 @@ import br.com.danielchipolesch.application.dtos.anexoDtos.AnexoResponseDto;
 import br.com.danielchipolesch.application.dtos.itemAnexoParteNormativaDtos.ItemAnexoParteNormativaResponseDto;
 import br.com.danielchipolesch.application.dtos.itemPartePreliminarDtos.ItemPartePreliminarResponseDto;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.Documento;
-import br.com.danielchipolesch.domain.entities.estruturaDocumento.DocumentoStatusEnum;
+import br.com.danielchipolesch.domain.entities.estruturaDocumento.VersaoDocumentoEnum;
 import br.com.danielchipolesch.domain.handlers.exceptions.ResourceNotFoundException;
 import br.com.danielchipolesch.domain.handlers.exceptions.enums.DocumentoException;
 import br.com.danielchipolesch.infrastructure.repositories.AnexoRepository;
@@ -33,20 +33,6 @@ import java.util.Set;
 @Service
 public class DocumentoPdfService {
 
-    // Situações em que o documento tem redação estável e já possui PDF salvo no
-    // MinIO (gerado por DocumentoStatusService nas transições correspondentes) —
-    // nesses casos o PDF é sempre servido do MinIO, nunca renderizado de novo,
-    // independente da tela/botão que disparou a exportação (PUBLICADO cobre tanto
-    // a primeira publicação quanto qualquer república). APROVADO/ALTERADO nunca
-    // ficam parados como status atual do documento (DocumentoStatusService
-    // cascateia direto para EM_PUBLICACAO na mesma transação que gera o PDF) —
-    // seguem aqui só porque o enum de doc.getDocumentoStatus() nunca vai
-    // realmente valer isso; é EM_PUBLICACAO quem carrega a cópia armazenada com
-    // a marca d'água "APROVADO" enquanto aguarda a publicação de fato.
-    private static final Set<DocumentoStatusEnum> STATUS_COM_PDF_ARMAZENADO = EnumSet.of(
-            DocumentoStatusEnum.APROVADO, DocumentoStatusEnum.ALTERADO, DocumentoStatusEnum.EM_PUBLICACAO,
-            DocumentoStatusEnum.PUBLICADO, DocumentoStatusEnum.REVOGADO);
-
     private static final FopFactory FOP_FACTORY = FopFactoryProvider.get();
 
     @Autowired
@@ -72,12 +58,19 @@ public class DocumentoPdfService {
     // Renderização ao vivo (fallback): permanece como estava — o Apache FOP monta o
     // PDF inteiro em memória antes de haver qualquer byte pronto, então não há como
     // transmitir em stream nesse caminho sem reescrever a geração do FO.
-    public StreamingResponseBody streamPdf(Long documentoId) {
+    public StreamingResponseBody streamPdf(Long documentoId, VersaoDocumentoEnum pedida) {
         Documento doc = documentoRepository.findById(documentoId)
                 .orElseThrow(() -> new ResourceNotFoundException(DocumentoException.NOT_FOUND.getMessage()));
 
-        if (STATUS_COM_PDF_ARMAZENADO.contains(doc.getDocumentoStatus()) && doc.getUrlPdf() != null) {
-            InputStream armazenado = imagemService.getObjectStream(doc.getUrlPdf());
+        // Vigente: a cópia gravada ao registrar portaria/BCA. Em tramitação: a cópia congelada
+        // (só EM_PUBLICACAO/EM_REVOGACAO -- ver VersoesDocumento); nas demais etapas o texto
+        // ainda muda, então é gerada na hora.
+        VersaoDocumentoEnum versao = VersoesDocumento.resolver(doc, pedida);
+        String urlArmazenada = versao == VersaoDocumentoEnum.VIGENTE ? doc.getUrlPdf()
+                : (VersoesDocumento.emTramitacaoArmazenada(doc) ? doc.getUrlPdfTramitacao() : null);
+
+        if (urlArmazenada != null) {
+            InputStream armazenado = imagemService.getObjectStream(urlArmazenada);
             if (armazenado != null) {
                 return outputStream -> {
                     try (armazenado) {
@@ -85,7 +78,7 @@ public class DocumentoPdfService {
                     }
                 };
             }
-            // urlPdf presente mas não recuperável (objeto removido/inconsistência): recai
+            // URL presente mas não recuperável (objeto removido/inconsistência): recai
             // na renderização ao vivo em vez de falhar a exportação.
         }
         byte[] renderizado = renderPdf(doc);

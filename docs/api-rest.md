@@ -22,11 +22,12 @@ Endpoints padrão do Spring Authorization Server (`AuthorizationServerConfig`), 
 | `POST` | `/` | Cria documento (calcula o número secundário) já com os [capítulos padronizados da NSCA 5-3](dominio.md#capitulos-padronizados-nsca-5-3) na Parte Normativa |
 | `POST` | `/{id}/clonar` | Clona o documento em novo `RASCUNHO` |
 | `GET` | `/{id}` | Obtém documento com anexo textual + links HATEOAS — inclui `numeracao` (capítulo/seção/subseção/artigo já calculados pelo servidor, ver [Modelo de Domínio](dominio.md#numeracao-automatica-conforme-a-tecnica-legislativa)) |
-| `GET` | `/obter-todos` | Lista paginada (DTO enxuto, sem os itens da árvore) |
+| `GET` | `/obter-todos` | Lista paginada (DTO enxuto, sem os itens da árvore); filtros `aba`, `busca`, `especieSigla`, `situacaoBca`, `situacaoLocal`. Cada item traz `situacaoBca` e `situacaoLocal`. `GET /resumo` devolve as contagens `porAba`, `porSituacaoBca` e `porSituacaoLocal` |
 | `GET` | `/filtrar` | Filtra por espécie normativa e assunto básico |
 | `GET` | `/busca?q=&page=&size=` | Busca full-text no **conteúdo** dos dispositivos (`tsvector`/PostgreSQL, ver [Funcionalidades](funcionalidades.md#busca-textual)) — resultado paginado por dispositivo (não por documento), com trecho destacado |
 | `PUT` | `/{id}` | Atualiza metadados (somente Rascunho/Minuta, autor/coautor) |
-| `PATCH` | `/{id}/status` | Transição de status validada e autorizada por papel (publicar/alterar/revogar registram Portaria+BCA, ver [Ciclo de Vida](ciclo-de-vida.md)) |
+| `PATCH` | `/{id}/status` | Muda a **Situação Local** (corpo: `situacaoLocal` + `revisorId`/`publicadorId` conforme a etapa; `SEM_ETAPA` = concluir a etapa em curso). Transição validada e autorizada por papel; publicar/revogar registram Portaria+BCA (a parte preliminar só na 1ª publicação) e são os únicos a mudar a Situação BCA — ver [Ciclo de Vida](ciclo-de-vida.md) |
+| `GET` | `/{id}/pdf?versao=` | `/{id}/html?versao=` | PDF/HTML do documento. `versao=VIGENTE` (a da Situação BCA, armazenada) ou `TRAMITACAO` (a da etapa local em curso); sem o parâmetro, a em tramitação se houver, senão a vigente. `404` se a versão pedida não existe |
 | `PATCH` | `/{id}/secoes` | Salva a árvore de seções por *diff* contra o que já está persistido (checagem de versão) — nunca reescreve `conteudo` de elemento existente, criado/atualizado/excluído propagam via SSE (`event: estrutura`); resposta é `{ itens, numeracao }`, não só a árvore |
 | `PATCH` | `/{id}/elementos/{elementoId}/conteudo` | Grava só o `conteudo` de um elemento — usado pelo serviço `collab` a cada persistência da edição colaborativa |
 | `GET` | `/{id}/pode-editar` | 204 se o usuário autenticado pode editar o documento, 403 caso contrário — usado pelo `collab` para autorizar a conexão a uma sala |
