@@ -68,12 +68,12 @@ final class DocumentoFoFrontMatterBuilder {
             """;
     }
 
-    // Cabeçalho das páginas 2+ de um anexo: "Continuação do ANEXO X" (nada na primeira página, e
-    // nada se o anexo cabe numa só). Vale para o ANEXO I (sumário + corpo normativo) e para os
-    // anexos de imagem -- ver o master a4-anexo em buildLayoutMasterSet.
+    // Cabeçalho das páginas 2+ de um anexo de imagem (ANEXO II em diante): "Continuação do ANEXO X"
+    // (nada na primeira página, e nada se o anexo cabe numa só). NÃO vale para o ANEXO I -- sumário +
+    // corpo normativo --, que segue sem esse cabeçalho. Ver o master a4-anexo em buildLayoutMasterSet.
     static String buildContinuacaoAnexo(String rotuloAnexo) {
         return "<fo:static-content flow-name=\"continuacao\">\n"
-             + "  <fo:block text-align=\"center\" font-size=\"10pt\" font-style=\"italic\">Continuação do "
+             + "  <fo:block text-align=\"center\" font-size=\"10pt\">Continuação do "
              + rotuloAnexo + "</fo:block>\n"
              + "</fo:static-content>\n";
     }

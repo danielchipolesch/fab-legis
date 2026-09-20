@@ -127,26 +127,45 @@ class DocumentoFoBuilderTest {
         return arvore.replaceAll("<[^>]+>", " ").replaceAll("\s+", " ");
     }
 
+    private static br.com.danielchipolesch.application.dtos.anexoDtos.AnexoResponseDto anexo(int ordem, String titulo) {
+        return new br.com.danielchipolesch.application.dtos.anexoDtos.AnexoResponseDto(1L, titulo, null, ordem);
+    }
+
+    // O ANEXO I (sumário + corpo normativo) NUNCA leva "Continuação": a regra vale só do ANEXO II em diante.
     @Test
-    void oAnexoIComVariasPaginasMostraContinuacaoDaSegundaEmDiante() throws Exception {
+    void oAnexoIComVariasPaginasNaoMostraContinuacao() throws Exception {
         var artigos = new java.util.ArrayList<br.com.danielchipolesch.application.dtos.itemAnexoParteNormativaDtos.ItemAnexoParteNormativaResponseDto>();
         for (long i = 1; i <= 60; i++) artigos.add(artigo(i));
         var fo = builder.buildFo(documento(SituacaoBcaEnum.NAO_PUBLICADO, SituacaoLocalEnum.MINUTA),
                 List.of(), artigos, List.of());
 
         var arvore = arvoreDeAreas(fo);
-        long paginas = ocorrencias(arvore, "<pageViewport");
-        long paginasDoAnexoI = paginas - 1; // menos a capa (sem Portaria: documento não publicado)
 
-        assertThat(paginasDoAnexoI).isGreaterThan(2);
-        // Nada na primeira página do anexo; "Continuação do ANEXO I" em TODAS as demais.
-        assertThat(ocorrencias(textoCorrido(arvore), "Continuação do ANEXO I")).isEqualTo(paginasDoAnexoI - 1);
+        assertThat(ocorrencias(arvore, "<pageViewport")).isGreaterThan(3); // capa + várias páginas do anexo I
+        assertThat(textoCorrido(arvore)).doesNotContain("Continuação do");
     }
 
     @Test
-    void oAnexoIDeUmaSoPaginaNaoMostraContinuacao() throws Exception {
+    void umAnexoIIComVariasPaginasMostraContinuacaoDaSegundaEmDiante() throws Exception {
+        // Título enorme: o texto do anexo passa para a página seguinte (um anexo de imagem só
+        // ocupa mais de uma página quando o conteúdo não cabe na primeira).
+        var titulo = "PALAVRA ".repeat(900);
         var fo = builder.buildFo(documento(SituacaoBcaEnum.NAO_PUBLICADO, SituacaoLocalEnum.MINUTA),
-                List.of(), List.of(artigo(1)), List.of());
+                List.of(), List.of(artigo(1)), List.of(anexo(1, titulo)));
+
+        var arvore = arvoreDeAreas(fo);
+        long paginasDoAnexo = ocorrencias(arvore, "<pageViewport") - 2; // menos capa e ANEXO I (1 página)
+
+        assertThat(paginasDoAnexo).isGreaterThanOrEqualTo(2);
+        // Nada na primeira página do anexo; "Continuação do ANEXO II" em TODAS as demais.
+        assertThat(ocorrencias(textoCorrido(arvore), "Continuação do ANEXO II")).isEqualTo(paginasDoAnexo - 1);
+        assertThat(textoCorrido(arvore)).doesNotContain("Continuação do ANEXO I ");
+    }
+
+    @Test
+    void umAnexoIIDeUmaSoPaginaNaoMostraContinuacao() throws Exception {
+        var fo = builder.buildFo(documento(SituacaoBcaEnum.NAO_PUBLICADO, SituacaoLocalEnum.MINUTA),
+                List.of(), List.of(artigo(1)), List.of(anexo(1, "Curto")));
 
         assertThat(textoCorrido(arvoreDeAreas(fo))).doesNotContain("Continuação do");
     }

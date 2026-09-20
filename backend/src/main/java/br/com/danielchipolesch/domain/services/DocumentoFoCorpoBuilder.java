@@ -35,17 +35,14 @@ final class DocumentoFoCorpoBuilder {
 
     String buildBodySequence() {
         var sb = new StringBuilder();
-        sb.append("<fo:page-sequence master-reference=\"a4-anexo\" font-family=\"Calibri\">\n");
+        sb.append("<fo:page-sequence master-reference=\"a4\" font-family=\"Calibri\">\n");
 
         // Footer with page number
         sb.append("<fo:static-content flow-name=\"xsl-region-after\">\n");
         sb.append("  <fo:block text-align=\"right\" font-size=\"10pt\"><fo:page-number/></fo:block>\n");
         sb.append("</fo:static-content>\n");
-        // Da 2ª página do ANEXO I (sumário + corpo normativo) em diante: "Continuação do ANEXO I".
-        sb.append(DocumentoFoFrontMatterBuilder.buildContinuacaoAnexo("ANEXO I"));
 
         sb.append(ctx.buildStaticContentWatermark());
-        sb.append(ctx.buildStaticContentWatermark("wm-continuacao"));
         sb.append("<fo:flow flow-name=\"xsl-region-body\">\n");
 
         String titulo = ctx.doc.getTituloDocumento() != null
