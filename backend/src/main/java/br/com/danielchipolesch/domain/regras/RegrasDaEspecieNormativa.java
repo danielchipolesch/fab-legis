@@ -11,6 +11,8 @@ public interface RegrasDaEspecieNormativa {
 
     RegrasDeHierarquiaDosElementos hierarquia();
 
+    CamposEspecificosDaEspecie camposEspecificos();
+
     CalculadoraDeNumeracaoDosElementos numeracao();
 
     EstruturaInicialDeNovoDocumento estruturaInicial();

@@ -19,7 +19,7 @@ Endpoints padrão do Spring Authorization Server (`AuthorizationServerConfig`), 
 
 | Método | Rota | Descrição |
 |---|---|---|
-| `POST` | `/` | Cria documento (calcula o número secundário) já com os [capítulos padronizados da NSCA 5-3](dominio.md#capitulos-padronizados-nsca-5-3) na Parte Normativa |
+| `POST` | `/` | Cria documento já com a estrutura inicial da espécie. Ato normativo: exige `idAssuntoBasico` (calcula o número secundário) e nasce com os [capítulos padronizados da NSCA 5-3](dominio.md#capitulos-padronizados-nsca-5-3). [NPA](dominio.md#npa-norma-padrao-de-acao): exige `identificacao` (texto livre), não usa assunto básico e nasce com a estrutura do Anexo XII |
 | `POST` | `/{id}/clonar` | Clona o documento em novo `RASCUNHO` |
 | `GET` | `/{id}` | Obtém documento com anexo textual + links HATEOAS — inclui `numeracao` (capítulo/seção/subseção/artigo já calculados pelo servidor, ver [Modelo de Domínio](dominio.md#numeracao-automatica-conforme-a-tecnica-legislativa)) |
 | `GET` | `/obter-todos` | Lista paginada (DTO enxuto, sem os itens da árvore); filtros `aba`, `busca`, `especieSigla`, `situacaoBca`, `situacaoLocal`. Cada item traz `situacaoBca` e `situacaoLocal`. `GET /resumo` devolve as contagens `porAba`, `porSituacaoBca` e `porSituacaoLocal` |
@@ -52,6 +52,15 @@ Endpoints padrão do Spring Authorization Server (`AuthorizationServerConfig`), 
 | `GET` | `/{id}/mapa-alteracao` | Quadro de Justificativas por ciclo (elemento atual + todos os já publicados) |
 | `POST` | `/{id}/mapa-alteracao/pdf` | Exporta o quadro de um ciclo em PDF (A4 paisagem) |
 | `GET` | `/com-historico-emenda` | IDs de documentos com pelo menos uma emenda registrada — usado para habilitar "Comparar versões" na home |
+
+## NPA — `/v1/documentos/{id}/npa`
+
+Campos do cabeçalho e do fecho que só a [NPA](dominio.md#npa-norma-padrao-de-acao) tem. Documento de outra espécie responde `404`.
+
+| Método | Rota | Descrição |
+|---|---|---|
+| `GET` | `/` | Setor emissor, local do fecho e blocos de assinatura (`rotulo` + `linhas`, texto livre) — qualquer usuário autenticado |
+| `PUT` | `/` | Grava esses campos (só quem pode editar; recusado depois que a NPA é publicada) |
 
 ## Anexos — `/v1/documentos/{documentoId}/anexos`
 

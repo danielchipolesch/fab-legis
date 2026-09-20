@@ -103,6 +103,7 @@ public class DocumentoService {
         Documento salvo = documentoRepository.save(documento);
         // A estrutura inicial é regra da espécie (atos normativos: capítulos padronizados da NSCA 5-3).
         regras.para(especieNormativa).estruturaInicial().criarEm(salvo);
+        regras.para(especieNormativa).camposEspecificos().criarPara(salvo);
         documentoHistoricoService.registrar(salvo, TipoAlteracaoEnum.CRIACAO,
                 "Documento criado", null, SituacaoLocalEnum.RASCUNHO);
         return DocumentoMapper.documentoToDocumentoSemAnexoTextualResponseDto(salvo);
@@ -305,6 +306,7 @@ public class DocumentoService {
         documentoRepository.save(documentoAntigo);
 
         Documento clonado = documentoRepository.save(documentoNovo);
+        regras.para(documentoAntigo.getEspecieNormativa()).camposEspecificos().copiar(documentoAntigo, clonado);
 
         for (ItemPartePreliminar orig : itemPartePreliminarRepository.findByDocumentoIdOrderByElementOrderAsc(id)) {
             ItemPartePreliminar copia = new ItemPartePreliminar();

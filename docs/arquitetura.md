@@ -90,6 +90,7 @@ Nem toda espécie normativa obedece às mesmas regras. Para o restante do sistem
 | Interface | O que a espécie decide | Implementação em `ATO_NORMATIVO` |
 |---|---|---|
 | `RegrasDeCriacaoDoDocumento` | o que a espécie exige para criar um documento e como ele se identifica (a `identificacao` é gravada na criação) | `CriacaoDeAtoNormativo` (assunto básico + sequencial: "DCA 11-3") |
+| `CamposEspecificosDaEspecie` | o ciclo de vida dos dados que só algumas espécies têm, numa estrutura 1:1 com o documento (criar e copiar junto com ele; a exclusão é em cascata no banco) | `SemCamposEspecificos` (nenhum) · NPA: `CamposDeNpa` |
 | `RegrasDeHierarquiaDosElementos` | quem pode ficar dentro de quem na parte normativa; o backend recusa, no salvamento, o que a espécie não permite | `HierarquiaDeAtoNormativo` (o editor impõe a ordem; o backend não recusa) |
 | `CalculadoraDeNumeracaoDosElementos` | o rótulo de cada elemento da parte normativa | `NumeracaoService` |
 | `EstruturaInicialDeNovoDocumento` | os elementos com que um documento novo já nasce | `CapitulosPadronizadosService` (NSCA 5-3) |
@@ -98,7 +99,7 @@ Nem toda espécie normativa obedece às mesmas regras. Para o restante do sistem
 | `LeiauteDoHtml` | a diagramação do HTML | `LeiauteHtmlDeAtoNormativo` |
 | `RegrasDoCicloDeVidaDoDocumento` | as mudanças de etapa permitidas (`AcaoDeEtapa`) | `CicloDeVidaDeAtoNormativo` |
 
-`RegrasDaEspecieNormativa` reúne as regras de uma espécie (`RegrasDeAtoNormativo`, para as demais espécies, é a implementação atual; `RegrasDeNpa` virá a seguir) e `RegrasDasEspecies.para(especie)` devolve as regras — toda `RegrasDaEspecieNormativa` registrada como bean entra sozinha, então acrescentar uma espécie com regras próprias **não exige mexer no registro nem nos serviços**. Quem só precisa da regra depende da interface: `DocumentoService.create` (criação e estrutura inicial), `DocumentoParteNormativaService` (hierarquia e numeração), `DocumentoPdfService` e `DocumentoHtmlService` (layouts, que continuam dono da parte que não depende da espécie: escolher a versão, gerar, armazenar e servir o arquivo) e `DocumentoStatusService` (ciclo de vida).
+`RegrasDaEspecieNormativa` reúne as regras de uma espécie (`RegrasDeAtoNormativo`, para as demais espécies, é a implementação atual; `RegrasDeNpa` virá a seguir) e `RegrasDasEspecies.para(especie)` devolve as regras — toda `RegrasDaEspecieNormativa` registrada como bean entra sozinha, então acrescentar uma espécie com regras próprias **não exige mexer no registro nem nos serviços**. Quem só precisa da regra depende da interface: `DocumentoService.create`/`clone` (criação, estrutura inicial e campos específicos), `DocumentoParteNormativaService` (hierarquia e numeração), `DocumentoPdfService` e `DocumentoHtmlService` (layouts, que continuam dono da parte que não depende da espécie: escolher a versão, gerar, armazenar e servir o arquivo) e `DocumentoStatusService` (ciclo de vida).
 
 **Regra para código novo:** um comportamento que varia por espécie entra como método de uma dessas interfaces (ou de uma interface nova), nunca como `if (espécie == …)` no serviço. Ver a proposta da NPA, a próxima espécie com regras próprias, no [Roadmap](roadmap.md#npa-norma-padrao-de-acao-proposta-de-implementacao).
 

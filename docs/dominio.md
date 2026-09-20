@@ -130,6 +130,21 @@ Seção, subseção e parágrafo **do mesmo pai dividem uma única sequência**:
 
 `EstruturaInicialDeNpa` (layout do Anexo XII): `1 DISPOSIÇÕES PRELIMINARES` (`1.1 Finalidade`, `1.2 Âmbito`, `1.3 Referências`), `2 DISPOSIÇÕES GERAIS` (`2.1 Conceituações`) e `3 DISPOSIÇÕES FINAIS` (parágrafo direto, `3.1`). Como a alínea só existe depois de um parágrafo, a seção Referências nasce com o parágrafo introdutório **"Constituem referências:"** seguido da alínea. Os textos de orientação entre colchetes nascem em vermelho, como nos atos normativos.
 
+### Campos do cabeçalho e do fecho
+
+O cabeçalho da NPA é uma tabela de campos, não uma parte preliminar. Os campos que só ela tem ficam em `t_documento_npa` (`CamposDaNpa`, uma linha por documento, migração `V8`), fora de `Documento`:
+
+| Campo | Origem |
+|---|---|
+| **Identificação** | `Documento.identificacao` (texto livre, informado na criação) |
+| **Setor emissor** | `CamposDaNpa.setorEmissor` — texto livre, abaixo da OM |
+| **Local** | `CamposDaNpa.local` — do fecho "Local, dd de mês de aaaa"; a data é a da aprovação |
+| **Assinaturas** | `CamposDaNpa.assinaturas` — blocos em **texto livre**: um rótulo ("Elaborado por", "Visto", "Proposto por", "Aprovo"…) e até 6 linhas abaixo dele; até 10 blocos |
+| **Assunto** | título do documento |
+| **Distribuição** | sempre **OSTENSIVA** (constante das regras da NPA) |
+
+Nascem com orientação entre colchetes (`[SETOR EMISSOR]`, `[Local]`, dois blocos de assinatura: "Elaborado por" e "Aprovo") para o autor preencher, e depois de a NPA ser publicada não mudam mais.
+
 ### Anexos
 
 Ficam ao final do documento e são rotulados **A, B, C…** (`ANEXO A`) — não há "ANEXO I" reservado ao corpo normativo — e listados no campo ANEXOS do cabeçalho.

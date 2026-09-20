@@ -15,7 +15,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 // restante do sistema nunca testa a espécie do documento, só pede a regra a quem a conhece.
 class RegrasDasEspeciesTest {
 
-    private static final RegrasDeAtoNormativo ATO = new RegrasDeAtoNormativo(null, null, null, null, null, null, null, new CicloDeVidaDeAtoNormativo());
+    private static final RegrasDeAtoNormativo ATO = new RegrasDeAtoNormativo(null, null, null, null, null, null, null, null, new CicloDeVidaDeAtoNormativo());
 
     @Test
     void aEspecieSegueAsRegrasDeAtoNormativoPorPadrao() {
@@ -40,7 +40,7 @@ class RegrasDasEspeciesTest {
 
     @Test
     void umaEspecieDeNpaRecebeAsRegrasDaNpaEAsDemaisAsDeAtoNormativo() {
-        var npaRegras = new RegrasDeNpa(null, null, null, null, null, null, null, null);
+        var npaRegras = new RegrasDeNpa(null, null, null, null, null, null, null, null, null);
         var registro = new RegrasDasEspecies(List.of(ATO, npaRegras));
         var especieNpa = new EspecieNormativa();
         especieNpa.setTipoDeRegras(TipoDeRegras.NPA);

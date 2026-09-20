@@ -1,6 +1,7 @@
 package br.com.danielchipolesch.domain.regras.atonormativo;
 
 import br.com.danielchipolesch.domain.regras.CalculadoraDeNumeracaoDosElementos;
+import br.com.danielchipolesch.domain.regras.CamposEspecificosDaEspecie;
 import br.com.danielchipolesch.domain.regras.EstruturaInicialDeNovoDocumento;
 import br.com.danielchipolesch.domain.regras.LeiauteDoHtml;
 import br.com.danielchipolesch.domain.regras.LeiauteDoPdf;
@@ -23,6 +24,7 @@ public class RegrasDeAtoNormativo implements RegrasDaEspecieNormativa {
 
     private final RegrasDeCriacaoDoDocumento criacao;
     private final RegrasDeHierarquiaDosElementos hierarquia;
+    private final CamposEspecificosDaEspecie camposEspecificos;
     private final CalculadoraDeNumeracaoDosElementos numeracao;
     private final EstruturaInicialDeNovoDocumento estruturaInicial;
     private final RotuloDosAnexos rotuloDosAnexos;
@@ -32,6 +34,7 @@ public class RegrasDeAtoNormativo implements RegrasDaEspecieNormativa {
 
     public RegrasDeAtoNormativo(CriacaoDeAtoNormativo criacao,
                                 HierarquiaDeAtoNormativo hierarquia,
+                                SemCamposEspecificos camposEspecificos,
                                 NumeracaoService numeracao,
                                 CapitulosPadronizadosService estruturaInicial,
                                 RotuloDeAnexoDeAtoNormativo rotuloDosAnexos,
@@ -40,6 +43,7 @@ public class RegrasDeAtoNormativo implements RegrasDaEspecieNormativa {
                                 CicloDeVidaDeAtoNormativo cicloDeVida) {
         this.criacao = criacao;
         this.hierarquia = hierarquia;
+        this.camposEspecificos = camposEspecificos;
         this.numeracao = numeracao;
         this.estruturaInicial = estruturaInicial;
         this.rotuloDosAnexos = rotuloDosAnexos;
@@ -51,6 +55,7 @@ public class RegrasDeAtoNormativo implements RegrasDaEspecieNormativa {
     @Override public TipoDeRegras tipo() { return TipoDeRegras.ATO_NORMATIVO; }
     @Override public RegrasDeCriacaoDoDocumento criacao() { return criacao; }
     @Override public RegrasDeHierarquiaDosElementos hierarquia() { return hierarquia; }
+    @Override public CamposEspecificosDaEspecie camposEspecificos() { return camposEspecificos; }
     @Override public CalculadoraDeNumeracaoDosElementos numeracao() { return numeracao; }
     @Override public EstruturaInicialDeNovoDocumento estruturaInicial() { return estruturaInicial; }
     @Override public RotuloDosAnexos rotuloDosAnexos() { return rotuloDosAnexos; }
