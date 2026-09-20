@@ -217,9 +217,16 @@
             </q-td>
           </template>
 
-          <template #body-cell-status="props">
+          <!-- As duas situações em colunas próprias: a BCA (real) e a local (etapa interna) -->
+          <template #body-cell-situacao_bca="props">
             <q-td :props="props">
-              <StatusBadge :situacao-bca="props.row.situacao_bca" :situacao-local="props.row.situacao_local" />
+              <StatusBadge :situacao-bca="props.row.situacao_bca" mostrar="bca" />
+            </q-td>
+          </template>
+
+          <template #body-cell-situacao_local="props">
+            <q-td :props="props">
+              <StatusBadge :situacao-local="props.row.situacao_local" mostrar="local" />
             </q-td>
           </template>
 
@@ -568,7 +575,8 @@ const columns = [
   { name: 'titulo',         label: 'Título',         field: 'titulo',         align: 'center', sortable: true },
   { name: 'assunto_basico', label: 'Assunto Básico', field: 'assunto_basico', align: 'center', sortable: true },
   { name: 'data_criacao',   label: 'Data',           field: 'data_criacao',   align: 'center', sortable: true,  style: 'width: 120px' },
-  { name: 'status',         label: 'Situação',       field: 'situacao_bca',        align: 'center', sortable: true,  style: 'width: 140px' },
+  { name: 'situacao_bca',   label: 'Situação BCA',   field: 'situacao_bca',   align: 'center', sortable: true,  style: 'width: 140px' },
+  { name: 'situacao_local', label: 'Situação Local', field: 'situacao_local', align: 'center', sortable: true,  style: 'width: 170px' },
   { name: 'replicas',       label: 'Réplicas',       field: 'qtd_replicas',   align: 'center', sortable: true,  style: 'width: 90px' },
   { name: 'actions',        label: 'Ações',          field: 'actions',        align: 'center', sortable: false, style: 'width: 220px' },
 ]
@@ -582,7 +590,8 @@ const SORT_FIELD_MAP = {
   titulo: 'tituloDocumento',
   assunto_basico: 'assuntoBasico.nome',
   data_criacao: 'dtCriacao',
-  status: 'situacaoBca',
+  situacao_bca: 'situacaoBca',
+  situacao_local: 'situacaoLocal',
   replicas: 'qtdReplicas',
 }
 

@@ -102,8 +102,12 @@
                       <div class="info-value">{{ documento.assunto_basico || '—' }}</div>
                     </div>
                     <div class="col-6">
-                      <div class="info-label">Situação atual</div>
-                      <StatusBadge :situacao-bca="documento.situacao_bca" :situacao-local="documento.situacao_local" class="q-mt-xs" />
+                      <div class="info-label">Situação BCA</div>
+                      <StatusBadge :situacao-bca="documento.situacao_bca" mostrar="bca" class="q-mt-xs" data-testid="info-situacao-bca" />
+                    </div>
+                    <div class="col-6">
+                      <div class="info-label">Situação Local</div>
+                      <StatusBadge :situacao-local="documento.situacao_local" mostrar="local" class="q-mt-xs" data-testid="info-situacao-local" />
                     </div>
                     <div class="col-6">
                       <div class="info-label">Código</div>
