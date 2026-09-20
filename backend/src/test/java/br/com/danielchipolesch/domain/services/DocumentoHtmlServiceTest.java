@@ -150,6 +150,39 @@ class DocumentoHtmlServiceTest {
         assertThat(html).contains("§ 1º-A").contains("§ 2º").doesNotContain("§ 3º");
     }
 
+    // ─── Portaria: só depois da 1ª publicação ────────────────────────────────────
+
+    private static final String AVISO = "<p class=\"aviso-nao-substitui\">";
+    private static final String EMENTA = "<div class=\"ementa-bloco\">";
+
+    @Test
+    void documentoNaoPublicadoNaoTemPortariaNemOAvisoDoBca() {
+        for (var local : SituacaoLocalEnum.values()) {
+            var doc = documento();
+            doc.setSituacaoBca(SituacaoBcaEnum.NAO_PUBLICADO);
+            doc.setSituacaoLocal(local);
+
+            var html = htmlDe(doc);
+
+            assertThat(html).doesNotContain(EMENTA).doesNotContain(AVISO).doesNotContain("class=\"epigrafe\"");
+            // O corpo continua: o HTML abre direto no ANEXO I.
+            assertThat(html).contains("ANEXO I").contains("Art. 1º");
+        }
+    }
+
+    @Test
+    void documentoPublicadoTemAPortariaInicialMesmoDuranteUmaAlteracao() {
+        for (var local : List.of(SituacaoLocalEnum.SEM_ETAPA, SituacaoLocalEnum.EM_ALTERACAO, SituacaoLocalEnum.EM_PUBLICACAO)) {
+            var doc = documento();
+            doc.setSituacaoBca(SituacaoBcaEnum.PUBLICADO);
+            doc.setSituacaoLocal(local);
+
+            var html = htmlDe(doc);
+
+            assertThat(html).contains(EMENTA).contains(AVISO);
+        }
+    }
+
     // ─── Revogação total: selo, nunca tachado ────────────────────────────────────
 
     private String htmlDe(Documento doc) {

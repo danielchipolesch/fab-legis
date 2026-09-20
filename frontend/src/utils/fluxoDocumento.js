@@ -91,6 +91,12 @@ export function eventoDoHistorico(h) {
   return { titulo: m.label, icon: m.icon, color: m.color }
 }
 
+// A Portaria (epígrafe, ementa, preâmbulo, fecho, assinatura) só existe depois da 1ª publicação: um
+// documento ainda NAO_PUBLICADO não a exibe (prévia, PDF, HTML). Espelha VersoesDocumento.exibePortaria.
+export function exibePortaria(doc) {
+  return !!doc?.situacao_bca && doc.situacao_bca !== 'NAO_PUBLICADO'
+}
+
 // Revogação total: nenhum elemento é tachado -- só o selo vermelho "REVOGADO" no canto superior
 // direito da página da parte preliminar. Aparece quando a Situação BCA já é REVOGADO e também na
 // versão em tramitação da revogação aprovada (EM_REVOGACAO). Espelha VersoesDocumento.exibeSeloRevogado

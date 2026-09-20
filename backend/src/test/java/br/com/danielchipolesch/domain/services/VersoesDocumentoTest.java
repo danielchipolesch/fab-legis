@@ -86,6 +86,26 @@ class VersoesDocumentoTest {
                 .isInstanceOf(ResourceNotFoundException.class);
     }
 
+    // ─── Portaria: só depois da 1ª publicação ────────────────────────────────────
+
+    @ParameterizedTest
+    @EnumSource(SituacaoLocalEnum.class)
+    void naoPublicadoNuncaExibeAPortaria(SituacaoLocalEnum local) {
+        assertThat(VersoesDocumento.exibePortaria(doc(NAO_PUBLICADO, local))).isFalse();
+    }
+
+    @ParameterizedTest
+    @EnumSource(SituacaoLocalEnum.class)
+    void publicadoExibeAPortariaEmQualquerEtapa(SituacaoLocalEnum local) {
+        // A portaria inicial é perene: uma alteração em curso não a esconde.
+        assertThat(VersoesDocumento.exibePortaria(doc(PUBLICADO, local))).isTrue();
+    }
+
+    @Test
+    void revogadoTambemExibeAPortaria() {
+        assertThat(VersoesDocumento.exibePortaria(doc(REVOGADO, SEM_ETAPA))).isTrue();
+    }
+
     // ─── Revogação total: selo REVOGADO (nenhum elemento tachado) ────────────────
 
     @Test

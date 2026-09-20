@@ -31,6 +31,15 @@ public final class VersoesDocumento {
                 || doc.getSituacaoLocal() == SituacaoLocalEnum.EM_REVOGACAO;
     }
 
+    // A Portaria (epígrafe, ementa, preâmbulo, fecho e assinatura) só existe a partir da primeira
+    // publicação -- é coletada nela (ver DocumentoStatusService) e é perene. Um documento ainda
+    // NAO_PUBLICADO (rascunho, minuta, em revisão, aguardando a 1ª publicação) NÃO a exibe, nem na
+    // prévia, nem no PDF, nem no HTML; as alterações posteriores aparecem por cláusula em cada
+    // elemento, nunca por uma nova portaria na parte preliminar.
+    public static boolean exibePortaria(Documento doc) {
+        return doc.getSituacaoBca() != SituacaoBcaEnum.NAO_PUBLICADO;
+    }
+
     // Revogação TOTAL: o documento não tem seus elementos tachados -- só ganha o selo vermelho
     // "REVOGADO" no canto superior direito da página da parte preliminar (PDF, HTML e prévia).
     // O selo aparece quando a Situação BCA já é REVOGADO (versão vigente de um ato revogado) e

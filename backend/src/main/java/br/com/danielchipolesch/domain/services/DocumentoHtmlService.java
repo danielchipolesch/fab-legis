@@ -347,6 +347,10 @@ public class DocumentoHtmlService {
         // ─── Page 1: Portaria de Aprovação ───────────────────────────────────────
 
         private String buildPortaria() {
+            // Sem Portaria antes da 1ª publicação (VersoesDocumento.exibePortaria): nada de
+            // cabeçalho, epígrafe... nem do aviso "não substitui a publicada no BCA" (não há
+            // publicação). O HTML começa direto no ANEXO I (sumário + corpo).
+            if (!VersoesDocumento.exibePortaria(doc)) return "";
             var sb = new StringBuilder();
             sb.append("<div class=\"page-break\">\n");
             if (VersoesDocumento.exibeSeloRevogado(doc)) {

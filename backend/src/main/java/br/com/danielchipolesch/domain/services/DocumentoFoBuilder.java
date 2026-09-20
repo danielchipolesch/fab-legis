@@ -78,7 +78,10 @@ public class DocumentoFoBuilder {
         sb.append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
         sb.append("<fo:root xmlns:fo=\"").append(FO_NS).append("\" xmlns:fox=\"http://xmlgraphics.apache.org/fop/extensions\">\n");
         sb.append(frontMatter.buildLayoutMasterSet());
-        sb.append(frontMatter.buildPortariaSequence());
+        // A Portaria só existe depois da 1ª publicação (VersoesDocumento.exibePortaria).
+        if (VersoesDocumento.exibePortaria(doc)) {
+            sb.append(frontMatter.buildPortariaSequence());
+        }
         sb.append(frontMatter.buildCapaSequence());
         sb.append(corpo.buildBodySequence());
         for (AnexoResponseDto anexo : anexosSeguro) {

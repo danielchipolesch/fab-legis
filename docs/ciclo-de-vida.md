@@ -112,7 +112,7 @@ O tipo de cada registro é decidido pela **Situação BCA** do documento no mome
 
 Todas as portarias registradas de um documento aparecem na tela de visualização, na seção **Portarias** (ver [Funcionalidades](funcionalidades.md#visualizacao-do-documento)), acessíveis via `GET /v1/documentos/{id}/portarias`.
 
-**A parte preliminar é da primeira publicação — e só dela.** Somente a portaria de **publicação** aparece na parte preliminar do documento (epígrafe, ementa, preâmbulo, fecho e assinatura), e ela é **perene**: nunca é sobrescrita. As portarias de alteração aparecem como **cláusula em cada elemento alterado** (ver ciclo de emenda abaixo) e a de revogação total, pelo selo `REVOGADO`. Por isso:
+**A parte preliminar é da primeira publicação — e só dela.** Antes dela o documento não exibe a Portaria (nem na prévia, nem no PDF, nem no HTML). Somente a portaria de **publicação** aparece na parte preliminar do documento (epígrafe, ementa, preâmbulo, fecho e assinatura), e ela é **perene**: nunca é sobrescrita. As portarias de alteração aparecem como **cláusula em cada elemento alterado** (ver ciclo de emenda abaixo) e a de revogação total, pelo selo `REVOGADO`. Por isso:
 
 - a **primeira publicação** exige Portaria + BCA + PDF **e** a parte preliminar inteira (o serviço rejeita se faltar qualquer um dos cinco campos) e é a única que a grava;
 - uma **alteração** e uma **revogação** exigem apenas Portaria + BCA + PDF da portaria, e **não** tocam na parte preliminar;

@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   destinoDeAprovacao, destinoDeDevolucao, DESTINO_DE_CONCLUSAO, ehRevogacao, ehPrimeiraPublicacao,
   ehAlteracaoPublicada, podeDevolverPublicacao, temVersaoVigente, temVersaoEmTramitacao, versaoPadrao,
-  eventoDoHistorico, exibeSeloRevogado,
+  eventoDoHistorico, exibeSeloRevogado, exibePortaria,
 } from './fluxoDocumento.js'
 import {
   temEtapaEmCurso, situacaoBcaMeta, situacaoLocalMeta, SITUACAO_BCA_META, SITUACAO_LOCAL_META,
@@ -137,5 +137,22 @@ describe('exibeSeloRevogado (revogação total: selo, nunca tachado)', () => {
     expect(exibeSeloRevogado(doc('PUBLICADO', 'EM_ALTERACAO'))).toBe(false)
     expect(exibeSeloRevogado(doc('NAO_PUBLICADO', 'MINUTA'))).toBe(false)
     expect(exibeSeloRevogado(null)).toBe(false)
+  })
+})
+
+describe('exibePortaria (só depois da 1ª publicação)', () => {
+  it('documento não publicado não exibe a portaria, em nenhuma etapa', () => {
+    for (const local of ['RASCUNHO', 'MINUTA', 'EM_REVISAO', 'EM_PUBLICACAO', 'CANCELADO']) {
+      expect(exibePortaria(doc('NAO_PUBLICADO', local))).toBe(false)
+    }
+  })
+  it('publicado ou revogado exibe, inclusive durante uma alteração (a portaria inicial é perene)', () => {
+    expect(exibePortaria(doc('PUBLICADO', 'SEM_ETAPA'))).toBe(true)
+    expect(exibePortaria(doc('PUBLICADO', 'EM_ALTERACAO'))).toBe(true)
+    expect(exibePortaria(doc('REVOGADO', 'SEM_ETAPA'))).toBe(true)
+  })
+  it('sem documento ou sem situação não exibe', () => {
+    expect(exibePortaria(null)).toBe(false)
+    expect(exibePortaria({})).toBe(false)
   })
 })

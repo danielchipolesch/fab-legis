@@ -13,7 +13,9 @@
            Estrutura: cabeçalho → epígrafe → ementa → preâmbulo → RESOLVE: → artigos → assinatura
            (No PDF real da NSCA 5-3, a portaria vem ANTES da capa)
       ════════════════════════════════════════════════════════ -->
-      <div class="pdf-page">
+      <!-- Só aparece depois da 1ª publicação (a Portaria é coletada nela e é perene); antes, a prévia
+           começa na capa. As alterações posteriores aparecem por cláusula em cada elemento. -->
+      <div v-if="mostrarPortaria" class="pdf-page" data-testid="pagina-portaria">
         <div v-if="wmText" class="wm-overlay" :style="{ color: wmColor }">{{ wmText }}</div>
         <!-- Revogação total: selo no canto superior direito da página da parte preliminar; nenhum elemento é tachado -->
         <div v-if="seloRevogado" class="selo-revogado" data-testid="selo-revogado">REVOGADO</div>
@@ -270,7 +272,7 @@ import { editorExtensions } from '@/editor/extensions.js'
 import { bodyLabel, formatLabel, toRoman, clausulaRenumeracao } from '@/utils/numbering.js'
 import { useDocumentosStore } from '@/stores/documentos.js'
 import { resolveMinioUrls } from '@/utils/minioUrls.js'
-import { exibeSeloRevogado } from '@/utils/fluxoDocumento.js'
+import { exibeSeloRevogado, exibePortaria } from '@/utils/fluxoDocumento.js'
 
 function toRomanStr(n) { return toRoman(n ?? 0) }
 
@@ -469,6 +471,7 @@ const orgLabel = computed(() =>
     .toUpperCase()
 )
 
+const mostrarPortaria = computed(() => exibePortaria(props.documento))
 const seloRevogado = computed(() => exibeSeloRevogado(props.documento))
 const wmText  = computed(() => WM_TEXT[props.documento?.situacao_local] ?? '')
 const wmColor = computed(() => WM_COLOR[props.documento?.situacao_local] ?? '#888')
