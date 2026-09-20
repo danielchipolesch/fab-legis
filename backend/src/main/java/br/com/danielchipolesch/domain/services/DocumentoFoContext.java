@@ -58,7 +58,13 @@ final class DocumentoFoContext {
     //   top  = 421 − (75−250)*0.707 = 421 + 123.7 ≈ 545 pt
 
     String buildStaticContentWatermark() {
-        String open  = "<fo:static-content flow-name=\"wm\">\n";
+        return buildStaticContentWatermark("wm");
+    }
+
+    // flowName: região onde a marca d'água é ancorada ("wm" na maioria das páginas; "wm-continuacao"
+    // nas páginas 2+ de um anexo -- ver o master a4-continuacao).
+    String buildStaticContentWatermark(String flowName) {
+        String open  = "<fo:static-content flow-name=\"" + flowName + "\">\n";
         String close = "</fo:static-content>\n";
         // A marca d'água descreve a ETAPA LOCAL da versão em tramitação. A versão VIGENTE (a que
         // a situação BCA descreve) sai sempre sem marca d'água: é gerada com o documento em

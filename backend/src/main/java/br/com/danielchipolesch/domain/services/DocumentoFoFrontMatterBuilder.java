@@ -46,8 +46,36 @@ final class DocumentoFoFrontMatterBuilder {
                 <fo:region-body region-name="xsl-region-body"/>
                 <fo:region-before region-name="wm" extent="0pt" overflow="visible"/>
               </fo:simple-page-master>
+              <!-- Páginas 2+ de um ANEXO: mesma página, com um cabeçalho "Continuação do ANEXO X". A
+                   marca d'água (região "wm-continuacao", já que um mesmo nome de região não pode ser before numa página e start em outra) vai na região start, que não ocupa espaço. -->
+              <fo:simple-page-master master-name="a4-continuacao"
+                  page-width="21cm" page-height="29.7cm"
+                  margin-top="2cm" margin-bottom="1cm"
+                  margin-left="2cm" margin-right="2cm">
+                <fo:region-body region-name="xsl-region-body" margin-top="1cm" margin-bottom="1cm"/>
+                <fo:region-before region-name="continuacao" extent="1cm"/>
+                <fo:region-after region-name="xsl-region-after" extent="1cm" display-align="after"/>
+                <fo:region-start region-name="wm-continuacao" extent="0pt" overflow="visible"/>
+              </fo:simple-page-master>
+              <!-- Primeira página como a4; da segunda em diante, a4-continuacao. -->
+              <fo:page-sequence-master master-name="a4-anexo">
+                <fo:repeatable-page-master-alternatives>
+                  <fo:conditional-page-master-reference master-reference="a4" page-position="first"/>
+                  <fo:conditional-page-master-reference master-reference="a4-continuacao" page-position="rest"/>
+                </fo:repeatable-page-master-alternatives>
+              </fo:page-sequence-master>
             </fo:layout-master-set>
             """;
+    }
+
+    // Cabeçalho das páginas 2+ de um anexo: "Continuação do ANEXO X" (nada na primeira página, e
+    // nada se o anexo cabe numa só). Vale para o ANEXO I (sumário + corpo normativo) e para os
+    // anexos de imagem -- ver o master a4-anexo em buildLayoutMasterSet.
+    static String buildContinuacaoAnexo(String rotuloAnexo) {
+        return "<fo:static-content flow-name=\"continuacao\">\n"
+             + "  <fo:block text-align=\"center\" font-size=\"10pt\" font-style=\"italic\">Continuação do "
+             + rotuloAnexo + "</fo:block>\n"
+             + "</fo:static-content>\n";
     }
 
     // ─── Page 1: Portaria ─────────────────────────────────────────────────────
@@ -203,11 +231,14 @@ final class DocumentoFoFrontMatterBuilder {
 
     String buildAnexoSequence(AnexoResponseDto anexo) {
         var sb = new StringBuilder();
-        sb.append("<fo:page-sequence master-reference=\"a4\" font-family=\"Calibri\">\n");
+        sb.append("<fo:page-sequence master-reference=\"a4-anexo\" font-family=\"Calibri\">\n");
         sb.append("<fo:static-content flow-name=\"xsl-region-after\">\n");
         sb.append("  <fo:block text-align=\"right\" font-size=\"10pt\"><fo:page-number/></fo:block>\n");
         sb.append("</fo:static-content>\n");
+        // Da 2ª página do anexo em diante: "Continuação do ANEXO X".
+        sb.append(buildContinuacaoAnexo("ANEXO " + NumeracaoService.toRoman(anexo.ordem() + 1)));
         sb.append(ctx.buildStaticContentWatermark());
+        sb.append(ctx.buildStaticContentWatermark("wm-continuacao"));
         sb.append("<fo:flow flow-name=\"xsl-region-body\">\n");
 
         String numRomano = NumeracaoService.toRoman(anexo.ordem() + 1);

@@ -54,7 +54,7 @@ class DocumentoFoBuilderTest {
     }
 
     private static long sequencias(String fo) {
-        return fo.split("<fo:page-sequence", -1).length - 1;
+        return fo.split("<fo:page-sequence ", -1).length - 1;
     }
 
     @Test
@@ -87,5 +87,67 @@ class DocumentoFoBuilderTest {
     void oSeloRevogadoEstaNaPortariaDoDocumentoRevogado() {
         assertThat(fo(documento(SituacaoBcaEnum.REVOGADO, SituacaoLocalEnum.SEM_ETAPA))).contains(">REVOGADO<");
         assertThat(fo(documento(SituacaoBcaEnum.PUBLICADO, SituacaoLocalEnum.SEM_ETAPA))).doesNotContain(">REVOGADO<");
+    }
+
+    // ─── Anexos com mais de uma página: "Continuação do ANEXO X" ─────────────────
+
+    private static String conteudo(String texto) {
+        return "{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\""
+                + texto + "\"}]}]}";
+    }
+
+    private static br.com.danielchipolesch.application.dtos.itemAnexoParteNormativaDtos.ItemAnexoParteNormativaResponseDto artigo(long id) {
+        return new br.com.danielchipolesch.application.dtos.itemAnexoParteNormativaDtos.ItemAnexoParteNormativaResponseDto(
+                id, null, br.com.danielchipolesch.domain.entities.estruturaDocumento.ItemAnexoParteNormativaTipoEnum.ARTIGO,
+                null, null, conteudo("Texto do artigo ".repeat(40) + id), null,
+                br.com.danielchipolesch.domain.entities.estruturaDocumento.ElementoEmendaStatusEnum.INALTERADO,
+                null, null, null, null, null, null, false, null, null, List.of());
+    }
+
+    // Renderiza o FO no FOP (árvore de áreas em XML): dá para contar páginas e o texto de cada uma
+    // sem extrair texto de um PDF.
+    private static String arvoreDeAreas(String fo) throws Exception {
+        var saida = new java.io.ByteArrayOutputStream();
+        var fopFactory = FopFactoryProvider.get();
+        var fop = fopFactory.newFop(org.apache.fop.apps.MimeConstants.MIME_FOP_AREA_TREE, fopFactory.newFOUserAgent(), saida);
+        var spf = javax.xml.parsers.SAXParserFactory.newInstance();
+        spf.setNamespaceAware(true);
+        var reader = spf.newSAXParser().getXMLReader();
+        reader.setContentHandler(fop.getDefaultHandler());
+        reader.parse(new org.xml.sax.InputSource(new java.io.StringReader(fo)));
+        return saida.toString(java.nio.charset.StandardCharsets.UTF_8);
+    }
+
+    private static long ocorrencias(String texto, String trecho) {
+        return texto.split(java.util.regex.Pattern.quote(trecho), -1).length - 1;
+    }
+
+    // As palavras da área de texto ficam separadas em elementos <word>; junta-as para procurar a frase.
+    private static String textoCorrido(String arvore) {
+        return arvore.replaceAll("<[^>]+>", " ").replaceAll("\s+", " ");
+    }
+
+    @Test
+    void oAnexoIComVariasPaginasMostraContinuacaoDaSegundaEmDiante() throws Exception {
+        var artigos = new java.util.ArrayList<br.com.danielchipolesch.application.dtos.itemAnexoParteNormativaDtos.ItemAnexoParteNormativaResponseDto>();
+        for (long i = 1; i <= 60; i++) artigos.add(artigo(i));
+        var fo = builder.buildFo(documento(SituacaoBcaEnum.NAO_PUBLICADO, SituacaoLocalEnum.MINUTA),
+                List.of(), artigos, List.of());
+
+        var arvore = arvoreDeAreas(fo);
+        long paginas = ocorrencias(arvore, "<pageViewport");
+        long paginasDoAnexoI = paginas - 1; // menos a capa (sem Portaria: documento não publicado)
+
+        assertThat(paginasDoAnexoI).isGreaterThan(2);
+        // Nada na primeira página do anexo; "Continuação do ANEXO I" em TODAS as demais.
+        assertThat(ocorrencias(textoCorrido(arvore), "Continuação do ANEXO I")).isEqualTo(paginasDoAnexoI - 1);
+    }
+
+    @Test
+    void oAnexoIDeUmaSoPaginaNaoMostraContinuacao() throws Exception {
+        var fo = builder.buildFo(documento(SituacaoBcaEnum.NAO_PUBLICADO, SituacaoLocalEnum.MINUTA),
+                List.of(), List.of(artigo(1)), List.of());
+
+        assertThat(textoCorrido(arvoreDeAreas(fo))).doesNotContain("Continuação do");
     }
 }
