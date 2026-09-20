@@ -55,10 +55,6 @@ Todo o documento — editor, prévia em tela, HTML exportado e PDF gerado — us
 
 O PDF gerado embute de fato os glifos da Carlito (confirmável inspecionando os bytes do PDF por entradas `BaseFont` como `Carlito`, `Carlito-Bold`, `Carlito-Italic`).
 
-## Texto entre colchetes em vermelho
-
-O texto entre colchetes do modelo de novo documento (ex.: "*[descrever a finalidade da publicação]*", ver [Capítulos padronizados](dominio.md#capitulos-padronizados-nsca-5-3)) aparece em **vermelho** (`#FF0000`) nos três formatos: PDF (`XslFoContentRenderer`), HTML (`TipTapHtmlSerializer`) e prévia do editor (`utils/textoModelo.js`). Vale para qualquer trecho `[...]` do conteúdo e é decidido **na hora de renderizar**, não gravado no texto — por isso o vermelho some sozinho quando o autor substitui o trecho e apaga os colchetes. Regras: os colchetes entram no trecho vermelho; a formatação (negrito etc.) é preservada; uma cor escolhida pelo autor no próprio texto prevalece; colchete sem par não é destacado; o trecho precisa estar num único bloco de texto (um `[...]` interrompido por outra formatação no meio não é destacado). O editor em si (TipTap) não recebe o destaque. Coberto por `TextoEntreColchetesTest` e `textoModelo.test.js`.
-
 ## Limite de gerações simultâneas de PDF
 
 O Apache FOP monta o documento inteiro em memória e consome CPU; sem limite, uma rajada de visualizações ao vivo (versão em tramitação) ou de publicações derruba o backend. Por isso toda renderização de PDF — a ao vivo, a armazenada depois de aprovar/publicar/revogar e o PDF do quadro de justificativas — passa pelo `LimitadorGeracaoPdf`, um `Semaphore` justo (FIFO) **por instância**:

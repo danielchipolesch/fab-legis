@@ -132,21 +132,7 @@ public final class TipTapHtmlSerializer {
     private static void renderInline(TipTapNode node, StringBuilder sb) {
         if (node == null) return;
         if ("text".equals(node.getType())) {
-            // Texto entre colchetes (campo do modelo a preencher) em vermelho -- ver TextoEntreColchetes.
-            for (var trecho : TextoEntreColchetes.dividir(node.getText())) {
-                renderTexto(trecho.texto(), node, trecho.entreColchetes(), sb);
-            }
-        } else if ("hardBreak".equals(node.getType())) {
-            sb.append("<br />");
-        }
-    }
-
-    private static void renderTexto(String bruto, TipTapNode node, boolean entreColchetes, StringBuilder sb) {
-        {
-            String text = esc(bruto);
-            boolean temCor = node.getMarks() != null && node.getMarks().stream()
-                    .anyMatch(m -> "textStyle".equals(m.getType()) && m.getAttr("color") != null);
-            if (entreColchetes && !temCor) text = "<span style=\"color:" + TextoEntreColchetes.COR + "\">" + text + "</span>";
+            String text = esc(node.getText());
             if (node.getMarks() == null || node.getMarks().isEmpty()) {
                 sb.append(text);
                 return;
@@ -175,6 +161,8 @@ public final class TipTapHtmlSerializer {
                 }
             }
             sb.append(open).append(text).append(close);
+        } else if ("hardBreak".equals(node.getType())) {
+            sb.append("<br />");
         }
     }
 

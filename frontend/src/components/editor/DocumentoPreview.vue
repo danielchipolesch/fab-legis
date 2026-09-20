@@ -237,7 +237,7 @@
             <div class="norm-content-block" v-html="conteudoToHtml(item.el.conteudo)"></div><span v-if="item.el._unicoRenumerado" class="emenda-ref"> {{ clausulaRenumeracao(item.el) }}</span>
           </div>
           <p v-else :id="'prev-' + item.el.id" class="body-el norm-el">
-            <span class="norm-lbl" :class="{ 'norm-lbl-bold': item.el.tipo === 'artigo' }">{{ item.label }}</span><span class="norm-content" v-html="colchetesEmTexto(stripHtml(conteudoToHtml(item.el.conteudo)))"></span><span v-if="item.el._unicoRenumerado" class="emenda-ref"> {{ clausulaRenumeracao(item.el) }}</span>
+            <span class="norm-lbl" :class="{ 'norm-lbl-bold': item.el.tipo === 'artigo' }">{{ item.label }}</span><span class="norm-content" v-html="stripHtml(conteudoToHtml(item.el.conteudo))"></span><span v-if="item.el._unicoRenumerado" class="emenda-ref"> {{ clausulaRenumeracao(item.el) }}</span>
           </p>
 
         </template>
@@ -272,7 +272,6 @@ import { editorExtensions } from '@/editor/extensions.js'
 import { bodyLabel, formatLabel, toRoman, clausulaRenumeracao } from '@/utils/numbering.js'
 import { useDocumentosStore } from '@/stores/documentos.js'
 import { resolveMinioUrls } from '@/utils/minioUrls.js'
-import { destacarColchetes, colchetesEmTexto } from '@/utils/textoModelo.js'
 import { exibeSeloRevogado, exibePortaria } from '@/utils/fluxoDocumento.js'
 
 function toRomanStr(n) { return toRoman(n ?? 0) }
@@ -281,8 +280,7 @@ const documentsStore = useDocumentosStore()
 
 function conteudoToHtml(conteudo) {
   if (!conteudo) return ''
-  // Texto entre colchetes (campo do modelo a preencher) em vermelho -- ver utils/textoModelo.js.
-  try { return destacarColchetes(generateHTML(JSON.parse(conteudo), editorExtensions)) } catch { return '' }
+  try { return generateHTML(JSON.parse(conteudo), editorExtensions) } catch { return '' }
 }
 
 const props = defineProps({
