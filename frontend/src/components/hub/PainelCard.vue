@@ -1,9 +1,11 @@
 <template>
-  <!-- Mesmo padrão das tabelas das outras telas (ModuloPage, Revisão, Publicação): q-table com paginação no servidor. -->
+  <!-- Mesmo padrão das tabelas das outras telas (ModuloPage, Revisão, Publicação): q-table com paginação no servidor. O cabeçalho
+       de colunas fica oculto (hide-header): num card de uma lista só, "Documento" é óbvio e só polui. -->
   <q-table
     flat
     bordered
     dense
+    hide-header
     row-key="id"
     :rows="documentos"
     :columns="columns"
