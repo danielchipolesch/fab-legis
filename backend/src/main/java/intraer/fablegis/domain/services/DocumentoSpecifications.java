@@ -56,9 +56,13 @@ public class DocumentoSpecifications {
                         root.get("situacaoLocal").in(SITUACOES_DE_PUBLICACAO)));
     }
 
-    // Card "Publicados e revogados": os que estão (ou estiveram) em vigor, de qualquer OM.
+    // Card "Publicados e revogados": os que estão (ou estiveram) em vigor, de qualquer OM, e SEM trabalho em andamento. Um
+    // documento publicado que está sendo alterado (ou em revogação) tem uma etapa em curso e aparece nos cards de trabalho
+    // ("em andamento"/"aguardando"), não neste: cada documento fica num só lugar, e volta para cá quando a etapa termina.
     public static Specification<Documento> publicadosERevogados() {
-        return situacaoBcaEm(SITUACOES_OFICIAIS_PUBLICADAS);
+        return (root, query, cb) -> cb.and(
+                root.get("situacaoBca").in(SITUACOES_OFICIAIS_PUBLICADAS),
+                cb.equal(root.get("situacaoLocal"), SituacaoLocalEnum.SEM_ETAPA));
     }
 
     public static Specification<Documento> situacaoLocalEm(Collection<SituacaoLocalEnum> situacoes) {

@@ -70,7 +70,7 @@ Os três cards do hub, de qualquer módulo; qualquer usuário autenticado. Devol
 |---|---|---|
 | `GET` | `/em-andamento` | Meus documentos (autoria ou coautoria) em etapa de trabalho |
 | `GET` | `/aguardando-acao` | Documentos atribuídos a mim como revisor (`EM_REVISAO`, `ANALISE_REVOGACAO`) ou publicador (`EM_PUBLICACAO`, `EM_REVOGACAO`) |
-| `GET` | `/publicados-e-revogados` | `PUBLICADO` e `REVOGADO`, de todas as OMs |
+| `GET` | `/publicados-e-revogados` | `PUBLICADO` e `REVOGADO` sem etapa em andamento (`SEM_ETAPA`), de todas as OMs |
 
 ## Anexos — `/v1/documentos/{documentoId}/anexos`
 

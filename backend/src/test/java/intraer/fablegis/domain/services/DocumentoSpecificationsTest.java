@@ -78,6 +78,29 @@ class DocumentoSpecificationsTest {
                 .isEqualTo(EnumSet.of(SituacaoBcaEnum.PUBLICADO, SituacaoBcaEnum.REVOGADO));
     }
 
+    // Cada documento fica num só lugar do hub: um publicado que está sendo alterado (etapa em curso) sai do card "Publicados e
+    // revogados" e volta quando a etapa termina.
+    @SuppressWarnings("unchecked")
+    @Test
+    void publicadosERevogadosSaoOsQueNaoTemEtapaEmCurso() {
+        Root<Documento> root = mock(Root.class);
+        Path<Object> bca = mock(Path.class);
+        Path<Object> local = mock(Path.class);
+        when(root.get("situacaoBca")).thenReturn(bca);
+        when(root.get("situacaoLocal")).thenReturn(local);
+        CriteriaBuilder cb = mock(CriteriaBuilder.class);
+        Predicate emVigorOuRevogado = mock(Predicate.class);
+        Predicate semEtapa = mock(Predicate.class);
+        Predicate resultado = mock(Predicate.class);
+        when(bca.in(DocumentoSpecifications.SITUACOES_OFICIAIS_PUBLICADAS)).thenReturn(emVigorOuRevogado);
+        when(cb.equal(local, SituacaoLocalEnum.SEM_ETAPA)).thenReturn(semEtapa);
+        when(cb.and(emVigorOuRevogado, semEtapa)).thenReturn(resultado);
+
+        var predicado = DocumentoSpecifications.publicadosERevogados().toPredicate(root, mock(CriteriaQuery.class), cb);
+
+        assertThat(predicado).isSameAs(resultado);
+    }
+
     @SuppressWarnings("unchecked")
     @Test
     void aguardandoMinhaAcaoEOAtribuidoAMimComoRevisorNaRevisaoOuComoPublicadorNaPublicacao() {

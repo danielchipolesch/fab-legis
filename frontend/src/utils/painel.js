@@ -12,6 +12,14 @@ export const CARTOES = ['em_andamento', 'aguardando', 'publicados']
 const editar = (doc, query) => ({ name: 'documento-editar', params: { id: doc.id }, ...(query ? { query } : {}) })
 const visualizar = (doc, query) => ({ name: 'documento-visualizar', params: { id: doc.id }, ...(query ? { query } : {}) })
 
+// Quais selos a linha mostra. Nos cards de trabalho, a etapa em curso (situação local); e, se o documento já tem versão publicada
+// em vigor, também o selo "Publicado" -- um publicado em alteração tem os dois, e é isso que o distingue de um rascunho. Um nunca
+// publicado leva só a etapa ("Não publicado" seria ruído). No card de publicados, só a situação oficial (BCA/Boletim Interno).
+export function selosDaLinha(cartao, doc) {
+  if (cartao === 'publicados') return 'bca'
+  return doc.situacao_bca === 'PUBLICADO' ? 'ambos' : 'local'
+}
+
 // Editar só quando dá: etapa de escrita e a pessoa é autora ou coautora (mesma regra de DocumentoAcessoService.podeEditar).
 function podeEditar(doc) {
   return ['RASCUNHO', 'MINUTA', 'EM_ALTERACAO'].includes(doc.situacao_local) && doc.eh_autor_ou_coautor === true

@@ -51,7 +51,7 @@
         <PainelCard cartao="aguardando" titulo="Aguardando minha ação" vazio="Nenhuma ação pendente" @detalhes="abrirDetalhes('aguardando', $event)" />
       </div>
       <div class="col-12 col-md-4">
-        <PainelCard cartao="publicados" titulo="Publicados e revogados" vazio="Nenhum documento publicado." @detalhes="abrirDetalhes('publicados', $event)" />
+        <PainelCard cartao="publicados" titulo="Publicados e revogados" vazio="Nenhum documento publicado." ajuda="Documentos em vigor ou revogados, sem trabalho em andamento. Se um documento estiver sendo alterado, ele aparece em “Meus documentos em andamento” até a alteração terminar." @detalhes="abrirDetalhes('publicados', $event)" />
       </div>
     </div>
 

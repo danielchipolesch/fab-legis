@@ -19,6 +19,9 @@
         <div class="text-subtitle2 text-weight-bold text-primary ellipsis">
           {{ titulo }} <span data-testid="total">({{ paginacao.rowsNumber }})</span>
         </div>
+        <q-icon v-if="ajuda" name="mdi-information-outline" color="primary" size="18px" class="q-ml-xs" data-testid="ajuda">
+          <q-tooltip anchor="top middle" self="bottom middle" max-width="280px">{{ ajuda }}</q-tooltip>
+        </q-icon>
         <q-space />
         <q-btn flat round dense size="sm" icon="mdi-refresh" :loading="carregando" @click="carregar">
           <q-tooltip anchor="top middle" self="bottom middle">Atualizar</q-tooltip>
@@ -39,9 +42,13 @@
               <StatusBadge
                 :situacao-bca="props.row.situacao_bca"
                 :situacao-local="props.row.situacao_local"
-                :mostrar="cartao === 'publicados' ? 'bca' : 'local'"
+                :mostrar="selosDaLinha(cartao, props.row)"
                 dense
-              />
+              >
+                <q-tooltip v-if="selosDaLinha(cartao, props.row) === 'ambos'" anchor="top middle" self="bottom middle">
+                  Há uma versão publicada em vigor e uma etapa em andamento sobre ela.
+                </q-tooltip>
+              </StatusBadge>
             </div>
             <div class="text-caption text-grey-7 ellipsis">{{ props.row.titulo }}</div>
             <div class="text-caption text-grey-7 ellipsis" data-testid="om-da-linha">{{ props.row.om_sigla }}</div>
@@ -88,7 +95,7 @@ import { ref, onMounted, watch } from 'vue'
 import { useQuasar } from 'quasar'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import { listarCartao } from '@/api/painel.js'
-import { acaoDaLinha } from '@/utils/painel.js'
+import { acaoDaLinha, selosDaLinha } from '@/utils/painel.js'
 import { moduloDe } from '@/perfis/index.js'
 import { useDocumentosStore } from '@/stores/documentos.js'
 import { usePainelStore } from '@/stores/painel.js'
@@ -99,6 +106,7 @@ const props = defineProps({
   cartao: { type: String, required: true },     // em_andamento | aguardando | publicados
   titulo: { type: String, required: true },
   vazio:  { type: String, default: 'Nenhum documento.' },
+  ajuda:  { type: String, default: null },       // o que o card mostra, num tooltip ao lado do título
 })
 defineEmits(['detalhes'])
 

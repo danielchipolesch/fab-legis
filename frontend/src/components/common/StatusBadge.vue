@@ -31,6 +31,8 @@
       <q-icon v-if="!dense" :name="local.icon" size="14px" class="q-mr-xs" />
       {{ local.label }}
     </q-chip>
+    <!-- Quem usa pode encaixar algo no conjunto (ex.: um q-tooltip que explica os dois selos). -->
+    <slot />
   </span>
 </template>
 

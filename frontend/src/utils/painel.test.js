@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { acaoDaLinha, detalhesDoDocumento } from './painel.js'
+import { acaoDaLinha, detalhesDoDocumento, selosDaLinha } from './painel.js'
 
 // Os cards do hub (docs/funcionalidades.md, "Hub"): a ação de cada linha leva direto ao documento ou à tela da ação, e
 // nenhuma ação é executada no hub.
@@ -54,6 +54,24 @@ describe('acaoDaLinha — publicados e revogados', () => {
   it('sempre Visualizar, sem aviso', () => {
     const a = acaoDaLinha('publicados', doc({ situacao_bca: 'PUBLICADO', situacao_local: 'SEM_ETAPA' }))
     expect(a).toEqual({ rotulo: 'Visualizar', rota: { name: 'documento-visualizar', params: { id: 7 } }, pendente: false })
+  })
+})
+
+describe('selosDaLinha', () => {
+  it('publicados e revogados: só a situação oficial', () => {
+    expect(selosDaLinha('publicados', doc({ situacao_bca: 'PUBLICADO', situacao_local: 'SEM_ETAPA' }))).toBe('bca')
+    expect(selosDaLinha('publicados', doc({ situacao_bca: 'REVOGADO', situacao_local: 'SEM_ETAPA' }))).toBe('bca')
+  })
+
+  it('nos cards de trabalho, um documento nunca publicado leva só a etapa', () => {
+    expect(selosDaLinha('em_andamento', doc({ situacao_bca: 'NAO_PUBLICADO', situacao_local: 'RASCUNHO' }))).toBe('local')
+    expect(selosDaLinha('aguardando', doc({ situacao_bca: 'NAO_PUBLICADO', situacao_local: 'EM_REVISAO' }))).toBe('local')
+  })
+
+  it('nos cards de trabalho, um publicado em alteração ou revogação leva a etapa e o selo de publicado', () => {
+    expect(selosDaLinha('em_andamento', doc({ situacao_bca: 'PUBLICADO', situacao_local: 'EM_ALTERACAO' }))).toBe('ambos')
+    expect(selosDaLinha('aguardando', doc({ situacao_bca: 'PUBLICADO', situacao_local: 'EM_PUBLICACAO' }))).toBe('ambos')
+    expect(selosDaLinha('em_andamento', doc({ situacao_bca: 'PUBLICADO', situacao_local: 'EM_REVOGACAO' }))).toBe('ambos')
   })
 })
 
