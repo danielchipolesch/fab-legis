@@ -55,7 +55,7 @@ A identificação de um ato — por exemplo **`ICA 5-3`** — é composta por:
 | **Assunto Básico** | `AssuntoBasicoEnum` | `5` (Publicações) |
 | **Número Secundário** | Calculado pelo sistema | `3` |
 
-A identificação é gravada na criação (`Documento.identificacao`) e nunca recalculada; quem a monta é a regra de criação da espécie (`RegrasDeCriacaoDoDocumento`). O **número secundário é atribuído automaticamente** por `CriacaoDeAtoNormativo`: o serviço busca todos os documentos da mesma combinação Espécie + Assunto e **reaproveita a primeira lacuna** na sequência, evitando buracos na numeração do acervo.
+A identificação é gravada na criação (`Documento.identificacao`) e nunca recalculada; quem a monta é a regra de criação da espécie (`RegrasDeCriacaoDoDocumento`). O **número secundário é atribuído automaticamente** por `CriacaoDeEspecieConvencional`: o serviço busca todos os documentos da mesma combinação Espécie + Assunto e **reaproveita a primeira lacuna** na sequência, evitando buracos na numeração do acervo.
 
 O catálogo de espécies inclui DCA, FCA, ICA, MCA, NSCA, OCA, PCA, RCA, RICA, ROCA e TCA — cada uma com nome e descrição normativa completa. Os assuntos básicos cobrem toda a tabela oficial (Doutrina Aeroespacial, Publicações, Tecnologia da Informação, Pessoal, Ensino, Governança, Projetos e demais).
 
@@ -94,7 +94,7 @@ Inciso, alínea e subalínea são numerados por contadores posicionais simples e
 
 ## NPA — Norma Padrão de Ação
 
-A **NPA** é uma espécie de **uso interno da OM**, para disciplinar rotinas internas (modelo: Anexo XII da NSCA 5-3). Ao contrário das demais espécies — produzidas pelas OM, mas de âmbito que extrapola a OM —, ela tem elementos, numeração, layout e ciclo de vida **próprios**; por isso segue o tipo de regras `NPA` (`RegrasDeNpa`, ver [Arquitetura](arquitetura.md#regras-por-especie-normativa-atras-de-interfaces)). A **distribuição é sempre ostensiva**: toda NPA é visível para todas as OM.
+A **NPA** é uma espécie de **uso interno da OM**, para disciplinar rotinas internas (modelo: Anexo XII da NSCA 5-3). Ao contrário das Espécies Convencionais — produzidas pelas OM, mas de âmbito que extrapola a OM —, ela tem elementos, numeração, layout e ciclo de vida **próprios**; por isso, como a NSCA 5-3 a enquadra entre as **Espécies de Comunicações Oficiais Padronizadas** (Capítulo VIII, Seção VIII) — e não entre as Espécies Convencionais (MCA, NSCA, ICA, ROCA…) —, segue o tipo de espécie `COMUNICACAO_OFICIAL_PADRONIZADA` (`RegrasDeComunicacaoOficialPadronizada`, ver [Arquitetura](arquitetura.md#regras-por-especie-normativa-atras-de-interfaces)). A **distribuição é sempre ostensiva**: toda NPA é visível para todas as OM.
 
 ### Identificação
 

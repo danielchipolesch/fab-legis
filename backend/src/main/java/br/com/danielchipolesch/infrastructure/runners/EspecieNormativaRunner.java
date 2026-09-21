@@ -22,7 +22,7 @@ public class EspecieNormativaRunner implements CommandLineRunner {
                 especieNormativa.setSigla(especieNormativaEnumAcronym.name());
                 especieNormativa.setNome(especieNormativaEnumAcronym.getName());
                 especieNormativa.setDescricao(especieNormativaEnumAcronym.getDescription());
-                especieNormativa.setTipoDeRegras(especieNormativaEnumAcronym.getTipoDeRegras());
+                especieNormativa.setTipoDeEspecie(especieNormativaEnumAcronym.getTipoDeEspecie());
                 especieNormativaRepository.save(especieNormativa);
             }
         }

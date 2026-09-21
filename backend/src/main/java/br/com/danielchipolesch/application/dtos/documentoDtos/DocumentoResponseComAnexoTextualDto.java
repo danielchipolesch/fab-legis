@@ -92,7 +92,7 @@ public record DocumentoResponseComAnexoTextualDto(
         Long publicadorAtribuidoId,
         String publicadorAtribuidoNome,
 
-        // Ver DocumentoResponseSemAnexoTextualDto.tipoDeRegras.
-        String tipoDeRegras
+        // Ver DocumentoResponseSemAnexoTextualDto.tipoDeEspecie.
+        String tipoDeEspecie
 ) {
 }

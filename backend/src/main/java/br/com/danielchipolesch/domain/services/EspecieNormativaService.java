@@ -71,6 +71,6 @@ public class EspecieNormativaService {
 
     private EspecieNormativaResponseDto toDto(EspecieNormativa e) {
         return new EspecieNormativaResponseDto(e.getId(), e.getSigla(), e.getNome(), e.getDescricao(),
-                e.getTipoDeRegras().name());
+                e.getTipoDeEspecie().name());
     }
 }

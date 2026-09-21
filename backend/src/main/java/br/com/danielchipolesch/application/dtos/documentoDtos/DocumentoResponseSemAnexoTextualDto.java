@@ -83,8 +83,8 @@ public record DocumentoResponseSemAnexoTextualDto(
         // (e não deveria ser) sobre pertencer à mesma OM, ver docs/autenticacao.md.
         Boolean ehAutorOuCoautor,
 
-        // Qual conjunto de regras a espécie segue (ATO_NORMATIVO, NPA) -- o frontend escolhe o perfil de edição,
+        // Qual conjunto de regras a espécie segue (CONVENCIONAL, COMUNICACAO_OFICIAL_PADRONIZADA) -- o frontend escolhe o perfil de edição,
         // prévia e publicação por aqui, nunca pela sigla da espécie.
-        String tipoDeRegras
+        String tipoDeEspecie
 ) {
 }

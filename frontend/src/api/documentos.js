@@ -188,9 +188,9 @@ export function backendParaFrontend(doc) {
   return {
     id: doc.idDocumento,
     especie: doc.siglaEspecieNormativa,
-    // Qual conjunto de regras a espécie segue (ATO_NORMATIVO, NPA): escolhe o perfil de edição, prévia e publicação
+    // Qual conjunto de regras a espécie segue (CONVENCIONAL, COMUNICACAO_OFICIAL_PADRONIZADA): escolhe o perfil de edição, prévia e publicação
     // (ver perfis/index.js) -- nunca a sigla da espécie.
-    tipo_de_regras: doc.tipoDeRegras ?? 'ATO_NORMATIVO',
+    tipo_de_especie: doc.tipoDeEspecie ?? 'CONVENCIONAL',
     numero_basico: doc.codigoAssuntoBasico,
     numero_secundario: doc.numeroSecundario != null ? String(doc.numeroSecundario) : null,
     assunto_basico: doc.nomeAssuntoBasico ?? doc.codigoAssuntoBasico,

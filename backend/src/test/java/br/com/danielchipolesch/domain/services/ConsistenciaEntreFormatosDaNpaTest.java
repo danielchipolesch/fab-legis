@@ -11,9 +11,9 @@ import br.com.danielchipolesch.domain.entities.estruturaDocumento.SituacaoBcaEnu
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.SituacaoLocalEnum;
 import br.com.danielchipolesch.domain.entities.numeracaoDocumento.EspecieNormativa;
 import br.com.danielchipolesch.domain.entities.usuario.OrganizacaoMilitar;
-import br.com.danielchipolesch.domain.regras.npa.CamposDeNpa;
-import br.com.danielchipolesch.domain.regras.npa.LeiauteHtmlDeNpa;
-import br.com.danielchipolesch.domain.regras.npa.NumeracaoDeNpa;
+import br.com.danielchipolesch.domain.regras.comunicacaooficialpadronizada.CamposDeNpa;
+import br.com.danielchipolesch.domain.regras.comunicacaooficialpadronizada.LeiauteHtmlDeNpa;
+import br.com.danielchipolesch.domain.regras.comunicacaooficialpadronizada.NumeracaoDeNpa;
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.ObjectMapper;
 

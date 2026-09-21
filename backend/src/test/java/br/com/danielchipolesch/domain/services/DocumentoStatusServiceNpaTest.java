@@ -9,11 +9,11 @@ import br.com.danielchipolesch.domain.entities.usuario.OrganizacaoMilitar;
 import br.com.danielchipolesch.domain.entities.usuario.Usuario;
 import br.com.danielchipolesch.domain.handlers.exceptions.StatusCannotBeUpdatedException;
 import br.com.danielchipolesch.domain.regras.RegrasDasEspecies;
-import br.com.danielchipolesch.domain.regras.TipoDeRegras;
-import br.com.danielchipolesch.domain.regras.npa.CamposDeNpa;
-import br.com.danielchipolesch.domain.regras.npa.CicloDeVidaDeNpa;
-import br.com.danielchipolesch.domain.regras.npa.PublicacaoDeNpa;
-import br.com.danielchipolesch.domain.regras.npa.RegrasDeNpa;
+import br.com.danielchipolesch.domain.regras.TipoDeEspecie;
+import br.com.danielchipolesch.domain.regras.comunicacaooficialpadronizada.CamposDeNpa;
+import br.com.danielchipolesch.domain.regras.comunicacaooficialpadronizada.CicloDeVidaDeNpa;
+import br.com.danielchipolesch.domain.regras.comunicacaooficialpadronizada.PublicacaoDeNpa;
+import br.com.danielchipolesch.domain.regras.comunicacaooficialpadronizada.RegrasDeComunicacaoOficialPadronizada;
 import br.com.danielchipolesch.infrastructure.repositories.DocumentoRepository;
 import br.com.danielchipolesch.infrastructure.repositories.ItemAnexoParteNormativaRepository;
 import br.com.danielchipolesch.infrastructure.repositories.ItemParteFinalRepository;
@@ -74,7 +74,7 @@ class DocumentoStatusServiceNpaTest {
     @BeforeEach
     void preparar() {
         camposDeNpa = mock(CamposDeNpa.class);
-        var npa = new RegrasDeNpa(null, null, camposDeNpa, new PublicacaoDeNpa(camposDeNpa), null, null, null, null, null,
+        var npa = new RegrasDeComunicacaoOficialPadronizada(null, null, camposDeNpa, new PublicacaoDeNpa(camposDeNpa), null, null, null, null, null,
                 new CicloDeVidaDeNpa());
         ReflectionTestUtils.setField(service, "regras", new RegrasDasEspecies(List.of(npa)));
         when(documentoPdfService.gerarEArmazenarPdf(any())).thenReturn("pdf-gerado");
@@ -91,7 +91,7 @@ class DocumentoStatusServiceNpaTest {
     private Documento npaEm(SituacaoBcaEnum bca, SituacaoLocalEnum local) {
         var especie = new EspecieNormativa();
         especie.setSigla("NPA");
-        especie.setTipoDeRegras(TipoDeRegras.NPA);
+        especie.setTipoDeEspecie(TipoDeEspecie.COMUNICACAO_OFICIAL_PADRONIZADA);
         var om = new OrganizacaoMilitar();
         om.setId(1L);
         om.setNome("OM de teste");

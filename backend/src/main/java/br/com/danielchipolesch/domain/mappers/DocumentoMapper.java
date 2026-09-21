@@ -55,7 +55,7 @@ public class DocumentoMapper {
                 documento.getPublicadorAtribuido() != null ? documento.getPublicadorAtribuido().getId() : null,
                 documento.getPublicadorAtribuido() != null ? documento.getPublicadorAtribuido().getNome() : null,
                 ehAutorOuCoautor,
-                documento.getEspecieNormativa().getTipoDeRegras().name()
+                documento.getEspecieNormativa().getTipoDeEspecie().name()
         );
     }
 
@@ -103,7 +103,7 @@ public class DocumentoMapper {
                 documento.getRevisorAtribuido() != null ? documento.getRevisorAtribuido().getNome() : null,
                 documento.getPublicadorAtribuido() != null ? documento.getPublicadorAtribuido().getId() : null,
                 documento.getPublicadorAtribuido() != null ? documento.getPublicadorAtribuido().getNome() : null,
-                documento.getEspecieNormativa().getTipoDeRegras().name()
+                documento.getEspecieNormativa().getTipoDeEspecie().name()
         );
     }
 }

@@ -1,9 +1,9 @@
 package br.com.danielchipolesch.domain.regras;
 
 import br.com.danielchipolesch.domain.entities.numeracaoDocumento.EspecieNormativa;
-import br.com.danielchipolesch.domain.regras.atonormativo.CicloDeVidaDeAtoNormativo;
-import br.com.danielchipolesch.domain.regras.atonormativo.RegrasDeAtoNormativo;
-import br.com.danielchipolesch.domain.regras.npa.RegrasDeNpa;
+import br.com.danielchipolesch.domain.regras.convencional.CicloDeVidaDeEspecieConvencional;
+import br.com.danielchipolesch.domain.regras.convencional.RegrasDeEspecieConvencional;
+import br.com.danielchipolesch.domain.regras.comunicacaooficialpadronizada.RegrasDeComunicacaoOficialPadronizada;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -15,47 +15,47 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 // restante do sistema nunca testa a espécie do documento, só pede a regra a quem a conhece.
 class RegrasDasEspeciesTest {
 
-    private static final RegrasDeAtoNormativo ATO = new RegrasDeAtoNormativo(null, null, null, null, null, null, null, null, null, new CicloDeVidaDeAtoNormativo());
+    private static final RegrasDeEspecieConvencional ATO = new RegrasDeEspecieConvencional(null, null, null, null, null, null, null, null, null, new CicloDeVidaDeEspecieConvencional());
 
     @Test
-    void aEspecieSegueAsRegrasDeAtoNormativoPorPadrao() {
+    void aEspecieSegueAsRegrasDeEspecieConvencionalPorPadrao() {
         var especie = new EspecieNormativa();
 
-        assertThat(especie.getTipoDeRegras()).isEqualTo(TipoDeRegras.ATO_NORMATIVO);
+        assertThat(especie.getTipoDeEspecie()).isEqualTo(TipoDeEspecie.CONVENCIONAL);
         assertThat(new RegrasDasEspecies(List.of(ATO)).para(especie)).isSameAs(ATO);
     }
 
     @Test
-    void tipoNuloCaiNasRegrasDeAtoNormativo() {
-        assertThat(new RegrasDasEspecies(List.of(ATO)).para((TipoDeRegras) null)).isSameAs(ATO);
+    void tipoNuloCaiNasRegrasDeEspecieConvencional() {
+        assertThat(new RegrasDasEspecies(List.of(ATO)).para((TipoDeEspecie) null)).isSameAs(ATO);
     }
 
     @Test
     void entregaAsRegrasDoTipoDaEspecie() {
-        var regras = new RegrasDasEspecies(List.of(ATO)).para(TipoDeRegras.ATO_NORMATIVO);
+        var regras = new RegrasDasEspecies(List.of(ATO)).para(TipoDeEspecie.CONVENCIONAL);
 
-        assertThat(regras.tipo()).isEqualTo(TipoDeRegras.ATO_NORMATIVO);
-        assertThat(regras.cicloDeVida()).isInstanceOf(CicloDeVidaDeAtoNormativo.class);
+        assertThat(regras.tipo()).isEqualTo(TipoDeEspecie.CONVENCIONAL);
+        assertThat(regras.cicloDeVida()).isInstanceOf(CicloDeVidaDeEspecieConvencional.class);
     }
 
     @Test
-    void umaEspecieDeNpaRecebeAsRegrasDaNpaEAsDemaisAsDeAtoNormativo() {
-        var npaRegras = new RegrasDeNpa(null, null, null, null, null, null, null, null, null, null);
+    void umaEspecieDeNpaRecebeAsRegrasDaNpaEAsDemaisAsDeEspecieConvencional() {
+        var npaRegras = new RegrasDeComunicacaoOficialPadronizada(null, null, null, null, null, null, null, null, null, null);
         var registro = new RegrasDasEspecies(List.of(ATO, npaRegras));
         var especieNpa = new EspecieNormativa();
-        especieNpa.setTipoDeRegras(TipoDeRegras.NPA);
+        especieNpa.setTipoDeEspecie(TipoDeEspecie.COMUNICACAO_OFICIAL_PADRONIZADA);
 
         assertThat(registro.para(especieNpa)).isSameAs(npaRegras);
         assertThat(registro.para(new EspecieNormativa())).isSameAs(ATO);
-        assertThat(npaRegras.tipo()).isEqualTo(TipoDeRegras.NPA);
+        assertThat(npaRegras.tipo()).isEqualTo(TipoDeEspecie.COMUNICACAO_OFICIAL_PADRONIZADA);
     }
 
     @Test
     void semNenhumaRegraRegistradaFalhaComMensagemClara() {
         var vazio = new RegrasDasEspecies(List.of());
 
-        assertThatThrownBy(() -> vazio.para(TipoDeRegras.ATO_NORMATIVO))
+        assertThatThrownBy(() -> vazio.para(TipoDeEspecie.CONVENCIONAL))
                 .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("ATO_NORMATIVO");
+                .hasMessageContaining("CONVENCIONAL");
     }
 }

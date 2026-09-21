@@ -17,7 +17,7 @@ export function normalizeEspecie(e) {
     nome:  e.name    ?? e.nome,
     label: `${e.acronym ?? e.sigla} — ${e.name ?? e.nome}`,
     // Espécies da NPA pedem a identificação em texto livre em vez do assunto básico (ver perfis/index.js).
-    tipoDeRegras: e.tipoDeRegras ?? 'ATO_NORMATIVO',
+    tipoDeEspecie: e.tipoDeEspecie ?? 'CONVENCIONAL',
   }
 }
 

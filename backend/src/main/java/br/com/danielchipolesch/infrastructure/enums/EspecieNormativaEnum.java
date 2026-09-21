@@ -1,6 +1,6 @@
 package br.com.danielchipolesch.infrastructure.enums;
 
-import br.com.danielchipolesch.domain.regras.TipoDeRegras;
+import br.com.danielchipolesch.domain.regras.TipoDeEspecie;
 import lombok.Getter;
 
 @Getter
@@ -16,21 +16,21 @@ public enum EspecieNormativaEnum {
     RCA("Regulamento do Comando da Aeronáutica", "Espécie de caráter determinativo e diretivo que é destinada a dispor sobre a execução de leis ou de decretos e, como tal, destina-se a estabelecer preceitos de administração e demais atividades gerais do Comando da Aeronáutica, tais como: prescrições específicas relativas a recursos humanos, economia, finanças, material, serviços internos, patrimônio e outros assuntos cabíveis de serem regulamentados no seu âmbito. Sua aprovação é exclusiva ao Comandante da Aeronáutica"),
     RICA("Regimento Interno do Comando da Aeronáutica", "Espécie destinada a estabelecer o detalhamento da estrutura da Organização Militar, disciplinando o funcionamento e as competências de seus órgãos constitutivos, em complemento ao respectivo Regulamento de Organização"),
     ROCA("Regulamento de Organização do Comando da Aeronáutica", "Espécie destinada a estabelecer a finalidade, a subordinação, a sede, a estrutura básica e as atribuições gerais de uma Organização Militar. Pode referir-se a uma Organização específica ou a um determinado tipo de Organização. Sua aprovação é exclusiva do Comandante da Aeronáutica"),
-    NPA("Norma Padrão de Ação", "Espécie de uso interno da Organização Militar, destinada a disciplinar rotinas e procedimentos internos (Anexo XII da NSCA 5-3). Tem elementos, numeração, layout e ciclo de vida próprios: é publicada e revogada no Boletim Interno, sem alteração, e sua distribuição é sempre ostensiva", TipoDeRegras.NPA),
+    NPA("Norma Padrão de Ação", "Espécie de uso interno da Organização Militar, destinada a disciplinar rotinas e procedimentos internos (Anexo XII da NSCA 5-3). Tem elementos, numeração, layout e ciclo de vida próprios: é publicada e revogada no Boletim Interno, sem alteração, e sua distribuição é sempre ostensiva", TipoDeEspecie.COMUNICACAO_OFICIAL_PADRONIZADA),
     TCA("Tabela do Comando da Aeronáutica", "Espécie destinada a registrar, catalogar, relacionar, listar e divulgar, periódica e detalhadamente, assuntos gerais, tais como: cursos, cálculos, índices, publicações, desdobramentos estruturais, distribuição de material, equipamento, endereços, etc");
 
     private final String name;
     private final String description;
-    private final TipoDeRegras tipoDeRegras;
+    private final TipoDeEspecie tipoDeEspecie;
 
     EspecieNormativaEnum(String name, String description) {
-        this(name, description, TipoDeRegras.ATO_NORMATIVO);
+        this(name, description, TipoDeEspecie.CONVENCIONAL);
     }
 
-    EspecieNormativaEnum(String name, String description, TipoDeRegras tipoDeRegras) {
+    EspecieNormativaEnum(String name, String description, TipoDeEspecie tipoDeEspecie) {
         this.name = name;
         this.description = description;
-        this.tipoDeRegras = tipoDeRegras;
+        this.tipoDeEspecie = tipoDeEspecie;
     }
 
 }

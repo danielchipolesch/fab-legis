@@ -6,7 +6,7 @@ public record EspecieNormativaResponseDto(
         String nome,
         String descricao,
 
-        // Qual conjunto de regras a espécie segue (ATO_NORMATIVO, NPA); o frontend adapta a criação do documento por aqui.
-        String tipoDeRegras
+        // Qual conjunto de regras a espécie segue (CONVENCIONAL, COMUNICACAO_OFICIAL_PADRONIZADA); o frontend adapta a criação do documento por aqui.
+        String tipoDeEspecie
 ) {
 }

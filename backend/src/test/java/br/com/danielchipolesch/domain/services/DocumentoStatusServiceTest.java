@@ -29,8 +29,8 @@ import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 import br.com.danielchipolesch.domain.regras.RegrasDasEspecies;
-import br.com.danielchipolesch.domain.regras.atonormativo.RegrasDeAtoNormativo;
-import br.com.danielchipolesch.domain.regras.atonormativo.CicloDeVidaDeAtoNormativo;
+import br.com.danielchipolesch.domain.regras.convencional.RegrasDeEspecieConvencional;
+import br.com.danielchipolesch.domain.regras.convencional.CicloDeVidaDeEspecieConvencional;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -93,10 +93,10 @@ class DocumentoStatusServiceTest {
     @BeforeEach
     void arquivosGerados() {
         // O ciclo de vida é regra da espécie: aqui, o dos atos normativos (as espécies de teste não
-        // declaram tipo de regras, e o padrão é ATO_NORMATIVO).
+        // declaram tipo de regras, e o padrão é CONVENCIONAL).
         ReflectionTestUtils.setField(service, "regras", new RegrasDasEspecies(List.of(
-                new RegrasDeAtoNormativo(null, null, null, new PublicacaoDeAtoNormativo(portariaPublicacaoService,
-                        documentoParteNormativaService, emendaService), null, null, null, null, null, new CicloDeVidaDeAtoNormativo()))));
+                new RegrasDeEspecieConvencional(null, null, null, new PublicacaoDeEspecieConvencional(portariaPublicacaoService,
+                        documentoParteNormativaService, emendaService), null, null, null, null, null, new CicloDeVidaDeEspecieConvencional()))));
         when(documentoPdfService.gerarEArmazenarPdf(any())).thenReturn("pdf-gerado");
         when(documentoHtmlService.gerarEArmazenarHtml(any())).thenReturn("html-gerado");
     }

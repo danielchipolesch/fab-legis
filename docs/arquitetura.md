@@ -85,24 +85,24 @@ br.com.danielchipolesch
 
 ## Regras por espécie normativa — atrás de interfaces
 
-Nem toda espécie normativa obedece às mesmas regras. Para o restante do sistema **nunca testar a espécie** de um documento, cada `EspecieNormativa` aponta para o **tipo de regras** que segue (`EspecieNormativa.tipoDeRegras`, coluna `st_tipo_regras`; hoje só `ATO_NORMATIVO`, o de DCA, ICA, NSCA...) e a implementação desse tipo entrega as regras por meio de interfaces — pacote `domain.regras`:
+Nem toda espécie normativa obedece às mesmas regras. Para o restante do sistema **nunca testar a espécie** de um documento, cada `EspecieNormativa` aponta para o **tipo de espécie** (`EspecieNormativa.tipoDeEspecie`, coluna `st_tipo_especie`) — com os nomes da NSCA 5-3: `CONVENCIONAL` (as Espécies Convencionais: MCA, NSCA, ICA, ROCA, DCA…) e `COMUNICACAO_OFICIAL_PADRONIZADA` (as Espécies de Comunicações Oficiais Padronizadas, Capítulo VIII, Seção VIII, onde a NPA se enquadra) — e a implementação desse tipo entrega as regras por meio de interfaces — pacote `domain.regras`. As classes de `domain.regras.convencional` e `domain.regras.comunicacaooficialpadronizada` implementam essas interfaces; as que descrevem a própria NPA (`CabecalhoDaNpa`, `CamposDeNpa`, `DocumentoFoNpaBuilder`…) mantêm o nome dela, que é a espécie concreta da norma:
 
-| Interface | O que a espécie decide | Implementação em `ATO_NORMATIVO` |
+| Interface | O que a espécie decide | Implementação em `CONVENCIONAL` |
 |---|---|---|
-| `RegrasDeCriacaoDoDocumento` | o que a espécie exige para criar um documento e como ele se identifica (a `identificacao` é gravada na criação) | `CriacaoDeAtoNormativo` (assunto básico + sequencial: "DCA 11-3") |
+| `RegrasDeCriacaoDoDocumento` | o que a espécie exige para criar um documento e como ele se identifica (a `identificacao` é gravada na criação) | `CriacaoDeEspecieConvencional` (assunto básico + sequencial: "DCA 11-3") |
 | `CamposEspecificosDaEspecie` | o ciclo de vida dos dados que só algumas espécies têm, numa estrutura 1:1 com o documento (criar e copiar junto com ele; a exclusão é em cascata no banco) | `SemCamposEspecificos` (nenhum) · NPA: `CamposDeNpa` |
-| `RegrasDeHierarquiaDosElementos` | quem pode ficar dentro de quem na parte normativa; o backend recusa, no salvamento, o que a espécie não permite | `HierarquiaDeAtoNormativo` (o editor impõe a ordem; o backend não recusa) |
+| `RegrasDeHierarquiaDosElementos` | quem pode ficar dentro de quem na parte normativa; o backend recusa, no salvamento, o que a espécie não permite | `HierarquiaDeEspecieConvencional` (o editor impõe a ordem; o backend não recusa) |
 | `CalculadoraDeNumeracaoDosElementos` | o rótulo de cada elemento da parte normativa | `NumeracaoService` |
 | `EstruturaInicialDeNovoDocumento` | os elementos com que um documento novo já nasce | `CapitulosPadronizadosService` (NSCA 5-3) |
-| `RotuloDosAnexos` | como os anexos são rotulados | `RotuloDeAnexoDeAtoNormativo` (ANEXO II, III…) |
+| `RotuloDosAnexos` | como os anexos são rotulados | `RotuloDeAnexoDeEspecieConvencional` (ANEXO II, III…) |
 | `LeiauteDoPdf` | a diagramação do PDF (XSL-FO) | `DocumentoFoBuilder` |
-| `LeiauteDoHtml` | a diagramação do HTML | `LeiauteHtmlDeAtoNormativo` |
-| `RegrasDeRegistroDaPublicacao` | o que se registra (e o que é obrigatório informar) ao publicar ou revogar oficialmente | `PublicacaoDeAtoNormativo` (portaria + BCA e, na 1ª publicação, a parte preliminar) · NPA: `PublicacaoDeNpa` (Boletim Interno) |
-| `RegrasDoCicloDeVidaDoDocumento` | as mudanças de etapa permitidas (`AcaoDeEtapa`) | `CicloDeVidaDeAtoNormativo` |
+| `LeiauteDoHtml` | a diagramação do HTML | `LeiauteHtmlDeEspecieConvencional` |
+| `RegrasDeRegistroDaPublicacao` | o que se registra (e o que é obrigatório informar) ao publicar ou revogar oficialmente | `PublicacaoDeEspecieConvencional` (portaria + BCA e, na 1ª publicação, a parte preliminar) · NPA: `PublicacaoDeNpa` (Boletim Interno) |
+| `RegrasDoCicloDeVidaDoDocumento` | as mudanças de etapa permitidas (`AcaoDeEtapa`) | `CicloDeVidaDeEspecieConvencional` |
 
-`RegrasDaEspecieNormativa` reúne as regras de uma espécie (`RegrasDeAtoNormativo`, para as demais espécies, é a implementação atual; `RegrasDeNpa` virá a seguir) e `RegrasDasEspecies.para(especie)` devolve as regras — toda `RegrasDaEspecieNormativa` registrada como bean entra sozinha, então acrescentar uma espécie com regras próprias **não exige mexer no registro nem nos serviços**. Quem só precisa da regra depende da interface: `DocumentoService.create`/`clone` (criação, estrutura inicial e campos específicos), `DocumentoParteNormativaService` (hierarquia e numeração), `DocumentoPdfService` e `DocumentoHtmlService` (layouts, que continuam dono da parte que não depende da espécie: escolher a versão, gerar, armazenar e servir o arquivo) e `DocumentoStatusService` (ciclo de vida e registro da publicação).
+`RegrasDaEspecieNormativa` reúne as regras de uma espécie (`RegrasDeEspecieConvencional` para o tipo `CONVENCIONAL`; `RegrasDeComunicacaoOficialPadronizada` para o tipo `COMUNICACAO_OFICIAL_PADRONIZADA`) e `RegrasDasEspecies.para(especie)` devolve as regras — toda `RegrasDaEspecieNormativa` registrada como bean entra sozinha, então acrescentar uma espécie com regras próprias **não exige mexer no registro nem nos serviços**. Quem só precisa da regra depende da interface: `DocumentoService.create`/`clone` (criação, estrutura inicial e campos específicos), `DocumentoParteNormativaService` (hierarquia e numeração), `DocumentoPdfService` e `DocumentoHtmlService` (layouts, que continuam dono da parte que não depende da espécie: escolher a versão, gerar, armazenar e servir o arquivo) e `DocumentoStatusService` (ciclo de vida e registro da publicação).
 
-**Regra para código novo:** um comportamento que varia por espécie entra como método de uma dessas interfaces (ou de uma interface nova), nunca como `if (espécie == …)` no serviço. Ver o que falta da NPA, a segunda espécie com regras próprias, no [Roadmap](roadmap.md#npa-norma-padrao-de-acao-o-que-falta).
+**Regra para código novo:** um comportamento que varia por espécie entra como método de uma dessas interfaces (ou de uma interface nova), nunca como `if (espécie == …)` no serviço. Ver o que falta da NPA, a primeira espécie de comunicação oficial padronizada, no [Roadmap](roadmap.md#npa-norma-padrao-de-acao-o-que-falta).
 
 ## Camadas do frontend
 
@@ -119,7 +119,7 @@ frontend/src
 │   └── common/     ← AppTopBar (menu de usuário, sino de notificações),
 │                      StatusBadge, NewDocumentDialog
 ├── perfis/         ← as regras que variam por espécie no frontend (hierarquia dos elementos,
-│                      numeração, cabeçalho da NPA), escolhidas pelo `tipoDeRegras` que o backend
+│                      numeração, cabeçalho da NPA), escolhidas pelo `tipoDeEspecie` que o backend
 │                      informa: espelho das interfaces de `domain.regras` (ver abaixo)
 ├── stores/         ← Pinia: auth (sessão) · documents (acervo) · editor (documento em edição)
 ├── api/            ← client (fetch tipado, com renovação automática de token) +
@@ -132,7 +132,7 @@ frontend/src
 └── router/         ← Rotas SPA, com guarda de autenticação e de papel (admin/auditor)
 ```
 
-**Perfis por espécie no frontend.** `perfis/index.js` entrega, para o `tipo_de_regras` de um documento, o perfil com o que a tela precisa decidir: `filhosPermitidos(tipoPai)` (menu "adicionar"), `renumerar(elementos, documento)`, se admite promover/rebaixar, alteração e a ordem livre entre irmãos. `atoNormativo.js` envolve `utils/numbering.js`; `npa.js` espelha `HierarquiaDeNpa`, `NumeracaoDeNpa` e `CabecalhoDaNpa` do backend — com os **mesmos cenários de teste** (`npa.test.js`), como já é a regra da numeração dos atos. Tela nenhuma testa a sigla da espécie.
+**Perfis por espécie no frontend.** `perfis/index.js` entrega, para o `tipo_de_especie` de um documento, o perfil com o que a tela precisa decidir: `filhosPermitidos(tipoPai)` (menu "adicionar"), `renumerar(elementos, documento)`, se admite promover/rebaixar, alteração e a ordem livre entre irmãos. `convencional.js` envolve `utils/numbering.js`; `npa.js` espelha `HierarquiaDeNpa`, `NumeracaoDeNpa` e `CabecalhoDaNpa` do backend — com os **mesmos cenários de teste** (`npa.test.js`), como já é a regra da numeração dos atos. Tela nenhuma testa a sigla da espécie.
 
 **Estado com Pinia — três stores complementares:**
 

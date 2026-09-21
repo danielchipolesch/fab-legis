@@ -2,7 +2,7 @@ package br.com.danielchipolesch.application.controllers;
 
 import br.com.danielchipolesch.application.dtos.npaDtos.CamposDaNpaDto;
 import br.com.danielchipolesch.domain.entities.auditoria.AcaoAuditoriaEnum;
-import br.com.danielchipolesch.domain.regras.npa.CamposDeNpa;
+import br.com.danielchipolesch.domain.regras.comunicacaooficialpadronizada.CamposDeNpa;
 import br.com.danielchipolesch.domain.services.DocumentoService;
 import br.com.danielchipolesch.domain.services.LogAuditoriaService;
 import io.swagger.v3.oas.annotations.tags.Tag;

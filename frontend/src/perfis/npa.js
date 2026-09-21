@@ -1,5 +1,5 @@
 // Regras da NPA (Norma Padrão de Ação) no frontend -- espelho das regras do backend (pacote
-// domain.regras.npa): HierarquiaDeNpa, NumeracaoDeNpa e CabecalhoDaNpa. Os cenários de teste são os mesmos de
+// domain.regras.comunicacaooficialpadronizada): HierarquiaDeNpa, NumeracaoDeNpa e CabecalhoDaNpa. Os cenários de teste são os mesmos de
 // HierarquiaDeNpaTest, NumeracaoDeNpaTest e CabecalhoDaNpaTest, de propósito, para as duas implementações não
 // divergirem em silêncio (ver docs/dominio.md, "NPA").
 

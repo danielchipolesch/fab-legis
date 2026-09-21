@@ -220,7 +220,7 @@ const form = reactive({
 
 // A espécie escolhida decide o que o documento pede na criação (perfis/index.js): um ato normativo, o assunto
 // básico; uma NPA, a identificação em texto livre.
-const ehNpa = computed(() => perfilDe(form.especieNormativa?.tipoDeRegras).ehNpa)
+const ehNpa = computed(() => perfilDe(form.especieNormativa?.tipoDeEspecie).ehNpa)
 
 const aberto = computed({
   get: () => props.modelValue,

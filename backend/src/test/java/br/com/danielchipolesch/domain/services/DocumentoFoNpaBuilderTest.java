@@ -10,9 +10,9 @@ import br.com.danielchipolesch.domain.entities.estruturaDocumento.SituacaoBcaEnu
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.SituacaoLocalEnum;
 import br.com.danielchipolesch.domain.entities.numeracaoDocumento.EspecieNormativa;
 import br.com.danielchipolesch.domain.entities.usuario.OrganizacaoMilitar;
-import br.com.danielchipolesch.domain.regras.TipoDeRegras;
-import br.com.danielchipolesch.domain.regras.npa.CamposDeNpa;
-import br.com.danielchipolesch.domain.regras.npa.NumeracaoDeNpa;
+import br.com.danielchipolesch.domain.regras.TipoDeEspecie;
+import br.com.danielchipolesch.domain.regras.comunicacaooficialpadronizada.CamposDeNpa;
+import br.com.danielchipolesch.domain.regras.comunicacaooficialpadronizada.NumeracaoDeNpa;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.ObjectMapper;
@@ -50,7 +50,7 @@ class DocumentoFoNpaBuilderTest {
     private static Documento documento(SituacaoBcaEnum bca, SituacaoLocalEnum local) {
         var especie = new EspecieNormativa();
         especie.setSigla("NPA");
-        especie.setTipoDeRegras(TipoDeRegras.NPA);
+        especie.setTipoDeEspecie(TipoDeEspecie.COMUNICACAO_OFICIAL_PADRONIZADA);
         var om = new OrganizacaoMilitar();
         om.setNome("Grupo de Apoio");
         var doc = new Documento();

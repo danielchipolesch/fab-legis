@@ -73,7 +73,7 @@ Ver [Ciclo de Vida do Documento](ciclo-de-vida.md) para o fluxo completo de atri
 
 ## NPA (Norma Padrão de Ação)
 
-A [NPA](dominio.md#npa-norma-padrao-de-acao) usa as mesmas telas do acervo, mas cada uma se adapta à espécie pelo **perfil** do documento (`frontend/src/perfis/`, escolhido pelo `tipoDeRegras` que o backend informa — nunca pela sigla):
+A [NPA](dominio.md#npa-norma-padrao-de-acao) usa as mesmas telas do acervo, mas cada uma se adapta à espécie pelo **perfil** do documento (`frontend/src/perfis/`, escolhido pelo `tipoDeEspecie` que o backend informa — nunca pela sigla):
 
 - **Novo documento:** ao escolher a espécie NPA o diálogo troca o *Assunto Básico* pela **Identificação** (texto livre, ex.: `NPA-AGO-01`) e o campo do título vira **Assunto**.
 - **Editor:** a árvore mostra a numeração pelo caminho (`1`, `1.1`, `1.1.1.1`, `a)`); "Adicionar" oferece só o que a hierarquia da NPA permite (capítulo → seção/parágrafo; seção → subseção/parágrafo; parágrafo → alínea) e seção, subseção e parágrafo do mesmo pai trocam de lugar livremente. Não há promover/rebaixar, "Comparar versões" nem a ajuda da LC 95/1998. O botão **Cabeçalho e assinaturas** (`CamposDaNpaDialog`) edita o setor emissor, o local do fecho e os blocos de assinatura em texto livre — cada bloco com rótulo, até 6 linhas, e pode ser reordenado; um bloco novo entra **embaixo** dos existentes. "Elaborado por" (autor e coautores) e "Aprovado por" (quem aprova) não são digitados: saem do documento.
