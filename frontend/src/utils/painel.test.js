@@ -75,6 +75,13 @@ describe('detalhesDoDocumento', () => {
     expect(valor(detalhesDoDocumento('em_andamento', doc({})), 'Coautores')).toBe('Nenhum')
   })
 
+  it('a OM aparece com o nome e a sigla; sem sigla, só o nome', () => {
+    expect(valor(detalhesDoDocumento('em_andamento', doc({ om_nome: 'Centro de Aquisições Específicas', om_sigla: 'CAE' })), 'OM'))
+      .toBe('Centro de Aquisições Específicas (CAE)')
+    expect(valor(detalhesDoDocumento('em_andamento', doc({ om_nome: 'Centro de Aquisições Específicas' })), 'OM'))
+      .toBe('Centro de Aquisições Específicas')
+  })
+
   it('a NPA não tem Assunto Básico', () => {
     const l = detalhesDoDocumento('em_andamento', doc({ tipo_de_especie: 'COMUNICACAO_OFICIAL_PADRONIZADA', especie: 'NPA' }))
     expect(valor(l, 'Módulo')).toBe('NPA')

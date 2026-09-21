@@ -86,6 +86,7 @@ public record DocumentoResponseComAnexoTextualDto(
         String autorNome,
         Long omId,
         String omNome,
+        String omSigla,
 
         Long revisorAtribuidoId,
         String revisorAtribuidoNome,

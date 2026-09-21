@@ -83,7 +83,7 @@ export function detalhesDoDocumento(cartao, doc, { coautores = [], formatarData 
     { rotulo: 'Código', valor: doc.codigo_documento ?? '—' },
     // Só as espécies convencionais têm assunto básico.
     ...(doc.assunto_basico ? [{ rotulo: 'Assunto Básico', valor: doc.assunto_basico }] : []),
-    { rotulo: 'OM', valor: doc.om_nome ?? '—' },
+    { rotulo: 'OM', valor: doc.om_nome ? (doc.om_sigla ? `${doc.om_nome} (${doc.om_sigla})` : doc.om_nome) : '—' },
     { rotulo: 'Autor', valor: doc.autor_nome ?? '—' },
     { rotulo: 'Coautores', valor: coautores.length ? coautores.join(', ') : 'Nenhum' },
     { rotulo: 'Criado em', valor: data(doc.data_criacao) },

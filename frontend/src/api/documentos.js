@@ -227,6 +227,7 @@ export function backendParaFrontend(doc) {
     autor_nome: doc.autorNome ?? null,
     om_id: doc.omId != null ? String(doc.omId) : null,
     om_nome: doc.omNome ?? null,
+    om_sigla: doc.omSigla ?? null,
     // Só vem preenchido (true/false) na listagem paginada (obter-todos) --
     // ver DocumentoResponseSemAnexoTextualDto.ehAutorOuCoautor. null nos
     // demais usos deste mapeamento (GET /{id} não manda esse campo — a

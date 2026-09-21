@@ -64,6 +64,7 @@ public record DocumentoResponseSemAnexoTextualDto(
         String autorNome,
         Long omId,
         String omNome,
+        String omSigla,
 
         // Ver Documento.revisorAtribuido/publicadorAtribuido -- o frontend usa isso
         // pra saber se O USUÁRIO ATUAL pode agir/editar neste momento (ex.: editar

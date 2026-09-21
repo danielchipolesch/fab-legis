@@ -10,12 +10,13 @@
     :loading="carregando"
     v-model:pagination="paginacao"
     :rows-per-page-options="[TAMANHO_DA_PAGINA]"
+    class="painel-tabela"
     :data-testid="`cartao-${cartao}`"
     @request="aoPaginar"
   >
     <template #top>
       <div class="row items-center no-wrap full-width">
-        <div class="text-subtitle2 text-weight-bold ellipsis">
+        <div class="text-subtitle2 text-weight-bold text-primary ellipsis">
           {{ titulo }} <span data-testid="total">({{ paginacao.rowsNumber }})</span>
         </div>
         <q-space />
@@ -43,7 +44,7 @@
               />
             </div>
             <div class="text-caption text-grey-7 ellipsis">{{ props.row.titulo }}</div>
-            <div v-if="cartao === 'publicados'" class="text-caption text-grey-7 ellipsis" data-testid="om-da-linha">{{ props.row.om_nome }}</div>
+            <div class="text-caption text-grey-7 ellipsis" data-testid="om-da-linha">{{ props.row.om_sigla }}</div>
             <div class="row items-center no-wrap">
               <q-icon v-if="acao(props.row).pendente" name="mdi-alert" color="warning" size="18px" class="q-mr-xs" data-testid="pendente">
                 <q-tooltip anchor="top middle" self="bottom middle">Aguarda uma ação sua</q-tooltip>
@@ -154,6 +155,9 @@ defineExpose({ carregar })
 </script>
 
 <style scoped>
+/* Faixa do título levemente tingida com a cor da marca (como nos cards do Compras.gov.br): separa o cabeçalho das linhas sem
+   pesar -- é o próprio primário do tema a 8%, então acompanha a paleta do sistema. */
+.painel-tabela :deep(.q-table__top) { background: color-mix(in srgb, var(--q-primary) 8%, white); }
 /* O card é estreito (três lado a lado): a célula do documento ocupa o que sobra ao lado do ⋮ (max-width: 0 deixa o texto truncar
    com reticências dentro da tabela) e a situação passa para a linha de baixo quando não cabe ao lado do código. */
 .documento-td { width: 100%; max-width: 0; }

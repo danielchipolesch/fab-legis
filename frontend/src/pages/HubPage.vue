@@ -12,10 +12,21 @@
     <div class="row items-center justify-between q-mb-xl">
       <div>
         <h1 class="text-h5 text-weight-bold text-primary q-my-none">Área de Trabalho</h1>
-        <p class="text-body2 text-grey-7 q-mb-none">
-          Aqui estão reunidos os seus documentos, de todos os módulos: os que estão em andamento, os que aguardam uma ação sua
-          e os publicados e revogados. Para trabalhar em um documento, escolha o módulo em <strong>Acesso Rápido</strong>.
-        </p>
+        <!-- Adaptado da Área de Trabalho do Compras.gov.br: o que a tela é, o que há em cada quadro e para onde ir. -->
+        <div class="text-body2 text-grey-7" data-testid="apresentacao">
+          <p class="q-mb-none">Esta é a sua área de trabalho do <strong>FAB Legis</strong>.</p>
+          <p class="q-mb-none">
+            Aqui estão reunidas as suas tarefas diárias nos quadros abaixo, divididos em três cards -
+            <strong>Meus documentos em andamento</strong>, <strong>Aguardando minha ação</strong> e
+            <strong>Publicados e revogados</strong>. É possível acompanhar os seus documentos e as ações que dependem de você,
+            além de consultar tudo o que foi publicado ou revogado.
+          </p>
+          <p class="q-mb-none">
+            Também é possível abrir os detalhes de cada documento pelo botão de três pontos (⋮), bem como acessar os módulos de
+            <strong>Espécies Convencionais</strong> e <strong>NPA</strong> pelo Acesso Rápido, abaixo, ou pelo botão
+            <strong>Criar</strong>.
+          </p>
+        </div>
       </div>
 
       <!-- Criar só leva ao módulo: quem cria de fato é o botão de criar da tela inicial dele. -->
