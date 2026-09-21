@@ -141,7 +141,9 @@
               hide-bottom-space
             />
           </div>
-          <div class="col-12 col-md-3 row justify-end items-center" style="gap:8px">
+          <!-- col-md (e não col-md-3): ocupa o que sobra da linha, para os botões ficarem sempre à direita -- na NPA o filtro de espécie
+               não existe e uma coluna de largura fixa terminava antes da borda. -->
+          <div class="col-12 col-md row justify-end items-center" style="gap:8px">
             <!-- Busca Textual: procura no CONTEÚDO de todos os documentos (não só desta aba); leva o
                  termo já digitado no campo ao lado. -->
             <q-btn
