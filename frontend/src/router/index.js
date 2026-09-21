@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { Notify } from 'quasar'
 import { useAuthStore } from '@/stores/auth.js'
+import { MODULOS } from '@/perfis/index.js'
 
 const routes = [
   {
@@ -18,9 +19,17 @@ const routes = [
   {
     path: '/',
     name: 'home',
-    component: () => import('@/pages/HomePage.vue'),
+    redirect: { name: 'modulo-convencionais' },
     meta: { title: 'Gestão de Legislação' },
   },
+  // A tela inicial de cada módulo (perfis/index.js): a mesma tela, configurada pelo tipo de espécie.
+  ...MODULOS.map(modulo => ({
+    path: modulo.caminho,
+    name: modulo.rota,
+    component: () => import('@/pages/ModuloPage.vue'),
+    props: { tipoDeEspecie: modulo.tipoDeEspecie },
+    meta: { title: modulo.nome },
+  })),
   {
     path: '/documento/novo',
     name: 'documento-novo',

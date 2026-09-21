@@ -93,6 +93,13 @@
               </q-item-section>
               <q-item-section>Início</q-item-section>
             </q-item>
+            <!-- Um item por módulo (perfis/index.js): cada um é a tela inicial do módulo. -->
+            <q-item v-for="m in MODULOS" :key="m.rota" clickable v-close-popup :to="{ name: m.rota }">
+              <q-item-section avatar>
+                <q-icon :name="m.icone" color="primary" />
+              </q-item-section>
+              <q-item-section>{{ m.nome }}</q-item-section>
+            </q-item>
             <q-item v-if="auth.isAprovador" clickable v-close-popup :to="{ name: 'revisao' }">
               <q-item-section avatar>
                 <q-icon name="mdi-account-search-outline" color="primary" />
@@ -142,6 +149,7 @@ import { useDocumentosStore } from '@/stores/documentos.js'
 import { ocultarCpf } from '@/utils/cpf.js'
 import { caixaAlta } from '@/utils/texto.js'
 import * as notificacoesApi from '@/api/notificacoes.js'
+import { MODULOS } from '@/perfis/index.js'
 
 const router = useRouter()
 const $q = useQuasar()

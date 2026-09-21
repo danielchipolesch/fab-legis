@@ -9,6 +9,7 @@ import intraer.fablegis.domain.builders.DocumentoBuilder;
 import intraer.fablegis.domain.entities.estruturaDocumento.Documento;
 import intraer.fablegis.domain.entities.estruturaDocumento.SituacaoBcaEnum;
 import intraer.fablegis.domain.entities.estruturaDocumento.SituacaoLocalEnum;
+import intraer.fablegis.domain.regras.TipoDeEspecie;
 import intraer.fablegis.domain.entities.estruturaDocumento.TipoAlteracaoEnum;
 import intraer.fablegis.domain.entities.estruturaDocumento.ElementoEmendaStatusEnum;
 import intraer.fablegis.domain.entities.estruturaDocumento.ItemAnexoParteNormativa;
@@ -161,9 +162,10 @@ public class DocumentoService {
     // inteiro, e aceita os mesmos filtros que a HomePage já mostrava (mas calculava
     // no navegador, sobre um array carregado uma vez) -- ver DocumentoSpecifications.
     public Page<Documento> getAllPaginado(Long usuarioId, Long omId, String aba, String busca,
-                                           String especieSigla, SituacaoBcaEnum situacaoBca,
+                                           TipoDeEspecie tipoDeEspecie, String especieSigla, SituacaoBcaEnum situacaoBca,
                                            SituacaoLocalEnum situacaoLocal, Pageable pageable) {
         Specification<Documento> spec = DocumentoSpecifications.aba(aba, usuarioId, omId)
+                .and(DocumentoSpecifications.tipoDeEspecie(tipoDeEspecie))
                 .and(DocumentoSpecifications.busca(busca))
                 .and(DocumentoSpecifications.especieSigla(especieSigla))
                 .and(DocumentoSpecifications.situacaoBca(situacaoBca))
@@ -178,13 +180,16 @@ public class DocumentoService {
     // por valor de cada enum -- mesmo comportamento de statusSummary). Um
     // Specification.count() por número, sem GROUP BY: mantém tudo dentro do que
     // JpaSpecificationExecutor já oferece, sem query nativa.
-    public DocumentoResumoResponseDto getResumo(Long usuarioId, Long omId, String aba, String busca, String especieSigla) {
+    public DocumentoResumoResponseDto getResumo(Long usuarioId, Long omId, String aba, String busca,
+                                                TipoDeEspecie tipoDeEspecie, String especieSigla) {
         Map<String, Long> porAba = new LinkedHashMap<>();
         for (String nomeAba : List.of("meus", "minha_om", "outras_oms", "revogados")) {
-            porAba.put(nomeAba, documentoRepository.count(DocumentoSpecifications.aba(nomeAba, usuarioId, omId)));
+            porAba.put(nomeAba, documentoRepository.count(DocumentoSpecifications.aba(nomeAba, usuarioId, omId)
+                    .and(DocumentoSpecifications.tipoDeEspecie(tipoDeEspecie))));
         }
 
         Specification<Documento> comAbaBuscaEEspecie = DocumentoSpecifications.aba(aba, usuarioId, omId)
+                .and(DocumentoSpecifications.tipoDeEspecie(tipoDeEspecie))
                 .and(DocumentoSpecifications.busca(busca))
                 .and(DocumentoSpecifications.especieSigla(especieSigla));
         Map<String, Long> porSituacaoBca = new LinkedHashMap<>();

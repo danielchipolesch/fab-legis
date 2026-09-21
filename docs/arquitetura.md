@@ -109,7 +109,7 @@ Nem toda espécie normativa obedece às mesmas regras. Para o restante do sistem
 ```
 frontend/src
 │
-├── pages/          ← LoginPage · HomePage · DocumentEditorPage · DocumentViewerPage ·
+├── pages/          ← LoginPage · ModuloPage · DocumentEditorPage · DocumentViewerPage ·
 │                      ComparisonPage · UsersPage · AuditoriaPage
 ├── components/
 │   ├── editor/     ← WysiwygEditor, EditorSidebar (com dialog de metadados),

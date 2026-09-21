@@ -174,7 +174,7 @@ export function backendParaFrontend(doc) {
 
   // A parte preliminar (epígrafe/ementa/preâmbulo/fecho/assinatura) não é
   // mais mostrada na edição -- só existe de fato a partir da publicação (ver
-  // formulário de publicação em HomePage.vue), então itensPreliminares nunca
+  // formulário de publicação em ModuloPage.vue), então itensPreliminares nunca
   // vira uma seção aqui, mesmo quando presente (documento já publicado).
   // Ainda conta para "hasAnyData" para não re-templatizar um documento já
   // publicado que, por algum motivo, não tenha itens de parte normativa.
@@ -254,16 +254,17 @@ export function frontendParaBackendCreate(payload) {
 }
 
 // Paginação de verdade (ver DocumentoController.getAll): antes disso, listDocumentos()
-// chamava isso uma vez com size=200 e a HomePage filtrava/paginava tudo no navegador --
+// chamava isso uma vez com size=200 e a ModuloPage filtrava/paginava tudo no navegador --
 // acima de 200 documentos no acervo, o resto nunca aparecia. Mesmo padrão de
 // listAuditoria em api/auditoria.js: devolve o Page cru ({content, totalElements, ...}),
 // só mapeando os itens de content pro formato do frontend.
 export async function listDocumentosPaginado({
-  aba, busca, especieSigla, situacaoBca, situacaoLocal, page = 0, size = 15, sortBy = 'dtCriacao', descending = true,
+  aba, busca, tipoDeEspecie, especieSigla, situacaoBca, situacaoLocal, page = 0, size = 15, sortBy = 'dtCriacao', descending = true,
 } = {}) {
   const params = new URLSearchParams()
   if (aba) params.set('aba', aba)
   if (busca) params.set('busca', busca)
+  if (tipoDeEspecie) params.set('tipoDeEspecie', tipoDeEspecie)
   if (especieSigla) params.set('especieSigla', especieSigla)
   if (situacaoBca) params.set('situacaoBca', situacaoBca)
   if (situacaoLocal) params.set('situacaoLocal', situacaoLocal)
@@ -278,13 +279,14 @@ export async function listDocumentosPaginado({
   }
 }
 
-// Contagens pros badges das 4 abas e chips de situação da HomePage -- mesmos filtros de
+// Contagens pros badges das 4 abas e chips de situação da tela do módulo -- mesmos filtros de
 // busca/espécie/aba da listagem acima, pra ficar em sincronia com o que ela está
 // mostrando no momento.
-export async function getResumoDocumentos({ aba, busca, especieSigla } = {}) {
+export async function getResumoDocumentos({ aba, busca, tipoDeEspecie, especieSigla } = {}) {
   const params = new URLSearchParams()
   if (aba) params.set('aba', aba)
   if (busca) params.set('busca', busca)
+  if (tipoDeEspecie) params.set('tipoDeEspecie', tipoDeEspecie)
   if (especieSigla) params.set('especieSigla', especieSigla)
   return http.get(`/documentos/resumo?${params.toString()}`)
 }

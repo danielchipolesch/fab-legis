@@ -1,28 +1,39 @@
-    situacaoBca: store.filtros.situacaoBca || undefined,
-    situacaoLocal: store.filtros.situacaoLocal || undefined,<template>
+<template>
   <q-page class="q-pa-xl">
+
+    <q-breadcrumbs active-color="primary" class="q-mb-md" style="font-size:13px">
+      <template #separator>
+        <q-icon name="mdi-chevron-right" size="16px" color="primary" />
+      </template>
+      <q-breadcrumbs-el :to="{ name: 'home' }" icon="mdi-home" />
+      <q-breadcrumbs-el :label="modulo.nome" />
+    </q-breadcrumbs>
 
     <!-- Page header -->
     <div class="row items-center justify-between q-mb-xl">
-      <div>
-        <h1 class="text-h5 text-weight-bold text-primary q-my-none">Gestão de Legislação</h1>
-        <p class="text-body2 text-grey-7 q-mb-none">
-          Gestão e acompanhamento dos atos normativos do Comando da Aeronáutica
-        </p>
+      <div class="row items-center no-wrap" style="gap:12px">
+        <q-avatar color="blue-2" text-color="primary" rounded size="48px">
+          <q-icon :name="modulo.icone" size="28px" />
+        </q-avatar>
+        <div>
+          <h1 class="text-h5 text-weight-bold text-primary q-my-none" data-testid="titulo-do-modulo">{{ modulo.nome }}</h1>
+          <p class="text-body2 text-grey-7 q-mb-none">{{ modulo.descricao }}</p>
+        </div>
       </div>
       <q-btn
         v-if="auth.isEditor"
         color="primary"
         unelevated
         size="lg"
+        data-testid="novo-documento"
         @click="dialogNovoDoc = true"
       >
         <q-icon left name="mdi-plus" />
-        Novo Documento
+        {{ modulo.rotuloDoBotaoNovo }}
       </q-btn>
     </div>
 
-    <NovoDocumentoDialog v-model="dialogNovoDoc" />
+    <NovoDocumentoDialog v-model="dialogNovoDoc" :tipo-de-especie="tipoDeEspecie" />
 
     <!-- Abas (ownership) + filtros/resumo — tudo dentro do MESMO card de propósito:
          os filtros e as chips abaixo operam só sobre a aba selecionada acima, nunca
@@ -90,7 +101,7 @@
               </template>
             </q-input>
           </div>
-          <div class="col-6 col-md-2">
+          <div v-if="especies.length > 1" class="col-6 col-md-2">
             <q-select
               v-model="store.filtros.especie"
               :options="especies"
@@ -105,7 +116,7 @@
             <q-select
               v-model="store.filtros.situacaoBca"
               :options="situacaoBcaOptions"
-              label="Situação BCA"
+              :label="modulo.rotuloDaSituacaoOficial"
               outlined
               dense
               clearable
@@ -401,7 +412,7 @@
 
             <q-card-section class="col">
               <p class="text-body2 text-grey-7 q-mb-none text-truncate-2">
-                {{ doc.assunto_basico }}
+                {{ doc.assunto_basico || doc.titulo }}
               </p>
             </q-card-section>
 
@@ -559,7 +570,14 @@ import { gerarPdf } from '@/services/pdfService.js'
 import { listEspeciesNormativas, normalizeEspecie } from '@/api/referencias.js'
 import { SITUACAO_BCA_META, SITUACAO_LOCAL_META } from '@/utils/statusDocumento.js'
 import { rotaBuscaConteudo } from '@/utils/buscaTextual.js'
-import { perfilDoDocumento } from '@/perfis/index.js'
+import { perfilDoDocumento, moduloDe } from '@/perfis/index.js'
+
+// A tela é a mesma para todos os módulos (perfis/index.js): o tipo de espécie, vindo da rota, decide quais documentos
+// entram, as colunas e os rótulos. Nunca se testa a sigla da espécie aqui.
+const props = defineProps({
+  tipoDeEspecie: { type: String, required: true },
+})
+const modulo = computed(() => moduloDe(props.tipoDeEspecie))
 
 const $q = useQuasar()
 const store = useDocumentosStore()
@@ -575,7 +593,7 @@ const especies = ref([])
 async function carregarEspecies() {
   try {
     const lista = await listEspeciesNormativas()
-    especies.value = lista.map(normalizeEspecie).map(e => e.sigla).sort()
+    especies.value = lista.map(normalizeEspecie).filter(e => e.tipoDeEspecie === props.tipoDeEspecie).map(e => e.sigla).sort()
   } catch (e) {
     $q.notify({ type: 'negative', message: `Erro ao carregar espécies normativas: ${e?.message ?? 'erro desconhecido'}` })
   }
@@ -587,7 +605,7 @@ const situacaoLocalOptions = Object.entries(SITUACAO_LOCAL_META)
   .filter(([value]) => value !== 'SEM_ETAPA')
   .map(([value, m]) => ({ value, label: m.label }))
 
-const columns = [
+const TODAS_AS_COLUNAS = [
   { name: 'especie',        label: 'Espécie',        field: 'especie',        align: 'center', sortable: true,  style: 'width: 100px' },
   { name: 'numero',         label: 'Número',         field: 'numero_basico',  align: 'center', sortable: false },
   { name: 'titulo',         label: 'Título',         field: 'titulo',         align: 'center', sortable: true },
@@ -598,6 +616,12 @@ const columns = [
   { name: 'replicas',       label: 'Réplicas',       field: 'qtd_replicas',   align: 'center', sortable: true,  style: 'width: 90px' },
   { name: 'actions',        label: 'Ações',          field: 'actions',        align: 'center', sortable: false, style: 'width: 220px' },
 ]
+
+// As colunas do módulo: sem as que não fazem sentido para ele, e com os rótulos dele (Número/Identificação; BCA/Boletim Interno).
+const columns = computed(() => TODAS_AS_COLUNAS
+  .filter(c => !modulo.value.colunasOcultas.includes(c.name))
+  .map(c => c.name === 'situacao_bca' ? { ...c, label: modulo.value.rotuloDaSituacaoOficial }
+    : c.name === 'numero' ? { ...c, label: modulo.value.rotuloDoNumero } : c))
 
 // Nome da coluna (frontend, snake_case) -> propriedade Java que o backend ordena (ver
 // DocumentoController.getAll) -- os dois lados usam nomenclaturas diferentes de
@@ -637,6 +661,7 @@ async function carregar() {
   const params = {
     aba: store.abaAtiva,
     busca: store.filtros.busca || undefined,
+    tipoDeEspecie: props.tipoDeEspecie,
     especieSigla: store.filtros.especie || undefined,
     situacaoBca: store.filtros.situacaoBca || undefined,
     situacaoLocal: store.filtros.situacaoLocal || undefined,
@@ -647,7 +672,7 @@ async function carregar() {
   }
   await Promise.all([
     store.fetchPagina(params),
-    store.fetchResumo({ aba: params.aba, busca: params.busca, especieSigla: params.especieSigla }),
+    store.fetchResumo({ aba: params.aba, busca: params.busca, tipoDeEspecie: params.tipoDeEspecie, especieSigla: params.especieSigla }),
   ])
 }
 
@@ -682,7 +707,14 @@ watch([() => store.abaAtiva, () => store.filtros.especie, () => store.filtros.si
 // atual sem esperar o usuário trocar de aba ou recarregar a página.
 watch(() => store.refreshSignal, () => { carregar() })
 
-onMounted(() => { carregar(); carregarEspecies() })
+// Entrar noutro módulo (a rota muda, a tela é a mesma) recomeça do zero: aba, filtros e lista voltam ao padrão.
+function iniciar() {
+  store.entrarNoModulo(props.tipoDeEspecie)
+  carregar()
+  carregarEspecies()
+}
+onMounted(iniciar)
+watch(() => props.tipoDeEspecie, iniciar)
 
 // store.resumoSituacaoBca/resumoSituacaoLocal já vem do servidor com aba/busca/espécie aplicados (ver
 // DocumentoService.getResumo) -- o número no chip bate com o que aparece na tabela ao
@@ -696,7 +728,7 @@ function resumir(meta, contagens, ocultar = []) {
 const resumoBca = computed(() => resumir(SITUACAO_BCA_META, store.resumoSituacaoBca))
 const resumoLocal = computed(() => resumir(SITUACAO_LOCAL_META, store.resumoSituacaoLocal, ['SEM_ETAPA']))
 
-// O ícone da HomePage sempre abre em modo leitura (visualizar), mesmo para o
+// O ícone da tela do módulo sempre abre em modo leitura (visualizar), mesmo para o
 // revisor atribuído durante EM_REVISAO -- ele entra no editor de propósito, pelo
 // link "Editar" da tela de visualização (mesmo padrão de Rascunho/Minuta) ou
 // pela fila de Revisão, nunca direto por aqui.

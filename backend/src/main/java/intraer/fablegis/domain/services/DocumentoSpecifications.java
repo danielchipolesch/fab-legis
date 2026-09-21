@@ -4,6 +4,7 @@ import intraer.fablegis.domain.entities.estruturaDocumento.Documento;
 import intraer.fablegis.domain.entities.estruturaDocumento.DocumentoCompartilhamento;
 import intraer.fablegis.domain.entities.estruturaDocumento.SituacaoBcaEnum;
 import intraer.fablegis.domain.entities.estruturaDocumento.SituacaoLocalEnum;
+import intraer.fablegis.domain.regras.TipoDeEspecie;
 import jakarta.persistence.criteria.CommonAbstractCriteria;
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.Predicate;
@@ -72,6 +73,13 @@ public class DocumentoSpecifications {
                     cb.like(cb.lower(root.get("tituloDocumento")), termo)
             );
         };
+    }
+
+    // O módulo do sistema (Espécies Convencionais, NPA...): os documentos cuja espécie é do tipo pedido. Cada tela de módulo
+    // lista só os seus, para os de um módulo nunca aparecerem na tabela do outro.
+    public static Specification<Documento> tipoDeEspecie(TipoDeEspecie tipo) {
+        if (tipo == null) return (root, query, cb) -> null;
+        return (root, query, cb) -> cb.equal(root.get("especieNormativa").get("tipoDeEspecie"), tipo);
     }
 
     public static Specification<Documento> especieSigla(String sigla) {

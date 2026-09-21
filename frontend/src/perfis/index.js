@@ -7,9 +7,43 @@ import * as npa from './npa.js'
 export const CONVENCIONAL = 'CONVENCIONAL'
 export const COMUNICACAO_OFICIAL_PADRONIZADA = 'COMUNICACAO_OFICIAL_PADRONIZADA'
 
+// O módulo do sistema que cuida de cada tipo de espécie: a tela inicial própria (rota e caminho), como aparece no hub
+// (nome, subtítulo, ícone) e o que a listagem dele mostra. Um tipo de espécie novo ganha o seu módulo aqui -- o hub só
+// acrescenta mais um atalho, sem mudar os cards.
+//   colunasOcultas: colunas da tabela que não fazem sentido para o módulo (a NPA não tem assunto básico e é uma só espécie)
+//   rotuloDaSituacaoOficial: como o módulo chama a situação real do documento (BCA nas convencionais; Boletim Interno na NPA)
+const MODULO_CONVENCIONAL = {
+  tipoDeEspecie: 'CONVENCIONAL',
+  rota: 'modulo-convencionais',
+  caminho: '/convencionais',
+  nome: 'Espécies Convencionais',
+  subtitulo: 'MCA, NSCA, ICA, ROCA…',
+  descricao: 'Gestão e acompanhamento das espécies convencionais do Comando da Aeronáutica',
+  icone: 'mdi-book-open-page-variant-outline',
+  rotuloDoBotaoNovo: 'Novo Documento',
+  rotuloDaSituacaoOficial: 'Situação BCA',
+  rotuloDoNumero: 'Número',
+  colunasOcultas: [],
+}
+
+const MODULO_COMUNICACAO_OFICIAL_PADRONIZADA = {
+  tipoDeEspecie: 'COMUNICACAO_OFICIAL_PADRONIZADA',
+  rota: 'modulo-npa',
+  caminho: '/npa',
+  nome: 'NPA',
+  subtitulo: 'Norma Padrão de Ação',
+  descricao: 'Gestão e acompanhamento das Normas Padrão de Ação (Comunicações Oficiais Padronizadas, NSCA 5-3)',
+  icone: 'mdi-clipboard-text-outline',
+  rotuloDoBotaoNovo: 'Nova NPA',
+  rotuloDaSituacaoOficial: 'Boletim Interno',
+  rotuloDoNumero: 'Identificação',
+  colunasOcultas: ['especie', 'assunto_basico'],
+}
+
 const PERFIS = {
   [CONVENCIONAL]: {
     tipo: CONVENCIONAL,
+    modulo: MODULO_CONVENCIONAL,
     ehNpa: false,
     filhosPermitidos: convencional.filhosPermitidos,
     tiposDeAgrupamento: convencional.TIPOS_DE_AGRUPAMENTO,
@@ -23,6 +57,7 @@ const PERFIS = {
   },
   [COMUNICACAO_OFICIAL_PADRONIZADA]: {
     tipo: COMUNICACAO_OFICIAL_PADRONIZADA,
+    modulo: MODULO_COMUNICACAO_OFICIAL_PADRONIZADA,
     ehNpa: true,
     filhosPermitidos: npa.filhosPermitidos,
     tiposDeAgrupamento: npa.TIPOS_DE_AGRUPAMENTO,
@@ -37,6 +72,18 @@ const PERFIS = {
 
 export function perfilDe(tipoDeEspecie) {
   return PERFIS[tipoDeEspecie] ?? PERFIS[CONVENCIONAL]
+}
+
+// Os módulos do sistema, na ordem em que aparecem no hub e no menu.
+export const MODULOS = Object.values(PERFIS).map(p => p.modulo)
+
+export function moduloDe(tipoDeEspecie) {
+  return perfilDe(tipoDeEspecie).modulo
+}
+
+// O módulo a que um documento do frontend pertence.
+export function moduloDoDocumento(documento) {
+  return moduloDe(documento?.tipo_de_especie)
 }
 
 // O perfil do documento do frontend (campo tipo_de_especie, ver api/documentos.js).

@@ -34,6 +34,7 @@ import intraer.fablegis.domain.services.DocumentoHtmlService;
 import intraer.fablegis.domain.services.DocumentoParteNormativaService;
 import intraer.fablegis.domain.services.DocumentoPdfService;
 import intraer.fablegis.domain.services.DocumentoPresencaService;
+import intraer.fablegis.domain.regras.TipoDeEspecie;
 import intraer.fablegis.domain.services.DocumentoService;
 import intraer.fablegis.domain.services.DocumentoStatusService;
 import intraer.fablegis.domain.services.EmendaService;
@@ -176,6 +177,7 @@ public class DocumentoController {
     public ResponseEntity<Page<DocumentoResponseSemAnexoTextualDto>> getAll(
             @RequestParam(required = false) String aba,
             @RequestParam(required = false) String busca,
+            @RequestParam(required = false) TipoDeEspecie tipoDeEspecie,
             @RequestParam(required = false) String especieSigla,
             @RequestParam(required = false) SituacaoBcaEnum situacaoBca,
             @RequestParam(required = false) SituacaoLocalEnum situacaoLocal,
@@ -187,7 +189,7 @@ public class DocumentoController {
         Usuario usuario = ((UsuarioPrincipal) authentication.getPrincipal()).getUsuario();
         Sort sort = descending ? Sort.by(sortBy).descending() : Sort.by(sortBy).ascending();
         Page<Documento> resultado = documentoService.getAllPaginado(
-                usuario.getId(), usuario.getOm().getId(), aba, busca, especieSigla, situacaoBca, situacaoLocal,
+                usuario.getId(), usuario.getOm().getId(), aba, busca, tipoDeEspecie, especieSigla, situacaoBca, situacaoLocal,
                 PageRequest.of(page, size, sort));
         // 1 query pra página inteira (não 1 por linha) -- ver
         // DocumentoCompartilhamentoService.listarIdsCompartilhadosComUsuario.
@@ -217,11 +219,12 @@ public class DocumentoController {
     public ResponseEntity<DocumentoResumoResponseDto> resumo(
             @RequestParam(required = false) String aba,
             @RequestParam(required = false) String busca,
+            @RequestParam(required = false) TipoDeEspecie tipoDeEspecie,
             @RequestParam(required = false) String especieSigla,
             Authentication authentication) {
         Usuario usuario = ((UsuarioPrincipal) authentication.getPrincipal()).getUsuario();
         return ResponseEntity.ok(documentoService.getResumo(
-                usuario.getId(), usuario.getOm().getId(), aba, busca, especieSigla));
+                usuario.getId(), usuario.getOm().getId(), aba, busca, tipoDeEspecie, especieSigla));
     }
 
     @PreAuthorize("@documentoAcessoService.podeMudarStatus(#id, #request.situacaoLocal, authentication)")

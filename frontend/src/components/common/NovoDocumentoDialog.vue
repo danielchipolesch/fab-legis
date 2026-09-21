@@ -21,6 +21,7 @@
                 v-model="form.especieNormativa"
                 :options="especiesFiltradas"
                 :loading="carregandoRefs"
+                :readonly="especies.length === 1"
                 option-label="label"
                 option-value="id"
                 label="Espécie Normativa *"
@@ -150,8 +151,11 @@ import { useRouter } from 'vue-router'
 import { perfilDe } from '@/perfis/index.js'
 import { listEspeciesNormativas, listAssuntosBasicos, normalizeEspecie, normalizeAssunto } from '@/api/referencias.js'
 
+// tipoDeEspecie: o módulo de onde o diálogo foi aberto -- só as espécies dele podem ser criadas ali. Se o módulo tem uma
+// única espécie (a NPA), ela já vem escolhida.
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
+  tipoDeEspecie: { type: String, default: null },
 })
 const emit = defineEmits(['update:modelValue'])
 
@@ -176,7 +180,7 @@ async function carregarReferencias() {
       listEspeciesNormativas(),
       listAssuntosBasicos(),
     ])
-    especies.value = esp.map(normalizeEspecie)
+    especies.value = esp.map(normalizeEspecie).filter(e => !props.tipoDeEspecie || e.tipoDeEspecie === props.tipoDeEspecie)
     assuntos.value = ass.map(normalizeAssunto)
     especiesFiltradas.value = especies.value
     assuntosFiltrados.value = assuntos.value
@@ -232,8 +236,12 @@ watch(aberto, async (v) => {
     formRef.value?.resetValidation()
     Object.assign(form, { especieNormativa: null, assuntoBasico: null, identificacao: '', titulo: '' })
     await carregarReferencias()
+    if (especies.value.length === 1) form.especieNormativa = especies.value[0]
   }
 })
+
+// A tela do módulo é a mesma nos dois módulos: ao trocar de módulo, o catálogo carregado deixa de valer.
+watch(() => props.tipoDeEspecie, () => { especies.value = []; especiesFiltradas.value = [] })
 
 const obrigatorio = (v) => (v != null && String(typeof v === 'object' ? (v.label ?? '') : v).trim() !== '') || 'Campo obrigatório'
 const minLen      = (v) => (String(v ?? '').trim().length >= 5) || 'Mínimo de 5 caracteres'

@@ -22,7 +22,6 @@ A NPA já funciona de ponta a ponta — criação, edição, PDF/HTML/prévia, p
 - **Catálogo de setores:** o setor emissor é texto livre por documento. Um catálogo compartilhado por OM padronizaria o texto e permitiria filtrar a biblioteca por setor.
 - **"Substituir":** para mudar uma NPA publicada cria-se outra e revoga-se a anterior. Hoje isso é feito à mão (clonar e, depois, pedir a revogação da antiga); a ação "Substituir" faria as duas coisas ligadas, registrando qual NPA substitui qual.
 - **"Usar como base" com origem registrada:** clonar uma NPA de outra OM já traz estrutura, cabeçalho e assinaturas para a OM de quem clonou; falta registrar de qual NPA a nova veio.
-- **Seletor "Atos normativos | NPA" na homepage:** hoje a NPA aparece no filtro de espécie e nas abas (*Meus*, *Minha OM*, *Outras OMs* — a biblioteca — e *Revogados*).
 - **Glossário:** confirmar os termos oficiais da NPA para `docs/dominio.md`.
 
 ## Longo prazo — plataforma normativa

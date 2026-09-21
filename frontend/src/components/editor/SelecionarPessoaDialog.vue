@@ -66,7 +66,7 @@ const props = defineProps({
   descricao: { type: String, default: '' },
   acaoLabel: { type: String, default: 'Confirmar' },
   // Controlado por quem usa o diálogo (RevisaoPage.vue/PublicacaoPage.vue/
-  // HomePage.vue) enquanto a chamada de status está em andamento.
+  // ModuloPage.vue) enquanto a chamada de status está em andamento.
   enviando: { type: Boolean, default: false },
 })
 const emit = defineEmits(['update:modelValue', 'confirmar'])

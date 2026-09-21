@@ -362,7 +362,7 @@ import { gerarPdf, gerarHtml, buscarPdfBlob } from '@/services/pdfService.js'
 import { gerarTextoSugeridoPortaria } from '@/utils/textoSugeridoPortaria.js'
 import { resolveMinioUrls } from '@/utils/minioUrls.js'
 import BotaoBaixarVersao from '@/components/common/BotaoBaixarVersao.vue'
-import { perfilDoDocumento } from '@/perfis/index.js'
+import { perfilDoDocumento, moduloDoDocumento } from '@/perfis/index.js'
 import { itensRenumeracaoUnico } from '@/utils/numbering.js'
 import {
   ehAlteracaoPublicada, temVersaoVigente, temVersaoEmTramitacao, versaoPadrao, eventoDoHistorico,
@@ -460,7 +460,12 @@ const ORIGEM_CRUMB = {
   publicacao: { label: 'Publicação', to: { name: 'publicacao' } },
   busca:      { label: 'Busca Textual', to: { name: 'busca' } },
 }
-const origemCrumb = computed(() => ORIGEM_CRUMB[route.query.origem] ?? { label: 'Documentos', to: { name: 'home' } })
+// Sem origem, o crumb do meio é o módulo a que o documento pertence (a tela inicial dele).
+const moduloCrumb = computed(() => {
+  const m = moduloDoDocumento(documento.value)
+  return { label: m.nome, to: { name: m.rota } }
+})
+const origemCrumb = computed(() => ORIGEM_CRUMB[route.query.origem] ?? moduloCrumb.value)
 // O histórico vem do log de transições (t_historico_documento), não de um timestamp único por
 // situação: as etapas locais se repetem a cada alteração. Ver eventoDoHistorico (utils/fluxoDocumento.js).
 

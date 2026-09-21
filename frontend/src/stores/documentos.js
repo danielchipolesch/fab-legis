@@ -26,7 +26,7 @@ const CAPITULOS_DEFAULT = [
   'DISPOSIÇÕES TRANSITÓRIAS',
 ]
 
-// Exportados para reuso no formulário de publicação (HomePage.vue) -- é o
+// Exportados para reuso no formulário de publicação (ModuloPage.vue) -- é o
 // mesmo envelope JSON (tipo ProseMirror/TipTap) que o WysiwygEditor e o
 // backend já esperam em "conteudo", então textos simples digitados ali
 // entram no mesmo contrato de dados sem precisar de um editor rico.
@@ -43,7 +43,7 @@ export function jDoc(...paragraphs) {
 // A parte preliminar (epígrafe/ementa/preâmbulo/fecho/assinatura) não faz
 // mais parte da edição -- só existe de fato a partir da publicação em BCA,
 // então passou a ser coletada no próprio formulário de publicação
-// (HomePage.vue), não como uma seção editável aqui.
+// (ModuloPage.vue), não como uma seção editável aqui.
 function gerarSecoesTemplate(doc) {
   return [
     {
@@ -66,7 +66,7 @@ function gerarSecoesTemplate(doc) {
 export const useDocumentosStore = defineStore('documents', {
   state: () => ({
     // Antes, "o acervo inteiro visível" (até 200 documentos, carregado uma vez). Agora
-    // é só a página atual da HomePage -- getById continua funcionando pras outras telas
+    // é só a página atual da tela do módulo -- getById continua funcionando pras outras telas
     // porque elas sempre chamam fetchDocumento(id) antes de ler por ali (ver
     // DocumentoViewerPage.vue/DocumentoEditorPage.vue/ComparisonPage.vue), nunca dependem
     // do array já estar populado por uma listagem anterior.
@@ -81,22 +81,25 @@ export const useDocumentosStore = defineStore('documents', {
     historicoPorDocumento: {},
     mapaAlteracaoPorDocumento: {},
     documentosComHistorico: [],
-    // Persistido aqui (não um ref/reactive local em HomePage.vue) pra
+    // Persistido aqui (não um ref/reactive local em ModuloPage.vue) pra
     // sobreviver a sair e voltar pra Home dentro da mesma sessão (ex.: abrir
     // um documento e apertar "voltar") -- mesmo raciocínio de
-    // stores/busca.js. Sem custo de rede extra: o onMounted da HomePage já
+    // stores/busca.js. Sem custo de rede extra: o onMounted da tela do módulo já
     // dispara uma busca de qualquer forma a cada montagem do componente
     // (não tem keep-alive); persistir só troca OS PARÂMETROS dessa mesma
     // busca (aba/filtro/ordenação de antes, em vez dos padrões), não
     // adiciona uma segunda chamada.
     viewMode: 'tabela',
+    // Qual módulo (tipo de espécie) a listagem acima está mostrando: ao entrar noutro, aba, filtros e página voltam ao
+    // começo (ver entrarNoModulo) -- os filtros de um módulo não fazem sentido no outro.
+    moduloAtivo: null,
     abaAtiva: 'meus',
     filtros: { busca: '', especie: null, situacaoBca: null, situacaoLocal: null },
     tablePagination: { page: 1, rowsPerPage: 15, sortBy: 'data_criacao', descending: true, rowsNumber: 0 },
     // Incrementado quando algo fora da própria tela (ex.: alguém te adicionou
     // como coautor -- ver notificação DOCUMENTO_COMPARTILHADO em
-    // AppTopBar.vue) deveria mudar a listagem/contagem da HomePage sem
-    // esperar o usuário trocar de aba ou recarregar a página. HomePage.vue
+    // AppTopBar.vue) deveria mudar a listagem/contagem da tela do módulo sem
+    // esperar o usuário trocar de aba ou recarregar a página. ModuloPage.vue
     // observa esse contador (watch) e refaz carregar() quando ele muda; um
     // número simples em vez de um evento porque Pinia não tem barramento de
     // eventos embutido, e o valor em si não importa, só a mudança.
@@ -113,10 +116,22 @@ export const useDocumentosStore = defineStore('documents', {
       this.refreshSignal++
     },
 
+    // Chamada pela tela de cada módulo ao abrir: se o módulo mudou desde a última vez, zera aba, filtros, página e a
+    // lista mostrada (senão a tabela do módulo novo apareceria, por um instante, com os documentos do anterior).
+    entrarNoModulo(tipoDeEspecie) {
+      if (this.moduloAtivo === tipoDeEspecie) return
+      this.moduloAtivo = tipoDeEspecie
+      this.abaAtiva = 'meus'
+      this.filtros = { busca: '', especie: null, situacaoBca: null, situacaoLocal: null }
+      this.tablePagination = { page: 1, rowsPerPage: 15, sortBy: 'data_criacao', descending: true, rowsNumber: 0 }
+      this.documentos = []
+      this.totalElements = 0
+    },
+
     // Busca a página atual do acervo (filtrada por aba/busca/espécie/situação) --
     // substitui o antigo fetchAll(), que carregava tudo de uma vez e filtrava no
-    // navegador. Chamada pela HomePage a cada troca de aba/filtro/página (ver
-    // HomePage.vue).
+    // navegador. Chamada pela ModuloPage a cada troca de aba/filtro/página (ver
+    // ModuloPage.vue).
     async fetchPagina(params) {
       this.loading = true
       try {

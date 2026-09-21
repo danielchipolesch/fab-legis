@@ -9,7 +9,7 @@
             <q-icon name="mdi-chevron-right" size="16px" color="primary" />
           </template>
           <q-breadcrumbs-el :to="{ name: 'home' }" icon="mdi-home" />
-          <q-breadcrumbs-el label="Documentos" />
+          <q-breadcrumbs-el :label="modulo.nome" :to="{ name: modulo.rota }" />
           <q-breadcrumbs-el
             :label="docLabel"
             :to="{ name: 'documento-visualizar', params: { id: route.params.id } }"
@@ -253,6 +253,7 @@ import { generateHTML } from '@tiptap/html'
 import { editorExtensions } from '@/editor/extensions.js'
 import { gerarMapaAlteracaoPdf } from '@/services/pdfService.js'
 import { ehAlteracaoPublicada } from '@/utils/fluxoDocumento.js'
+import { moduloDoDocumento } from '@/perfis/index.js'
 import { useQuasar } from 'quasar'
 
 function conteudoToHtml(conteudo) {
@@ -283,6 +284,7 @@ onMounted(async () => {
 })
 
 const documento = computed(() => store.getById(route.params.id))
+const modulo = computed(() => moduloDoDocumento(documento.value))
 // + a renumeração de parágrafo único (não é emenda do elemento, mas a portaria precisa transcrevê-la).
 const mapaAlteracao = computed(() => [
   ...(store.mapaAlteracaoPorDocumento[String(route.params.id)] ?? []),

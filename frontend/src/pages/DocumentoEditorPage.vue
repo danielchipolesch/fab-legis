@@ -311,7 +311,7 @@ import { useEditorStore } from '@/stores/editor.js'
 import { useDocumentosStore } from '@/stores/documentos.js'
 import { useAuthStore } from '@/stores/auth.js'
 import { formatLabel, elementIcon } from '@/utils/numbering.js'
-import { perfilDoDocumento, renumerarElementos } from '@/perfis/index.js'
+import { perfilDoDocumento, renumerarElementos, moduloDoDocumento } from '@/perfis/index.js'
 import { gerarPdf, gerarHtml } from '@/services/pdfService.js'
 import EditorSidebar from '@/components/editor/EditorSidebar.vue'
 import WysiwygEditor from '@/components/editor/WysiwygEditor.vue'
@@ -589,7 +589,12 @@ const ORIGEM_CRUMB = {
   revisao:    { label: 'Revisão',    to: { name: 'revisao' } },
   publicacao: { label: 'Publicação', to: { name: 'publicacao' } },
 }
-const origemCrumb = computed(() => ORIGEM_CRUMB[route.query.origem] ?? { label: 'Documentos', to: { name: 'home' } })
+// Sem origem, o crumb do meio é o módulo a que o documento pertence (a tela inicial dele).
+const moduloCrumb = computed(() => {
+  const m = moduloDoDocumento(documento.value)
+  return { label: m.nome, to: { name: m.rota } }
+})
+const origemCrumb = computed(() => ORIGEM_CRUMB[route.query.origem] ?? moduloCrumb.value)
 
 const docLabel = computed(() => {
   const d = documento.value
