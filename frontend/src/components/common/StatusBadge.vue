@@ -5,11 +5,13 @@
       :color="bca.bg"
       :text-color="bca.fg"
       :size="size"
+      :dense="dense"
+      :icon="dense ? bca.icon : undefined"
       square
       class="text-weight-bold status-badge"
       data-testid="chip-situacao-bca"
     >
-      <q-icon :name="bca.icon" :size="tamanhoDoIcone" class="q-mr-xs" />
+      <q-icon v-if="!dense" :name="bca.icon" size="14px" class="q-mr-xs" />
       {{ bca.label }}
     </q-chip>
     <!-- Situação local: contorno e texto na cor forte da família (a cor clara do fundo tonal, usada
@@ -19,12 +21,14 @@
       :color="local.color"
       :text-color="local.fg"
       :size="size"
+      :dense="dense"
+      :icon="dense ? local.icon : undefined"
       square
       outline
       class="text-weight-bold status-badge status-badge-local"
       data-testid="chip-situacao-local"
     >
-      <q-icon :name="local.icon" :size="tamanhoDoIcone" class="q-mr-xs" />
+      <q-icon v-if="!dense" :name="local.icon" size="14px" class="q-mr-xs" />
       {{ local.label }}
     </q-chip>
   </span>
@@ -43,10 +47,10 @@ const props = defineProps({
   situacaoLocal: { type: String, default: null },
   mostrar: { type: String, default: 'ambos', validator: v => ['ambos', 'bca', 'local'].includes(v) },
   size: { type: String, default: 'sm' },
+  // dense: o chip compacto do Quasar (menos espaço nas laterais e menor altura), para linhas de tabela estreitas; o ícone
+  // passa a ser o do próprio q-chip, que acompanha o tamanho dele.
+  dense: { type: Boolean, default: false },
 })
-
-// O ícone acompanha o tamanho do chip: no menor (xs), um ícone de 14px pesaria mais que o texto.
-const tamanhoDoIcone = computed(() => props.size === 'xs' ? '11px' : '14px')
 
 const bca = computed(() => situacaoBcaMeta(props.situacaoBca))
 const local = computed(() => situacaoLocalMeta(props.situacaoLocal))
