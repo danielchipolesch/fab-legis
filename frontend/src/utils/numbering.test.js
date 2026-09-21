@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   toRoman, toLetter, formatLabel, formatReferenciaLabel, bodyLabel, elementIcon,
   renumberElements, renumberElementsEmAlteracao, clausulaRenumeracao, itensRenumeracaoUnico,
-  promoteType, demoteType, canDemoteSubtree, findById, removeById,
+  promoteType, demoteType, canDemoteSubtree, findById, removeById, rotuloDaInclusao,
 } from './numbering.js'
 
 // Regras de numeração do Decreto nº 12.002/2024 art. 9º e da LC 95/1998 (vedação
@@ -552,5 +552,77 @@ describe('parágrafo único renumerado', () => {
     const itens = itensRenumeracaoUnico({ secoes: [{ tipo: 'parte_normativa', elementos: arvore }] })
     expect(itens).toHaveLength(1)
     expect(itens[0]).toMatchObject({ elementoId: 'a', acao: 'ALTERAR', cicloReferencia: null, textoNovo: '{"x":1}' })
+  })
+})
+
+// ─── Prévia do rótulo de um elemento a incluir (diálogo "Incluir elemento") ────────────────────
+// A prévia tem de ser IGUAL ao rótulo que o elemento recebe depois de salvo, isto é, o de renumberElementsEmAlteracao.
+// Estrutura (como no DCA 5-1): cap I → arts. 1 e 2; cap II → art. 3 (REVOGADO); cap III → art. 4.
+
+describe('rotuloDaInclusao', () => {
+  const original = (extra = {}) => ({ tipo: 'artigo', filhos: [], ...extra })
+  function documento() {
+    const a1 = original({ id: 1, elementOrder: 1 })
+    const a2 = original({ id: 2, elementOrder: 2 })
+    const a3 = original({ id: 3, elementOrder: 1, emendaStatus: 'REVOGADO' })
+    const a4 = original({ id: 4, elementOrder: 1 })
+    const c1 = { ...cap(a1, a2), id: 11 }
+    const c2 = { ...cap(a3), id: 12 }
+    const c3 = { ...cap(a4), id: 13 }
+    const elementos = [c1, c2, c3]
+    renumberElementsEmAlteracao(elementos)
+    return { elementos, c1, c2, c3, a1, a2, a3, a4 }
+  }
+  const prev = (d, container, ancora) => rotuloDaInclusao(d.elementos, 'artigo', ancora
+    ? { isFirst: false, el: ancora, siblings: container.filhos, containerEl: container }
+    : { isFirst: true, siblings: container.filhos, containerEl: container })
+
+  // O que realmente acontece: insere o incluído na posição e renumera.
+  function real(d, container, ancora) {
+    const novo = incluido('artigo', [], { id: 99 })
+    const pos = ancora ? container.filhos.indexOf(ancora) + 1 : 0
+    container.filhos.splice(pos, 0, novo)
+    renumberElementsEmAlteracao(d.elementos)
+    return bodyLabel(novo).trim()
+  }
+
+  it('depois de um artigo REVOGADO o incluído leva o número do revogado, com letra (3º-A, não 2º-A)', () => {
+    const d = documento()
+    expect(prev(d, d.c2, d.a3)).toBe('Art. 3º-A')
+    const x = documento()
+    expect(real(x, x.c2, x.a3)).toBe('Art. 3º-A')
+  })
+
+  it('no início do capítulo cujo primeiro artigo é o revogado: letra do artigo anterior (2º-A)', () => {
+    const d = documento()
+    expect(prev(d, d.c2, null)).toBe('Art. 2º-A')
+    const x = documento()
+    expect(real(x, x.c2, null)).toBe('Art. 2º-A')
+  })
+
+  it('depois de um artigo comum, entre dois originais: letra (1º-A)', () => {
+    const d = documento()
+    expect(prev(d, d.c1, d.a1)).toBe('Art. 1º-A')
+    const x = documento()
+    expect(real(x, x.c1, x.a1)).toBe('Art. 1º-A')
+  })
+
+  it('depois do último artigo do documento: numeração sequencial (5º)', () => {
+    const d = documento()
+    expect(prev(d, d.c3, d.a4)).toBe('Art. 5º')
+    const x = documento()
+    expect(real(x, x.c3, x.a4)).toBe('Art. 5º')
+  })
+
+  it('um segundo incluído na mesma posição leva a letra seguinte (3º-B)', () => {
+    const d = documento()
+    const primeiro = incluido('artigo', [], { id: 98, elementOrder: 2 })
+    d.c2.filhos.push(primeiro)
+    renumberElementsEmAlteracao(d.elementos)
+    expect(prev(d, d.c2, primeiro)).toBe('Art. 3º-B')
+  })
+
+  it('sem posição escolhida não há prévia', () => {
+    expect(rotuloDaInclusao([], 'artigo', null)).toBeNull()
   })
 })

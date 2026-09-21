@@ -536,3 +536,75 @@ export function bodyLabel(element) {
     default:                return ''
   }
 }
+
+// ─── Prévia do rótulo de um elemento a incluir por emenda ─────────────────────
+// Usada pelo diálogo "Incluir elemento": mostra o rótulo que o novo elemento vai receber DEPOIS de salvo, com as
+// mesmas regras de renumberElementsEmAlteracao / NumeracaoService. Um elemento ORIGINAL é o que não foi incluído por
+// emenda (marca permanente incluidoPorEmenda) -- INALTERADO, ALTERADO e também REVOGADO, que continua ocupando o
+// número que tinha (LC 95/1998): um artigo incluído logo depois de um revogado é "3º-A" se o revogado era o 3º, nunca
+// "2º-A". Quando o critério aqui muda, mude também as duas renumerações.
+//
+//   elementos: a árvore da parte normativa
+//   tipoAlvo : tipo do novo elemento em minúsculas ('artigo', 'paragrafo'...)
+//   opcao    : a posição escolhida -- { isFirst, el (o elemento-âncora, "Após ..."), siblings, containerEl }
+const TIPOS_INTERNOS_AO_ARTIGO = new Set(['paragrafo', 'paragrafo_unico', 'inciso', 'alinea', 'sub_alinea'])
+const ehOriginal = (el) => el.incluidoPorEmenda !== true
+const foiIncluido = (el) => el.incluidoPorEmenda === true
+
+function rotuloDoModelo(tipo, numero, letra) {
+  const modelo = { tipo, numero, _emendaLetra: letra }
+  return (bodyLabel(modelo) || formatLabel(modelo)).trim() || null
+}
+
+export function rotuloDaInclusao(elementos, tipoAlvo, opcao) {
+  if (!opcao || !tipoAlvo) return null
+
+  if (tipoAlvo === 'artigo') {
+    // Artigo: numeração GLOBAL (todo o documento, em ordem de leitura), não a dos irmãos.
+    const todos = []
+    const percorrer = (els) => { for (const el of els ?? []) { todos.push(el); percorrer(el.filhos) } }
+    percorrer(elementos)
+    const posicao = (el) => (el ? todos.indexOf(el) : -1)
+    const artigos = todos.filter(el => el.tipo === 'artigo')
+    const ref = opcao.isFirst ? posicao(opcao.containerEl) : posicao(opcao.el)
+
+    const proximo = artigos.find(a => posicao(a) > ref && ehOriginal(a)) ?? null
+    const anterior = [...artigos].reverse().find(a => posicao(a) <= ref && ehOriginal(a)) ?? null
+
+    if (!proximo) {
+      // Depois de todos os originais → numeração sequencial normal, sem letra.
+      const jaNoFim = artigos.filter(a => posicao(a) > ref && foiIncluido(a)).length
+      return rotuloDoModelo(tipoAlvo, (anterior?.numero ?? 0) + jaNoFim + 1, null)
+    }
+
+    // Entre dois originais → sufixo de letra do original anterior (A, B, C… conforme os já incluídos ali).
+    const inicioDaZona = anterior ? artigos.indexOf(anterior) + 1 : 0
+    const jaNaZona = opcao.isFirst
+      ? artigos.filter((a, i) => i >= inicioDaZona && posicao(a) <= ref && foiIncluido(a)).length
+      : artigos.slice(inicioDaZona, artigos.indexOf(opcao.el) + 1).filter(foiIncluido).length
+    return rotuloDoModelo(tipoAlvo, anterior?.numero ?? 0, String.fromCharCode(65 + jaNaZona))
+  }
+
+  // Demais tipos: numeração LOCAL, entre os irmãos do container.
+  const irmaos = [...(opcao.siblings ?? [])].sort((a, b) => (a.elementOrder ?? 0) - (b.elementOrder ?? 0))
+  const depoisDe = opcao.isFirst ? -1 : irmaos.findIndex(s => s.id === opcao.el.id)
+  if (!opcao.isFirst && depoisDe < 0) return null
+
+  const proximoOriginal = irmaos.slice(depoisDe + 1).find(s => s.tipo === tipoAlvo && ehOriginal(s)) ?? null
+  const numeroDaAncora = opcao.isFirst ? 0 : (opcao.el.numero ?? 0)
+
+  if (!proximoOriginal || TIPOS_INTERNOS_AO_ARTIGO.has(tipoAlvo)) {
+    // No fim da sequência (ou dentro de um artigo, que se renumera livremente): número sequencial normal.
+    const jaNoFim = irmaos.slice(depoisDe + 1).filter(s => s.tipo === tipoAlvo && foiIncluido(s)).length
+    return rotuloDoModelo(tipoAlvo, numeroDaAncora + jaNoFim + 1, null)
+  }
+
+  // Entre dois originais → letra, a partir do último original do mesmo tipo antes do ponto de inserção.
+  let anterior = null
+  for (let i = depoisDe; i >= 0; i--) {
+    if (irmaos[i].tipo === tipoAlvo && ehOriginal(irmaos[i])) { anterior = irmaos[i]; break }
+  }
+  const inicioDaZona = anterior ? irmaos.findIndex(s => s.id === anterior.id) + 1 : 0
+  const jaNaZona = irmaos.slice(inicioDaZona, depoisDe + 1).filter(s => s.tipo === tipoAlvo && foiIncluido(s)).length
+  return rotuloDoModelo(tipoAlvo, anterior?.numero ?? numeroDaAncora, String.fromCharCode(65 + jaNaZona))
+}
