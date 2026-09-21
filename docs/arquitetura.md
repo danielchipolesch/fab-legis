@@ -34,7 +34,7 @@ O bucket do MinIO é **privado** — o navegador nunca acessa um objeto direto p
 O backend adota uma separação clara em três camadas, com a dependência sempre apontando para dentro (`infrastructure → application → domain`):
 
 ```
-br.com.danielchipolesch
+intraer.fablegis
 │
 ├── application/           ← Camada de aplicação (entrada/saída)
 │   ├── controllers/       ← REST: Documento, Emenda, Anexo, EspecieNormativa,
@@ -161,7 +161,7 @@ fab-legis/
 │   ├── Dockerfile              # Multi-stage: Maven build → JRE Alpine (+ Carlito)
 │   ├── pom.xml
 │   └── src/main/
-│       ├── java/br/com/danielchipolesch/
+│       ├── java/intraer/fablegis/
 │       │   ├── application/    # Controllers, DTOs, helpers
 │       │   ├── domain/         # Entidades, serviços, builders, mappers, exceções
 │       │   └── infrastructure/ # Repositórios, configurações, enums, runners

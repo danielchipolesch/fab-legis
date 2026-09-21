@@ -1,0 +1,50 @@
+package intraer.fablegis.infrastructure.repositories;
+
+import intraer.fablegis.domain.entities.estruturaDocumento.ItemAnexoParteNormativa;
+import jakarta.transaction.Transactional;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Repository;
+
+import java.util.List;
+
+@Repository
+public interface ItemAnexoParteNormativaRepository extends JpaRepository<ItemAnexoParteNormativa, Long> {
+
+    @Query("SELECT i FROM ItemAnexoParteNormativa i WHERE i.documento.id = :documentoId AND i.parent IS NULL ORDER BY i.elementOrder ASC")
+    List<ItemAnexoParteNormativa> findRootItemsByDocumentoId(@Param("documentoId") Long documentoId);
+
+    @Query("SELECT i FROM ItemAnexoParteNormativa i WHERE i.documento.id = :documentoId")
+    List<ItemAnexoParteNormativa> findAllByDocumentoId(@Param("documentoId") Long documentoId);
+
+    List<ItemAnexoParteNormativa> findByParentOrderByElementOrderAsc(ItemAnexoParteNormativa parent);
+
+    @Modifying
+    @Transactional
+    @Query(value = "UPDATE t_item_parte_normativa SET parent_id = NULL WHERE documento_id = :documentoId", nativeQuery = true)
+    void nullifyParentsForDocument(@Param("documentoId") Long documentoId);
+
+    @Modifying
+    @Transactional
+    @Query("DELETE FROM ItemAnexoParteNormativa i WHERE i.documento.id = :documentoId")
+    void deleteAllByDocumentoId(@Param("documentoId") Long documentoId);
+
+    // Renumera pelo RANK relativo (não multiplica o valor armazenado) para que ciclos
+    // repetidos de EM_ALTERACAO não acumulem fatores de 100 e estourem o INTEGER —
+    // ver incidente de "integer out of range" em nr_ordem.
+    @Modifying
+    @Transactional
+    @Query(value = """
+            UPDATE t_item_parte_normativa t
+            SET nr_ordem = ranked.rn * 100
+            FROM (
+                SELECT id_item, ROW_NUMBER() OVER (PARTITION BY parent_id ORDER BY nr_ordem) AS rn
+                FROM t_item_parte_normativa
+                WHERE documento_id = :documentoId AND nr_ordem IS NOT NULL
+            ) ranked
+            WHERE t.id_item = ranked.id_item
+            """, nativeQuery = true)
+    void respacarElementOrders(@Param("documentoId") Long documentoId);
+}

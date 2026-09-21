@@ -1,0 +1,7 @@
+package intraer.fablegis.domain.handlers.exceptions;
+
+public class StatusCannotBeUpdatedException extends RuntimeException{
+    public StatusCannotBeUpdatedException(String message) {
+        super(message);
+    }
+}

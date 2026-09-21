@@ -8,7 +8,7 @@
         <version>4.1.1</version>
         <relativePath/> <!-- lookup parent from repository -->
     </parent>
-    <groupId>br.com</groupId>
+    <groupId>intraer.fablegis</groupId>
     <artifactId>fab-legis</artifactId>
     <version>0.0.1-SNAPSHOT</version>
     <name>FAB Legis</name>
