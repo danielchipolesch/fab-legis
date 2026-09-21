@@ -121,4 +121,25 @@ class CriacaoDeEspecieConvencionalTest {
         assertThat(copia.getSituacaoLocal()).isEqualTo(SituacaoLocalEnum.RASCUNHO);
         assertThat(copia.getAutor()).isSameAs(autor);
     }
+
+    // O código de uma espécie convencional é gerado (espécie + assunto + sequencial): os metadados não o alteram.
+    @Test
+    void oCodigoDeUmaEspecieConvencionalNaoPodeSerAlterado() {
+        var doc = new Documento();
+        doc.setEspecieNormativa(dca);
+        doc.setIdentificacao("DCA 11-3");
+
+        assertThatThrownBy(() -> criacao.novaIdentificacao(doc, "DCA 11-9"))
+                .isInstanceOf(InvalidInputException.class).hasMessageContaining("gerada");
+    }
+
+    @Test
+    void semMudancaNaoHaNovaIdentificacaoNumaEspecieConvencional() {
+        var doc = new Documento();
+        doc.setIdentificacao("DCA 11-3");
+
+        // Nula ou igual: o autosave do editor reenvia o documento inteiro.
+        assertThat(criacao.novaIdentificacao(doc, null)).isEmpty();
+        assertThat(criacao.novaIdentificacao(doc, "DCA 11-3")).isEmpty();
+    }
 }

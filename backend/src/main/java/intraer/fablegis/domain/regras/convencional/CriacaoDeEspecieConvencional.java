@@ -16,6 +16,7 @@ import intraer.fablegis.infrastructure.repositories.DocumentoRepository;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
+import java.util.Optional;
 
 // Um ato normativo (DCA, ICA, NSCA...) é identificado por espécie + assunto básico + sequencial ("DCA 11-3"): o
 // assunto é obrigatório e o sequencial é o menor número livre daquela espécie naquele assunto (reaproveita o
@@ -58,6 +59,14 @@ public class CriacaoDeEspecieConvencional implements RegrasDeCriacaoDoDocumento 
                 .autor(autor)
                 .om(autor.getOm())
                 .build();
+    }
+
+    // A identificação é gerada (espécie + assunto básico + sequencial): não se escreve nem se troca.
+    @Override
+    public Optional<String> novaIdentificacao(Documento documento, String pedida) {
+        if (pedida == null || pedida.strip().equals(documento.getIdentificacao())) return Optional.empty();
+        throw new InvalidInputException("A identificação de uma espécie convencional é gerada (espécie, assunto básico e "
+                + "sequencial) e não pode ser alterada.");
     }
 
     static String identificacao(EspecieNormativa especie, AssuntoBasico assunto, int sequencial) {

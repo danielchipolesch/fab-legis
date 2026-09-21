@@ -55,7 +55,7 @@ A identificação de um ato — por exemplo **`ICA 5-3`** — é composta por:
 | **Assunto Básico** | `AssuntoBasicoEnum` | `5` (Publicações) |
 | **Número Secundário** | Calculado pelo sistema | `3` |
 
-A identificação é gravada na criação (`Documento.identificacao`) e nunca recalculada; quem a monta é a regra de criação da espécie (`RegrasDeCriacaoDoDocumento`). O **número secundário é atribuído automaticamente** por `CriacaoDeEspecieConvencional`: o serviço busca todos os documentos da mesma combinação Espécie + Assunto e **reaproveita a primeira lacuna** na sequência, evitando buracos na numeração do acervo.
+A identificação (o **código do documento**) é gravada na criação (`Documento.identificacao`) e nunca recalculada — nas espécies convencionais é gerada e **não pode ser alterada**; na NPA, por ser texto livre, **pode ser corrigida nos metadados do editor enquanto o documento está em Rascunho ou Minuta** (`RegrasDeCriacaoDoDocumento.novaIdentificacao`); quem a monta é a regra de criação da espécie (`RegrasDeCriacaoDoDocumento`). O **número secundário é atribuído automaticamente** por `CriacaoDeEspecieConvencional`: o serviço busca todos os documentos da mesma combinação Espécie + Assunto e **reaproveita a primeira lacuna** na sequência, evitando buracos na numeração do acervo.
 
 O catálogo de espécies inclui DCA, FCA, ICA, MCA, NSCA, OCA, PCA, RCA, RICA, ROCA e TCA — cada uma com nome e descrição normativa completa. Os assuntos básicos cobrem toda a tabela oficial (Doutrina Aeroespacial, Publicações, Tecnologia da Informação, Pessoal, Ensino, Governança, Projetos e demais).
 
@@ -98,7 +98,7 @@ A **NPA** é uma espécie de **uso interno da OM**, para disciplinar rotinas int
 
 ### Identificação
 
-Texto livre informado na criação (`NPA-AGO-01`, `NPA 44-__/2026`… — cada setor tem o seu padrão), de até 120 caracteres. **Não há assunto básico nem sequencial gerado**; o "assunto" do cabeçalho é o título do documento (`CriacaoDeNpa`).
+Texto livre informado na criação (`NPA-AGO-01`, `NPA 44-__/2026`… — cada setor tem o seu padrão), de até 120 caracteres, **corrigível nos metadados do editor até a Minuta**. **Não há assunto básico nem sequencial gerado**; o "assunto" do cabeçalho é o título do documento (`CriacaoDeNpa`).
 
 ### Elementos e hierarquia
 
@@ -136,7 +136,7 @@ O cabeçalho da NPA é uma tabela de campos, não uma parte preliminar. Os campo
 
 | Campo | Origem |
 |---|---|
-| **Identificação** | `Documento.identificacao` (texto livre, informado na criação) |
+| **Identificação** | `Documento.identificacao` (texto livre, informado na criação; editável nos metadados até a Minuta) |
 | **Setor emissor** | `CamposDaNpa.setorEmissor` — texto livre, abaixo da OM |
 | **Local** | `CamposDaNpa.local` — do fecho "Local, dd de mês de aaaa"; a data é a da aprovação |
 | **Assinaturas** | `CamposDaNpa.assinaturas` — blocos em **texto livre**: um rótulo ("Visto", "Proposto por", "Ciente"…) e até 6 linhas abaixo dele; até 10 blocos. Os rótulos "Elaborado por" e "Aprovado por" **não podem ser escritos**: esses dois blocos saem do documento (abaixo) |

@@ -348,6 +348,9 @@ export async function updateDocumento(id, data) {
     // difere da atual (ver DocumentoService.update); só a tela de metadados
     // efetivamente muda esse valor.
     ...(data.om_id != null && { omId: parseInt(data.om_id, 10) || undefined }),
+    // O código da NPA (texto livre), só da tela de metadados: o autosave do editor não o envia, e o backend só troca o valor
+    // quando a espécie admite e o documento está em Rascunho/Minuta (RegrasDeCriacaoDoDocumento.novaIdentificacao).
+    ...(data.identificacao != null && { identificacao: data.identificacao }),
   }
   const result = await http.put(`/documentos/${id}`, body)
   return backendParaFrontend(result)

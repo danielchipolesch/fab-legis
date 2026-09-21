@@ -448,7 +448,17 @@
             />
           </div>
           <div class="col-12">
-            <q-input :model-value="props.documento?.codigo_documento" label="Código do documento" outlined dense disable />
+            <!-- O código da NPA é texto livre e pode ser corrigido até a Minuta; o das convencionais é gerado (espécie + assunto + sequencial). -->
+            <q-input
+              v-if="codigoEditavel"
+              v-model="metaForm.identificacao"
+              label="Código do documento"
+              hint="Texto livre, conforme o padrão do setor. Só pode ser alterado em Rascunho ou Minuta."
+              outlined dense
+              maxlength="120"
+              :rules="[v => !!(v && v.trim()) || 'Informe o código do documento']"
+            />
+            <q-input v-else :model-value="props.documento?.codigo_documento" label="Código do documento" outlined dense disable />
           </div>
           <div class="col-12">
             <q-select
@@ -662,7 +672,7 @@ function formatarData(iso) {
 
 const metaDialogOpen = ref(false)
 const metaSalvando   = ref(false)
-const metaForm = reactive({ titulo: '', numero_secundario: '', om_id: null })
+const metaForm = reactive({ titulo: '', numero_secundario: '', om_id: null, identificacao: '' })
 // Espelha a regra do backend (DocumentoService.update só aceita
 // RASCUNHO/MINUTA -- ver GlobalExceptionHandler, StatusCannotBeUpdatedException
 // mapeada para 403): dentro do editor, o único outro status possível é
@@ -672,6 +682,9 @@ const metaEditavel = computed(() => !props.isEmAlteracao)
 // de propósito: só faz sentido trocar a OM que assina o ato enquanto o
 // documento ainda não avançou pra revisão (ver DocumentoService.update).
 const omEditavel = computed(() => ['RASCUNHO', 'MINUTA'].includes(props.documento?.situacao_local))
+// O código do documento (identificação): só a NPA o escreve, e só até a Minuta -- mesma regra de CriacaoDeNpa.novaIdentificacao
+// no backend. Nas convencionais ele é gerado.
+const codigoEditavel = computed(() => perfil.value.ehNpa && omEditavel.value)
 const situacaoTexto = computed(() => {
   const d = props.documento
   if (!d) return ''
@@ -712,18 +725,24 @@ function abrirDialogMeta() {
   metaForm.titulo           = props.documento?.titulo ?? ''
   metaForm.numero_secundario = props.documento?.numero_secundario ?? ''
   metaForm.om_id             = props.documento?.om_id ?? null
+  metaForm.identificacao     = props.documento?.codigo_documento ?? ''
   metaDialogOpen.value = true
   if (omEditavel.value) carregarOmOptions()
 }
 
 async function salvarMeta() {
   if (!props.documento?.id) return
+  if (codigoEditavel.value && !metaForm.identificacao.trim()) {
+    $q.notify({ type: 'negative', message: 'Informe o código do documento.' })
+    return
+  }
   metaSalvando.value = true
   try {
     await documentsStore.updateMetadados(props.documento.id, {
       titulo:            metaForm.titulo,
       numero_secundario: metaForm.numero_secundario !== '' ? metaForm.numero_secundario : null,
       om_id:             omEditavel.value ? metaForm.om_id : undefined,
+      identificacao:     codigoEditavel.value ? metaForm.identificacao.trim() : undefined,
     })
     // props.documento vem de editorStore.documento (árvore própria do editor,
     // separada de documentsStore.documentos usado acima) -- sem isso, título/OM

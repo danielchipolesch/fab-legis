@@ -8,6 +8,7 @@ import intraer.fablegis.domain.entities.numeracaoDocumento.EspecieNormativa;
 import intraer.fablegis.domain.entities.usuario.OrganizacaoMilitar;
 import intraer.fablegis.domain.entities.usuario.Usuario;
 import intraer.fablegis.domain.handlers.exceptions.InvalidInputException;
+import intraer.fablegis.domain.handlers.exceptions.StatusCannotBeUpdatedException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -104,5 +105,45 @@ class CriacaoDeNpaTest {
         assertThat(copia.getSituacaoLocal()).isEqualTo(SituacaoLocalEnum.RASCUNHO);
         assertThat(copia.getAutor()).isSameAs(outroAutor);
         assertThat(copia.getOm()).isSameAs(outroAutor.getOm());
+    }
+
+    // O código (identificação) da NPA pode ser corrigido nos metadados do editor -- só em Rascunho ou Minuta.
+    private Documento npaEm(SituacaoLocalEnum etapa) {
+        var doc = new Documento();
+        doc.setEspecieNormativa(npa);
+        doc.setIdentificacao("NPA-AGO-01");
+        doc.setSituacaoLocal(etapa);
+        return doc;
+    }
+
+    @Test
+    void oCodigoDaNpaPodeSerAlteradoEmRascunhoEMinuta() {
+        assertThat(criacao.novaIdentificacao(npaEm(SituacaoLocalEnum.RASCUNHO), "NPA-AGO-02")).contains("NPA-AGO-02");
+        assertThat(criacao.novaIdentificacao(npaEm(SituacaoLocalEnum.MINUTA), "  NPA 44-__/2026 ")).contains("NPA 44-__/2026");
+    }
+
+    @Test
+    void semMudancaNaoHaNovaIdentificacao() {
+        // Nula ou igual à atual: é o autosave do editor, que reenvia o documento inteiro -- vale em qualquer etapa.
+        assertThat(criacao.novaIdentificacao(npaEm(SituacaoLocalEnum.RASCUNHO), null)).isEmpty();
+        assertThat(criacao.novaIdentificacao(npaEm(SituacaoLocalEnum.EM_REVISAO), "NPA-AGO-01")).isEmpty();
+        assertThat(criacao.novaIdentificacao(npaEm(SituacaoLocalEnum.EM_REVISAO), " NPA-AGO-01 ")).isEmpty();
+    }
+
+    @Test
+    void depoisDeMinutaOCodigoDaNpaNaoMudaMais() {
+        for (var etapa : new SituacaoLocalEnum[]{SituacaoLocalEnum.EM_REVISAO, SituacaoLocalEnum.EM_PUBLICACAO, SituacaoLocalEnum.SEM_ETAPA}) {
+            assertThatThrownBy(() -> criacao.novaIdentificacao(npaEm(etapa), "NPA-AGO-02"))
+                    .isInstanceOf(StatusCannotBeUpdatedException.class).hasMessageContaining("Rascunho ou Minuta");
+        }
+    }
+
+    @Test
+    void oNovoCodigoDaNpaTemAsMesmasRegrasDeQuandoFoiCriada() {
+        assertThatThrownBy(() -> criacao.novaIdentificacao(npaEm(SituacaoLocalEnum.RASCUNHO), "   "))
+                .isInstanceOf(InvalidInputException.class).hasMessageContaining("identificação");
+        assertThatThrownBy(() -> criacao.novaIdentificacao(npaEm(SituacaoLocalEnum.RASCUNHO),
+                "N".repeat(CriacaoDeNpa.TAMANHO_MAXIMO_DA_IDENTIFICACAO + 1)))
+                .isInstanceOf(InvalidInputException.class).hasMessageContaining("120");
     }
 }

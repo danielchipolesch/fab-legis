@@ -240,7 +240,13 @@ public class DocumentoService {
             throw new StatusCannotBeUpdatedException(DocumentoException.CANNOT_BE_UPDATED.getMessage());
         }
 
+        // A identificação (o "código") só muda se a espécie admite -- a NPA, sim; as convencionais têm a gerada. Ver
+        // RegrasDeCriacaoDoDocumento.novaIdentificacao (que também barra pelo status).
+        var novaIdentificacao = regras.para(documento.getEspecieNormativa()).criacao()
+                .novaIdentificacao(documento, request.identificacao());
+
         boolean tituloAlterado = !documento.getTituloDocumento().equals(request.tituloDocumento());
+        novaIdentificacao.ifPresent(documento::setIdentificacao);
         documento.setTituloDocumento(request.tituloDocumento());
         if (request.numeroSecundario() != null) {
             documento.setNumeroSecundario(request.numeroSecundario());
@@ -280,6 +286,10 @@ public class DocumentoService {
         if (tituloAlterado) {
             documentoHistoricoService.registrar(atualizado, TipoAlteracaoEnum.ALTERACAO_METADADOS,
                     "Título atualizado", null, null);
+        }
+        if (novaIdentificacao.isPresent()) {
+            documentoHistoricoService.registrar(atualizado, TipoAlteracaoEnum.ALTERACAO_METADADOS,
+                    "Identificação atualizada para " + novaIdentificacao.get(), null, null);
         }
         if (omAlterada) {
             documentoHistoricoService.registrar(atualizado, TipoAlteracaoEnum.ALTERACAO_METADADOS,

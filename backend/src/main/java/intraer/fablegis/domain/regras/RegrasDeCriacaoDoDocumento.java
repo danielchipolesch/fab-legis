@@ -5,6 +5,8 @@ import intraer.fablegis.domain.entities.estruturaDocumento.Documento;
 import intraer.fablegis.domain.entities.numeracaoDocumento.EspecieNormativa;
 import intraer.fablegis.domain.entities.usuario.Usuario;
 
+import java.util.Optional;
+
 // Como um documento novo (ou a cópia de um existente) é montado -- o que a espécie exige para criá-lo e como ele
 // passa a se identificar. Um ato normativo pede o assunto básico e recebe o próximo sequencial ("DCA 11-3");
 // uma NPA pede a identificação em texto livre e não tem assunto básico nem sequencial.
@@ -18,4 +20,10 @@ public interface RegrasDeCriacaoDoDocumento {
 
     // A cópia é um documento novo: recebe a identificação que a espécie daria a um documento criado agora.
     Documento montarCopiaDe(Documento original, Usuario autor);
+
+    // A identificação nova que o pedido de atualização dos metadados pede, ou vazio se não muda nada (pedida nula ou igual à
+    // atual -- o autosave do editor reenvia o documento inteiro). Lança InvalidInputException se a espécie não admite
+    // alterar a identificação (a de um ato normativo é gerada) ou se o valor é inválido, e StatusCannotBeUpdatedException
+    // se o documento já não está numa etapa em que ela pode mudar.
+    Optional<String> novaIdentificacao(Documento documento, String pedida);
 }
