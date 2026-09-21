@@ -63,9 +63,9 @@ A [NPA](dominio.md#npa-norma-padrao-de-acao) tem layout próprio (Anexo XII da N
 
 O texto do cabeçalho e do fecho é resolvido **uma só vez** (`CabecalhoDaNpa`) e usado por todos os formatos, então PDF, HTML e prévia mostram exatamente o mesmo. Coberto por `DocumentoFoNpaBuilderTest`, `LeiauteHtmlDeNpaTest`, `CabecalhoDaNpaTest` e `ConsistenciaEntreFormatosDaNpaTest`.
 
-## Consistência entre PDF, HTML e DOCX (planejado, ver [Roadmap](roadmap.md))
+## Consistência entre PDF, HTML e a prévia
 
-**Qualquer mudança que altere elementos do documento exportado — estrutura, formatação, regra de negócio da técnica legislativa (NSCA 5-3/LC 95/1998/Decreto nº 12.002/2024) — deve ser averiguada nos 3 formatos (PDF, HTML e, quando implementado, DOCX), não só naquele em que a mudança foi originalmente pedida.** Os três nunca são gerados um a partir do outro (cada um tem seu próprio construtor: `DocumentoFoBuilder` para PDF, `DocumentoHtmlService` para HTML, e a Rota 1 planejada para DOCX é também um construtor próprio, direto do JSON TipTap, não uma conversão do HTML — ver Roadmap) — então uma regra corrigida em um não se propaga sozinha para os outros dois; cada um precisa da própria correção, ressalvadas as particularidades que a norma ou o próprio formato exigem (ex.: alinhamento do corpo e capa dispensada só valem para HTML, Art. 8 XXI/17 V §1º da NSCA 5-3).
+**Qualquer mudança que altere elementos do documento exportado — estrutura, formatação, regra de negócio da técnica legislativa (NSCA 5-3/LC 95/1998/Decreto nº 12.002/2024) — deve ser averiguada nos 3 lugares (PDF, HTML e a prévia do editor), não só naquele em que a mudança foi originalmente pedida.** Os três nunca são gerados um a partir do outro (cada um tem seu próprio construtor: `DocumentoFoBuilder` para PDF, `DocumentoHtmlService` para HTML e `DocumentoPreview.vue`/`NpaPreview.vue` para a prévia, todos a partir do JSON TipTap) — então uma regra corrigida em um não se propaga sozinha para os outros dois; cada um precisa da própria correção, ressalvadas as particularidades que a norma ou o próprio formato exigem (ex.: alinhamento do corpo e capa dispensada só valem para HTML, Art. 8 XXI/17 V §1º da NSCA 5-3).
 
 ## Fonte: Calibri (via Carlito)
 

@@ -12,7 +12,7 @@
     <artifactId>fab-legis</artifactId>
     <version>0.0.1-SNAPSHOT</version>
     <name>FAB Legis</name>
-    <description>Spring Boot project to generate standard documents in HTML, PDF and DOCX</description>
+    <description>Spring Boot project to generate standard documents in HTML and PDF</description>
     <properties>
         <java.version>25</java.version>
         <maven.compiler.source>25</maven.compiler.source>

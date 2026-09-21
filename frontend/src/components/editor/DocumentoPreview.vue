@@ -1072,7 +1072,7 @@ const anexosDocumento = computed(() =>
 /* ═══════════════════════════════════════════════════════════
    FIGURAS — renderização no corpo do documento
    CSS counter numera automaticamente no preview web.
-   Para exportações (PDF nativo, DOCX, HTML), o backend percorre
+   Para exportações (PDF, HTML), o backend percorre
    o documento e embute o número real antes de gerar o arquivo.
 ════════════════════════════════════════════════════════════ */
 

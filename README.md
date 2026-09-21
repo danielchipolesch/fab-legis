@@ -4,7 +4,7 @@
 
 **Sistema de elaboração, padronização e gestão de atos normativos do Comando da Aeronáutica**
 
-*Do rascunho à publicação — com numeração automática, editor WYSIWYG e exportação em PDF/DOCX/HTML*
+*Do rascunho à publicação — com numeração automática, editor WYSIWYG e exportação em PDF e HTML*
 
 ![Java](https://img.shields.io/badge/Java-25-orange)
 ![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.5.0-6DB33F)
@@ -22,7 +22,7 @@
 
 ## O que é
 
-O FAB Legis trata o ato normativo (ICA, NSCA, MCA, RCA, DCA, PCA, OCA, RICA, ROCA, TCA, FCA) não como um arquivo de texto, mas como uma estrutura de dados hierárquica: cada capítulo, artigo, parágrafo, inciso e alínea é um nó em uma árvore. Isso permite numeração automática, um editor WYSIWYG com preview em tempo real, exportação fiel em PDF/DOCX/HTML, comparação de versões e um fluxo de aprovação/publicação com papéis, colaboração em tempo real e trilha de auditoria completos.
+O FAB Legis trata o ato normativo (ICA, NSCA, MCA, RCA, DCA, PCA, OCA, RICA, ROCA, TCA, FCA) não como um arquivo de texto, mas como uma estrutura de dados hierárquica: cada capítulo, artigo, parágrafo, inciso e alínea é um nó em uma árvore. Isso permite numeração automática, um editor WYSIWYG com preview em tempo real, exportação fiel em PDF e HTML, comparação de versões e um fluxo de aprovação/publicação com papéis, colaboração em tempo real e trilha de auditoria completos.
 
 Para o detalhamento de funcionalidades, arquitetura, modelo de domínio, autenticação, ciclo de vida do documento e API, veja a **[documentação técnica](docs/index.md)** — sobe junto com `docker compose up -d` (ver abaixo), disponível em `http://localhost:8000`.
 

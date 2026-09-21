@@ -14,7 +14,7 @@ Este projeto mantém a documentação técnica em `docs/` (MkDocs Material, serv
 | `docs/dominio.md` | Modelo do ato normativo, regras de numeração |
 | `docs/autenticacao.md` | Login, papéis, colaboração, notificações, auditoria |
 | `docs/ciclo-de-vida.md` | Status do documento, portarias/BCA, ciclo de emenda |
-| `docs/exportacao-pdf.md` | Geração de PDF (Apache FOP) e HTML, fontes, texto sugerido de portaria, regra de consistência entre PDF/HTML/DOCX |
+| `docs/exportacao-pdf.md` | Geração de PDF (Apache FOP) e HTML, fontes, texto sugerido de portaria, regra de consistência entre PDF e HTML |
 | `docs/api-rest.md` | Endpoints |
 | `docs/instalacao.md` | Como rodar local/Docker, variáveis de ambiente |
 | `docs/roadmap.md` | Perspectivas futuras — mova um item para cá quando virar decisão adiada, ou remova-o quando for implementado |
@@ -32,9 +32,9 @@ Se a mudança não se encaixa em nenhuma página existente, prefira estender a m
 - **Rode antes de concluir a tarefa** (não há JDK/Maven exigido na máquina; usa-se um container): comando em [`docs/instalacao.md`](docs/instalacao.md#testes).
 - **Frontend:** Vitest (`npm test`), com os testes ao lado do código, no formato `<arquivo>.test.js` (ex.: `frontend/src/utils/numbering.test.js`). Vale a mesma regra do backend: lógica de negócio no frontend (hoje, a numeração em `numbering.js` e as regras do fluxo em `fluxoDocumento.js`) muda junto com o teste. `numbering.js` espelha `NumeracaoService.java` (ver `docs/dominio.md`): ao mudar a regra de numeração, altere as duas implementações e os dois testes (`NumeracaoServiceTest` e `numbering.test.js`) — os cenários de emenda são os mesmos de propósito. Comando em [`docs/instalacao.md`](docs/instalacao.md#testes).
 
-## Consistência entre formatos de exportação (PDF/HTML/DOCX)
+## Consistência entre formatos de exportação (PDF e HTML) e a prévia
 
-O documento é exportado em três formatos (PDF já implementado, HTML já implementado, DOCX planejado; a NPA tem layout próprio nos mesmos formatos — `DocumentoFoNpaBuilder`, `LeiauteHtmlDeNpa` e a prévia `NpaPreview`, todos alimentados por `CabecalhoDaNpa` — ver [`docs/exportacao-pdf.md`](docs/exportacao-pdf.md)), cada um gerado por um construtor próprio a partir do mesmo JSON TipTap — nenhum é derivado dos outros dois. **Qualquer mudança que altere elementos do documento — estrutura, formatação, numeração, regra de negócio da técnica legislativa — deve ser averiguada nos 3 formatos, não só naquele em que a mudança foi pedida**, ressalvadas as particularidades que a norma ou o próprio formato exigem (ex.: HTML não tem capa e usa alinhamento à esquerda no corpo, por exigência da própria NSCA 5-3 — não é uma inconsistência a corrigir). Isso vale tanto para mudanças pedidas explicitamente num formato quanto para bugs encontrados em um deles — sempre confira se o mesmo problema/regra se aplica aos outros antes de considerar a tarefa concluída.
+O documento é exportado em dois formatos, PDF e HTML, e o editor mostra uma prévia (a NPA tem layout próprio nos três — `DocumentoFoNpaBuilder`, `LeiauteHtmlDeNpa` e a prévia `NpaPreview`, todos alimentados por `CabecalhoDaNpa` — ver [`docs/exportacao-pdf.md`](docs/exportacao-pdf.md)). Cada um é gerado por um construtor próprio a partir do mesmo JSON TipTap — nenhum é derivado dos outros. **Qualquer mudança que altere elementos do documento — estrutura, formatação, numeração, regra de negócio da técnica legislativa — deve ser averiguada nos 3 lugares (PDF, HTML e prévia), não só naquele em que a mudança foi pedida**, ressalvadas as particularidades que a norma ou o próprio formato exigem (ex.: HTML não tem capa e usa alinhamento à esquerda no corpo, por exigência da própria NSCA 5-3 — não é uma inconsistência a corrigir). Isso vale tanto para mudanças pedidas explicitamente num formato quanto para bugs encontrados em um deles — sempre confira se o mesmo problema/regra se aplica aos outros antes de considerar a tarefa concluída.
 
 ## Convenção de nomenclatura (português vs. inglês)
 

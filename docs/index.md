@@ -1,6 +1,6 @@
 # FAB Legis
 
-Sistema de elaboração, padronização e gestão de atos normativos do Comando da Aeronáutica — do rascunho à publicação, com numeração automática, editor WYSIWYG estrutural e exportação em PDF/DOCX/HTML.
+Sistema de elaboração, padronização e gestão de atos normativos do Comando da Aeronáutica — do rascunho à publicação, com numeração automática, editor WYSIWYG estrutural e exportação em PDF e HTML.
 
 ## O que é o FAB Legis
 
@@ -13,7 +13,7 @@ Hoje, boa parte disso é feita à mão em editores de texto genéricos — o que
 - **numerar tudo automaticamente** — inclusive reordenando quando você move um artigo;
 - **impedir estruturas inválidas** — uma alínea não pode existir fora de um inciso;
 - **mostrar o documento final em tempo real**, lado a lado com o editor;
-- **exportar o mesmo conteúdo** em PDF, DOCX e HTML sem reformatar nada;
+- **exportar o mesmo conteúdo** em PDF e HTML sem reformatar nada;
 - **comparar versões** e mostrar exatamente o que mudou entre elas;
 - **gerar o texto sugerido** da portaria de alteração, seguindo o Art. 22 da NSCA 5-3;
 - **controlar o ciclo de vida** (Rascunho → Minuta → Aprovado → Publicado…) com transições validadas no servidor **e autorizadas por papel**;

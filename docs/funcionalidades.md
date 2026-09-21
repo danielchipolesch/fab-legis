@@ -20,7 +20,7 @@ Regras de numeração automática aplicadas pelo editor estão detalhadas em [Mo
 
 ## Figuras com numeração sequencial
 
-Extensão TipTap customizada (`extensions/figure.js`) com *NodeView* em Vue: upload da imagem para o MinIO, título, legenda e linha "Fonte:" embutida no HTML para garantir portabilidade na exportação. A numeração ("Figura 1", "Figura 2"…) usa CSS counters no preview web e é resolvida literalmente na exportação, de modo que o mesmo HTML gera PDF e DOCX corretos. O sumário inclui automaticamente a **Lista de Figuras**.
+Extensão TipTap customizada (`extensions/figure.js`) com *NodeView* em Vue: upload da imagem para o MinIO, título, legenda e linha "Fonte:" embutida no HTML para garantir portabilidade na exportação. A numeração ("Figura 1", "Figura 2"…) usa CSS counters no preview web e é resolvida literalmente na exportação, de modo que o PDF e o HTML exportados saem com a numeração correta. O sumário inclui automaticamente a **Lista de Figuras**.
 
 ## Exportação de documentos
 
