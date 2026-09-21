@@ -14,56 +14,61 @@
     @request="aoPaginar"
   >
     <template #top>
-      <div class="text-subtitle2 text-weight-bold">
-        {{ titulo }} <span data-testid="total">({{ paginacao.rowsNumber }})</span>
+      <div class="row items-center no-wrap full-width">
+        <div class="text-subtitle2 text-weight-bold ellipsis">
+          {{ titulo }} <span data-testid="total">({{ paginacao.rowsNumber }})</span>
+        </div>
+        <q-space />
+        <q-btn flat round dense size="sm" icon="mdi-refresh" :loading="carregando" @click="carregar">
+          <q-tooltip anchor="top middle" self="bottom middle">Atualizar</q-tooltip>
+        </q-btn>
       </div>
-      <q-space />
-      <q-btn flat round dense size="sm" icon="mdi-refresh" :loading="carregando" @click="carregar">
-        <q-tooltip anchor="top middle" self="bottom middle">Atualizar</q-tooltip>
-      </q-btn>
     </template>
 
     <template #body-cell-documento="props">
-      <q-td :props="props" data-testid="linha">
-        <div class="row items-center no-wrap" style="gap: 8px">
-          <q-icon :name="moduloDe(props.row.tipo_de_especie).icone" color="primary" size="20px">
+      <q-td :props="props" class="documento-td" data-testid="linha">
+        <div class="row items-start no-wrap" style="gap: 8px">
+          <q-icon :name="moduloDe(props.row.tipo_de_especie).icone" color="primary" size="20px" class="q-mt-xs">
             <q-tooltip anchor="top middle" self="bottom middle">{{ moduloDe(props.row.tipo_de_especie).nome }}</q-tooltip>
           </q-icon>
           <div class="documento-celula">
-            <div class="text-weight-medium text-primary ellipsis">{{ props.row.codigo_documento }}</div>
+            <!-- Código e situação lado a lado; embaixo o título e, por último, a ação a seguir. -->
+            <div class="row items-center" style="gap: 2px 8px">
+              <span class="text-weight-medium text-primary ellipsis">{{ props.row.codigo_documento }}</span>
+              <StatusBadge
+                :situacao-bca="props.row.situacao_bca"
+                :situacao-local="props.row.situacao_local"
+                :mostrar="cartao === 'publicados' ? 'bca' : 'local'"
+              />
+            </div>
             <div class="text-caption text-grey-7 ellipsis">{{ props.row.titulo }}</div>
             <div v-if="cartao === 'publicados'" class="text-caption text-grey-7 ellipsis" data-testid="om-da-linha">{{ props.row.om_nome }}</div>
-            <StatusBadge
-              class="q-mt-xs"
-              :situacao-bca="props.row.situacao_bca"
-              :situacao-local="props.row.situacao_local"
-              :mostrar="cartao === 'publicados' ? 'bca' : 'local'"
-            />
+            <div class="row items-center no-wrap">
+              <q-icon v-if="acao(props.row).pendente" name="mdi-alert" color="warning" size="18px" class="q-mr-xs" data-testid="pendente">
+                <q-tooltip anchor="top middle" self="bottom middle">Aguarda uma ação sua</q-tooltip>
+              </q-icon>
+              <q-btn
+                flat
+                dense
+                no-caps
+                color="primary"
+                class="q-px-none"
+                :label="acao(props.row).rotulo"
+                :to="acao(props.row).rota"
+                data-testid="acao-da-linha"
+              />
+            </div>
           </div>
         </div>
       </q-td>
     </template>
 
-    <template #body-cell-acao="props">
-      <q-td :props="props">
-        <div class="row items-center justify-end no-wrap" style="gap: 4px">
-          <q-icon v-if="acao(props.row).pendente" name="mdi-alert" color="warning" size="18px" data-testid="pendente">
-            <q-tooltip anchor="top middle" self="bottom middle">Aguarda uma ação sua</q-tooltip>
-          </q-icon>
-          <q-btn
-            flat
-            dense
-            no-caps
-            color="primary"
-            size="sm"
-            :label="acao(props.row).rotulo"
-            :to="acao(props.row).rota"
-            data-testid="acao-da-linha"
-          />
-          <q-btn flat round dense size="sm" color="primary" icon="mdi-dots-vertical" data-testid="exibir-detalhes" @click="$emit('detalhes', props.row)">
-            <q-tooltip anchor="top middle" self="bottom middle">Exibir detalhes</q-tooltip>
-          </q-btn>
-        </div>
+    <!-- À direita, só o ⋮ (Exibir detalhes). -->
+    <template #body-cell-detalhes="props">
+      <q-td :props="props" auto-width>
+        <q-btn flat round dense size="sm" color="primary" icon="mdi-dots-vertical" data-testid="exibir-detalhes" @click="$emit('detalhes', props.row)">
+          <q-tooltip anchor="top middle" self="bottom middle">Exibir detalhes</q-tooltip>
+        </q-btn>
       </q-td>
     </template>
 
@@ -100,7 +105,7 @@ const docStore = useDocumentosStore()
 const TAMANHO_DA_PAGINA = 8
 const columns = [
   { name: 'documento', label: 'Documento', field: 'codigo_documento', align: 'left' },
-  { name: 'acao',      label: 'Ação',      field: 'acao',             align: 'right' },
+  { name: 'detalhes',  label: '',          field: 'detalhes',         align: 'right' },
 ]
 
 const documentos = ref([])
@@ -140,6 +145,8 @@ defineExpose({ carregar })
 </script>
 
 <style scoped>
-/* O card é estreito (três lado a lado): a situação fica na própria célula do documento, e o título e a OM truncam em vez de empurrar a coluna da ação. */
-.documento-celula { min-width: 0; max-width: 200px; }
+/* O card é estreito (três lado a lado): a célula do documento ocupa o que sobra ao lado do ⋮ (max-width: 0 deixa o texto truncar
+   com reticências dentro da tabela) e a situação passa para a linha de baixo quando não cabe ao lado do código. */
+.documento-td { width: 100%; max-width: 0; }
+.documento-celula { min-width: 0; flex: 1 1 0; }
 </style>
