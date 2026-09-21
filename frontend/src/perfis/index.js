@@ -10,7 +10,7 @@ export const COMUNICACAO_OFICIAL_PADRONIZADA = 'COMUNICACAO_OFICIAL_PADRONIZADA'
 // O módulo do sistema que cuida de cada tipo de espécie: a tela inicial própria (rota e caminho), como aparece no hub
 // (nome, subtítulo, ícone) e o que a listagem dele mostra. Um tipo de espécie novo ganha o seu módulo aqui -- o hub só
 // acrescenta mais um atalho, sem mudar os cards.
-//   rotuloDoCriar: a opção do botão Criar do hub, que só leva ao módulo (quem cria de fato é o botão do próprio módulo)
+//   rotuloDoCriar: o nome da espécie, como opção do botão Criar do hub (que só leva ao módulo: quem cria de fato é o botão do próprio módulo)
 //   colunasOcultas: colunas da tabela que não fazem sentido para o módulo (a NPA não tem assunto básico e é uma só espécie)
 //   rotuloDaSituacaoOficial: como o módulo chama a situação real do documento (BCA nas convencionais; Boletim Interno na NPA)
 const MODULO_CONVENCIONAL = {
@@ -22,7 +22,7 @@ const MODULO_CONVENCIONAL = {
   descricao: 'Gestão e acompanhamento das espécies convencionais do Comando da Aeronáutica',
   icone: 'mdi-book-open-page-variant-outline',
   rotuloDoBotaoNovo: 'Novo Documento',
-  rotuloDoCriar: 'Criar Espécie Convencional',
+  rotuloDoCriar: 'Espécie Convencional',
   rotuloDaSituacaoOficial: 'Situação BCA',
   rotuloDoNumero: 'Número',
   colunasOcultas: [],
@@ -37,7 +37,7 @@ const MODULO_COMUNICACAO_OFICIAL_PADRONIZADA = {
   descricao: 'Gestão e acompanhamento das Normas Padrão de Ação (Comunicações Oficiais Padronizadas, NSCA 5-3)',
   icone: 'mdi-clipboard-text-outline',
   rotuloDoBotaoNovo: 'Nova NPA',
-  rotuloDoCriar: 'Criar NPA',
+  rotuloDoCriar: 'NPA',
   rotuloDaSituacaoOficial: 'Boletim Interno',
   rotuloDoNumero: 'Identificação',
   colunasOcultas: ['especie', 'assunto_basico'],

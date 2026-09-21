@@ -19,6 +19,10 @@ describe('módulos', () => {
     expect(moduloDe(undefined)).toBe(perfilDe('CONVENCIONAL').modulo)
   })
 
+  it('as opções do botão Criar do hub são só o nome da espécie, sem o verbo', () => {
+    expect(MODULOS.map(m => m.rotuloDoCriar)).toEqual(['Espécie Convencional', 'NPA'])
+  })
+
   it('a NPA não mostra as colunas de espécie e de assunto básico e fala em Boletim Interno', () => {
     const npa = moduloDe('COMUNICACAO_OFICIAL_PADRONIZADA')
     expect(npa.colunasOcultas).toEqual(['especie', 'assunto_basico'])
