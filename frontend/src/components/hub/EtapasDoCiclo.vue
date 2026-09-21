@@ -1,6 +1,6 @@
 <template>
   <!-- As etapas do ciclo do documento (utils/fluxoDocumento.js, etapasDoCiclo) num q-stepper só de leitura: as cumpridas
-       com o ícone de feito, a atual ativa e as que faltam apagadas. Os passos não têm conteúdo nem são clicáveis. -->
+       com o ícone de feito, a atual com uma ampulheta e as que faltam apagadas. Os passos não têm conteúdo nem são clicáveis. -->
   <q-stepper
     :model-value="ciclo.atual + 1"
     flat
@@ -8,7 +8,7 @@
     active-color="primary"
     done-color="primary"
     inactive-color="grey-6"
-    active-icon="mdi-record-circle-outline"
+    active-icon="mdi-timer-sand"
     class="etapas"
     data-testid="etapas-do-ciclo"
   >
