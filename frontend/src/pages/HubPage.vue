@@ -1,7 +1,7 @@
 <template>
   <q-page class="q-pa-xl">
 
-    <div class="row items-start justify-between q-mb-lg" style="gap:16px">
+    <div class="row items-center justify-between q-mb-xl">
       <div>
         <h1 class="text-h5 text-weight-bold text-primary q-my-none">Área de Trabalho</h1>
         <p class="text-body2 text-grey-7 q-mb-none">
@@ -11,7 +11,7 @@
       </div>
 
       <!-- Criar só leva ao módulo: quem cria de fato é o botão de criar da tela inicial dele. -->
-      <q-btn-dropdown v-if="auth.isEditor" color="primary" unelevated size="lg" no-caps label="Criar" data-testid="criar">
+      <q-btn-dropdown v-if="auth.isEditor" color="primary" unelevated size="lg" icon="mdi-plus" label="Criar" data-testid="criar">
         <q-list style="min-width:240px">
           <q-item v-for="m in MODULOS" :key="m.rota" clickable v-close-popup :to="{ name: m.rota }" :data-testid="`criar-${m.rota}`">
             <q-item-section avatar><q-icon :name="m.icone" color="primary" /></q-item-section>
@@ -41,17 +41,26 @@
       <div class="text-h6 text-grey-8">Acesso Rápido</div>
       <div class="text-caption text-grey-7">Selecione um módulo abaixo. Você também poderá acessá-los pelo menu localizado na barra superior.</div>
     </div>
-    <q-card flat bordered class="q-pa-md">
-      <div class="row justify-center q-col-gutter-md">
-        <div v-for="m in MODULOS" :key="m.rota" class="col-6 col-sm-4 col-md-3 col-lg-2">
-          <router-link :to="{ name: m.rota }" class="tile column items-center text-center q-pa-md" :data-testid="`tile-${m.rota}`">
+    <q-card flat bordered>
+      <q-card-section>
+        <div class="row justify-center q-gutter-md">
+          <q-btn
+            v-for="m in MODULOS"
+            :key="m.rota"
+            :to="{ name: m.rota }"
+            stack
+            flat
+            no-caps
+            class="tile"
+            :data-testid="`tile-${m.rota}`"
+          >
             <q-icon :name="m.icone" size="44px" color="primary" />
             <div class="text-subtitle2 text-grey-9 q-mt-sm">{{ m.nome }}</div>
             <div class="text-caption text-grey-7">{{ m.subtitulo }}</div>
-            <q-tooltip anchor="top middle" self="bottom middle">Acessar o módulo {{ m.nome }}</q-tooltip>
-          </router-link>
+            <q-tooltip>Acessar o módulo {{ m.nome }}</q-tooltip>
+          </q-btn>
         </div>
-      </div>
+      </q-card-section>
     </q-card>
 
     <DetalhesDoDocumentoDialog v-model="detalhesAberto" :doc="detalhesDoc" :cartao="detalhesCartao" />
@@ -81,11 +90,5 @@ function abrirDetalhes(cartao, doc) {
 </script>
 
 <style scoped>
-.tile {
-  text-decoration: none;
-  border-radius: 6px;
-  height: 100%;
-  transition: background 0.15s;
-}
-.tile:hover, .tile:focus-visible { background: #dbe6f7; }
+.tile { width: 200px; min-height: 140px; }
 </style>

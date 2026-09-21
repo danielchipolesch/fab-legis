@@ -1,56 +1,83 @@
 <template>
-  <q-card flat bordered class="painel-card column" :data-testid="`cartao-${cartao}`">
-    <q-card-section class="row items-center no-wrap q-py-sm">
-      <span class="text-subtitle2 text-weight-bold ellipsis">{{ titulo }}</span>
-      <span class="text-subtitle2 text-weight-bold q-ml-xs" data-testid="total">({{ total }})</span>
+  <!-- Mesmo padrão das tabelas das outras telas (ModuloPage, Revisão, Publicação): q-table com paginação no servidor. -->
+  <q-table
+    flat
+    bordered
+    dense
+    row-key="id"
+    :rows="documentos"
+    :columns="columns"
+    :loading="carregando"
+    v-model:pagination="paginacao"
+    :rows-per-page-options="[TAMANHO_DA_PAGINA]"
+    :data-testid="`cartao-${cartao}`"
+    @request="aoPaginar"
+  >
+    <template #top>
+      <div class="text-subtitle2 text-weight-bold">
+        {{ titulo }} <span data-testid="total">({{ paginacao.rowsNumber }})</span>
+      </div>
       <q-space />
       <q-btn flat round dense size="sm" icon="mdi-refresh" :loading="carregando" @click="carregar">
-        <q-tooltip>Atualizar</q-tooltip>
+        <q-tooltip anchor="top middle" self="bottom middle">Atualizar</q-tooltip>
       </q-btn>
-    </q-card-section>
-    <q-separator />
+    </template>
 
-    <div class="linhas col">
-      <div
-        v-for="doc in documentos"
-        :key="doc.id"
-        class="linha q-px-md q-py-sm"
-        data-testid="linha"
-      >
-        <div class="row items-center no-wrap" style="gap:8px">
-          <q-icon :name="moduloDe(doc.tipo_de_especie).icone" color="primary" size="18px">
-            <q-tooltip>{{ moduloDe(doc.tipo_de_especie).nome }}</q-tooltip>
+    <template #body-cell-documento="props">
+      <q-td :props="props" data-testid="linha">
+        <div class="row items-center no-wrap" style="gap: 8px">
+          <q-icon :name="moduloDe(props.row.tipo_de_especie).icone" color="primary" size="20px">
+            <q-tooltip anchor="top middle" self="bottom middle">{{ moduloDe(props.row.tipo_de_especie).nome }}</q-tooltip>
           </q-icon>
-          <span class="text-weight-bold text-primary identificacao">{{ doc.codigo_documento }}</span>
-          <span class="titulo text-grey-8 ellipsis col">{{ doc.titulo }}</span>
-          <StatusBadge :situacao-bca="doc.situacao_bca" :situacao-local="doc.situacao_local" :mostrar="cartao === 'publicados' ? 'bca' : 'local'" size="xs" />
-          <q-btn flat round dense size="sm" icon="mdi-dots-vertical" color="grey-8" data-testid="exibir-detalhes" @click="$emit('detalhes', doc)">
-            <q-tooltip>Exibir detalhes</q-tooltip>
+          <div class="documento-celula">
+            <div class="text-weight-medium text-primary ellipsis">{{ props.row.codigo_documento }}</div>
+            <div class="text-caption text-grey-7 ellipsis">{{ props.row.titulo }}</div>
+            <div v-if="cartao === 'publicados'" class="text-caption text-grey-7 ellipsis" data-testid="om-da-linha">{{ props.row.om_nome }}</div>
+            <StatusBadge
+              class="q-mt-xs"
+              :situacao-bca="props.row.situacao_bca"
+              :situacao-local="props.row.situacao_local"
+              :mostrar="cartao === 'publicados' ? 'bca' : 'local'"
+            />
+          </div>
+        </div>
+      </q-td>
+    </template>
+
+    <template #body-cell-acao="props">
+      <q-td :props="props">
+        <div class="row items-center justify-end no-wrap" style="gap: 4px">
+          <q-icon v-if="acao(props.row).pendente" name="mdi-alert" color="warning" size="18px" data-testid="pendente">
+            <q-tooltip anchor="top middle" self="bottom middle">Aguarda uma ação sua</q-tooltip>
+          </q-icon>
+          <q-btn
+            flat
+            dense
+            no-caps
+            color="primary"
+            size="sm"
+            :label="acao(props.row).rotulo"
+            :to="acao(props.row).rota"
+            data-testid="acao-da-linha"
+          />
+          <q-btn flat round dense size="sm" color="primary" icon="mdi-dots-vertical" data-testid="exibir-detalhes" @click="$emit('detalhes', props.row)">
+            <q-tooltip anchor="top middle" self="bottom middle">Exibir detalhes</q-tooltip>
           </q-btn>
         </div>
-        <div class="row items-center no-wrap q-mt-xs" style="gap:6px">
-          <q-icon v-if="acao(doc).pendente" name="mdi-alert" color="warning" size="18px" data-testid="pendente" />
-          <router-link :to="acao(doc).rota" class="acao" data-testid="acao-da-linha">{{ acao(doc).rotulo }}</router-link>
-          <q-space />
-          <span v-if="cartao === 'publicados'" class="text-caption text-grey-7 ellipsis" data-testid="om-da-linha">{{ doc.om_nome }}</span>
-        </div>
-      </div>
+      </q-td>
+    </template>
 
-      <div v-if="!documentos.length && !carregando" class="vazio column items-center justify-center text-grey-7 q-pa-lg" data-testid="vazio">
-        <q-icon name="mdi-inbox-outline" size="36px" class="q-mb-xs" />
-        <span>{{ vazio }}</span>
+    <template #no-data>
+      <div class="full-width column items-center q-py-lg text-grey-7" data-testid="vazio">
+        <q-icon size="40px" class="q-mb-sm" name="mdi-inbox-outline" />
+        <p class="q-mb-none">{{ vazio }}</p>
       </div>
-    </div>
-
-    <q-separator />
-    <div class="row justify-center q-py-sm rodape">
-      <q-pagination v-if="totalPaginas > 1" v-model="pagina" :max="totalPaginas" :max-pages="5" size="sm" direction-links boundary-links flat color="primary" active-color="primary" @update:model-value="carregar" />
-    </div>
-  </q-card>
+    </template>
+  </q-table>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { useQuasar } from 'quasar'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import { listarCartao } from '@/api/painel.js'
@@ -71,27 +98,38 @@ const $q = useQuasar()
 const docStore = useDocumentosStore()
 
 const TAMANHO_DA_PAGINA = 8
-const documentos = ref([])
-const total = ref(0)
-const pagina = ref(1)
-const carregando = ref(false)
+const columns = [
+  { name: 'documento', label: 'Documento', field: 'codigo_documento', align: 'left' },
+  { name: 'acao',      label: 'Ação',      field: 'acao',             align: 'right' },
+]
 
-const totalPaginas = computed(() => Math.max(1, Math.ceil(total.value / TAMANHO_DA_PAGINA)))
+const documentos = ref([])
+const carregando = ref(false)
+const paginacao = ref({ page: 1, rowsPerPage: TAMANHO_DA_PAGINA, rowsNumber: 0 })
+
 const acao = (doc) => acaoDaLinha(props.cartao, doc)
 
 async function carregar() {
   carregando.value = true
   try {
-    const { items, totalElements } = await listarCartao(props.cartao, { page: pagina.value - 1, size: TAMANHO_DA_PAGINA })
+    const { items, totalElements } = await listarCartao(props.cartao, {
+      page: paginacao.value.page - 1, size: TAMANHO_DA_PAGINA,
+    })
     documentos.value = items
-    total.value = totalElements
+    paginacao.value.rowsNumber = totalElements
     // Última página esvaziada (documentos saíram do card): volta para a anterior.
-    if (!items.length && pagina.value > 1) { pagina.value--; await carregar() }
+    if (!items.length && paginacao.value.page > 1) { paginacao.value.page--; await carregar() }
   } catch (e) {
     $q.notify({ type: 'negative', message: `Erro ao carregar "${props.titulo}": ${e?.message ?? 'erro desconhecido'}`, position: 'bottom-right' })
   } finally {
     carregando.value = false
   }
+}
+
+// Disparado pela q-table ao trocar de página -- mesmo padrão de ModuloPage/AuditoriaPage.
+function aoPaginar(req) {
+  paginacao.value.page = req.pagination.page
+  carregar()
 }
 
 onMounted(carregar)
@@ -102,13 +140,6 @@ defineExpose({ carregar })
 </script>
 
 <style scoped>
-.painel-card { height: 100%; min-height: 520px; }
-.linhas { overflow-y: auto; }
-.linha { border-bottom: 1px solid rgba(0, 0, 0, 0.08); }
-.linha:hover { background: rgba(74, 111, 165, 0.05); }
-.identificacao { white-space: nowrap; font-size: 13px; }
-.titulo { font-size: 13px; min-width: 0; }
-.acao { font-size: 13px; color: #0b57d0; text-decoration: underline; }
-.vazio { min-height: 200px; }
-.rodape { min-height: 44px; }
+/* O card é estreito (três lado a lado): a situação fica na própria célula do documento, e o título e a OM truncam em vez de empurrar a coluna da ação. */
+.documento-celula { min-width: 0; max-width: 200px; }
 </style>

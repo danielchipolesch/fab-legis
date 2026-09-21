@@ -1,42 +1,42 @@
 <template>
+  <!-- Mesmo padrão dos diálogos do projeto (NovoDocumentoDialog, CamposDaNpaDialog): cabeçalho com ícone, título e fechar;
+       separadores; rodapé com os botões à direita. -->
   <q-dialog :model-value="modelValue" @update:model-value="$emit('update:modelValue', $event)">
-    <q-card style="width:640px;max-width:95vw" data-testid="detalhes-do-documento">
-      <q-card-section class="row items-start no-wrap q-pb-sm">
-        <div class="col">
-          <div class="row items-center no-wrap" style="gap:8px">
-            <q-icon :name="modulo.icone" color="primary" size="20px" />
-            <span class="text-subtitle1 text-weight-bold text-primary">{{ doc?.codigo_documento }}</span>
-            <StatusBadge :situacao-bca="doc?.situacao_bca" :situacao-local="doc?.situacao_local" size="sm" />
-          </div>
-          <div class="text-body2 text-grey-8 q-mt-xs">{{ doc?.titulo }}</div>
-        </div>
-        <q-btn icon="mdi-close" flat round dense size="sm" @click="$emit('update:modelValue', false)" />
+    <q-card style="min-width: 560px; max-width: 680px; width: 100%" data-testid="detalhes-do-documento">
+      <q-card-section class="row items-center q-pb-sm">
+        <q-icon :name="modulo.icone" color="primary" size="24px" class="q-mr-sm" />
+        <span class="text-h6 text-weight-bold">{{ doc?.codigo_documento }}</span>
+        <q-space />
+        <q-btn v-close-popup icon="mdi-close" size="sm" flat round dense />
+      </q-card-section>
+
+      <q-card-section class="q-pt-none">
+        <div class="text-body2 text-grey-8 q-mb-sm">{{ doc?.titulo }}</div>
+        <StatusBadge :situacao-bca="doc?.situacao_bca" :situacao-local="doc?.situacao_local" />
       </q-card-section>
 
       <q-separator />
 
-      <q-card-section v-if="doc" class="q-pt-md">
+      <template v-if="doc">
         <EtapasDoCiclo :doc="doc" />
-      </q-card-section>
+
+        <q-separator />
+
+        <q-list dense>
+          <q-item v-for="linha in linhas" :key="linha.rotulo" data-testid="linha-de-detalhe">
+            <q-item-section side class="text-grey-7 detalhe-rotulo">{{ linha.rotulo }}</q-item-section>
+            <q-item-section>{{ linha.valor }}</q-item-section>
+          </q-item>
+        </q-list>
+      </template>
 
       <q-separator />
 
-      <q-card-section v-if="doc" class="q-py-md">
-        <div v-for="linha in linhas" :key="linha.rotulo" class="row q-py-xs detalhe" data-testid="linha-de-detalhe">
-          <div class="col-4 text-caption text-grey-7">{{ linha.rotulo }}</div>
-          <div class="col-8 text-body2">{{ linha.valor }}</div>
-        </div>
-      </q-card-section>
-
-      <q-separator />
-
-      <!-- Aqui só se consulta: qualquer ação sobre o documento é feita no módulo dele. O link é só navegação. -->
-      <q-card-actions class="q-pa-md items-center">
-        <span class="text-caption text-grey-7 col">Para agir sobre o documento, use o módulo {{ modulo.nome }}.</span>
-        <q-btn flat no-caps color="primary" :to="{ name: modulo.rota }" v-close-popup data-testid="ir-para-o-modulo">
-          Ir para o módulo
-        </q-btn>
-        <q-btn unelevated color="primary" no-caps label="Fechar" v-close-popup />
+      <!-- Aqui só se consulta: qualquer ação sobre o documento é feita no módulo dele. O botão é só navegação. -->
+      <q-card-actions align="right" class="q-pa-md">
+        <span class="text-caption text-grey-7 q-mr-auto">Para agir sobre o documento, use o módulo {{ modulo.nome }}.</span>
+        <q-btn v-close-popup flat color="primary" label="Ir para o módulo" :to="{ name: modulo.rota }" data-testid="ir-para-o-modulo" />
+        <q-btn v-close-popup unelevated color="primary" label="Fechar" />
       </q-card-actions>
     </q-card>
   </q-dialog>
@@ -88,5 +88,5 @@ const linhas = computed(() => props.doc
 </script>
 
 <style scoped>
-.detalhe + .detalhe { border-top: 1px solid rgba(0, 0, 0, 0.05); }
+.detalhe-rotulo { min-width: 150px; align-items: flex-start; }
 </style>
