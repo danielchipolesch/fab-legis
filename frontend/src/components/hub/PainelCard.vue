@@ -39,6 +39,7 @@
                 :situacao-bca="props.row.situacao_bca"
                 :situacao-local="props.row.situacao_local"
                 :mostrar="cartao === 'publicados' ? 'bca' : 'local'"
+                size="xs"
               />
             </div>
             <div class="text-caption text-grey-7 ellipsis">{{ props.row.titulo }}</div>

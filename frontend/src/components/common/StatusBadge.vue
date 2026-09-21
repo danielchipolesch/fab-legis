@@ -9,7 +9,7 @@
       class="text-weight-bold status-badge"
       data-testid="chip-situacao-bca"
     >
-      <q-icon :name="bca.icon" size="14px" class="q-mr-xs" />
+      <q-icon :name="bca.icon" :size="tamanhoDoIcone" class="q-mr-xs" />
       {{ bca.label }}
     </q-chip>
     <!-- Situação local: contorno e texto na cor forte da família (a cor clara do fundo tonal, usada
@@ -24,7 +24,7 @@
       class="text-weight-bold status-badge status-badge-local"
       data-testid="chip-situacao-local"
     >
-      <q-icon :name="local.icon" size="14px" class="q-mr-xs" />
+      <q-icon :name="local.icon" :size="tamanhoDoIcone" class="q-mr-xs" />
       {{ local.label }}
     </q-chip>
   </span>
@@ -44,6 +44,9 @@ const props = defineProps({
   mostrar: { type: String, default: 'ambos', validator: v => ['ambos', 'bca', 'local'].includes(v) },
   size: { type: String, default: 'sm' },
 })
+
+// O ícone acompanha o tamanho do chip: no menor (xs), um ícone de 14px pesaria mais que o texto.
+const tamanhoDoIcone = computed(() => props.size === 'xs' ? '11px' : '14px')
 
 const bca = computed(() => situacaoBcaMeta(props.situacaoBca))
 const local = computed(() => situacaoLocalMeta(props.situacaoLocal))
