@@ -39,7 +39,7 @@
     <!-- Acesso Rápido: um botão por módulo -- um módulo novo entra só aqui, sem card novo. -->
     <div class="text-center q-mt-xl q-mb-md">
       <div class="text-h6 text-grey-8">Acesso Rápido</div>
-      <div class="text-caption text-grey-7">Selecione um módulo abaixo. Você também poderá acessá-los pelo menu localizado na barra superior.</div>
+      <div class="text-caption text-grey-7">Selecione um módulo abaixo.</div>
     </div>
     <q-card flat bordered>
       <q-card-section>

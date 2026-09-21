@@ -60,7 +60,7 @@ A tela inicial (`/`, `HubPage`) é o **ponto único de acesso** aos módulos e a
 - **Cada linha se identifica pelo módulo** (ícone com o nome no tooltip) e pela identificação do documento (`DCA 5-1`, `NPA-AGO-01`); cada card tem contagem, botão de atualizar e paginação própria. O backend serve os três em `/v1/painel/…` (ver [API REST](api-rest.md)).
 - **⋮ Exibir detalhes:** abre um modal **só de consulta**, com o **stepper das etapas do ciclo** em que o documento está (publicação inicial, alteração ou revogação — `etapasDoCiclo`; a NPA nunca entra no de alteração) e as informações do card: em andamento (com quem está, coautores, última alteração), aguardando (o que se espera da pessoa) e publicados (OM, datas, portaria e BCA nas convencionais, Boletim Interno na NPA). Para agir, o modal só oferece "Ir para o módulo".
 - **Criar:** o menu tem as opções *Espécie Convencional* e *NPA*, que **apenas levam à tela inicial do módulo** — quem cria de fato é o botão de criar de lá (o usuário sempre passa pela tela do módulo).
-- **Acesso Rápido:** um botão por módulo (`MODULOS`, em `perfis/index.js`). Um módulo novo entra aqui como mais um botão, sem card novo. O menu do usuário também tem um item por módulo.
+- **Acesso Rápido:** um botão por módulo (`MODULOS`, em `perfis/index.js`). Um módulo novo entra aqui como mais um botão, sem card novo.
 
 ## Módulos
 
