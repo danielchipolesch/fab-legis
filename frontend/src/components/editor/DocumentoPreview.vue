@@ -237,7 +237,7 @@
             <div class="norm-content-block" v-html="conteudoToHtml(item.el.conteudo)"></div><span v-if="item.el._unicoRenumerado" class="emenda-ref"> {{ clausulaRenumeracao(item.el) }}</span>
           </div>
           <p v-else :id="'prev-' + item.el.id" class="body-el norm-el">
-            <span class="norm-lbl" :class="{ 'norm-lbl-bold': item.el.tipo === 'artigo' }">{{ item.label }}</span><span class="norm-content" v-html="stripHtml(conteudoToHtml(item.el.conteudo))"></span><span v-if="item.el._unicoRenumerado" class="emenda-ref"> {{ clausulaRenumeracao(item.el) }}</span>
+            <span class="norm-lbl" :class="{ 'norm-lbl-bold': item.el.tipo === 'artigo' }">{{ item.label }}</span><span class="norm-content" v-html="htmlEmLinha(conteudoToHtml(item.el.conteudo))"></span><span v-if="item.el._unicoRenumerado" class="emenda-ref"> {{ clausulaRenumeracao(item.el) }}</span>
           </p>
 
         </template>
@@ -267,21 +267,18 @@
 
 <script setup>
 import { ref, computed, watch, nextTick, onMounted, onUnmounted, onUpdated } from 'vue'
-import { generateHTML } from '@tiptap/html'
-import { editorExtensions } from '@/editor/extensions.js'
+import { conteudoParaHtml } from '@/editor/conteudoParaHtml.js'
 import { bodyLabel, formatLabel, toRoman, clausulaRenumeracao } from '@/utils/numbering.js'
 import { useDocumentosStore } from '@/stores/documentos.js'
 import { resolveMinioUrls } from '@/utils/minioUrls.js'
 import { exibeSeloRevogado, exibePortaria } from '@/utils/fluxoDocumento.js'
+import { htmlEmLinha } from '@/utils/htmlEmLinha.js'
 
 function toRomanStr(n) { return toRoman(n ?? 0) }
 
 const documentsStore = useDocumentosStore()
 
-function conteudoToHtml(conteudo) {
-  if (!conteudo) return ''
-  try { return generateHTML(JSON.parse(conteudo), editorExtensions) } catch { return '' }
-}
+const conteudoToHtml = conteudoParaHtml
 
 const props = defineProps({
   documento:         { type: Object, default: null },
@@ -328,7 +325,7 @@ onMounted(() => {
 })
 onUnmounted(() => _ro?.disconnect())
 
-// Figuras embutidas via v-html (conteudoToHtml/generateHTML) e os <img> de anexo
+// Figuras embutidas via v-html (conteudoToHtml/conteudoParaHtml) e os <img> de anexo
 // (:src="anexo.urlImagem") acabam, os dois, como <img src="..."> reais no DOM depois
 // da renderização -- como o bucket do MinIO é privado, cada um precisa da sua URL
 // trocada por uma assinada. Mais simples resolver aqui, uma vez por atualização do

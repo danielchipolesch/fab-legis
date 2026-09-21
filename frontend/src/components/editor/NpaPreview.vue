@@ -39,8 +39,7 @@
 
 <script setup>
 import { ref, computed, watch, nextTick, onMounted, onUnmounted, onUpdated } from 'vue'
-import { generateHTML } from '@tiptap/html'
-import { editorExtensions } from '@/editor/extensions.js'
+import { conteudoParaHtml } from '@/editor/conteudoParaHtml.js'
 import { cabecalho, letraDoAnexo } from '@/perfis/npa.js'
 import { paginar } from '@/utils/paginacaoDaNpa.js'
 import { exibeSeloRevogado } from '@/utils/fluxoDocumento.js'
@@ -78,10 +77,7 @@ const c = computed(() => cabecalho(
   anexos.value,
 ))
 
-function conteudoEmHtml(conteudo) {
-  if (!conteudo) return ''
-  try { return generateHTML(JSON.parse(conteudo), editorExtensions) } catch { return '' }
-}
+const conteudoEmHtml = conteudoParaHtml
 
 // ─── Blocos ─────────────────────────────────────────────────────────────────────
 // O corpo em ordem de leitura, em pedaços que não se partem entre folhas: cada elemento da parte normativa (com o HTML
