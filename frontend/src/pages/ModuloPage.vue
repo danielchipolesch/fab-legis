@@ -223,7 +223,7 @@
           v-model:pagination="store.tablePagination"
           @request="onRequest"
           flat
-          class="legis-table tabela-tingida-colunas"
+          class="legis-table"
         >
           <template #body-cell-especie="props">
             <q-td :props="props">

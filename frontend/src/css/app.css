@@ -25,13 +25,6 @@ body,
   background-color: var(--color-background);
 }
 
-/* Cabeçalho tingido das tabelas em card: o primário do tema a 8% sobre a superfície (acompanha o modo escuro). Um só tom para todo o
-   sistema -- o título dos cards da Área de Trabalho (tabela-tingida-topo) e a linha de colunas das tabelas dos módulos
-   (tabela-tingida-colunas). */
-.q-table__container { --fab-tabela-cabecalho: color-mix(in srgb, var(--q-primary) 8%, var(--color-surface)); }
-.tabela-tingida-topo .q-table__top,
-.tabela-tingida-colunas thead tr { background: var(--fab-tabela-cabecalho); }
-
 /* Cards com cantos arredondados — equivalente ao rounded="lg" do Vuetify */
 .q-card {
   border-radius: 12px !important;

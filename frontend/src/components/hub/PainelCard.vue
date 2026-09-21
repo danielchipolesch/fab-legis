@@ -10,7 +10,7 @@
     :loading="carregando"
     v-model:pagination="paginacao"
     :rows-per-page-options="[TAMANHO_DA_PAGINA]"
-    class="tabela-tingida-topo"
+    class="painel-tabela"
     :data-testid="`cartao-${cartao}`"
     @request="aoPaginar"
   >
@@ -163,8 +163,10 @@ defineExpose({ carregar })
 </script>
 
 <style scoped>
-/* O título do card é tingido por tabela-tingida-topo (css/app.css), o mesmo tom das tabelas dos módulos. */
-/* O card é estreito (quatro lado a lado): a célula do documento ocupa o que sobra ao lado do ⋮ (max-width: 0 deixa o texto truncar
+/* Faixa do título levemente tingida com a cor da marca (como nos cards do Compras.gov.br): separa o cabeçalho das linhas sem
+   pesar -- é o próprio primário do tema a 8%, então acompanha a paleta do sistema. */
+.painel-tabela :deep(.q-table__top) { background: color-mix(in srgb, var(--q-primary) 8%, white); }
+/* O card é estreito (três lado a lado): a célula do documento ocupa o que sobra ao lado do ⋮ (max-width: 0 deixa o texto truncar
    com reticências dentro da tabela) e a situação passa para a linha de baixo quando não cabe ao lado do código. */
 .documento-td { width: 100%; max-width: 0; }
 .documento-celula { min-width: 0; flex: 1 1 0; }
