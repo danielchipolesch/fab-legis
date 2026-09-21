@@ -249,16 +249,12 @@ import StatusBadge from '@/components/common/StatusBadge.vue'
 import DiffViewer from '@/components/comparison/DiffViewer.vue'
 import { formatReferenciaLabel, itensRenumeracaoUnico } from '@/utils/numbering.js'
 import { gerarTextoSugeridoPortaria } from '@/utils/textoSugeridoPortaria.js'
-import { generateHTML } from '@tiptap/html'
-import { editorExtensions } from '@/editor/extensions.js'
+import { conteudoParaHtml } from '@/editor/conteudoParaHtml.js'
 import { gerarMapaAlteracaoPdf } from '@/services/pdfService.js'
 import { ehAlteracaoPublicada } from '@/utils/fluxoDocumento.js'
 import { useQuasar } from 'quasar'
 
-function conteudoToHtml(conteudo) {
-  if (!conteudo) return ''
-  try { return generateHTML(JSON.parse(conteudo), editorExtensions) } catch { return '' }
-}
+const conteudoToHtml = conteudoParaHtml
 
 const route = useRoute()
 const store = useDocumentosStore()
