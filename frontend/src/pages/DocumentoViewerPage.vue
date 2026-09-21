@@ -9,6 +9,7 @@
             <q-icon name="mdi-chevron-right" size="16px" color="primary" />
           </template>
           <q-breadcrumbs-el :to="{ name: 'home' }" icon="mdi-home" />
+          <q-breadcrumbs-el label="Área de Trabalho" :to="{ name: 'home' }" />
           <q-breadcrumbs-el :label="origemCrumb.label" :to="origemCrumb.to" />
           <q-breadcrumbs-el :label="docLabel" />
           <q-breadcrumbs-el

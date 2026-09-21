@@ -6,6 +6,7 @@
         <q-icon name="mdi-chevron-right" size="16px" color="primary" />
       </template>
       <q-breadcrumbs-el :to="{ name: 'home' }" icon="mdi-home" />
+      <q-breadcrumbs-el label="Área de Trabalho" :to="{ name: 'home' }" />
       <q-breadcrumbs-el :label="modulo.nome" />
     </q-breadcrumbs>
 
@@ -559,7 +560,7 @@
 </template>
 
 <script setup>
-import { ref, computed, reactive, onMounted, watch } from 'vue'
+import { ref, computed, reactive, nextTick, onMounted, watch } from 'vue'
 import { useQuasar } from 'quasar'
 import { useDocumentosStore } from '@/stores/documentos.js'
 import { useAuthStore } from '@/stores/auth.js'
@@ -693,11 +694,16 @@ watch(() => store.totalElements, (v) => { store.tablePagination.rowsNumber = v }
 // debounce curto (a q-table não dispara @request por digitação, então sem isso cada
 // tecla viraria uma requisição).
 let buscaTimer = null
+// Ao entrar no módulo o store traz de volta a aba, os filtros e a página que a pessoa deixou (ver entrarNoModulo): as mudanças
+// que isso causa não são escolhas dela, então não recomeçam da primeira página nem buscam duas vezes.
+let restaurando = false
 watch(() => store.filtros.busca, () => {
+  if (restaurando) return
   clearTimeout(buscaTimer)
   buscaTimer = setTimeout(() => { store.tablePagination.page = 1; carregar() }, 350)
 })
 watch([() => store.abaAtiva, () => store.filtros.especie, () => store.filtros.situacaoBca, () => store.filtros.situacaoLocal], () => {
+  if (restaurando) return
   store.tablePagination.page = 1
   carregar()
 })
@@ -707,9 +713,13 @@ watch([() => store.abaAtiva, () => store.filtros.especie, () => store.filtros.si
 // atual sem esperar o usuário trocar de aba ou recarregar a página.
 watch(() => store.refreshSignal, () => { carregar() })
 
-// Entrar noutro módulo (a rota muda, a tela é a mesma) recomeça do zero: aba, filtros e lista voltam ao padrão.
-function iniciar() {
+// Entrar noutro módulo (a rota muda, a tela é a mesma) traz do store o estado que a pessoa deixou nele (ou o padrão, na
+// primeira vez): aba, filtros, página e modo de visualização.
+async function iniciar() {
+  restaurando = true
   store.entrarNoModulo(props.tipoDeEspecie)
+  await nextTick()   // os watchers acima disparam com o que o store restaurou, ainda como "restaurando"
+  restaurando = false
   carregar()
   carregarEspecies()
 }

@@ -1,6 +1,14 @@
 <template>
   <q-page class="q-pa-xl">
 
+    <q-breadcrumbs active-color="primary" class="q-mb-md" style="font-size:13px">
+      <template #separator>
+        <q-icon name="mdi-chevron-right" size="16px" color="primary" />
+      </template>
+      <q-breadcrumbs-el :to="{ name: 'home' }" icon="mdi-home" />
+      <q-breadcrumbs-el label="Área de Trabalho" />
+    </q-breadcrumbs>
+
     <div class="row items-center justify-between q-mb-xl">
       <div>
         <h1 class="text-h5 text-weight-bold text-primary q-my-none">Área de Trabalho</h1>
@@ -39,7 +47,7 @@
     <!-- Acesso Rápido: um botão por módulo -- um módulo novo entra só aqui, sem card novo. -->
     <div class="text-center q-mt-xl q-mb-md">
       <div class="text-h6 text-grey-8">Acesso Rápido</div>
-      <div class="text-caption text-grey-7">Selecione um módulo abaixo.</div>
+      <div class="text-caption text-grey-7">Selecione uma opção abaixo. Você também poderá acessar essas opções no menu localizado na barra superior.</div>
     </div>
     <q-card flat bordered>
       <q-card-section>

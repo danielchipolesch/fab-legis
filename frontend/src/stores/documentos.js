@@ -90,9 +90,11 @@ export const useDocumentosStore = defineStore('documents', {
     // busca (aba/filtro/ordenação de antes, em vez dos padrões), não
     // adiciona uma segunda chamada.
     viewMode: 'tabela',
-    // Qual módulo (tipo de espécie) a listagem acima está mostrando: ao entrar noutro, aba, filtros e página voltam ao
-    // começo (ver entrarNoModulo) -- os filtros de um módulo não fazem sentido no outro.
+    // Qual módulo (tipo de espécie) a listagem acima está mostrando. Aba, filtros, página e modo de visualização abaixo são
+    // do módulo ativo; ao trocar de módulo, os do que saiu ficam guardados aqui, por módulo (ver entrarNoModulo), e voltam
+    // quando a pessoa retorna a ele -- os filtros de um módulo não fazem sentido no outro, mas também não se perdem.
     moduloAtivo: null,
+    estadosPorModulo: {},
     abaAtiva: 'meus',
     filtros: { busca: '', especie: null, situacaoBca: null, situacaoLocal: null },
     tablePagination: { page: 1, rowsPerPage: 15, sortBy: 'data_criacao', descending: true, rowsNumber: 0 },
@@ -116,14 +118,27 @@ export const useDocumentosStore = defineStore('documents', {
       this.refreshSignal++
     },
 
-    // Chamada pela tela de cada módulo ao abrir: se o módulo mudou desde a última vez, zera aba, filtros, página e a
-    // lista mostrada (senão a tabela do módulo novo apareceria, por um instante, com os documentos do anterior).
+    // Chamada pela tela de cada módulo ao abrir: se o módulo mudou desde a última vez, guarda aba, filtros, página e modo de
+    // visualização do que saiu, traz os do que entra (ou os padrões, na primeira vez) e esvazia a lista mostrada (senão a
+    // tabela do módulo novo apareceria, por um instante, com os documentos do anterior).
     entrarNoModulo(tipoDeEspecie) {
       if (this.moduloAtivo === tipoDeEspecie) return
+      if (this.moduloAtivo) {
+        this.estadosPorModulo[this.moduloAtivo] = {
+          viewMode: this.viewMode,
+          abaAtiva: this.abaAtiva,
+          filtros: { ...this.filtros },
+          tablePagination: { ...this.tablePagination },
+        }
+      }
+      const salvo = this.estadosPorModulo[tipoDeEspecie]
       this.moduloAtivo = tipoDeEspecie
-      this.abaAtiva = 'meus'
-      this.filtros = { busca: '', especie: null, situacaoBca: null, situacaoLocal: null }
-      this.tablePagination = { page: 1, rowsPerPage: 15, sortBy: 'data_criacao', descending: true, rowsNumber: 0 }
+      this.viewMode = salvo?.viewMode ?? 'tabela'
+      this.abaAtiva = salvo?.abaAtiva ?? 'meus'
+      this.filtros = salvo ? { ...salvo.filtros } : { busca: '', especie: null, situacaoBca: null, situacaoLocal: null }
+      this.tablePagination = salvo
+        ? { ...salvo.tablePagination }
+        : { page: 1, rowsPerPage: 15, sortBy: 'data_criacao', descending: true, rowsNumber: 0 }
       this.documentos = []
       this.totalElements = 0
     },

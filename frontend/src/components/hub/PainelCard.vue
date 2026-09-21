@@ -90,6 +90,7 @@ import { listarCartao } from '@/api/painel.js'
 import { acaoDaLinha } from '@/utils/painel.js'
 import { moduloDe } from '@/perfis/index.js'
 import { useDocumentosStore } from '@/stores/documentos.js'
+import { usePainelStore } from '@/stores/painel.js'
 
 // Um dos três cards do hub (utils/painel.js): carrega a própria página, do backend, e mostra cada documento com o módulo
 // dele, a situação e a ação a seguir (um link -- nada é executado aqui). O ⋮ só pede ao hub que mostre os detalhes.
@@ -102,6 +103,7 @@ defineEmits(['detalhes'])
 
 const $q = useQuasar()
 const docStore = useDocumentosStore()
+const painelStore = usePainelStore()
 
 const TAMANHO_DA_PAGINA = 8
 const columns = [
@@ -111,7 +113,8 @@ const columns = [
 
 const documentos = ref([])
 const carregando = ref(false)
-const paginacao = ref({ page: 1, rowsPerPage: TAMANHO_DA_PAGINA, rowsNumber: 0 })
+// A página em que o card estava fica no Pinia (stores/painel.js): ao voltar ao hub, cada card continua onde parou.
+const paginacao = ref({ page: painelStore.paginas[props.cartao] ?? 1, rowsPerPage: TAMANHO_DA_PAGINA, rowsNumber: 0 })
 
 const acao = (doc) => acaoDaLinha(props.cartao, doc)
 
@@ -124,7 +127,11 @@ async function carregar() {
     documentos.value = items
     paginacao.value.rowsNumber = totalElements
     // Última página esvaziada (documentos saíram do card): volta para a anterior.
-    if (!items.length && paginacao.value.page > 1) { paginacao.value.page--; await carregar() }
+    if (!items.length && paginacao.value.page > 1) {
+      paginacao.value.page--
+      painelStore.definirPagina(props.cartao, paginacao.value.page)
+      await carregar()
+    }
   } catch (e) {
     $q.notify({ type: 'negative', message: `Erro ao carregar "${props.titulo}": ${e?.message ?? 'erro desconhecido'}`, position: 'bottom-right' })
   } finally {
@@ -135,6 +142,7 @@ async function carregar() {
 // Disparado pela q-table ao trocar de página -- mesmo padrão de ModuloPage/AuditoriaPage.
 function aoPaginar(req) {
   paginacao.value.page = req.pagination.page
+  painelStore.definirPagina(props.cartao, paginacao.value.page)
   carregar()
 }
 

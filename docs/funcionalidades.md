@@ -61,6 +61,8 @@ A tela inicial (`/`, `HubPage`) é o **ponto único de acesso** aos módulos e a
 - **⋮ Exibir detalhes:** abre um modal **só de consulta**, com o **stepper das etapas do ciclo** em que o documento está (publicação inicial, alteração ou revogação — `etapasDoCiclo`; a NPA nunca entra no de alteração) e as informações do card: em andamento (com quem está, coautores, última alteração), aguardando (o que se espera da pessoa) e publicados (OM, datas, portaria e BCA nas convencionais, Boletim Interno na NPA). Para agir, o modal só oferece "Ir para o módulo".
 - **Criar:** o menu tem as opções *Espécie Convencional* e *NPA*, que **apenas levam à tela inicial do módulo** — quem cria de fato é o botão de criar de lá (o usuário sempre passa pela tela do módulo).
 - **Acesso Rápido:** um botão por módulo (`MODULOS`, em `perfis/index.js`). Um módulo novo entra aqui como mais um botão, sem card novo.
+- **Breadcrumb:** em todas as telas o caminho passa pela Área de Trabalho: 🏠 → Área de Trabalho → módulo → documento (ex.: 🏠 → Área de Trabalho → NPA → `NPA-AGO-01`).
+- **Estado no Pinia:** a página em que cada card está (`stores/painel.js`) e, por módulo, a aba, os filtros, a página e o modo de visualização da tela do módulo (`estadosPorModulo`, em `stores/documentos.js`) ficam guardados: sair (por exemplo, para abrir um documento) e voltar não recomeça do zero, e o que a pessoa fez num módulo não contamina o outro.
 
 ## Módulos
 
@@ -87,7 +89,7 @@ Duas telas dedicadas, cada uma restrita a quem tem o papel correspondente e most
 - **Revisão** (`/revisao`, `RevisaoPage.vue`, papel Aprovador) — tabela com **código, título, autores, situação e ações**; documentos em `EM_REVISAO`/`ANALISE_REVOGACAO` atribuídos ao usuário. Abrir (editável enquanto `EM_REVISAO`), Aprovar (escolhendo pessoalmente quem publica) e Devolver.
 - **Publicação** (`/publicacao`, `PublicacaoPage.vue`, papel Publicador) — mesma tabela; documentos em `EM_PUBLICACAO`/`EM_REVOGACAO` atribuídos ao usuário. Abrir (só leitura), Publicar/Revogar (formulário de Portaria/BCA e parte preliminar, `PublicarDialog.vue`) e Devolver (só para `EM_PUBLICACAO`; uma revogação aprovada só pode ser formalizada).
 
-Cada uma tem seu próprio breadcrumb (Início → Revisão/Publicação), e um documento aberto a partir de qualquer uma delas carrega essa origem consigo (`?origem=revisao|publicacao`) — o breadcrumb do editor/visualizador então volta para a fila de onde a pessoa veio, não para o acervo do módulo.
+Cada uma tem seu próprio breadcrumb (Início → Área de Trabalho → Revisão/Publicação), e um documento aberto a partir de qualquer uma delas carrega essa origem consigo (`?origem=revisao|publicacao`) — o breadcrumb do editor/visualizador então volta para a fila de onde a pessoa veio, não para o acervo do módulo.
 
 Ver [Ciclo de Vida do Documento](ciclo-de-vida.md) para o fluxo completo de atribuição pessoal.
 
