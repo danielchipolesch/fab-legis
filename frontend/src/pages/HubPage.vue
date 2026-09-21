@@ -49,27 +49,25 @@
       <div class="text-h6 text-grey-8">Acesso Rápido</div>
       <div class="text-caption text-grey-7">Selecione uma opção abaixo. Você também poderá acessar essas opções pelo botão Criar.</div>
     </div>
-    <q-card flat bordered>
-      <q-card-section>
-        <div class="row justify-center q-gutter-md">
-          <q-btn
-            v-for="m in MODULOS"
-            :key="m.rota"
-            :to="{ name: m.rota }"
-            stack
-            flat
-            no-caps
-            class="tile"
-            :data-testid="`tile-${m.rota}`"
-          >
-            <q-icon :name="m.icone" size="44px" color="primary" />
-            <div class="text-subtitle2 text-grey-9 q-mt-sm">{{ m.nome }}</div>
-            <div class="text-caption text-grey-7">{{ m.subtitulo }}</div>
-            <q-tooltip>Acessar o módulo {{ m.nome }}</q-tooltip>
-          </q-btn>
-        </div>
-      </q-card-section>
-    </q-card>
+    <!-- Cada módulo é o seu próprio card quadrado, centralizado: ocupam só o espaço de que precisam (quebram de linha se um dia
+         entrarem mais). O q-btn ocupa o card inteiro, para o card todo ser um link (teclado e foco incluídos). -->
+    <div class="row justify-center q-gutter-md">
+      <q-card v-for="m in MODULOS" :key="m.rota" flat bordered class="tile-modulo">
+        <q-btn
+          :to="{ name: m.rota }"
+          stack
+          flat
+          no-caps
+          class="full-width full-height"
+          :data-testid="`tile-${m.rota}`"
+        >
+          <q-icon :name="m.icone" size="48px" color="primary" />
+          <div class="text-subtitle1 text-weight-medium text-grey-9 q-mt-sm">{{ m.nome }}</div>
+          <div class="text-caption text-grey-7">{{ m.subtitulo }}</div>
+          <q-tooltip>Acessar o módulo {{ m.nome }}</q-tooltip>
+        </q-btn>
+      </q-card>
+    </div>
 
     <DetalhesDoDocumentoDialog v-model="detalhesAberto" :doc="detalhesDoc" :cartao="detalhesCartao" />
   </q-page>
@@ -98,5 +96,5 @@ function abrirDetalhes(cartao, doc) {
 </script>
 
 <style scoped>
-.tile { width: 200px; min-height: 140px; }
+.tile-modulo { width: 220px; height: 220px; }
 </style>

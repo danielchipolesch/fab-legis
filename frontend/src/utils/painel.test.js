@@ -60,13 +60,41 @@ describe('acaoDaLinha — publicados e revogados', () => {
 describe('detalhesDoDocumento', () => {
   const valor = (linhas, rotulo) => linhas.find(l => l.rotulo === rotulo)?.valor
 
-  it('sempre traz o módulo, o autor e os coautores', () => {
-    const l = detalhesDoDocumento('em_andamento', doc({ autor_nome: 'Fulano', tipo_de_especie: 'COMUNICACAO_OFICIAL_PADRONIZADA' }),
-      { coautores: ['Beltrano', 'Cicrano'] })
-    expect(valor(l, 'Módulo')).toBe('NPA')
+  it('sempre traz o que identifica o documento: módulo, espécie, código, OM, autoria e criação', () => {
+    const l = detalhesDoDocumento('em_andamento', doc({
+      autor_nome: 'Fulano', especie: 'ICA', assunto_basico: 'Organização', om_nome: 'CAE', data_criacao: '2026-01-05',
+    }), { coautores: ['Beltrano', 'Cicrano'], formatarData: (d) => `em ${d}` })
+    expect(valor(l, 'Módulo')).toBe('Espécies Convencionais')
+    expect(valor(l, 'Espécie')).toBe('ICA')
+    expect(valor(l, 'Código')).toBe('ICA 11-3')
+    expect(valor(l, 'Assunto Básico')).toBe('Organização')
+    expect(valor(l, 'OM')).toBe('CAE')
     expect(valor(l, 'Autor')).toBe('Fulano')
     expect(valor(l, 'Coautores')).toBe('Beltrano, Cicrano')
+    expect(valor(l, 'Criado em')).toBe('em 2026-01-05')
     expect(valor(detalhesDoDocumento('em_andamento', doc({})), 'Coautores')).toBe('Nenhum')
+  })
+
+  it('a NPA não tem Assunto Básico', () => {
+    const l = detalhesDoDocumento('em_andamento', doc({ tipo_de_especie: 'COMUNICACAO_OFICIAL_PADRONIZADA', especie: 'NPA' }))
+    expect(valor(l, 'Módulo')).toBe('NPA')
+    expect(valor(l, 'Assunto Básico')).toBeUndefined()
+  })
+
+  it('a última alteração aparece nos três cards; sem data, um traço', () => {
+    for (const cartao of ['em_andamento', 'aguardando', 'publicados']) {
+      expect(valor(detalhesDoDocumento(cartao, doc({ data_alteracao: '2026-02-01' }), { formatarData: (d) => `em ${d}` }), 'Última alteração')).toBe('em 2026-02-01')
+    }
+    expect(valor(detalhesDoDocumento('em_andamento', doc({})), 'Última alteração')).toBe('—')
+  })
+
+  it('um documento em alteração (já publicado) também mostra a publicação vigente', () => {
+    const l = detalhesDoDocumento('em_andamento', doc({
+      situacao_bca: 'PUBLICADO', situacao_local: 'EM_ALTERACAO', data_publicacao: '2026-03-01', portaria_referencia: 'Portaria nº 12', bca_referencia: 'BCA nº 30',
+    }))
+    expect(valor(l, 'Portaria')).toBe('Portaria nº 12')
+    expect(valor(l, 'BCA')).toBe('BCA nº 30')
+    expect(valor(detalhesDoDocumento('em_andamento', doc({})), 'Portaria')).toBeUndefined()
   })
 
   it('em andamento: com quem o documento está', () => {

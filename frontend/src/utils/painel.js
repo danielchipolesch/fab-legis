@@ -56,32 +56,45 @@ function comQuem(doc) {
   }
 }
 
+// O que já se sabe da publicação: quando foi publicado (e revogado) e as referências oficiais -- nas convencionais, portaria
+// e BCA; na NPA, o Boletim Interno (que fica no mesmo campo de referência).
+function linhasDePublicacao(doc, modulo, formatarData) {
+  const linhas = []
+  if (doc.data_publicacao) linhas.push({ rotulo: 'Publicado em', valor: formatarData(doc.data_publicacao) })
+  if (doc.situacao_bca === 'REVOGADO' && doc.data_revogacao) {
+    linhas.push({ rotulo: 'Revogado em', valor: formatarData(doc.data_revogacao) })
+  }
+  if (doc.portaria_referencia) linhas.push({ rotulo: 'Portaria', valor: doc.portaria_referencia })
+  if (doc.bca_referencia) {
+    linhas.push({ rotulo: modulo.rotuloDaSituacaoOficial === 'Situação BCA' ? 'BCA' : 'Boletim Interno', valor: doc.bca_referencia })
+  }
+  return linhas
+}
+
 // As linhas de informação do "Exibir detalhes" -- só leitura. coautores: nomes já formatados; formatarData: formata as datas.
+// Primeiro o que identifica o documento (igual nos três cards); depois o que o card pede.
 export function detalhesDoDocumento(cartao, doc, { coautores = [], formatarData = (d) => d } = {}) {
   const modulo = moduloDoDocumento(doc)
+  const data = (d) => (d ? formatarData(d) : '—')
+
   const linhas = [
     { rotulo: 'Módulo', valor: modulo.nome },
+    { rotulo: 'Espécie', valor: doc.especie ?? '—' },
+    { rotulo: 'Código', valor: doc.codigo_documento ?? '—' },
+    // Só as espécies convencionais têm assunto básico.
+    ...(doc.assunto_basico ? [{ rotulo: 'Assunto Básico', valor: doc.assunto_basico }] : []),
+    { rotulo: 'OM', valor: doc.om_nome ?? '—' },
     { rotulo: 'Autor', valor: doc.autor_nome ?? '—' },
     { rotulo: 'Coautores', valor: coautores.length ? coautores.join(', ') : 'Nenhum' },
+    { rotulo: 'Criado em', valor: data(doc.data_criacao) },
   ]
 
   if (cartao === 'em_andamento') {
     linhas.push({ rotulo: 'Com', valor: comQuem(doc) })
-    linhas.push({ rotulo: 'Última alteração', valor: doc.data_alteracao ? formatarData(doc.data_alteracao) : '—' })
   } else if (cartao === 'aguardando') {
     linhas.push({ rotulo: 'Se espera de você', valor: ESPERA_DE_VOCE[doc.situacao_local] ?? '—' })
-    linhas.push({ rotulo: 'Última alteração', valor: doc.data_alteracao ? formatarData(doc.data_alteracao) : '—' })
-  } else {
-    linhas.push({ rotulo: 'OM', valor: doc.om_nome ?? '—' })
-    if (doc.data_publicacao) linhas.push({ rotulo: 'Publicado em', valor: formatarData(doc.data_publicacao) })
-    if (doc.situacao_bca === 'REVOGADO' && doc.data_revogacao) {
-      linhas.push({ rotulo: 'Revogado em', valor: formatarData(doc.data_revogacao) })
-    }
-    // Nas convencionais, portaria e BCA; na NPA, o Boletim Interno (que fica no mesmo campo de referência).
-    if (doc.portaria_referencia) linhas.push({ rotulo: 'Portaria', valor: doc.portaria_referencia })
-    if (doc.bca_referencia) {
-      linhas.push({ rotulo: modulo.rotuloDaSituacaoOficial === 'Situação BCA' ? 'BCA' : 'Boletim Interno', valor: doc.bca_referencia })
-    }
   }
+  linhas.push({ rotulo: 'Última alteração', valor: data(doc.data_alteracao) })
+  linhas.push(...linhasDePublicacao(doc, modulo, formatarData))
   return linhas
 }
