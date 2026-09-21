@@ -1,11 +1,12 @@
 import * as http from './client.js'
 import { backendParaFrontend } from './documentos.js'
 
-// Os três cards do hub (ver PainelController no backend): a página pedida de cada um, com os documentos no formato do
+// Os quatro cards do hub (ver PainelController no backend): a página pedida de cada um, com os documentos no formato do
 // frontend. Mais recentemente mexidos primeiro.
 const CAMINHO_DO_CARTAO = {
-  em_andamento: 'em-andamento',
+  minhas_em_tramitacao: 'minhas-em-tramitacao',
   aguardando: 'aguardando-acao',
+  em_tramitacao_de_outros: 'em-tramitacao-de-outros',
   publicados: 'publicados-e-revogados',
 }
 

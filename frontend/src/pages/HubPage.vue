@@ -16,10 +16,11 @@
         <div class="text-body2 text-grey-7" data-testid="apresentacao">
           <p class="q-mb-none">Esta é a sua área de trabalho do <strong>FAB Legis</strong>.</p>
           <p class="q-mb-none">
-            Aqui estão reunidas as suas tarefas diárias nos quadros abaixo, divididos em três cards -
-            <strong>Meus documentos em andamento</strong>, <strong>Aguardando minha ação</strong> e
-            <strong>Publicados e revogados</strong>. É possível acompanhar os seus documentos e as ações que dependem de você,
-            além de consultar tudo o que foi publicado ou revogado.
+            Aqui estão reunidas as suas tarefas diárias nos quadros abaixo, divididos em quatro cards -
+            <strong>Meus documentos em tramitação</strong>, <strong>Aguardando minha ação</strong>,
+            <strong>Documentos em tramitação nas OMs</strong> e <strong>Publicados e revogados</strong>. É possível acompanhar os
+            seus documentos e as ações que dependem de você, ver o que as outras OMs estão tramitando e consultar tudo o que
+            foi publicado ou revogado.
           </p>
           <p class="q-mb-none">
             Também é possível abrir os detalhes de cada documento pelo botão de três pontos (⋮), bem como acessar os módulos de
@@ -43,15 +44,42 @@
       </q-btn-dropdown>
     </div>
 
+    <!-- Quatro cards na mesma linha (a partir de md; abaixo disso, um embaixo do outro). Cada documento fica num só lugar:
+         o que a pessoa tramita, o que depende dela, o que os outros tramitam e o que está publicado/revogado sem tramitação. -->
     <div class="row q-col-gutter-md">
-      <div class="col-12 col-md-4">
-        <PainelCard cartao="em_andamento" titulo="Meus documentos em andamento" vazio="Nenhum documento em andamento." @detalhes="abrirDetalhes('em_andamento', $event)" />
+      <div class="col-12 col-md-3">
+        <PainelCard
+          cartao="minhas_em_tramitacao"
+          titulo="Meus documentos em tramitação"
+          vazio="Nenhum documento em tramitação."
+          @detalhes="abrirDetalhes('minhas_em_tramitacao', $event)"
+        />
       </div>
-      <div class="col-12 col-md-4">
-        <PainelCard cartao="aguardando" titulo="Aguardando minha ação" vazio="Nenhuma ação pendente" @detalhes="abrirDetalhes('aguardando', $event)" />
+      <div class="col-12 col-md-3">
+        <PainelCard
+          cartao="aguardando"
+          titulo="Aguardando minha ação"
+          vazio="Nenhuma ação pendente"
+          @detalhes="abrirDetalhes('aguardando', $event)"
+        />
       </div>
-      <div class="col-12 col-md-4">
-        <PainelCard cartao="publicados" titulo="Publicados e revogados" vazio="Nenhum documento publicado." ajuda="Documentos em vigor ou revogados, sem trabalho em andamento. Se um documento estiver sendo alterado, ele aparece em “Meus documentos em andamento” até a alteração terminar." @detalhes="abrirDetalhes('publicados', $event)" />
+      <div class="col-12 col-md-3">
+        <PainelCard
+          cartao="em_tramitacao_de_outros"
+          titulo="Documentos em tramitação nas OMs"
+          vazio="Nenhum documento em tramitação."
+          ajuda="Documentos em tramitação, de qualquer OM, dos quais você não é autor nem coautor (os seus estão em “Meus documentos em tramitação”). Aqui você só pode visualizá-los."
+          @detalhes="abrirDetalhes('em_tramitacao_de_outros', $event)"
+        />
+      </div>
+      <div class="col-12 col-md-3">
+        <PainelCard
+          cartao="publicados"
+          titulo="Publicados e revogados"
+          vazio="Nenhum documento publicado."
+          ajuda="Documentos publicados (BCA ou Boletim Interno) ou revogados, de qualquer OM, sem tramitação em curso. Se uma alteração ou revogação estiver em tramitação, o documento aparece no card de tramitação (o seu ou o das OMs) até ela terminar."
+          @detalhes="abrirDetalhes('publicados', $event)"
+        />
       </div>
     </div>
 
@@ -97,7 +125,7 @@ const auth = useAuthStore()
 
 const detalhesAberto = ref(false)
 const detalhesDoc = ref(null)
-const detalhesCartao = ref('em_andamento')
+const detalhesCartao = ref('minhas_em_tramitacao')
 
 function abrirDetalhes(cartao, doc) {
   detalhesCartao.value = cartao

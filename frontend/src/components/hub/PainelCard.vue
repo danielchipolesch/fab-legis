@@ -46,7 +46,7 @@
                 dense
               >
                 <q-tooltip v-if="selosDaLinha(cartao, props.row) === 'ambos'" anchor="top middle" self="bottom middle">
-                  Há uma versão publicada em vigor e uma etapa em andamento sobre ela.
+                  Há uma versão publicada em vigor e uma etapa em tramitação sobre ela.
                 </q-tooltip>
               </StatusBadge>
             </div>
@@ -103,7 +103,7 @@ import { usePainelStore } from '@/stores/painel.js'
 // Um dos três cards do hub (utils/painel.js): carrega a própria página, do backend, e mostra cada documento com o módulo
 // dele, a situação e a ação a seguir (um link -- nada é executado aqui). O ⋮ só pede ao hub que mostre os detalhes.
 const props = defineProps({
-  cartao: { type: String, required: true },     // em_andamento | aguardando | publicados
+  cartao: { type: String, required: true },     // minhas_em_tramitacao | aguardando | em_tramitacao_de_outros | publicados
   titulo: { type: String, required: true },
   vazio:  { type: String, default: 'Nenhum documento.' },
   ajuda:  { type: String, default: null },       // o que o card mostra, num tooltip ao lado do título

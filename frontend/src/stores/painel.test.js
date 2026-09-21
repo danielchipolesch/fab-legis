@@ -15,6 +15,6 @@ describe('stores/painel', () => {
   it('cada card guarda a sua página, sem mexer nas dos outros', () => {
     const store = usePainelStore()
     store.definirPagina('aguardando', 3)
-    expect(store.paginas).toEqual({ em_andamento: 1, aguardando: 3, publicados: 1 })
+    expect(store.paginas).toEqual({ minhas_em_tramitacao: 1, aguardando: 3, em_tramitacao_de_outros: 1, publicados: 1 })
   })
 })

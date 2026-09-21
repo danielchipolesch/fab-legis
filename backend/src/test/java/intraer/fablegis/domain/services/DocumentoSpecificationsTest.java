@@ -50,13 +50,13 @@ class DocumentoSpecificationsTest {
 
     // Os cards do hub (docs/funcionalidades.md, "Hub"): quais etapas contam em cada um.
     @Test
-    void emAndamentoSaoAsEtapasEmQueODocumentoAindaEstaEmTrabalho() {
-        assertThat(DocumentoSpecifications.SITUACOES_EM_ANDAMENTO).containsExactlyInAnyOrder(
+    void emTramitacaoSaoAsEtapasEmQueODocumentoAindaEstaEmTrabalho() {
+        assertThat(DocumentoSpecifications.SITUACOES_EM_TRAMITACAO).containsExactlyInAnyOrder(
                 SituacaoLocalEnum.RASCUNHO, SituacaoLocalEnum.MINUTA, SituacaoLocalEnum.EM_ALTERACAO,
                 SituacaoLocalEnum.EM_REVISAO, SituacaoLocalEnum.EM_PUBLICACAO,
                 SituacaoLocalEnum.ANALISE_REVOGACAO, SituacaoLocalEnum.EM_REVOGACAO);
-        // Parado (SEM_ETAPA) e cancelado não são "em andamento".
-        assertThat(DocumentoSpecifications.SITUACOES_EM_ANDAMENTO)
+        // Parado (SEM_ETAPA) e cancelado não são "em tramitação".
+        assertThat(DocumentoSpecifications.SITUACOES_EM_TRAMITACAO)
                 .doesNotContain(SituacaoLocalEnum.SEM_ETAPA, SituacaoLocalEnum.CANCELADO);
     }
 
@@ -66,8 +66,8 @@ class DocumentoSpecificationsTest {
                 .containsExactlyInAnyOrder(SituacaoLocalEnum.EM_REVISAO, SituacaoLocalEnum.ANALISE_REVOGACAO);
         assertThat(DocumentoSpecifications.SITUACOES_DE_PUBLICACAO)
                 .containsExactlyInAnyOrder(SituacaoLocalEnum.EM_PUBLICACAO, SituacaoLocalEnum.EM_REVOGACAO);
-        // Todo documento que espera a ação de alguém também está em andamento.
-        assertThat(DocumentoSpecifications.SITUACOES_EM_ANDAMENTO)
+        // Todo documento que espera a ação de alguém também está em tramitação.
+        assertThat(DocumentoSpecifications.SITUACOES_EM_TRAMITACAO)
                 .containsAll(DocumentoSpecifications.SITUACOES_DE_REVISAO)
                 .containsAll(DocumentoSpecifications.SITUACOES_DE_PUBLICACAO);
     }
@@ -97,6 +97,34 @@ class DocumentoSpecificationsTest {
         when(cb.and(emVigorOuRevogado, semEtapa)).thenReturn(resultado);
 
         var predicado = DocumentoSpecifications.publicadosERevogados().toPredicate(root, mock(CriteriaQuery.class), cb);
+
+        assertThat(predicado).isSameAs(resultado);
+    }
+
+    // O card "Documentos em tramitação nas OMs": em etapa de trabalho, de qualquer OM, mas não os da própria pessoa (esses estão
+    // em "Meus documentos em tramitação", e um documento não aparece duas vezes no hub).
+    @SuppressWarnings("unchecked")
+    @Test
+    void emTramitacaoDeOutrosSaoOsEmEtapaDeTrabalhoQueNaoSaoMeus() {
+        Root<Documento> root = mock(Root.class, org.mockito.Mockito.RETURNS_DEEP_STUBS);
+        CriteriaQuery<Object> query = mock(CriteriaQuery.class, org.mockito.Mockito.RETURNS_DEEP_STUBS);
+        Path<Object> situacao = mock(Path.class);
+        when(root.get("situacaoLocal")).thenReturn(situacao);
+        CriteriaBuilder cb = mock(CriteriaBuilder.class);
+        Predicate emEtapaDeTrabalho = mock(Predicate.class);
+        Predicate meus = mock(Predicate.class);
+        Predicate naoMeus = mock(Predicate.class);
+        Predicate resultado = mock(Predicate.class);
+        when(situacao.in(DocumentoSpecifications.SITUACOES_EM_TRAMITACAO)).thenReturn(emEtapaDeTrabalho);
+        // "meus" = autor OU coautor (a mesma aba "meus"): um OR entre "sou o autor" e "estou entre os coautores".
+        Predicate souOAutor = mock(Predicate.class);
+        when(cb.equal(org.mockito.ArgumentMatchers.<jakarta.persistence.criteria.Expression<?>>any(), org.mockito.ArgumentMatchers.eq(7L)))
+                .thenReturn(souOAutor);
+        when(cb.or(org.mockito.ArgumentMatchers.any(Predicate.class), org.mockito.ArgumentMatchers.any(Predicate.class))).thenReturn(meus);
+        when(cb.not(meus)).thenReturn(naoMeus);
+        when(cb.and(emEtapaDeTrabalho, naoMeus)).thenReturn(resultado);
+
+        var predicado = DocumentoSpecifications.emTramitacaoDeOutros(7L).toPredicate(root, query, cb);
 
         assertThat(predicado).isSameAs(resultado);
     }

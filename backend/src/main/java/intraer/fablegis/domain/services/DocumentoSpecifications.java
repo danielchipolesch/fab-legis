@@ -28,10 +28,10 @@ public class DocumentoSpecifications {
     }
 
     // Os três cards do hub (tela inicial) -- ver DocumentoService.getPainel*:
-    //   em andamento: etapas em que o documento ainda está em trabalho (nunca SEM_ETAPA nem CANCELADO);
+    //   em tramitação: etapas em que o documento ainda está em trabalho (nunca SEM_ETAPA nem CANCELADO);
     //   revisão: etapas em que o documento espera a decisão do revisor atribuído (Documento.revisorAtribuido);
     //   publicação: etapas em que espera o registro do publicador atribuído (Documento.publicadorAtribuido).
-    public static final Set<SituacaoLocalEnum> SITUACOES_EM_ANDAMENTO = EnumSet.of(
+    public static final Set<SituacaoLocalEnum> SITUACOES_EM_TRAMITACAO = EnumSet.of(
             SituacaoLocalEnum.RASCUNHO, SituacaoLocalEnum.MINUTA, SituacaoLocalEnum.EM_ALTERACAO,
             SituacaoLocalEnum.EM_REVISAO, SituacaoLocalEnum.EM_PUBLICACAO,
             SituacaoLocalEnum.ANALISE_REVOGACAO, SituacaoLocalEnum.EM_REVOGACAO);
@@ -42,9 +42,19 @@ public class DocumentoSpecifications {
     public static final Set<SituacaoBcaEnum> SITUACOES_OFICIAIS_PUBLICADAS = EnumSet.of(
             SituacaoBcaEnum.PUBLICADO, SituacaoBcaEnum.REVOGADO);
 
-    // Card "Meus documentos em andamento": autoria ou coautoria (a mesma regra da aba "meus") em etapa de trabalho.
-    public static Specification<Documento> emAndamentoDe(Long usuarioId) {
-        return aba("meus", usuarioId, null).and(situacaoLocalEm(SITUACOES_EM_ANDAMENTO));
+    // Card "Meus documentos em tramitação": autoria ou coautoria (a mesma regra da aba "meus") em etapa de trabalho.
+    public static Specification<Documento> minhasEmTramitacao(Long usuarioId) {
+        return aba("meus", usuarioId, null).and(situacaoLocalEm(SITUACOES_EM_TRAMITACAO));
+    }
+
+    // Card "Documentos em tramitação nas OMs": o que está em tramitação, de qualquer OM, EXCETO onde a pessoa é autora ou coautora
+    // (isso já está em "Meus documentos em tramitação" -- o mesmo documento não aparece duas vezes). É o panorama do que os
+    // outros estão fazendo: a pessoa só o visualiza.
+    public static Specification<Documento> emTramitacaoDeOutros(Long usuarioId) {
+        Specification<Documento> meus = aba("meus", usuarioId, null);
+        return (root, query, cb) -> cb.and(
+                root.get("situacaoLocal").in(SITUACOES_EM_TRAMITACAO),
+                cb.not(meus.toPredicate(root, query, cb)));
     }
 
     // Card "Aguardando minha ação": os atribuídos a mim -- como revisor, na etapa de revisão; como publicador, na de publicação.
@@ -56,9 +66,9 @@ public class DocumentoSpecifications {
                         root.get("situacaoLocal").in(SITUACOES_DE_PUBLICACAO)));
     }
 
-    // Card "Publicados e revogados": os que estão (ou estiveram) em vigor, de qualquer OM, e SEM trabalho em andamento. Um
+    // Card "Publicados e revogados": os que estão (ou estiveram) em vigor, de qualquer OM, e SEM tramitação. Um
     // documento publicado que está sendo alterado (ou em revogação) tem uma etapa em curso e aparece nos cards de trabalho
-    // ("em andamento"/"aguardando"), não neste: cada documento fica num só lugar, e volta para cá quando a etapa termina.
+    // (os cards de tramitação e o "aguardando"), não neste: cada documento fica num só lugar, e volta para cá quando a etapa termina.
     public static Specification<Documento> publicadosERevogados() {
         return (root, query, cb) -> cb.and(
                 root.get("situacaoBca").in(SITUACOES_OFICIAIS_PUBLICADAS),

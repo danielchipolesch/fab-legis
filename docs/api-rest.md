@@ -64,13 +64,14 @@ Campos do cabeçalho e do fecho que só a [NPA](dominio.md#npa-norma-padrao-de-a
 
 ## Painel — `/v1/painel`
 
-Os três cards do hub, de qualquer módulo; qualquer usuário autenticado. Devolvem `Page` do mesmo DTO da listagem (`page`, `size`, padrão 8), mais recentemente mexidos primeiro.
+Os quatro cards do hub, de qualquer módulo; qualquer usuário autenticado. Devolvem `Page` do mesmo DTO da listagem (`page`, `size`, padrão 8), mais recentemente mexidos primeiro.
 
 | Método | Rota | Descrição |
 |---|---|---|
-| `GET` | `/em-andamento` | Meus documentos (autoria ou coautoria) em etapa de trabalho |
+| `GET` | `/minhas-em-tramitacao` | Meus documentos (autoria ou coautoria) em etapa de trabalho |
 | `GET` | `/aguardando-acao` | Documentos atribuídos a mim como revisor (`EM_REVISAO`, `ANALISE_REVOGACAO`) ou publicador (`EM_PUBLICACAO`, `EM_REVOGACAO`) |
-| `GET` | `/publicados-e-revogados` | `PUBLICADO` e `REVOGADO` sem etapa em andamento (`SEM_ETAPA`), de todas as OMs |
+| `GET` | `/em-tramitacao-de-outros` | Documentos em etapa de trabalho, de qualquer OM, dos quais não sou autor nem coautor (só visualização) |
+| `GET` | `/publicados-e-revogados` | `PUBLICADO` e `REVOGADO` sem tramitação (`SEM_ETAPA`), de todas as OMs |
 
 ## Anexos — `/v1/documentos/{documentoId}/anexos`
 

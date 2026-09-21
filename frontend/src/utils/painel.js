@@ -2,12 +2,13 @@
 // documento no formato do frontend (backendParaFrontend), para poderem ser testadas (painel.test.js).
 //
 // Os três cards são por trabalho da pessoa, não por espécie -- cada linha se identifica pelo módulo dela (perfis/index.js):
-//   em_andamento : meus documentos (autoria ou coautoria) ainda em trabalho
-//   aguardando   : documentos atribuídos a mim como revisor ou publicador
-//   publicados   : publicados e revogados, de todas as OMs
+//   minhas_em_tramitacao    : meus documentos (autoria ou coautoria) ainda em trabalho
+//   aguardando              : documentos atribuídos a mim como revisor ou publicador
+//   em_tramitacao_de_outros : em tramitação, de qualquer OM, dos quais não sou autor nem coautor (só visualizo)
+//   publicados              : publicados e revogados, de qualquer OM, sem tramitação em curso
 import { moduloDoDocumento } from '@/perfis/index.js'
 
-export const CARTOES = ['em_andamento', 'aguardando', 'publicados']
+export const CARTOES = ['minhas_em_tramitacao', 'aguardando', 'em_tramitacao_de_outros', 'publicados']
 
 const editar = (doc, query) => ({ name: 'documento-editar', params: { id: doc.id }, ...(query ? { query } : {}) })
 const visualizar = (doc, query) => ({ name: 'documento-visualizar', params: { id: doc.id }, ...(query ? { query } : {}) })
@@ -29,6 +30,8 @@ function podeEditar(doc) {
 // (Revisão/Publicação), nunca uma ação executada no hub. `pendente` acende o aviso (⚠) de "há ação sua".
 export function acaoDaLinha(cartao, doc) {
   if (cartao === 'publicados') return { rotulo: 'Visualizar', rota: visualizar(doc), pendente: false }
+  // O que os outros tramitam a pessoa só acompanha: editar exige ser autor ou coautor (e a tela de edição não abre para quem não é).
+  if (cartao === 'em_tramitacao_de_outros') return { rotulo: 'Acompanhar', rota: visualizar(doc), pendente: false }
 
   if (cartao === 'aguardando') {
     switch (doc.situacao_local) {
@@ -97,7 +100,7 @@ export function detalhesDoDocumento(cartao, doc, { coautores = [], formatarData 
     { rotulo: 'Criado em', valor: data(doc.data_criacao) },
   ]
 
-  if (cartao === 'em_andamento') {
+  if (cartao === 'minhas_em_tramitacao' || cartao === 'em_tramitacao_de_outros') {
     linhas.push({ rotulo: 'Com', valor: comQuem(doc) })
   } else if (cartao === 'aguardando') {
     linhas.push({ rotulo: 'Se espera de você', valor: ESPERA_DE_VOCE[doc.situacao_local] ?? '—' })

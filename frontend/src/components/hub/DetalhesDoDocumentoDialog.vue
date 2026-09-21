@@ -52,11 +52,11 @@ import { listCompartilhamentos } from '@/api/documentos.js'
 import { caixaAlta } from '@/utils/texto.js'
 
 // "Exibir detalhes" de uma linha de card do hub: as etapas do ciclo do documento e as informações que o card pede
-// (utils/painel.js) -- só leitura. cartao: em_andamento | aguardando | publicados.
+// (utils/painel.js) -- só leitura. cartao: minhas_em_tramitacao | aguardando | em_tramitacao_de_outros | publicados.
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
   doc: { type: Object, default: null },
-  cartao: { type: String, default: 'em_andamento' },
+  cartao: { type: String, default: 'minhas_em_tramitacao' },
 })
 defineEmits(['update:modelValue'])
 

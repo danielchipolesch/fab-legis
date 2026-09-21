@@ -174,8 +174,12 @@ public class DocumentoService {
     }
 
     // Os três cards do hub (tela inicial), de qualquer módulo -- ver DocumentoSpecifications.
-    public Page<Documento> getPainelEmAndamento(Long usuarioId, Pageable pageable) {
-        return documentoRepository.findAll(DocumentoSpecifications.emAndamentoDe(usuarioId), pageable);
+    public Page<Documento> getPainelMinhasEmTramitacao(Long usuarioId, Pageable pageable) {
+        return documentoRepository.findAll(DocumentoSpecifications.minhasEmTramitacao(usuarioId), pageable);
+    }
+
+    public Page<Documento> getPainelEmTramitacaoDeOutros(Long usuarioId, Pageable pageable) {
+        return documentoRepository.findAll(DocumentoSpecifications.emTramitacaoDeOutros(usuarioId), pageable);
     }
 
     public Page<Documento> getPainelAguardandoAcao(Long usuarioId, Pageable pageable) {

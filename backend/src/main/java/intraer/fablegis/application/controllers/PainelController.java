@@ -23,13 +23,13 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 import java.util.Set;
 
-// Os três cards do hub (tela inicial do sistema), de qualquer módulo -- ver DocumentoSpecifications: os documentos em
-// andamento de quem chama (autoria ou coautoria), os que aguardam a ação dele (como revisor ou publicador) e os
-// publicados e revogados de todas as OMs. Visualizar é liberado a qualquer usuário autenticado, como no resto do acervo;
+// Os quatro cards do hub (tela inicial do sistema), de qualquer módulo -- ver DocumentoSpecifications: os documentos em
+// tramitação de quem chama (autoria ou coautoria), os que aguardam a ação dele (como revisor ou publicador), os em
+// tramitação de outras pessoas (qualquer OM) e os publicados e revogados de todas as OMs, sem tramitação. Visualizar é liberado a qualquer usuário autenticado, como no resto do acervo;
 // só que cada item é o mesmo DTO da listagem do módulo, para a tela decidir a ação de cada linha.
 @RestController
 @RequestMapping(value = "/v1/painel", produces = MediaType.APPLICATION_JSON_VALUE)
-@Tag(name = "Painel", description = "Cards do hub: em andamento, aguardando ação, publicados e revogados")
+@Tag(name = "Painel", description = "Cards do hub: minhas em tramitação, aguardando ação, em tramitação nas OMs, publicados e revogados")
 public class PainelController {
 
     @Autowired
@@ -43,12 +43,12 @@ public class PainelController {
         return PageRequest.of(page, size, Sort.by("dtAlteracao").descending().and(Sort.by("id").descending()));
     }
 
-    @GetMapping("/em-andamento")
-    public ResponseEntity<Page<DocumentoResponseSemAnexoTextualDto>> emAndamento(
+    @GetMapping("/minhas-em-tramitacao")
+    public ResponseEntity<Page<DocumentoResponseSemAnexoTextualDto>> minhasEmTramitacao(
             @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "8") int size,
             Authentication authentication) {
         Usuario usuario = usuario(authentication);
-        return ResponseEntity.ok(comPosse(documentoService.getPainelEmAndamento(usuario.getId(), pagina(page, size)), usuario));
+        return ResponseEntity.ok(comPosse(documentoService.getPainelMinhasEmTramitacao(usuario.getId(), pagina(page, size)), usuario));
     }
 
     @GetMapping("/aguardando-acao")
@@ -57,6 +57,14 @@ public class PainelController {
             Authentication authentication) {
         Usuario usuario = usuario(authentication);
         return ResponseEntity.ok(comPosse(documentoService.getPainelAguardandoAcao(usuario.getId(), pagina(page, size)), usuario));
+    }
+
+    @GetMapping("/em-tramitacao-de-outros")
+    public ResponseEntity<Page<DocumentoResponseSemAnexoTextualDto>> emTramitacaoDeOutros(
+            @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "8") int size,
+            Authentication authentication) {
+        Usuario usuario = usuario(authentication);
+        return ResponseEntity.ok(comPosse(documentoService.getPainelEmTramitacaoDeOutros(usuario.getId(), pagina(page, size)), usuario));
     }
 
     @GetMapping("/publicados-e-revogados")

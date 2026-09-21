@@ -6,7 +6,7 @@ import { defineStore } from 'pinia'
 export const usePainelStore = defineStore('painel', {
   state: () => ({
     // A página (1, 2, 3...) em que cada card do hub está (ver utils/painel.js, CARTOES).
-    paginas: { em_andamento: 1, aguardando: 1, publicados: 1 },
+    paginas: { minhas_em_tramitacao: 1, aguardando: 1, em_tramitacao_de_outros: 1, publicados: 1 },
   }),
 
   actions: {
