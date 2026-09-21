@@ -5,22 +5,30 @@ import br.com.danielchipolesch.application.dtos.npaDtos.CamposDaNpaDto;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.CamposDaNpa;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.Documento;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.SituacaoBcaEnum;
+import br.com.danielchipolesch.domain.entities.usuario.Usuario;
 import br.com.danielchipolesch.domain.handlers.exceptions.InvalidInputException;
 import br.com.danielchipolesch.domain.handlers.exceptions.ResourceCannotBeUpdatedException;
 import br.com.danielchipolesch.domain.handlers.exceptions.ResourceNotFoundException;
 import br.com.danielchipolesch.domain.regras.CamposEspecificosDaEspecie;
 import br.com.danielchipolesch.domain.regras.TipoDeRegras;
 import br.com.danielchipolesch.infrastructure.repositories.CamposDaNpaRepository;
+import br.com.danielchipolesch.infrastructure.repositories.DocumentoCompartilhamentoRepository;
 import br.com.danielchipolesch.infrastructure.repositories.DocumentoRepository;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.ObjectMapper;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 // Campos do cabeçalho e do fecho que só a NPA tem: setor emissor, local do fecho e blocos de assinatura em texto
 // livre (rótulo + linhas). Nascem com valores de orientação entre colchetes, para o autor preencher.
+//
+// Dois blocos de assinatura não são escritos: "Elaborado por" (o autor e todos os coautores) e "Aprovado por" (quem
+// aprova o documento) saem do próprio documento, para nunca ficarem desatualizados -- ver CabecalhoDaNpa. Por isso
+// os blocos gravados não podem levar esses rótulos.
 //
 // Depois de publicada (ou revogada) a NPA não muda mais -- não há alteração --, então os campos também não.
 @Component
@@ -31,19 +39,20 @@ public class CamposDeNpa implements CamposEspecificosDaEspecie {
 
     private final CamposDaNpaRepository repositorio;
     private final DocumentoRepository documentoRepository;
+    private final DocumentoCompartilhamentoRepository compartilhamentoRepository;
     private final ObjectMapper objectMapper;
 
     public CamposDeNpa(CamposDaNpaRepository repositorio, DocumentoRepository documentoRepository,
-                       ObjectMapper objectMapper) {
+                       DocumentoCompartilhamentoRepository compartilhamentoRepository, ObjectMapper objectMapper) {
         this.repositorio = repositorio;
         this.documentoRepository = documentoRepository;
+        this.compartilhamentoRepository = compartilhamentoRepository;
         this.objectMapper = objectMapper;
     }
 
+    // Nasce sem blocos escritos: "Elaborado por" e "Aprovado por" vêm do documento.
     static List<AssinaturaDaNpaDto> assinaturasIniciais() {
-        return List.of(
-                new AssinaturaDaNpaDto("Elaborado por", List.of("[Nome completo, posto e função]")),
-                new AssinaturaDaNpaDto("Aprovo", List.of("[Nome completo, posto e função da autoridade]")));
+        return List.of();
     }
 
     @Override
@@ -72,6 +81,10 @@ public class CamposDeNpa implements CamposEspecificosDaEspecie {
                     "A NPA já foi publicada e não pode ser alterada. Para mudá-la, crie outra e revogue esta.");
         }
         var assinaturas = novos.assinaturas() == null ? List.<AssinaturaDaNpaDto>of() : novos.assinaturas();
+        if (assinaturas.stream().anyMatch(a -> CabecalhoDaNpa.rotuloReservado(a.rotulo()))) {
+            throw new InvalidInputException("Os blocos \"Elaborado por\" e \"Aprovado por\" são preenchidos automaticamente "
+                    + "(autor e coautores; quem aprova) e não podem ser escritos aqui.");
+        }
         if (novos.setorEmissor() == null || novos.setorEmissor().isBlank()
                 || novos.local() == null || novos.local().isBlank()) {
             throw new InvalidInputException("Informe o setor emissor e o local.");
@@ -119,8 +132,44 @@ public class CamposDeNpa implements CamposEspecificosDaEspecie {
     // Os campos de uma NPA: os gravados ou, se por algum motivo não existirem, os iniciais. É também o que o layout
     // da NPA (PDF/HTML) lê, sem exigir que o chamador já tenha carregado o documento.
     public CamposDaNpaDto camposParaLeiaute(Long documentoId) {
+        var documento = documentoRepository.findById(documentoId).orElse(null);
+        var elaboradoPor = elaboradoPor(documento);
+        var aprovadoPor = aprovadoPor(documento);
         return repositorio.findById(documentoId)
-                .map(c -> new CamposDaNpaDto(c.getSetorEmissor(), c.getLocal(), ler(c), c.getBoletimDaRevogacao()))
-                .orElseGet(() -> new CamposDaNpaDto(SETOR_INICIAL, LOCAL_INICIAL, assinaturasIniciais()));
+                .map(c -> new CamposDaNpaDto(c.getSetorEmissor(), c.getLocal(), ler(c), c.getBoletimDaRevogacao(),
+                        elaboradoPor, aprovadoPor))
+                .orElseGet(() -> new CamposDaNpaDto(SETOR_INICIAL, LOCAL_INICIAL, assinaturasIniciais(), null,
+                        elaboradoPor, aprovadoPor));
+    }
+
+    // O autor e, depois dele, cada coautor (na ordem em que foram incluídos), um por linha.
+    private List<String> elaboradoPor(Documento documento) {
+        if (documento == null || documento.getAutor() == null) return List.of();
+        var nomes = new ArrayList<String>();
+        nomes.add(pessoa(documento.getAutor()));
+        if (documento.getId() != null) {
+            compartilhamentoRepository.findByDocumentoId(documento.getId()).stream()
+                    .sorted(java.util.Comparator.comparing(c -> c.getId() == null ? 0L : c.getId()))
+                    .map(c -> pessoa(c.getUsuario()))
+                    .filter(n -> !nomes.contains(n))
+                    .forEach(nomes::add);
+        }
+        return nomes;
+    }
+
+    // Quem aprova é a pessoa (papel APROV) escolhida ao enviar o documento para revisão -- mas o nome só aparece quando
+    // ela de fato aprova (é a mesma data de aprovação da EMISSÃO); antes disso o bloco fica com a máscara de
+    // CabecalhoDaNpa, para a NPA em elaboração não parecer já aprovada por alguém.
+    private List<String> aprovadoPor(Documento documento) {
+        if (documento == null || documento.getRevisorAtribuido() == null || documento.getDtAprovacao() == null) {
+            return List.of();
+        }
+        return List.of(pessoa(documento.getRevisorAtribuido()));
+    }
+
+    // "Cel FULANO DE TAL SILVA": posto ou graduação (bigrama) e o nome completo em caixa alta; sem posto (servidor civil), só o nome.
+    static String pessoa(Usuario usuario) {
+        String nome = usuario.getNome() == null ? "" : usuario.getNome().strip().toUpperCase(Locale.ROOT);
+        return usuario.getPostoGraduacao() != null ? usuario.getPostoGraduacao().getBigrama() + " " + nome : nome;
     }
 }

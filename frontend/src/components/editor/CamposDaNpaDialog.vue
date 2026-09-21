@@ -10,10 +10,13 @@
 
       <q-separator />
 
-      <q-card-section class="q-pt-md column q-gutter-y-md" style="max-height:65vh;overflow-y:auto">
+      <!-- Coluna sem quebra: "column" do Quasar quebra em colunas quando passa do max-height, e o bloco novo ia parar
+           ao lado dos outros em vez de embaixo. -->
+      <q-card-section ref="corpoRef" class="q-pt-md column no-wrap q-gutter-y-md" style="max-height:65vh;overflow-y:auto">
         <p class="text-caption text-grey-7 q-mb-none">
           A identificação, o assunto e a data da NPA vêm do documento; a distribuição é sempre ostensiva. Aqui ficam o
-          setor que emite a NPA, o local do fecho e as assinaturas, em texto livre.
+          setor que emite a NPA, o local do fecho e os blocos de assinatura, em texto livre. Os blocos “Elaborado por”
+          (autor e coautores) e “Aprovado por” (quem aprova) são preenchidos sozinhos, no começo e no fim das assinaturas.
         </p>
 
         <q-input
@@ -32,7 +35,7 @@
         />
 
         <div class="row items-center">
-          <span class="text-subtitle2 text-weight-bold">Assinaturas</span>
+          <span class="text-subtitle2 text-weight-bold">Outras assinaturas</span>
           <q-space />
           <q-btn
             v-if="!somenteLeitura"
@@ -44,14 +47,14 @@
           </q-btn>
         </div>
 
-        <div v-if="!form.assinaturas.length" class="text-caption text-grey-6">Sem assinaturas.</div>
+        <div v-if="!form.assinaturas.length" class="text-caption text-grey-6">Nenhum bloco além de Elaborado por e Aprovado por.</div>
 
-        <q-card v-for="(bloco, i) in form.assinaturas" :key="i" flat bordered class="q-pa-sm">
+        <q-card v-for="(bloco, i) in form.assinaturas" :key="bloco.chave" flat bordered class="q-pa-sm">
           <div class="row items-center q-col-gutter-sm">
             <q-input
               v-model="bloco.rotulo"
               label="Rótulo"
-              hint="Ex.: Elaborado por, Visto, Proposto por, Aprovo"
+              hint="Ex.: Visto, Proposto por, Ciente"
               outlined dense class="col" maxlength="60"
               :readonly="somenteLeitura"
             />
@@ -70,7 +73,7 @@
           <div v-for="(_, j) in bloco.linhas" :key="j" class="row items-center no-wrap q-mt-xs">
             <q-input
               v-model="bloco.linhas[j]"
-              :label="j === 0 ? 'Linha (nome, em negrito)' : 'Linha'"
+              :label="j === 0 ? 'Linha (ex.: posto e nome)' : 'Linha'"
               outlined dense class="col" maxlength="200"
               :readonly="somenteLeitura"
             />
@@ -95,6 +98,7 @@
       <q-separator />
 
       <q-card-actions align="right" class="q-pa-md">
+        <div v-if="!somenteLeitura && erros.length" class="text-negative text-caption col">{{ erros[0] }}</div>
         <q-btn flat :disable="salvando" @click="fechar">{{ somenteLeitura ? 'Fechar' : 'Cancelar' }}</q-btn>
         <q-btn
           v-if="!somenteLeitura"
@@ -111,7 +115,8 @@
 </template>
 
 <script setup>
-import { computed, reactive, watch } from 'vue'
+import { computed, nextTick, reactive, ref, watch } from 'vue'
+import { rotuloReservado } from '@/perfis/npa.js'
 
 // Espelham os limites de CamposDaNpaDto/AssinaturaDaNpaDto no backend.
 const LIMITE_DE_BLOCOS = 10
@@ -126,13 +131,18 @@ const props = defineProps({
 const emit = defineEmits(['update:modelValue', 'salvar'])
 
 const form = reactive({ setorEmissor: '', local: '', assinaturas: [] })
+const corpoRef = ref(null)
+
+// Chave estável de cada bloco: com o índice como chave, remover/mover um bloco trocava o conteúdo dos campos de lugar.
+let proximaChave = 0
+const novoBloco = (rotulo = '', linhas = ['']) => ({ chave: ++proximaChave, rotulo, linhas })
 
 // Reabre sempre com o que está gravado (descarta o que ficou pela metade numa abertura anterior).
 watch(() => props.modelValue, (aberto) => {
   if (!aberto) return
   form.setorEmissor = props.campos?.setorEmissor ?? ''
   form.local = props.campos?.local ?? ''
-  form.assinaturas = (props.campos?.assinaturas ?? []).map(a => ({ rotulo: a.rotulo, linhas: [...(a.linhas ?? [])] }))
+  form.assinaturas = (props.campos?.assinaturas ?? []).map(a => novoBloco(a.rotulo, [...(a.linhas ?? [])]))
 })
 
 const erros = computed(() => {
@@ -140,11 +150,18 @@ const erros = computed(() => {
   if (!form.setorEmissor.trim()) errs.push('Informe o setor emissor.')
   if (!form.local.trim()) errs.push('Informe o local.')
   if (form.assinaturas.some(a => !a.rotulo.trim())) errs.push('Todo bloco de assinatura precisa de um rótulo.')
+  if (form.assinaturas.some(a => rotuloReservado(a.rotulo))) {
+    errs.push('“Elaborado por” e “Aprovado por” são preenchidos sozinhos; use outro rótulo.')
+  }
   return errs
 })
 
-function adicionarBloco() {
-  form.assinaturas.push({ rotulo: '', linhas: [''] })
+// O bloco novo entra embaixo dos demais e a lista rola até ele.
+async function adicionarBloco() {
+  form.assinaturas.push(novoBloco())
+  await nextTick()
+  const corpo = corpoRef.value?.$el
+  if (corpo) corpo.scrollTo({ top: corpo.scrollHeight, behavior: 'smooth' })
 }
 
 function removerBloco(i) {

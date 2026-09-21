@@ -4,13 +4,17 @@ import br.com.danielchipolesch.application.dtos.npaDtos.AssinaturaDaNpaDto;
 import br.com.danielchipolesch.application.dtos.npaDtos.CamposDaNpaDto;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.CamposDaNpa;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.Documento;
+import br.com.danielchipolesch.domain.entities.estruturaDocumento.DocumentoCompartilhamento;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.SituacaoBcaEnum;
 import br.com.danielchipolesch.domain.entities.numeracaoDocumento.EspecieNormativa;
+import br.com.danielchipolesch.domain.entities.usuario.PostoGraduacao;
+import br.com.danielchipolesch.domain.entities.usuario.Usuario;
 import br.com.danielchipolesch.domain.handlers.exceptions.InvalidInputException;
 import br.com.danielchipolesch.domain.handlers.exceptions.ResourceCannotBeUpdatedException;
 import br.com.danielchipolesch.domain.handlers.exceptions.ResourceNotFoundException;
 import br.com.danielchipolesch.domain.regras.TipoDeRegras;
 import br.com.danielchipolesch.infrastructure.repositories.CamposDaNpaRepository;
+import br.com.danielchipolesch.infrastructure.repositories.DocumentoCompartilhamentoRepository;
 import br.com.danielchipolesch.infrastructure.repositories.DocumentoRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -33,6 +37,7 @@ class CamposDeNpaTest {
 
     private final Map<Long, CamposDaNpa> banco = new HashMap<>();
     private final Map<Long, Documento> documentos = new HashMap<>();
+    private final Map<Long, List<DocumentoCompartilhamento>> coautorias = new HashMap<>();
     private CamposDeNpa campos;
 
     @BeforeEach
@@ -46,7 +51,10 @@ class CamposDeNpaTest {
         });
         var documentoRepository = mock(DocumentoRepository.class);
         when(documentoRepository.findById(anyLong())).thenAnswer(inv -> Optional.ofNullable(documentos.get(inv.<Long>getArgument(0))));
-        campos = new CamposDeNpa(repositorio, documentoRepository, new ObjectMapper());
+        var compartilhamentos = mock(DocumentoCompartilhamentoRepository.class);
+        when(compartilhamentos.findByDocumentoId(anyLong()))
+                .thenAnswer(inv -> coautorias.getOrDefault(inv.<Long>getArgument(0), List.of()));
+        campos = new CamposDeNpa(repositorio, documentoRepository, compartilhamentos, new ObjectMapper());
     }
 
     private Documento documento(long id, TipoDeRegras tipo, SituacaoBcaEnum bca) {
@@ -61,7 +69,7 @@ class CamposDeNpaTest {
     }
 
     @Test
-    void nasceComOrientacaoEmColchetesEDoisBlocosDeAssinatura() {
+    void nasceComOrientacaoEmColchetesESemBlocosDeAssinaturaEscritos() {
         var doc = documento(1, TipoDeRegras.NPA, SituacaoBcaEnum.NAO_PUBLICADO);
 
         campos.criarPara(doc);
@@ -69,7 +77,8 @@ class CamposDeNpaTest {
 
         assertThat(dto.setorEmissor()).isEqualTo("[SETOR EMISSOR]");
         assertThat(dto.local()).isEqualTo("[Local]");
-        assertThat(dto.assinaturas()).extracting(AssinaturaDaNpaDto::rotulo).containsExactly("Elaborado por", "Aprovo");
+        // "Elaborado por" e "Aprovado por" não são escritos: saem do documento.
+        assertThat(dto.assinaturas()).isEmpty();
     }
 
     @Test
@@ -78,7 +87,7 @@ class CamposDeNpaTest {
         campos.criarPara(doc);
 
         campos.atualizar(1L, new CamposDaNpaDto("Divisão de Suporte Operacional", "Brasília",
-                List.of(new AssinaturaDaNpaDto("Elaborado por", List.of("Fulano de Tal", "Maj Av", "Chefe da Seção")),
+                List.of(new AssinaturaDaNpaDto("Proposto por", List.of("Fulano de Tal", "Maj Av", "Chefe da Seção")),
                         new AssinaturaDaNpaDto("Visto", List.of("Beltrano")))));
         var dto = campos.obter(1L);
 
@@ -95,12 +104,86 @@ class CamposDeNpaTest {
         campos.criarPara(doc);
 
         campos.atualizar(1L, new CamposDaNpaDto("Setor", "Local", List.of(
-                new AssinaturaDaNpaDto("Aprovo", List.of("A")),
+                new AssinaturaDaNpaDto("Visto", List.of("A")),
                 new AssinaturaDaNpaDto("Proposto por", List.of("B")),
-                new AssinaturaDaNpaDto("Elaborado por", List.of("C")))));
+                new AssinaturaDaNpaDto("Ciente", List.of("C")))));
 
         assertThat(campos.obter(1L).assinaturas()).extracting(AssinaturaDaNpaDto::rotulo)
-                .containsExactly("Aprovo", "Proposto por", "Elaborado por");
+                .containsExactly("Visto", "Proposto por", "Ciente");
+    }
+
+    @Test
+    void osRotulosDosBlocosAutomaticosNaoPodemSerEscritos() {
+        var doc = documento(1, TipoDeRegras.NPA, SituacaoBcaEnum.NAO_PUBLICADO);
+        campos.criarPara(doc);
+
+        assertThatThrownBy(() -> campos.atualizar(1L, new CamposDaNpaDto("Setor", "Local",
+                List.of(new AssinaturaDaNpaDto("Elaborado por", List.of("Fulano"))))))
+                .isInstanceOf(InvalidInputException.class).hasMessageContaining("automaticamente");
+        assertThatThrownBy(() -> campos.atualizar(1L, new CamposDaNpaDto("Setor", "Local",
+                List.of(new AssinaturaDaNpaDto("aprovado por:", List.of("Beltrano"))))))
+                .isInstanceOf(InvalidInputException.class);
+    }
+
+    private static Usuario usuario(long id, String nome, String bigrama) {
+        var u = new Usuario();
+        u.setId(id);
+        u.setNome(nome);
+        if (bigrama != null) {
+            var posto = new PostoGraduacao();
+            posto.setBigrama(bigrama);
+            u.setPostoGraduacao(posto);
+        }
+        return u;
+    }
+
+    private static DocumentoCompartilhamento coautoria(long id, Usuario usuario) {
+        var c = new DocumentoCompartilhamento();
+        c.setId(id);
+        c.setUsuario(usuario);
+        return c;
+    }
+
+    @Test
+    void elaboradoPorTrazOAutorETodosOsCoautoresNaOrdemDeInclusao() {
+        var doc = documento(1, TipoDeRegras.NPA, SituacaoBcaEnum.NAO_PUBLICADO);
+        doc.setAutor(usuario(1, "Fulano de Tal", "Cel"));
+        coautorias.put(1L, List.of(coautoria(11, usuario(3, "Cicrano Souza", "Cap")),
+                coautoria(10, usuario(2, "Beltrano Lima", "Maj")),
+                coautoria(12, usuario(4, "Maria Servidora", null))));
+        campos.criarPara(doc);
+
+        assertThat(campos.obter(1L).elaboradoPor())
+                .containsExactly("Cel FULANO DE TAL", "Maj BELTRANO LIMA", "Cap CICRANO SOUZA", "MARIA SERVIDORA");
+    }
+
+    @Test
+    void oAutorQueTambemEhCoautorNaoApareceDuasVezes() {
+        var doc = documento(1, TipoDeRegras.NPA, SituacaoBcaEnum.NAO_PUBLICADO);
+        var autor = usuario(1, "Fulano de Tal", "Cel");
+        doc.setAutor(autor);
+        coautorias.put(1L, List.of(coautoria(10, autor)));
+        campos.criarPara(doc);
+
+        assertThat(campos.obter(1L).elaboradoPor()).containsExactly("Cel FULANO DE TAL");
+    }
+
+    @Test
+    void aprovadoPorSoTemONomeDepoisQueODocumentoEAprovado() {
+        var doc = documento(1, TipoDeRegras.NPA, SituacaoBcaEnum.NAO_PUBLICADO);
+        doc.setAutor(usuario(1, "Fulano de Tal", "Cel"));
+        campos.criarPara(doc);
+
+        // Antes de enviar para revisão, ninguém foi escolhido.
+        assertThat(campos.obter(1L).aprovadoPor()).isEmpty();
+
+        // Enviado para revisão: já há um revisor escolhido, mas ele ainda não aprovou -- o nome não aparece.
+        doc.setRevisorAtribuido(usuario(9, "Ana Aprovadora", "Brig"));
+        assertThat(campos.obter(1L).aprovadoPor()).isEmpty();
+
+        // Aprovado: agora é ele quem aparece.
+        doc.setDtAprovacao(java.sql.Timestamp.valueOf("2026-03-12 10:00:00"));
+        assertThat(campos.obter(1L).aprovadoPor()).containsExactly("Brig ANA APROVADORA");
     }
 
     @Test
@@ -157,7 +240,7 @@ class CamposDeNpaTest {
         var copia = documento(2, TipoDeRegras.NPA, SituacaoBcaEnum.NAO_PUBLICADO);
         campos.criarPara(original);
         campos.atualizar(1L, new CamposDaNpaDto("Setor X", "Local Y",
-                List.of(new AssinaturaDaNpaDto("Aprovo", List.of("Fulano")))));
+                List.of(new AssinaturaDaNpaDto("Visto", List.of("Fulano")))));
 
         campos.copiar(original, copia);
 

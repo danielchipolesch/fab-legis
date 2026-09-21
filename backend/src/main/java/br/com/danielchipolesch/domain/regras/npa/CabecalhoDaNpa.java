@@ -24,6 +24,8 @@ import java.util.regex.Pattern;
 //   distribuicao : sempre OSTENSIVA
 //   assunto      : o título do documento
 //   anexos       : uma linha por anexo ("A - Título;", "B - Título; e", "C - Título."), gerada dos próprios anexos
+//   assinaturas  : "Elaborado por" (autor e coautores), os blocos escritos pelo autor (Visto, Proposto por...) e
+//                  "Aprovado por" (quem aprova) -- nessa ordem; os dois de pontas saem do documento, não são digitados
 //   localEData   : "Local, dd de mês de aaaa" do fecho (data da aprovação)
 //   publicadaNo  : "(Publicada no Boletim Interno Ostensivo nº __, de __ de ____)" -- só depois de publicada; senão null
 //   revogadaNo   : "(Revogada pelo Boletim Interno Ostensivo nº __, de __ de ____)" -- só depois de revogada; senão null
@@ -44,6 +46,10 @@ public record CabecalhoDaNpa(
     static final String DISTRIBUICAO = "OSTENSIVA";
     static final String SEM_ANEXOS = "NÃO HÁ";
     static final String DATA_EM_BRANCO = "__ ___ ____";
+    static final String ELABORADO_POR = "Elaborado por";
+    static final String APROVADO_POR = "Aprovado por";
+    static final String ELABORADOR_EM_BRANCO = "[Nome completo, posto e função]";
+    static final String APROVADOR_EM_BRANCO = "[POSTO] FULANO DE TAL";
 
     // O número do Boletim dentro da referência gravada por PublicacaoDeNpa ("Boletim Interno Ostensivo nº 15, de ...").
     private static final Pattern NUMERO_DO_BOLETIM = Pattern.compile("nº\\s*(\\d+)");
@@ -66,7 +72,7 @@ public record CabecalhoDaNpa(
                 listaDeAnexos(anexos),
                 campos.local() + ", " + (doc.getDtAprovacao() != null
                         ? dataPorExtenso(doc.getDtAprovacao()) : "___ de __________ de ____"),
-                comDoisPontos(campos.assinaturas()),
+                assinaturas(campos),
                 publicada ? "(Publicada no " + boletim + ")" : null,
                 campos.boletimDaRevogacao() != null && !campos.boletimDaRevogacao().isBlank()
                         ? "(Revogada pelo " + campos.boletimDaRevogacao().strip() + ")" : null);
@@ -78,6 +84,27 @@ public record CabecalhoDaNpa(
         return doc.getBcaReferencia() != null && !doc.getBcaReferencia().isBlank()
                 ? doc.getBcaReferencia().strip()
                 : "Boletim Interno Ostensivo nº __, de __ de ______ de ____";
+    }
+
+    // Elaborado por (todos os autores), os blocos escritos, Aprovado por (quem aprova). Sem ninguém ainda (documento não
+    // enviado para revisão), a linha de orientação entre colchetes, como nos demais campos que ainda não têm valor.
+    static List<AssinaturaDaNpaDto> assinaturas(CamposDaNpaDto campos) {
+        var todas = new ArrayList<AssinaturaDaNpaDto>();
+        todas.add(new AssinaturaDaNpaDto(ELABORADO_POR, comValor(campos.elaboradoPor(), ELABORADOR_EM_BRANCO)));
+        if (campos.assinaturas() != null) todas.addAll(campos.assinaturas());
+        todas.add(new AssinaturaDaNpaDto(APROVADO_POR, comValor(campos.aprovadoPor(), APROVADOR_EM_BRANCO)));
+        return comDoisPontos(todas);
+    }
+
+    private static List<String> comValor(List<String> linhas, String orientacao) {
+        return linhas == null || linhas.isEmpty() ? List.of(orientacao) : linhas;
+    }
+
+    // "Elaborado por" e "Aprovado por" (com ou sem dois-pontos, em qualquer caixa) são dos blocos automáticos.
+    static boolean rotuloReservado(String rotulo) {
+        if (rotulo == null) return false;
+        String r = rotulo.strip().replaceAll(":$", "").strip();
+        return r.equalsIgnoreCase(ELABORADO_POR) || r.equalsIgnoreCase(APROVADO_POR);
     }
 
     // O rótulo do bloco de assinatura leva dois-pontos ("Elaborado por:"), como no modelo, mesmo que o autor não os tenha digitado.

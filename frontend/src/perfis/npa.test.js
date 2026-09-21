@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   filhosPermitidos, permite, renumerar, rotulo, rotuloDoCorpo, letraDaAlinea, letraDoAnexo, listaDeAnexos,
-  cabecalho, comDoisPontos, dataMilitar, dataPorExtenso,
+  cabecalho, comDoisPontos, dataMilitar, dataPorExtenso, assinaturas, rotuloReservado,
 } from './npa.js'
 
 // Espelho de HierarquiaDeNpaTest, NumeracaoDeNpaTest e CabecalhoDaNpaTest (backend): os mesmos cenários, de
@@ -233,6 +233,35 @@ describe('cabeçalho e fecho', () => {
     expect(r.map(a => a.rotulo)).toEqual(['Visto:', 'Aprovo:', 'Elaborado por:'])
     expect(r[0].linhas).toEqual(['A'])
     expect(comDoisPontos(null)).toEqual([])
+  })
+
+  it('Elaborado por, os blocos escritos e Aprovado por, nessa ordem, com dois-pontos', () => {
+    const c = cabecalho(doc(), { ...campos, assinaturas: [{ rotulo: 'Visto', linhas: ['A'] }, { rotulo: 'Proposto por:', linhas: ['B'] }] }, [])
+    expect(c.assinaturas.map(a => a.rotulo)).toEqual(['Elaborado por:', 'Visto:', 'Proposto por:', 'Aprovado por:'])
+    expect(c.assinaturas[1].linhas).toEqual(['A'])
+  })
+
+  it('Elaborado por traz todos os autores e Aprovado por, quem aprovou', () => {
+    const a = assinaturas({
+      ...campos,
+      elaboradoPor: ['Cel FULANO DE TAL', 'Maj BELTRANO', 'Cap CICRANO'],
+      aprovadoPor: ['Brig SILVA'],
+    })
+    expect(a[0].linhas).toEqual(['Cel FULANO DE TAL', 'Maj BELTRANO', 'Cap CICRANO'])
+    expect(a[1].rotulo).toBe('Aprovado por:')
+    expect(a[1].linhas).toEqual(['Brig SILVA'])
+  })
+
+  it('enquanto ninguém aprovou, Aprovado por leva a máscara', () => {
+    const a = assinaturas({ ...campos, elaboradoPor: ['Cel FULANO'], aprovadoPor: [] })
+    expect(a[1].linhas).toEqual(['[POSTO] FULANO DE TAL'])
+  })
+
+  it('os rótulos dos blocos automáticos são reservados', () => {
+    expect(rotuloReservado('Elaborado por')).toBe(true)
+    expect(rotuloReservado('  aprovado POR: ')).toBe(true)
+    expect(rotuloReservado('Visto')).toBe(false)
+    expect(rotuloReservado('Aprovo')).toBe(false)
   })
 
   it('datas sem fuso: o dia não recua', () => {

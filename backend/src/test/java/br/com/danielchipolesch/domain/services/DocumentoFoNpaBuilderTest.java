@@ -2,7 +2,6 @@ package br.com.danielchipolesch.domain.services;
 
 import br.com.danielchipolesch.application.dtos.anexoDtos.AnexoResponseDto;
 import br.com.danielchipolesch.application.dtos.itemAnexoParteNormativaDtos.ItemAnexoParteNormativaResponseDto;
-import br.com.danielchipolesch.application.dtos.npaDtos.AssinaturaDaNpaDto;
 import br.com.danielchipolesch.application.dtos.npaDtos.CamposDaNpaDto;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.Documento;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.ElementoEmendaStatusEnum;
@@ -43,8 +42,8 @@ class DocumentoFoNpaBuilderTest {
         var campos = mock(CamposDeNpa.class);
         when(campos.camposParaLeiaute(anyLong())).thenReturn(new CamposDaNpaDto(
                 "DIVISÃO DE SUPORTE OPERACIONAL", "Brasília",
-                List.of(new AssinaturaDaNpaDto("Elaborado por", List.of("FULANO DE TAL", "Major Aviador")),
-                        new AssinaturaDaNpaDto("Aprovo", List.of("BELTRANO", "Coronel Aviador")))));
+                List.of(), null,
+                List.of("FULANO DE TAL", "Major Aviador"), List.of("BELTRANO", "Coronel Aviador")));
         builder = new DocumentoFoNpaBuilder(new ObjectMapper(), null, new NumeracaoDeNpa(), campos);
     }
 
@@ -295,8 +294,8 @@ class DocumentoFoNpaBuilderTest {
 
         assertThat(texto).contains("Brasília, 12 de março de 2026")
                 .contains("Elaborado por").contains("FULANO DE TAL").contains("Major Aviador")
-                .contains("Aprovo").contains("BELTRANO").contains("Coronel Aviador");
-        assertThat(texto.indexOf("Elaborado por")).isLessThan(texto.indexOf("Aprovo"));
+                .contains("Aprovado por").contains("BELTRANO").contains("Coronel Aviador");
+        assertThat(texto.indexOf("Elaborado por")).isLessThan(texto.indexOf("Aprovado por"));
     }
 
     @Test
@@ -398,7 +397,7 @@ class DocumentoFoNpaBuilderTest {
 
         assertThat(fo).contains("<fo:block text-align=\"right\" space-before=\"24pt\" keep-with-next=\"always\">Brasília, 12 de março de 2026");
         assertThat(fo).contains("<fo:block text-align=\"left\" keep-with-next=\"always\">Elaborado por:</fo:block>")
-                .contains("<fo:block text-align=\"left\" keep-with-next=\"always\">Aprovo:</fo:block>");
+                .contains("<fo:block text-align=\"left\" keep-with-next=\"always\">Aprovado por:</fo:block>");
         // O texto livre da assinatura fica centralizado e sem negrito.
         assertThat(fo).contains("<fo:block text-align=\"center\" space-before=\"30pt\">FULANO DE TAL</fo:block>")
                 .contains("<fo:block text-align=\"center\">Major Aviador</fo:block>");

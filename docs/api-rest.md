@@ -59,8 +59,8 @@ Campos do cabeçalho e do fecho que só a [NPA](dominio.md#npa-norma-padrao-de-a
 
 | Método | Rota | Descrição |
 |---|---|---|
-| `GET` | `/` | Setor emissor, local do fecho e blocos de assinatura (`rotulo` + `linhas`, texto livre) — qualquer usuário autenticado |
-| `PUT` | `/` | Grava esses campos (só quem pode editar; recusado depois que a NPA é publicada) |
+| `GET` | `/` | Setor emissor, local do fecho, blocos de assinatura escritos (`rotulo` + `linhas`, texto livre) e, só na resposta, `elaboradoPor` (autor e coautores) e `aprovadoPor` (quem aprovou; vazio antes da aprovação) — qualquer usuário autenticado |
+| `PUT` | `/` | Grava esses campos (só quem pode editar; recusado depois que a NPA é publicada, e se um bloco usar o rótulo "Elaborado por" ou "Aprovado por", que são automáticos) |
 
 ## Anexos — `/v1/documentos/{documentoId}/anexos`
 

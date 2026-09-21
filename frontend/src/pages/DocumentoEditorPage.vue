@@ -304,7 +304,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { useEditorStore } from '@/stores/editor.js'
@@ -621,6 +621,17 @@ const groupingLabel = computed(() => {
 
 // O que cabe dentro de cada elemento é regra da espécie do documento (perfis/index.js).
 const perfil = computed(() => perfilDoDocumento(documento.value))
+
+// "Elaborado por" (autor e coautores) e "Aprovado por" (quem aprovou) saem do documento: refaz a leitura quando a coautoria
+// muda (ao fechar o diálogo de compartilhamento) e quando a etapa ou a pessoa escolhida para revisar mudam.
+watch(compartilharDialogOpen, (aberto) => {
+  if (!aberto && perfil.value.ehNpa && documentoId.value) carregarCamposNpa()
+})
+watch(
+  () => [documento.value?.situacao_local, documento.value?.revisor_atribuido_id, documento.value?.data_aprovacao],
+  () => { if (perfil.value.ehNpa && documentoId.value) carregarCamposNpa() },
+)
+
 
 const childOptions = computed(() => {
   const el = selectedElement.value

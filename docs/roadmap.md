@@ -25,7 +25,6 @@ A NPA já funciona de ponta a ponta — criação, edição, PDF/HTML/prévia, p
 - **"Usar como base" com origem registrada:** clonar uma NPA de outra OM já traz estrutura, cabeçalho e assinaturas para a OM de quem clonou; falta registrar de qual NPA a nova veio.
 - **Seletor "Atos normativos | NPA" na homepage:** hoje a NPA aparece no filtro de espécie e nas abas (*Meus*, *Minha OM*, *Outras OMs* — a biblioteca — e *Revogados*).
 - **Glossário:** confirmar os termos oficiais da NPA para `docs/dominio.md`.
-- **Prévia paginada:** a prévia do editor mostra a NPA numa moldura contínua; a paginação e o "n/total" reais são os do PDF.
 
 ## Longo prazo — plataforma normativa
 

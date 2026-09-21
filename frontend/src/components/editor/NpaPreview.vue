@@ -3,87 +3,35 @@
     <div class="preview-hint">Prévia aproximada · {{ documento?.codigo_documento }} {{ documento?.titulo ? '— ' + documento.titulo : '' }}</div>
 
     <div class="pages-wrap" :style="{ zoom: pageScale }">
-      <!-- A NPA é uma folha só, dentro de uma moldura que continua em todas as páginas do PDF. A prévia mostra o
-           documento inteiro numa moldura contínua (a paginação real é a do PDF). -->
-      <div class="pdf-page" data-testid="pagina-npa">
+      <!-- Uma folha A4 por página do PDF: a moldura vai até o fim de todas elas; o cabeçalho só está na primeira; da
+           segunda em diante o "n/total" fica acima da moldura. A quebra é calculada (ver paginarAgora) medindo os blocos. -->
+      <div v-for="(pagina, p) in folhas" :key="p" class="pdf-page npa-texto" data-testid="pagina-npa">
+        <div v-if="p > 0" class="npa-numero" data-testid="numero-da-pagina">{{ p + 1 }}/{{ folhas.length }}</div>
         <div v-if="wmText" class="wm-overlay" :style="{ color: wmColor }">{{ wmText }}</div>
         <div v-if="seloRevogado" class="selo-revogado" data-testid="selo-revogado">REVOGADO</div>
 
-        <!-- A moldura vai do cabeçalho até o fim do campo de assinatura; as bordas de cima e dos lados do cabeçalho
-             (modelo do Anexo XII, mesma grade do PDF) são as dela. -->
         <div class="moldura">
-        <table class="cabecalho">
-          <colgroup><col style="width:24.5%"><col style="width:25%"><col style="width:26.5%"><col style="width:24%"></colgroup>
-          <tbody>
-            <tr style="height:72px">
-              <td colspan="4" class="topo">
-                <div v-for="(linha, i) in c.linhasDeCima" :key="i" class="rotulo">{{ linha }}</div>
-              </td>
-            </tr>
-            <tr style="height:28px">
-              <td rowspan="3" class="e" />
-              <td colspan="2" class="e">DATAS</td>
-              <td rowspan="2">DISTRIBUIÇÃO</td>
-            </tr>
-            <tr style="height:29px">
-              <td class="e">EMISSÃO</td>
-              <td class="e">EFETIVAÇÃO</td>
-            </tr>
-            <tr style="height:44px">
-              <td rowspan="2" class="e">{{ c.emissao }}</td>
-              <td rowspan="2" class="e"><div v-for="(linha, i) in c.efetivacao" :key="i">{{ linha }}</div></td>
-              <td rowspan="2">{{ c.distribuicao }}</td>
-            </tr>
-            <tr style="height:37px">
-              <td class="e">{{ c.identificacao }}</td>
-            </tr>
-            <tr style="height:47px">
-              <td class="e">ASSUNTO</td>
-              <td colspan="3" class="j">{{ c.assunto }}</td>
-            </tr>
-            <tr style="height:40px">
-              <td class="e">ANEXOS</td>
-              <td colspan="3" class="j"><div v-for="(linha, i) in c.anexos" :key="i">{{ linha }}</div></td>
-            </tr>
-          </tbody>
-        </table>
-
-        <div class="corpo">
-
-        <template v-for="item in itens" :key="item.el.id">
-          <div
-            :id="'prev-' + item.el.id"
-            class="npa-el"
-            :class="`npa-${item.el.tipo}`"
-          >
-            <template v-if="item.el.tipo === 'capitulo'">
-              <span class="num">{{ item.el._caminho }}</span>&nbsp;&nbsp;{{ (item.el.titulo || '').toUpperCase() }}
-            </template>
-            <template v-else-if="item.el.tipo === 'secao_normativa' || item.el.tipo === 'subsecao_normativa'">
-              <span class="num">{{ item.el._caminho }}</span>&nbsp;&nbsp;<u>{{ (item.el.titulo || '').toUpperCase() }}</u>
-            </template>
-            <template v-else>
-              <span class="num">{{ item.el._caminho }}</span>&nbsp;&nbsp;<span class="texto" v-html="item.html" />
-            </template>
+          <NpaCabecalho v-if="p === 0" :c="c" />
+          <div class="corpo">
+            <NpaBloco v-for="i in pagina" :key="blocos[i].chave" :bloco="blocos[i]" com-id />
           </div>
-        </template>
-
-        <div class="fecho">{{ c.localEData }}</div>
-        <div v-for="(a, i) in c.assinaturas" :key="i" class="assinatura">
-          <div>{{ a.rotulo }}</div>
-          <div class="linhas"><div v-for="(linha, j) in a.linhas" :key="j">{{ linha }}</div></div>
-        </div>
-        <div v-if="c.publicadaNo" class="publicada">{{ c.publicadaNo }}</div>
-        <div v-if="c.revogadaNo" class="publicada">{{ c.revogadaNo }}</div>
-        </div>
         </div>
       </div>
 
       <!-- Anexos de imagem: no PDF vêm ao final, cada um em sua página, rotulados A, B, C… -->
-      <div v-for="anexo in anexos" :key="anexo.id" class="pdf-page pdf-page--anexo">
+      <div v-for="anexo in anexos" :key="anexo.id" class="pdf-page npa-texto pdf-page--anexo">
         <p class="anexo-titulo">ANEXO {{ letraDoAnexo(anexo.ordem) }}</p>
         <p class="anexo-titulo">{{ (anexo.titulo || '').toUpperCase() }}</p>
         <div v-if="anexo.urlImagem" class="anexo-imagem"><img :src="anexo.urlImagem" alt="" /></div>
+      </div>
+    </div>
+
+    <!-- Cópia invisível de todo o conteúdo, só para medir a altura de cada bloco (fora do zoom, com a largura exata da
+         moldura); as folhas acima são montadas a partir dessas medidas. -->
+    <div ref="medidorRef" class="medidor npa-texto" aria-hidden="true" @load.capture="agendarPaginacao">
+      <NpaCabecalho :c="c" />
+      <div class="corpo">
+        <NpaBloco v-for="b in blocos" :key="b.chave" :bloco="b" />
       </div>
     </div>
   </div>
@@ -94,16 +42,19 @@ import { ref, computed, watch, nextTick, onMounted, onUnmounted, onUpdated } fro
 import { generateHTML } from '@tiptap/html'
 import { editorExtensions } from '@/editor/extensions.js'
 import { cabecalho, letraDoAnexo } from '@/perfis/npa.js'
+import { paginar } from '@/utils/paginacaoDaNpa.js'
 import { exibeSeloRevogado } from '@/utils/fluxoDocumento.js'
 import { resolveMinioUrls } from '@/utils/minioUrls.js'
 import { useDocumentosStore } from '@/stores/documentos.js'
+import NpaCabecalho from '@/components/editor/NpaCabecalho.vue'
+import NpaBloco from '@/components/editor/NpaBloco.vue'
 
 // Prévia da NPA: o mesmo conteúdo do PDF (cabeçalho, corpo numerado pelo caminho, fecho e assinaturas) e os mesmos
 // textos -- todos calculados por perfis/npa.js, espelho de CabecalhoDaNpa (backend). Só a diagramação é da tela.
 
 const props = defineProps({
   documento:         { type: Object, default: null },
-  campos:            { type: Object, default: null },   // { setorEmissor, local, assinaturas, boletimDaRevogacao }
+  campos:            { type: Object, default: null },   // { setorEmissor, local, assinaturas, elaboradoPor, aprovadoPor, boletimDaRevogacao }
   selectedElementId: { type: String, default: null },
 })
 
@@ -132,19 +83,74 @@ function conteudoEmHtml(conteudo) {
   try { return generateHTML(JSON.parse(conteudo), editorExtensions) } catch { return '' }
 }
 
-// A árvore da parte normativa em ordem de leitura, já com o HTML do texto de cada parágrafo/alínea.
-const itens = computed(() => {
+// ─── Blocos ─────────────────────────────────────────────────────────────────────
+// O corpo em ordem de leitura, em pedaços que não se partem entre folhas: cada elemento da parte normativa (com o HTML
+// do texto de parágrafos e alíneas), o fecho, cada bloco de assinatura e as linhas de publicação/revogação.
+// juntoComOProximo: título de capítulo/seção/subseção não fica sozinho no fim da folha, nem o fecho longe da assinatura.
+const AGRUPAMENTOS = new Set(['capitulo', 'secao_normativa', 'subsecao_normativa'])
+
+const blocos = computed(() => {
+  const lista = []
   const secao = (props.documento?.secoes ?? []).find(s => s.tipo === 'parte_normativa')
-  const saida = []
   const percorrer = (els) => {
     for (const el of els ?? []) {
-      saida.push({ el, html: el.tipo === 'paragrafo' || el.tipo === 'alinea' ? conteudoEmHtml(el.conteudo) : '' })
+      lista.push({
+        chave: el.id, idAttr: 'prev-' + el.id, tipo: 'elemento', el,
+        html: el.tipo === 'paragrafo' || el.tipo === 'alinea' ? conteudoEmHtml(el.conteudo) : '',
+        juntoComOProximo: AGRUPAMENTOS.has(el.tipo),
+      })
       percorrer(el.filhos)
     }
   }
   percorrer(secao?.elementos)
-  return saida
+
+  lista.push({ chave: 'fecho', tipo: 'fecho', texto: c.value.localEData, juntoComOProximo: true })
+  c.value.assinaturas.forEach((a, i) => lista.push({ chave: 'assinatura-' + i, tipo: 'assinatura', assinatura: a, juntoComOProximo: false }))
+  if (c.value.publicadaNo) lista.push({ chave: 'publicada', tipo: 'publicada', texto: c.value.publicadaNo, juntoComOProximo: false })
+  if (c.value.revogadaNo) lista.push({ chave: 'revogada', tipo: 'publicada', texto: c.value.revogadaNo, juntoComOProximo: false })
+  return lista
 })
+
+// ─── Paginação ──────────────────────────────────────────────────────────────────
+// A folha A4 é 794 × 1123 px (96 dpi); a moldura fica a 2,5 cm das bordas (94 px) e vai de ponta a ponta da área do
+// texto: 606 × 935 px, com 1 px de borda. Dentro dela o corpo tem 10 px acima e 12 px abaixo.
+const ALTURA_DA_MOLDURA = 935 - 2
+const FOLGA_DO_CORPO = 10 + 12
+
+// Até medir, tudo numa folha só (o que já dá para ler); medido, os blocos vão para as folhas certas.
+const paginas = ref([[]])
+watch(blocos, (lista) => { if (paginas.value.length === 1) paginas.value = [lista.map((_, i) => i)] }, { immediate: true })
+
+// Com blocos a menos do que na última medida (elemento removido), os índices que sobram não valem até a paginação refazer.
+const folhas = computed(() => paginas.value.map(f => f.filter(i => i < blocos.value.length)))
+
+const medidorRef = ref(null)
+let _agendada = false
+
+function agendarPaginacao() {
+  if (_agendada) return
+  _agendada = true
+  // setTimeout (não requestAnimationFrame): numa aba em segundo plano o rAF não roda e a prévia ficaria sem paginar.
+  setTimeout(() => { _agendada = false; paginarAgora() }, 0)
+}
+
+async function paginarAgora() {
+  await nextTick()
+  const raiz = medidorRef.value
+  if (!raiz) return
+  const alturas = Array.from(raiz.querySelectorAll('.bloco')).map(el => el.offsetHeight)
+  if (alturas.length !== blocos.value.length) return   // o medidor ainda não refletiu os blocos atuais
+  const alturaDoCabecalho = raiz.querySelector('table.cabecalho')?.offsetHeight ?? 0
+  const livre = ALTURA_DA_MOLDURA - FOLGA_DO_CORPO
+  const novas = paginar(alturas, {
+    primeira: livre - alturaDoCabecalho,
+    demais: livre,
+    juntoComOProximo: blocos.value.map(b => b.juntoComOProximo),
+  })
+  if (JSON.stringify(novas) !== JSON.stringify(paginas.value)) paginas.value = novas
+}
+
+watch([blocos, c], agendarPaginacao, { flush: 'post' })
 
 // Rola até o elemento selecionado no editor.
 watch(() => props.selectedElementId, async (id) => {
@@ -180,6 +186,9 @@ onMounted(() => {
   })
   if (outerRef.value) _ro.observe(outerRef.value)
   resolverImagens()
+  agendarPaginacao()
+  // A fonte do documento pode chegar depois da primeira medida e mudar a quebra das linhas.
+  document.fonts?.ready?.then(agendarPaginacao)
 })
 onUnmounted(() => _ro?.disconnect())
 onUpdated(resolverImagens)
@@ -196,6 +205,7 @@ async function resolverImagens() {
     if (resolvido) img.setAttribute('src', resolvido)
     img.setAttribute('data-resolved', '1')
   }
+  agendarPaginacao()
 }
 </script>
 
@@ -219,27 +229,38 @@ async function resolverImagens() {
 }
 .pages-wrap { transform-origin: top left; width: 794px; }
 
-/* Folha A4 (794 × 1123 px @ 96 dpi), margem de 2 cm; a moldura da NPA é a borda interna. */
-.pdf-page {
-  width: 794px;
-  min-height: 1123px;
-  background: #fff;
-  box-sizing: border-box;
-  padding: 76px;
-  margin-bottom: 20px;
-  box-shadow: 0 3px 18px rgba(0, 0, 0, 0.55);
-  position: relative;
-  overflow: hidden;
+/* Texto da NPA: o da folha e o da cópia que mede -- têm de ser idênticos para as alturas medidas valerem. */
+.npa-texto {
   font-family: 'Calibri', 'Carlito', 'Segoe UI', Arial, sans-serif;
   font-size: 14px;
   line-height: 1.25;
   color: #000;
   text-align: justify;
 }
-/* A moldura é a borda do bloco do cabeçalho + texto: acaba onde acaba o campo de assinatura, não no rodapé. */
-.moldura { border: 1px solid #000; }
-/* O conteúdo começa na própria moldura (2,5 cm das bordas): as bordas do cabeçalho são as dela. */
-.pdf-page:not(.pdf-page--anexo) { padding: 94px; }
+
+/* Folha A4 (794 × 1123 px @ 96 dpi). A moldura da NPA fica a 2,5 cm das bordas e vai até o fim da página. */
+.pdf-page {
+  width: 794px;
+  height: 1123px;
+  background: #fff;
+  box-sizing: border-box;
+  margin-bottom: 20px;
+  box-shadow: 0 3px 18px rgba(0, 0, 0, 0.55);
+  position: relative;
+  overflow: hidden;
+}
+.moldura {
+  position: absolute;
+  top: 94px;
+  left: 94px;
+  width: 606px;
+  height: 935px;
+  box-sizing: border-box;
+  border: 1px solid #000;
+  overflow: hidden;
+}
+/* "2/3" na margem de cima, à direita, acima da moldura (da segunda folha em diante). */
+.npa-numero { position: absolute; top: 60px; right: 94px; font-size: 12px; }
 
 .wm-overlay {
   position: absolute;
@@ -256,8 +277,8 @@ async function resolverImagens() {
 }
 .selo-revogado {
   position: absolute;
-  top: 88px;
-  right: 88px;
+  top: 60px;
+  left: 94px;
   border: 2px solid #c00000;
   color: #c00000;
   font-weight: 700;
@@ -266,30 +287,19 @@ async function resolverImagens() {
   z-index: 11;
 }
 
-table.cabecalho { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 14px; text-align: center; }
-table.cabecalho td { border-bottom: 1px solid #000; padding: 3px 6px; vertical-align: middle; }
-table.cabecalho td.e { border-right: 1px solid #000; }
-table.cabecalho td.j { text-align: justify; }
-table.cabecalho td.topo { vertical-align: bottom; }
-.rotulo { font-weight: 700; }
 .corpo { padding: 10px 10px 12px; }
 
-.npa-el { padding: 2px 0; text-align: left; }
-.npa-capitulo { font-weight: 700; margin-top: 14px; }
-.npa-secao_normativa, .npa-subsecao_normativa { margin-top: 8px; }
-/* Como no modelo: parágrafo com a primeira linha recuada (1,25 cm); alínea a 2,5 cm com a letra pendurada. */
-.npa-paragrafo { text-indent: 47px; }
-.npa-alinea { margin-left: 117px; text-indent: -23px; }
-.num { font-weight: 700; }
-.npa-alinea .num { font-weight: 400; }
-.texto :deep(p) { display: inline; margin: 0; }
+/* Cópia invisível para medir: mesma largura da moldura por dentro (606 - 2 px de borda), fora da vista e do zoom. */
+.medidor {
+  position: absolute;
+  left: -10000px;
+  top: 0;
+  width: 604px;
+  visibility: hidden;
+  pointer-events: none;
+}
 
-.fecho { text-align: right; margin-top: 26px; }
-.assinatura { text-align: left; margin-top: 26px; }
-.assinatura .linhas { text-align: center; margin-top: 30px; }
-.publicada { text-align: center; font-size: 12px; margin-top: 24px; }
-
-.pdf-page--anexo { padding: 76px; }
+.pdf-page--anexo { height: auto; min-height: 1123px; padding: 76px; }
 .anexo-titulo { text-align: center; font-weight: 700; margin: 0 0 6px; }
 .anexo-imagem { text-align: center; }
 .anexo-imagem img { max-width: 100%; }

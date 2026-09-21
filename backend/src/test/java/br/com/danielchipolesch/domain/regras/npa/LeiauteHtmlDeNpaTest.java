@@ -38,8 +38,8 @@ class LeiauteHtmlDeNpaTest {
         var campos = mock(CamposDeNpa.class);
         when(campos.camposParaLeiaute(anyLong())).thenReturn(new CamposDaNpaDto(
                 "DIVISÃO DE SUPORTE OPERACIONAL", "Brasília",
-                List.of(new AssinaturaDaNpaDto("Elaborado por", List.of("FULANO DE TAL", "Major Aviador")),
-                        new AssinaturaDaNpaDto("Aprovo", List.of("BELTRANO")))));
+                List.of(new AssinaturaDaNpaDto("Visto", List.of("CICRANO"))), null,
+                List.of("FULANO DE TAL", "Major Aviador"), List.of("BELTRANO")));
         leiaute = new LeiauteHtmlDeNpa(new ObjectMapper(), null, new NumeracaoDeNpa(), campos);
     }
 
@@ -192,8 +192,10 @@ class LeiauteHtmlDeNpaTest {
         var html = html();
 
         assertThat(html).contains("Brasília, 12 de março de 2026")
-                .contains(">Elaborado por:<").contains(">FULANO DE TAL<").contains(">Major Aviador<").contains(">Aprovo:<");
-        assertThat(html.indexOf("Elaborado por")).isLessThan(html.indexOf("Aprovo"));
+                .contains(">Elaborado por:<").contains(">FULANO DE TAL<").contains(">Major Aviador<").contains(">Visto:<").contains(">Aprovado por:<");
+        // Elaborado por, os blocos escritos e, por último, Aprovado por.
+        assertThat(html.indexOf("Elaborado por")).isLessThan(html.indexOf("Visto"));
+        assertThat(html.indexOf("Visto")).isLessThan(html.indexOf("Aprovado por"));
     }
 
     @Test

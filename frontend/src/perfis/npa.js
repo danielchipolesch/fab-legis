@@ -101,6 +101,10 @@ const COMANDO = 'COMANDO DA AERONÁUTICA'
 const DISTRIBUICAO = 'OSTENSIVA'
 const SEM_ANEXOS = 'NÃO HÁ'
 const DATA_EM_BRANCO = '__ ___ ____'
+const ELABORADO_POR = 'Elaborado por'
+const APROVADO_POR = 'Aprovado por'
+const ELABORADOR_EM_BRANCO = '[Nome completo, posto e função]'
+const APROVADOR_EM_BRANCO = '[POSTO] FULANO DE TAL'
 const MESES_ABREVIADOS = ['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ']
 const MESES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro',
   'novembro', 'dezembro']
@@ -148,6 +152,24 @@ function efetivacao(documento, publicada) {
   return [`BIO ${numero}`, dataMilitar(documento.data_bca_referencia) ?? DATA_EM_BRANCO]
 }
 
+// Elaborado por (todos os autores), os blocos escritos pelo autor e Aprovado por (quem aprovou) -- nessa ordem. Os dois
+// das pontas saem do documento (campos.elaboradoPor / campos.aprovadoPor); sem ninguém ainda, a linha de orientação
+// ou a máscara, para a NPA em elaboração não parecer já aprovada por alguém.
+export function assinaturas(campos) {
+  const comValor = (linhas, orientacao) => (linhas?.length ? linhas : [orientacao])
+  return comDoisPontos([
+    { rotulo: ELABORADO_POR, linhas: comValor(campos.elaboradoPor, ELABORADOR_EM_BRANCO) },
+    ...(campos.assinaturas ?? []),
+    { rotulo: APROVADO_POR, linhas: comValor(campos.aprovadoPor, APROVADOR_EM_BRANCO) },
+  ])
+}
+
+// "Elaborado por" e "Aprovado por" (com ou sem dois-pontos, em qualquer caixa) são dos blocos automáticos: não se escrevem.
+export function rotuloReservado(rotulo) {
+  const r = (rotulo ?? '').trim().replace(/:$/, '').trim().toLowerCase()
+  return r === ELABORADO_POR.toLowerCase() || r === APROVADO_POR.toLowerCase()
+}
+
 // O rótulo do bloco de assinatura leva dois-pontos ("Elaborado por:"), como no modelo, mesmo que o autor não os tenha digitado.
 export function comDoisPontos(assinaturas) {
   return (assinaturas ?? []).map(a => {
@@ -174,7 +196,7 @@ export function cabecalho(documento, campos, anexos) {
     assunto: documento.titulo,
     anexos: listaDeAnexos(anexos),
     localEData: `${campos.local}, ${dataPorExtenso(aprovacao) ?? '___ de __________ de ____'}`,
-    assinaturas: comDoisPontos(campos.assinaturas),
+    assinaturas: assinaturas(campos),
     publicadaNo: publicada ? `(Publicada no ${referencia})` : null,
     revogadaNo: revogacao ? `(Revogada pelo ${revogacao})` : null,
   }

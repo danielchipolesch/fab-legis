@@ -61,7 +61,7 @@ class ConsistenciaEntreFormatosDaNpaTest {
     void pdfEHtmlMostramOsMesmosTextosDoCabecalhoDoCorpoEDoFecho() throws Exception {
         var campos = mock(CamposDeNpa.class);
         when(campos.camposParaLeiaute(anyLong())).thenReturn(new CamposDaNpaDto("DIVISÃO DE SUPORTE", "Brasília",
-                List.of(new AssinaturaDaNpaDto("Elaborado por", List.of("FULANO", "Major")))));
+                List.of(), null, List.of("FULANO", "Major"), List.of("BELTRANO")));
         var mapper = new ObjectMapper();
         var pdf = new DocumentoFoNpaBuilder(mapper, null, new NumeracaoDeNpa(), campos);
         var html = new LeiauteHtmlDeNpa(mapper, null, new NumeracaoDeNpa(), campos);
@@ -97,7 +97,7 @@ class ConsistenciaEntreFormatosDaNpaTest {
                 "A - Organograma.", "ANEXO A", "ORGANOGRAMA",
                 "1 DISPOSIÇÕES PRELIMINARES", "1.1 REFERÊNCIAS", "1.1.1 Constituem referências:",
                 "a) a Constituição Federal;", "2 DISPOSIÇÕES FINAIS", "2.1 Casos omissos.",
-                "Brasília, 12 de março de 2026", "Elaborado por", "FULANO", "Major",
+                "Brasília, 12 de março de 2026", "Elaborado por", "FULANO", "Major", "Aprovado por", "BELTRANO",
                 "(Publicada no Boletim Interno Ostensivo nº 15, de 2 de abril de 2026)");
         for (var texto : deveAparecerNosDois) {
             assertThat(textoPdf).as("PDF: " + texto).contains(texto);

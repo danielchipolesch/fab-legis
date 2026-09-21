@@ -1,6 +1,7 @@
 package br.com.danielchipolesch.domain.regras.npa;
 
 import br.com.danielchipolesch.application.dtos.anexoDtos.AnexoResponseDto;
+import br.com.danielchipolesch.application.dtos.npaDtos.AssinaturaDaNpaDto;
 import br.com.danielchipolesch.application.dtos.npaDtos.CamposDaNpaDto;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.Documento;
 import br.com.danielchipolesch.domain.entities.estruturaDocumento.SituacaoBcaEnum;
@@ -111,15 +112,43 @@ class CabecalhoDaNpaTest {
     @Test
     void oRotuloDeAssinaturaLevaDoisPontosSemDuplicar() {
         var campos = new CamposDaNpaDto("S", "L", List.of(
-                new br.com.danielchipolesch.application.dtos.npaDtos.AssinaturaDaNpaDto("Visto", List.of("A")),
-                new br.com.danielchipolesch.application.dtos.npaDtos.AssinaturaDaNpaDto("Aprovo:", List.of("B")),
-                new br.com.danielchipolesch.application.dtos.npaDtos.AssinaturaDaNpaDto("Elaborado por  ", List.of("C"))));
+                new AssinaturaDaNpaDto("Visto", List.of("A")),
+                new AssinaturaDaNpaDto("Proposto por:", List.of("B"))));
 
         var c = CabecalhoDaNpa.de(documento(SituacaoBcaEnum.NAO_PUBLICADO), campos, List.of());
 
-        assertThat(c.assinaturas()).extracting(br.com.danielchipolesch.application.dtos.npaDtos.AssinaturaDaNpaDto::rotulo)
-                .containsExactly("Visto:", "Aprovo:", "Elaborado por:");
-        assertThat(c.assinaturas().get(0).linhas()).containsExactly("A");
+        assertThat(c.assinaturas()).extracting(AssinaturaDaNpaDto::rotulo)
+                .containsExactly("Elaborado por:", "Visto:", "Proposto por:", "Aprovado por:");
+        assertThat(c.assinaturas().get(1).linhas()).containsExactly("A");
+    }
+
+    @Test
+    void elaboradoPorTrazTodosOsAutoresEAprovadoPorQuemAprova() {
+        var campos = new CamposDaNpaDto("S", "L", List.of(), null,
+                List.of("Cel FULANO DE TAL", "Maj BELTRANO", "Cap CICRANO"), List.of("Brig SILVA"));
+
+        var c = CabecalhoDaNpa.de(documento(SituacaoBcaEnum.NAO_PUBLICADO), campos, List.of());
+
+        assertThat(c.assinaturas().get(0).rotulo()).isEqualTo("Elaborado por:");
+        assertThat(c.assinaturas().get(0).linhas()).containsExactly("Cel FULANO DE TAL", "Maj BELTRANO", "Cap CICRANO");
+        assertThat(c.assinaturas().get(1).rotulo()).isEqualTo("Aprovado por:");
+        assertThat(c.assinaturas().get(1).linhas()).containsExactly("Brig SILVA");
+    }
+
+    @Test
+    void enquantoNaoHaAprovadorOBlocoLevaAMascara() {
+        var c = CabecalhoDaNpa.de(documento(SituacaoBcaEnum.NAO_PUBLICADO),
+                new CamposDaNpaDto("S", "L", List.of(), null, List.of("Cel FULANO"), List.of()), List.of());
+
+        assertThat(c.assinaturas().get(1).linhas()).containsExactly(CabecalhoDaNpa.APROVADOR_EM_BRANCO);
+    }
+
+    @Test
+    void osRotulosDosBlocosAutomaticosSaoReservados() {
+        assertThat(CabecalhoDaNpa.rotuloReservado("Elaborado por")).isTrue();
+        assertThat(CabecalhoDaNpa.rotuloReservado("  aprovado POR: ")).isTrue();
+        assertThat(CabecalhoDaNpa.rotuloReservado("Visto")).isFalse();
+        assertThat(CabecalhoDaNpa.rotuloReservado("Aprovo")).isFalse();
     }
 
     @Test
