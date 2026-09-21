@@ -9,8 +9,10 @@
       <q-breadcrumbs-el label="Área de Trabalho" />
     </q-breadcrumbs>
 
-    <div class="row items-center justify-between q-mb-xl">
-      <div>
+    <!-- O texto ocupa o que sobra (col) e o botão fica no canto superior direito (col-auto): sem isso, com o texto longo a linha
+         quebrava e o Criar caía para a esquerda, embaixo do texto. -->
+    <div class="row items-start no-wrap q-mb-xl" style="gap: 16px">
+      <div class="col">
         <h1 class="text-h5 text-weight-bold text-primary q-my-none">Área de Trabalho</h1>
         <!-- Adaptado da Área de Trabalho do Compras.gov.br: o que a tela é, o que há em cada quadro e para onde ir. -->
         <div class="text-body2 text-grey-7" data-testid="apresentacao">
@@ -31,7 +33,7 @@
       </div>
 
       <!-- Criar só leva ao módulo: quem cria de fato é o botão de criar da tela inicial dele. -->
-      <q-btn-dropdown v-if="auth.isEditor" color="primary" unelevated size="lg" icon="mdi-plus" label="Criar" data-testid="criar">
+      <q-btn-dropdown v-if="auth.isEditor" class="col-auto" color="primary" unelevated size="lg" icon="mdi-plus" label="Criar" data-testid="criar">
         <q-list style="min-width:240px">
           <q-item v-for="m in MODULOS" :key="m.rota" clickable v-close-popup :to="{ name: m.rota }" :data-testid="`criar-${m.rota}`">
             <q-item-section avatar><q-icon :name="m.icone" color="primary" /></q-item-section>

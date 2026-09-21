@@ -11,8 +11,9 @@
     </q-breadcrumbs>
 
     <!-- Page header -->
-    <div class="row items-center justify-between q-mb-xl">
-      <div class="row items-center no-wrap" style="gap:12px">
+    <!-- O texto ocupa o que sobra (col) e o botão fica sempre no canto direito (col-auto), sem cair para baixo do texto. -->
+    <div class="row items-center no-wrap justify-between q-mb-xl" style="gap: 16px">
+      <div class="col row items-center no-wrap" style="gap:12px">
         <q-avatar color="blue-2" text-color="primary" rounded size="48px">
           <q-icon :name="modulo.icone" size="28px" />
         </q-avatar>
@@ -23,6 +24,7 @@
       </div>
       <q-btn
         v-if="auth.isEditor"
+        class="col-auto"
         color="primary"
         unelevated
         size="lg"
