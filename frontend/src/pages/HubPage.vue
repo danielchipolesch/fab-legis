@@ -58,7 +58,7 @@
           stack
           flat
           no-caps
-          class="full-width full-height"
+          class="tile-botao full-width full-height"
           :data-testid="`tile-${m.rota}`"
         >
           <q-icon :name="m.icone" size="48px" color="primary" />
@@ -96,5 +96,7 @@ function abrirDetalhes(cartao, doc) {
 </script>
 
 <style scoped>
-.tile-modulo { width: 220px; height: 220px; }
+/* O hover e o foco do botão são retangulares: o card corta o que passa do canto arredondado dele, e o botão herda o mesmo raio. */
+.tile-modulo { width: 220px; height: 220px; overflow: hidden; }
+.tile-botao { border-radius: inherit; }
 </style>
