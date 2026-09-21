@@ -62,6 +62,16 @@ Campos do cabeçalho e do fecho que só a [NPA](dominio.md#npa-norma-padrao-de-a
 | `GET` | `/` | Setor emissor, local do fecho, blocos de assinatura escritos (`rotulo` + `linhas`, texto livre) e, só na resposta, `elaboradoPor` (autor e coautores) e `aprovadoPor` (quem aprovou; vazio antes da aprovação) — qualquer usuário autenticado |
 | `PUT` | `/` | Grava esses campos (só quem pode editar; recusado depois que a NPA é publicada, e se um bloco usar o rótulo "Elaborado por" ou "Aprovado por", que são automáticos) |
 
+## Painel — `/v1/painel`
+
+Os três cards do hub, de qualquer módulo; qualquer usuário autenticado. Devolvem `Page` do mesmo DTO da listagem (`page`, `size`, padrão 8), mais recentemente mexidos primeiro.
+
+| Método | Rota | Descrição |
+|---|---|---|
+| `GET` | `/em-andamento` | Meus documentos (autoria ou coautoria) em etapa de trabalho |
+| `GET` | `/aguardando-acao` | Documentos atribuídos a mim como revisor (`EM_REVISAO`, `ANALISE_REVOGACAO`) ou publicador (`EM_PUBLICACAO`, `EM_REVOGACAO`) |
+| `GET` | `/publicados-e-revogados` | `PUBLICADO` e `REVOGADO`, de todas as OMs |
+
 ## Anexos — `/v1/documentos/{documentoId}/anexos`
 
 | Método | Rota | Descrição |

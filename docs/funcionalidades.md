@@ -46,6 +46,22 @@ A `DocumentViewerPage` exibe o documento em modo leitura com seções expansíve
 
 Ações disponíveis na topbar: baixar PDF e HTML (com menu para escolher a versão vigente ou em tramitação quando as duas existem), ver texto sugerido da portaria (quando há alteração aguardando publicação), clonar e navegar para a comparação de versões.
 
+## Hub — Área de Trabalho
+
+A tela inicial (`/`, `HubPage`) é o **ponto único de acesso** aos módulos e a "mesa" da pessoa: três cards com o trabalho dela, **de qualquer módulo**, e, abaixo, o **Acesso Rápido**.
+
+| Card | Documentos | Ação da linha |
+|---|---|---|
+| **Meus documentos em andamento** | Autoria ou coautoria, em `RASCUNHO`, `MINUTA`, `EM_ALTERACAO`, `EM_REVISAO`, `EM_PUBLICACAO`, `ANALISE_REVOGACAO` ou `EM_REVOGACAO` | *Editar* (etapa de escrita e a pessoa é autora/coautora) ou *Acompanhar* (está com outra pessoa) |
+| **Aguardando minha ação** | Atribuídos a mim: como revisor (`EM_REVISAO`, `ANALISE_REVOGACAO`) ou como publicador (`EM_PUBLICACAO`, `EM_REVOGACAO`). Sem nenhum: "Nenhuma ação pendente" | *Revisar* (abre o documento), *Analisar revogação*, *Publicar* ou *Revogar* (tela de Publicação), sempre com o aviso ⚠ |
+| **Publicados e revogados** | `PUBLICADO` e `REVOGADO`, **de todas as OMs**, mais recentes primeiro (a OM aparece na linha) | *Visualizar* |
+
+- **Só leva à ação, nunca a executa:** o link da linha abre direto o documento ou a tela da ação (Revisão, Publicação); nada é aprovado, publicado ou alterado no hub (`utils/painel.js`, com testes).
+- **Cada linha se identifica pelo módulo** (ícone com o nome no tooltip) e pela identificação do documento (`DCA 5-1`, `NPA-AGO-01`); cada card tem contagem, botão de atualizar e paginação própria. O backend serve os três em `/v1/painel/…` (ver [API REST](api-rest.md)).
+- **⋮ Exibir detalhes:** abre um modal **só de consulta**, com o **stepper das etapas do ciclo** em que o documento está (publicação inicial, alteração ou revogação — `etapasDoCiclo`; a NPA nunca entra no de alteração) e as informações do card: em andamento (com quem está, coautores, última alteração), aguardando (o que se espera da pessoa) e publicados (OM, datas, portaria e BCA nas convencionais, Boletim Interno na NPA). Para agir, o modal só oferece "Ir para o módulo".
+- **Criar:** o menu tem *Criar Espécie Convencional* e *Criar NPA*, que **apenas levam à tela inicial do módulo** — quem cria de fato é o botão de criar de lá (o usuário sempre passa pela tela do módulo).
+- **Acesso Rápido:** um botão por módulo (`MODULOS`, em `perfis/index.js`). Um módulo novo entra aqui como mais um botão, sem card novo. O menu do usuário também tem um item por módulo.
+
 ## Módulos
 
 O sistema é dividido em **módulos**, um por tipo de espécie (`TipoDeEspecie`, com os nomes da NSCA 5-3): **Espécies Convencionais** (`/convencionais` — MCA, NSCA, ICA, ROCA, DCA…) e **NPA** (`/npa` — Norma Padrão de Ação, das Comunicações Oficiais Padronizadas). Os documentos de um módulo **nunca aparecem no outro**: cada um tem a sua tela inicial (`ModuloPage`, a mesma tela configurada pelo perfil do módulo em `perfis/index.js`), que lista só os documentos do tipo dele — a listagem e o resumo do backend recebem `tipoDeEspecie`. O botão de criar de cada módulo cria só espécies dele (na NPA, a espécie já vem escolhida). O que muda entre os módulos: na NPA a tabela não tem as colunas *Espécie* e *Assunto Básico*, o número chama-se *Identificação* e a situação real chama-se *Boletim Interno* (nas convencionais, *Situação BCA*); o filtro de espécie só aparece quando o módulo tem mais de uma. Um tipo de espécie novo ganha o seu módulo acrescentando um perfil.

@@ -104,3 +104,48 @@ export function exibePortaria(doc) {
 export function exibeSeloRevogado(doc) {
   return doc?.situacao_bca === 'REVOGADO' || doc?.situacao_local === 'EM_REVOGACAO'
 }
+
+// ─── Etapas do ciclo (stepper do "Exibir detalhes" do hub) ─────────────────────
+// As etapas do ciclo em que o documento está, na ordem, e qual é a atual. Há três ciclos (docs/ciclo-de-vida.md):
+//   - publicação inicial (nunca publicado, ou publicado e parado): Rascunho → Minuta → Em revisão → Em publicação → Publicado
+//   - alteração (publicado, em alteração/revisão/publicação): Em alteração → Em revisão → Em publicação → Publicado
+//   - revogação (publicado em análise/revogação, ou já revogado): Publicado → Análise de revogação → Em revogação → Revogado
+// A NPA nunca entra no ciclo de alteração (não tem a etapa EM_ALTERACAO), então o cálculo serve aos dois módulos sem
+// perguntar de qual é o documento.
+const CICLO_INICIAL = [
+  { chave: 'RASCUNHO', rotulo: 'Rascunho' },
+  { chave: 'MINUTA', rotulo: 'Minuta' },
+  { chave: 'EM_REVISAO', rotulo: 'Em revisão' },
+  { chave: 'EM_PUBLICACAO', rotulo: 'Em publicação' },
+  { chave: 'PUBLICADO', rotulo: 'Publicado' },
+]
+const CICLO_DE_ALTERACAO = [
+  { chave: 'EM_ALTERACAO', rotulo: 'Em alteração' },
+  { chave: 'EM_REVISAO', rotulo: 'Em revisão' },
+  { chave: 'EM_PUBLICACAO', rotulo: 'Em publicação' },
+  { chave: 'PUBLICADO', rotulo: 'Publicado' },
+]
+const CICLO_DE_REVOGACAO = [
+  { chave: 'PUBLICADO', rotulo: 'Publicado' },
+  { chave: 'ANALISE_REVOGACAO', rotulo: 'Análise de revogação' },
+  { chave: 'EM_REVOGACAO', rotulo: 'Em revogação' },
+  { chave: 'REVOGADO', rotulo: 'Revogado' },
+]
+
+// -> { ciclo: 'INICIAL'|'ALTERACAO'|'REVOGACAO', etapas: [{ chave, rotulo }], atual: índice em `etapas` (-1 se cancelado) }
+export function etapasDoCiclo(doc) {
+  const local = doc.situacao_local
+  const bca = doc.situacao_bca
+
+  if (local === 'CANCELADO') return { ciclo: 'INICIAL', etapas: CICLO_INICIAL, atual: -1 }
+
+  const emRevogacao = bca === 'REVOGADO' || local === 'ANALISE_REVOGACAO' || local === 'EM_REVOGACAO'
+  const emAlteracao = bca === 'PUBLICADO' && ['EM_ALTERACAO', 'EM_REVISAO', 'EM_PUBLICACAO'].includes(local)
+  const [ciclo, etapas] = emRevogacao ? ['REVOGACAO', CICLO_DE_REVOGACAO]
+    : emAlteracao ? ['ALTERACAO', CICLO_DE_ALTERACAO]
+    : ['INICIAL', CICLO_INICIAL]
+
+  // Sem etapa em curso o documento está parado na sua situação real: Publicado ou Revogado.
+  const chave = temEtapaEmCurso(local) ? local : (bca === 'REVOGADO' ? 'REVOGADO' : 'PUBLICADO')
+  return { ciclo, etapas, atual: etapas.findIndex(e => e.chave === chave) }
+}

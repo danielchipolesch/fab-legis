@@ -119,7 +119,7 @@ public class DocumentoService {
     // revisor, tanto no fluxo normal (EM_REVISAO) quanto na revogação (ANALISE_REVOGACAO).
     public List<DocumentoFilaResponseDto> getMinhaRevisao(Long usuarioId) {
         return documentoRepository.findByRevisorAtribuidoIdAndSituacaoLocalIn(usuarioId,
-                        List.of(SituacaoLocalEnum.EM_REVISAO, SituacaoLocalEnum.ANALISE_REVOGACAO))
+                        List.copyOf(DocumentoSpecifications.SITUACOES_DE_REVISAO))
                 .stream().map(this::toFilaResponseDto).toList();
     }
 
@@ -127,7 +127,7 @@ public class DocumentoService {
     // publicador, tanto no fluxo normal (EM_PUBLICACAO) quanto na revogação (EM_REVOGACAO).
     public List<DocumentoFilaResponseDto> getMinhaPublicacao(Long usuarioId) {
         return documentoRepository.findByPublicadorAtribuidoIdAndSituacaoLocalIn(usuarioId,
-                        List.of(SituacaoLocalEnum.EM_PUBLICACAO, SituacaoLocalEnum.EM_REVOGACAO))
+                        List.copyOf(DocumentoSpecifications.SITUACOES_DE_PUBLICACAO))
                 .stream().map(this::toFilaResponseDto).toList();
     }
 
@@ -171,6 +171,19 @@ public class DocumentoService {
                 .and(DocumentoSpecifications.situacaoBca(situacaoBca))
                 .and(DocumentoSpecifications.situacaoLocal(situacaoLocal));
         return documentoRepository.findAll(spec, pageable);
+    }
+
+    // Os três cards do hub (tela inicial), de qualquer módulo -- ver DocumentoSpecifications.
+    public Page<Documento> getPainelEmAndamento(Long usuarioId, Pageable pageable) {
+        return documentoRepository.findAll(DocumentoSpecifications.emAndamentoDe(usuarioId), pageable);
+    }
+
+    public Page<Documento> getPainelAguardandoAcao(Long usuarioId, Pageable pageable) {
+        return documentoRepository.findAll(DocumentoSpecifications.aguardandoAcaoDe(usuarioId), pageable);
+    }
+
+    public Page<Documento> getPainelPublicadosERevogados(Pageable pageable) {
+        return documentoRepository.findAll(DocumentoSpecifications.publicadosERevogados(), pageable);
     }
 
     // Contagens pros badges das 4 abas (porAba -- ignora busca/espécie/situação de

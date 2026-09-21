@@ -109,13 +109,14 @@ Nem toda espécie normativa obedece às mesmas regras. Para o restante do sistem
 ```
 frontend/src
 │
-├── pages/          ← LoginPage · ModuloPage · DocumentEditorPage · DocumentViewerPage ·
+├── pages/          ← LoginPage · HubPage · ModuloPage · DocumentEditorPage · DocumentViewerPage ·
 │                      ComparisonPage · UsersPage · AuditoriaPage
 ├── components/
 │   ├── editor/     ← WysiwygEditor, EditorSidebar (com dialog de metadados),
 │   │                 DocumentPreview, NormTreeItem, FigureView,
 │   │                 CompartilharDialog, Lc95HelpDialog
 │   ├── comparison/ ← DiffViewer
+│   ├── hub/        ← PainelCard, DetalhesDoDocumentoDialog, EtapasDoCiclo (tela inicial)
 │   └── common/     ← AppTopBar (menu de usuário, sino de notificações),
 │                      StatusBadge, NewDocumentDialog
 ├── perfis/         ← as regras que variam por espécie no frontend (hierarquia dos elementos,

@@ -19,8 +19,8 @@ const routes = [
   {
     path: '/',
     name: 'home',
-    redirect: { name: 'modulo-convencionais' },
-    meta: { title: 'Gestão de Legislação' },
+    component: () => import('@/pages/HubPage.vue'),
+    meta: { title: 'Área de Trabalho' },
   },
   // A tela inicial de cada módulo (perfis/index.js): a mesma tela, configurada pelo tipo de espécie.
   ...MODULOS.map(modulo => ({

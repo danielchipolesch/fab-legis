@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   destinoDeAprovacao, destinoDeDevolucao, DESTINO_DE_CONCLUSAO, ehRevogacao, ehPrimeiraPublicacao,
   ehAlteracaoPublicada, podeDevolverPublicacao, temVersaoVigente, temVersaoEmTramitacao, versaoPadrao,
-  eventoDoHistorico, exibeSeloRevogado, exibePortaria,
+  eventoDoHistorico, exibeSeloRevogado, exibePortaria, etapasDoCiclo,
 } from './fluxoDocumento.js'
 import {
   temEtapaEmCurso, situacaoBcaMeta, situacaoLocalMeta, SITUACAO_BCA_META, SITUACAO_LOCAL_META,
@@ -154,5 +154,45 @@ describe('exibePortaria (só depois da 1ª publicação)', () => {
   it('sem documento ou sem situação não exibe', () => {
     expect(exibePortaria(null)).toBe(false)
     expect(exibePortaria({})).toBe(false)
+  })
+})
+
+// ─── Etapas do ciclo: o stepper do "Exibir detalhes" do hub ────────────────────
+
+describe('etapasDoCiclo', () => {
+  const chaves = (d) => etapasDoCiclo(d).etapas.map(e => e.chave)
+  const atual = (d) => etapasDoCiclo(d).etapas[etapasDoCiclo(d).atual]?.chave
+
+  it('nunca publicado: Rascunho → Minuta → Em revisão → Em publicação → Publicado, na etapa em curso', () => {
+    expect(chaves(doc('NAO_PUBLICADO', 'RASCUNHO'))).toEqual(['RASCUNHO', 'MINUTA', 'EM_REVISAO', 'EM_PUBLICACAO', 'PUBLICADO'])
+    expect(etapasDoCiclo(doc('NAO_PUBLICADO', 'RASCUNHO')).ciclo).toBe('INICIAL')
+    expect(atual(doc('NAO_PUBLICADO', 'MINUTA'))).toBe('MINUTA')
+    expect(atual(doc('NAO_PUBLICADO', 'EM_REVISAO'))).toBe('EM_REVISAO')
+    expect(atual(doc('NAO_PUBLICADO', 'EM_PUBLICACAO'))).toBe('EM_PUBLICACAO')
+  })
+
+  it('publicado e parado: a etapa atual é a última do ciclo inicial (Publicado)', () => {
+    const e = etapasDoCiclo(doc('PUBLICADO', 'SEM_ETAPA'))
+    expect(e.ciclo).toBe('INICIAL')
+    expect(e.etapas[e.atual].chave).toBe('PUBLICADO')
+  })
+
+  it('publicado em alteração, revisão ou publicação: o ciclo de alteração', () => {
+    expect(chaves(doc('PUBLICADO', 'EM_ALTERACAO'))).toEqual(['EM_ALTERACAO', 'EM_REVISAO', 'EM_PUBLICACAO', 'PUBLICADO'])
+    expect(etapasDoCiclo(doc('PUBLICADO', 'EM_ALTERACAO')).ciclo).toBe('ALTERACAO')
+    expect(atual(doc('PUBLICADO', 'EM_REVISAO'))).toBe('EM_REVISAO')
+    expect(etapasDoCiclo(doc('PUBLICADO', 'EM_PUBLICACAO')).ciclo).toBe('ALTERACAO')
+  })
+
+  it('revogação em curso ou concluída: o ciclo de revogação', () => {
+    expect(chaves(doc('PUBLICADO', 'ANALISE_REVOGACAO'))).toEqual(['PUBLICADO', 'ANALISE_REVOGACAO', 'EM_REVOGACAO', 'REVOGADO'])
+    expect(atual(doc('PUBLICADO', 'ANALISE_REVOGACAO'))).toBe('ANALISE_REVOGACAO')
+    expect(atual(doc('PUBLICADO', 'EM_REVOGACAO'))).toBe('EM_REVOGACAO')
+    expect(atual(doc('REVOGADO', 'SEM_ETAPA'))).toBe('REVOGADO')
+    expect(etapasDoCiclo(doc('REVOGADO', 'SEM_ETAPA')).ciclo).toBe('REVOGACAO')
+  })
+
+  it('cancelado não está em etapa nenhuma', () => {
+    expect(etapasDoCiclo(doc('NAO_PUBLICADO', 'CANCELADO')).atual).toBe(-1)
   })
 })

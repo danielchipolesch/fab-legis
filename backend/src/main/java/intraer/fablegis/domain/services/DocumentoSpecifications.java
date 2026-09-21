@@ -12,6 +12,10 @@ import jakarta.persistence.criteria.Root;
 import jakarta.persistence.criteria.Subquery;
 import org.springframework.data.jpa.domain.Specification;
 
+import java.util.Collection;
+import java.util.EnumSet;
+import java.util.Set;
+
 // Predicados dinâmicos pra listagem paginada de documentos (ver
 // DocumentoService.getAllPaginado) -- mesmo padrão de LogAuditoriaService.filtrar: cada
 // filtro só entra na consulta se foi realmente informado (um Predicate nulo casa
@@ -21,6 +25,48 @@ import org.springframework.data.jpa.domain.Specification;
 public class DocumentoSpecifications {
 
     private DocumentoSpecifications() {
+    }
+
+    // Os três cards do hub (tela inicial) -- ver DocumentoService.getPainel*:
+    //   em andamento: etapas em que o documento ainda está em trabalho (nunca SEM_ETAPA nem CANCELADO);
+    //   revisão: etapas em que o documento espera a decisão do revisor atribuído (Documento.revisorAtribuido);
+    //   publicação: etapas em que espera o registro do publicador atribuído (Documento.publicadorAtribuido).
+    public static final Set<SituacaoLocalEnum> SITUACOES_EM_ANDAMENTO = EnumSet.of(
+            SituacaoLocalEnum.RASCUNHO, SituacaoLocalEnum.MINUTA, SituacaoLocalEnum.EM_ALTERACAO,
+            SituacaoLocalEnum.EM_REVISAO, SituacaoLocalEnum.EM_PUBLICACAO,
+            SituacaoLocalEnum.ANALISE_REVOGACAO, SituacaoLocalEnum.EM_REVOGACAO);
+    public static final Set<SituacaoLocalEnum> SITUACOES_DE_REVISAO = EnumSet.of(
+            SituacaoLocalEnum.EM_REVISAO, SituacaoLocalEnum.ANALISE_REVOGACAO);
+    public static final Set<SituacaoLocalEnum> SITUACOES_DE_PUBLICACAO = EnumSet.of(
+            SituacaoLocalEnum.EM_PUBLICACAO, SituacaoLocalEnum.EM_REVOGACAO);
+    public static final Set<SituacaoBcaEnum> SITUACOES_OFICIAIS_PUBLICADAS = EnumSet.of(
+            SituacaoBcaEnum.PUBLICADO, SituacaoBcaEnum.REVOGADO);
+
+    // Card "Meus documentos em andamento": autoria ou coautoria (a mesma regra da aba "meus") em etapa de trabalho.
+    public static Specification<Documento> emAndamentoDe(Long usuarioId) {
+        return aba("meus", usuarioId, null).and(situacaoLocalEm(SITUACOES_EM_ANDAMENTO));
+    }
+
+    // Card "Aguardando minha ação": os atribuídos a mim -- como revisor, na etapa de revisão; como publicador, na de publicação.
+    public static Specification<Documento> aguardandoAcaoDe(Long usuarioId) {
+        return (root, query, cb) -> cb.or(
+                cb.and(cb.equal(root.get("revisorAtribuido").get("id"), usuarioId),
+                        root.get("situacaoLocal").in(SITUACOES_DE_REVISAO)),
+                cb.and(cb.equal(root.get("publicadorAtribuido").get("id"), usuarioId),
+                        root.get("situacaoLocal").in(SITUACOES_DE_PUBLICACAO)));
+    }
+
+    // Card "Publicados e revogados": os que estão (ou estiveram) em vigor, de qualquer OM.
+    public static Specification<Documento> publicadosERevogados() {
+        return situacaoBcaEm(SITUACOES_OFICIAIS_PUBLICADAS);
+    }
+
+    public static Specification<Documento> situacaoLocalEm(Collection<SituacaoLocalEnum> situacoes) {
+        return (root, query, cb) -> root.get("situacaoLocal").in(situacoes);
+    }
+
+    public static Specification<Documento> situacaoBcaEm(Collection<SituacaoBcaEnum> situacoes) {
+        return (root, query, cb) -> root.get("situacaoBca").in(situacoes);
     }
 
     // Espelha EXATAMENTE ABA_FILTROS em HomePage.vue (não é uma expansão de escopo).
