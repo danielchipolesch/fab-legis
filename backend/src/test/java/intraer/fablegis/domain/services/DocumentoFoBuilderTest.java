@@ -83,6 +83,25 @@ class DocumentoFoBuilderTest {
         assertThat(fo(documento(SituacaoBcaEnum.REVOGADO, SituacaoLocalEnum.SEM_ETAPA))).contains("PORTARIA Nº");
     }
 
+    // Espécie Convencional se navega pelo número do artigo/capítulo (já calculado no sumário), não por
+    // página -- ao contrário da NPA, que é paginada (ver DocumentoFoNpaBuilderTest). O corpo (ANEXO I,
+    // "master-reference=a4") não pode ter <fo:page-number>; a página de portaria/capa também não tem.
+    // Um anexo de imagem (ANEXO II+, "master-reference=a4-anexo") continua com número de página --
+    // essa regra não muda aqui.
+    @Test
+    void oCorpoDeEspecieConvencionalNaoTemNumeroDePagina() {
+        var fo = fo(documento(SituacaoBcaEnum.PUBLICADO, SituacaoLocalEnum.SEM_ETAPA));
+
+        // Não "master-reference=\"a4\"" sozinho: essa string também aparece dentro do
+        // layout-master-set, no <fo:conditional-page-master-reference> do master a4-anexo (ver
+        // buildLayoutMasterSet) -- precisa do elemento fo:page-sequence inteiro para achar certo.
+        var inicioCorpo = fo.indexOf("<fo:page-sequence master-reference=\"a4\"");
+        assertThat(inicioCorpo).isPositive();
+        var corpo = fo.substring(inicioCorpo, fo.indexOf("</fo:page-sequence>", inicioCorpo));
+
+        assertThat(corpo).doesNotContain("<fo:page-number");
+    }
+
     @Test
     void oSeloRevogadoEstaNaPortariaDoDocumentoRevogado() {
         assertThat(fo(documento(SituacaoBcaEnum.REVOGADO, SituacaoLocalEnum.SEM_ETAPA))).contains(">REVOGADO<");

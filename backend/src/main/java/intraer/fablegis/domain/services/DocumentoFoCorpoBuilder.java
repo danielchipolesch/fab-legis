@@ -38,11 +38,9 @@ final class DocumentoFoCorpoBuilder {
         var sb = new StringBuilder();
         sb.append("<fo:page-sequence master-reference=\"a4\" font-family=\"Calibri\">\n");
 
-        // Footer with page number
-        sb.append("<fo:static-content flow-name=\"xsl-region-after\">\n");
-        sb.append("  <fo:block text-align=\"right\" font-size=\"10pt\"><fo:page-number/></fo:block>\n");
-        sb.append("</fo:static-content>\n");
-
+        // Sem número de página: ao contrário da NPA (paginada, ver DocumentoFoNpaBuilder), uma
+        // Espécie Convencional se navega pelo número do artigo/capítulo, já calculado no sumário e
+        // usado nas remissões -- o número de página não tem papel nenhum aqui, então não aparece.
         sb.append(ctx.buildStaticContentWatermark());
         sb.append("<fo:flow flow-name=\"xsl-region-body\">\n");
 
