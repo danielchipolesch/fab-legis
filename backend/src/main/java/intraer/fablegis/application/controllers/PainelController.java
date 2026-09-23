@@ -45,7 +45,7 @@ public class PainelController {
 
     @GetMapping("/minhas-em-tramitacao")
     public ResponseEntity<Page<DocumentoResponseSemAnexoTextualDto>> minhasEmTramitacao(
-            @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "8") int size,
+            @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "5") int size,
             Authentication authentication) {
         Usuario usuario = usuario(authentication);
         return ResponseEntity.ok(comPosse(documentoService.getPainelMinhasEmTramitacao(usuario.getId(), pagina(page, size)), usuario));
@@ -53,7 +53,7 @@ public class PainelController {
 
     @GetMapping("/aguardando-acao")
     public ResponseEntity<Page<DocumentoResponseSemAnexoTextualDto>> aguardandoAcao(
-            @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "8") int size,
+            @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "5") int size,
             Authentication authentication) {
         Usuario usuario = usuario(authentication);
         return ResponseEntity.ok(comPosse(documentoService.getPainelAguardandoAcao(usuario.getId(), pagina(page, size)), usuario));
@@ -61,7 +61,7 @@ public class PainelController {
 
     @GetMapping("/em-tramitacao-de-outros")
     public ResponseEntity<Page<DocumentoResponseSemAnexoTextualDto>> emTramitacaoDeOutros(
-            @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "8") int size,
+            @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "5") int size,
             Authentication authentication) {
         Usuario usuario = usuario(authentication);
         return ResponseEntity.ok(comPosse(documentoService.getPainelEmTramitacaoDeOutros(usuario.getId(), pagina(page, size)), usuario));
@@ -69,7 +69,7 @@ public class PainelController {
 
     @GetMapping("/publicados-e-revogados")
     public ResponseEntity<Page<DocumentoResponseSemAnexoTextualDto>> publicadosERevogados(
-            @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "8") int size,
+            @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "5") int size,
             Authentication authentication) {
         Usuario usuario = usuario(authentication);
         return ResponseEntity.ok(comPosse(documentoService.getPainelPublicadosERevogados(pagina(page, size)), usuario));

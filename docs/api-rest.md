@@ -64,7 +64,7 @@ Campos do cabeçalho e do fecho que só a [NPA](dominio.md#npa-norma-padrao-de-a
 
 ## Painel — `/v1/painel`
 
-Os quatro cards do hub, de qualquer módulo; qualquer usuário autenticado. Devolvem `Page` do mesmo DTO da listagem (`page`, `size`, padrão 8), mais recentemente mexidos primeiro.
+Os quatro cards do hub, de qualquer módulo; qualquer usuário autenticado. Devolvem `Page` do mesmo DTO da listagem (`page`, `size`, padrão 5), mais recentemente mexidos primeiro.
 
 | Método | Rota | Descrição |
 |---|---|---|

@@ -116,7 +116,7 @@ const $q = useQuasar()
 const docStore = useDocumentosStore()
 const painelStore = usePainelStore()
 
-const TAMANHO_DA_PAGINA = 8
+const TAMANHO_DA_PAGINA = 5
 const columns = [
   { name: 'documento', label: 'Documento', field: 'codigo_documento', align: 'left' },
   { name: 'detalhes',  label: '',          field: 'detalhes',         align: 'right' },
