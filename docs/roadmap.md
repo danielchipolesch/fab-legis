@@ -18,7 +18,7 @@ O FAB Legis foi desenhado para crescer. As linhas de evolução abaixo estão or
 
 A NPA já funciona de ponta a ponta — criação, edição, PDF/HTML/prévia, publicação e revogação no Boletim Interno; as regras estão em [Modelo de Domínio](dominio.md#npa-norma-padrao-de-acao). Ficaram de fora, por dependerem de decisão ou de escopo maior:
 
-- **DOM (distintivo da OM):** hoje o cabeçalho reserva o espaço e mostra a identificação abaixo dele. Falta decidir o formato (imagem por OM, tamanho e posição) e o cadastro dessa imagem por OM.
+- **DOM (distintivo da OM):** hoje o cabeçalho reserva o espaço e mostra a identificação abaixo dele. Falta decidir o formato (imagem por OM, tamanho e posição) e o cadastro dessa imagem por OM. **Critério de aceite:** ao clonar uma NPA, o DOM do clone tem de ser o da OM de quem clona, nunca o da OM do documento original — mesma regra que `Documento.om` já segue hoje (`CriacaoDeNpa.novo`, `.om(autor.getOm())`, coberta por `CriacaoDeNpaTest`); se a imagem do DOM vier de uma consulta separada (não diretamente de `Documento.om`), essa consulta precisa usar a OM do documento, não uma referência fixada no momento da clonagem.
 - **Catálogo de setores:** o setor emissor é texto livre por documento. Um catálogo compartilhado por OM padronizaria o texto e permitiria filtrar a biblioteca por setor.
 - **"Substituir":** para mudar uma NPA publicada cria-se outra e revoga-se a anterior. Hoje isso é feito à mão (clonar e, depois, pedir a revogação da antiga); a ação "Substituir" faria as duas coisas ligadas, registrando qual NPA substitui qual.
 - **"Usar como base" com origem registrada:** clonar uma NPA de outra OM já traz estrutura, cabeçalho e assinaturas para a OM de quem clonou; falta registrar de qual NPA a nova veio.
