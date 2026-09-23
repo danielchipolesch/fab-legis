@@ -19,8 +19,8 @@
           <p class="q-mb-none">Esta é a sua área de trabalho do <strong>FAB Legis</strong>.</p>
           <p class="q-mb-none">
             Aqui estão reunidas as suas tarefas diárias nos quadros abaixo, divididos em quatro cards -
-            <strong>Meus documentos em tramitação</strong>, <strong>Aguardando minha ação</strong>,
-            <strong>Documentos em tramitação nas OMs</strong> e <strong>Publicados e revogados</strong>. É possível acompanhar os
+            <strong>Meus Documentos em Tramitação</strong>, <strong>Aguardando Minha Ação</strong>,
+            <strong>Documentos em Tramitação nas OMs</strong> e <strong>Publicados e Revogados</strong>. É possível acompanhar os
             seus documentos e as ações que dependem de você, ver o que as outras OMs estão tramitando e consultar tudo o que
             foi publicado ou revogado.
           </p>
@@ -52,7 +52,7 @@
       <div class="col-12 col-md-3">
         <PainelCard
           cartao="minhas_em_tramitacao"
-          titulo="Meus documentos em tramitação"
+          titulo="Meus Documentos em Tramitação"
           vazio="Nenhum documento em tramitação."
           @detalhes="abrirDetalhes('minhas_em_tramitacao', $event)"
         />
@@ -60,7 +60,7 @@
       <div class="col-12 col-md-3">
         <PainelCard
           cartao="aguardando"
-          titulo="Aguardando minha ação"
+          titulo="Aguardando Minha Ação"
           vazio="Nenhuma ação pendente"
           @detalhes="abrirDetalhes('aguardando', $event)"
         />
@@ -68,16 +68,16 @@
       <div class="col-12 col-md-3">
         <PainelCard
           cartao="em_tramitacao_de_outros"
-          titulo="Documentos em tramitação nas OMs"
+          titulo="Documentos em Tramitação nas OMs"
           vazio="Nenhum documento em tramitação."
-          ajuda="Documentos em tramitação, de qualquer OM, dos quais você não é autor nem coautor (os seus estão em “Meus documentos em tramitação”). Aqui você só pode visualizá-los."
+          ajuda="Documentos em tramitação, de qualquer OM, dos quais você não é autor nem coautor (os seus estão em “Meus Documentos em Tramitação”). Aqui você só pode visualizá-los."
           @detalhes="abrirDetalhes('em_tramitacao_de_outros', $event)"
         />
       </div>
       <div class="col-12 col-md-3">
         <PainelCard
           cartao="publicados"
-          titulo="Publicados e revogados"
+          titulo="Publicados e Revogados"
           vazio="Nenhum documento publicado."
           ajuda="Documentos publicados (BCA ou Boletim Interno) ou revogados, de qualquer OM, sem tramitação em curso. Se uma alteração ou revogação estiver em tramitação, o documento aparece no card de tramitação (o seu ou o das OMs) até ela terminar."
           @detalhes="abrirDetalhes('publicados', $event)"

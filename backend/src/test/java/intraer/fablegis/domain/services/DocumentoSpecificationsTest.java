@@ -101,8 +101,8 @@ class DocumentoSpecificationsTest {
         assertThat(predicado).isSameAs(resultado);
     }
 
-    // O card "Documentos em tramitação nas OMs": em etapa de trabalho, de qualquer OM, mas não os da própria pessoa (esses estão
-    // em "Meus documentos em tramitação", e um documento não aparece duas vezes no hub).
+    // O card "Documentos em Tramitação nas OMs": em etapa de trabalho, de qualquer OM, mas não os da própria pessoa (esses estão
+    // em "Meus Documentos em Tramitação", e um documento não aparece duas vezes no hub).
     @SuppressWarnings("unchecked")
     @Test
     void emTramitacaoDeOutrosSaoOsEmEtapaDeTrabalhoQueNaoSaoMeus() {

@@ -42,13 +42,13 @@ public class DocumentoSpecifications {
     public static final Set<SituacaoBcaEnum> SITUACOES_OFICIAIS_PUBLICADAS = EnumSet.of(
             SituacaoBcaEnum.PUBLICADO, SituacaoBcaEnum.REVOGADO);
 
-    // Card "Meus documentos em tramitação": autoria ou coautoria (a mesma regra da aba "meus") em etapa de trabalho.
+    // Card "Meus Documentos em Tramitação": autoria ou coautoria (a mesma regra da aba "meus") em etapa de trabalho.
     public static Specification<Documento> minhasEmTramitacao(Long usuarioId) {
         return aba("meus", usuarioId, null).and(situacaoLocalEm(SITUACOES_EM_TRAMITACAO));
     }
 
-    // Card "Documentos em tramitação nas OMs": o que está em tramitação, de qualquer OM, EXCETO onde a pessoa é autora ou coautora
-    // (isso já está em "Meus documentos em tramitação" -- o mesmo documento não aparece duas vezes). É o panorama do que os
+    // Card "Documentos em Tramitação nas OMs": o que está em tramitação, de qualquer OM, EXCETO onde a pessoa é autora ou coautora
+    // (isso já está em "Meus Documentos em Tramitação" -- o mesmo documento não aparece duas vezes). É o panorama do que os
     // outros estão fazendo: a pessoa só o visualiza.
     public static Specification<Documento> emTramitacaoDeOutros(Long usuarioId) {
         Specification<Documento> meus = aba("meus", usuarioId, null);
@@ -57,7 +57,7 @@ public class DocumentoSpecifications {
                 cb.not(meus.toPredicate(root, query, cb)));
     }
 
-    // Card "Aguardando minha ação": os atribuídos a mim -- como revisor, na etapa de revisão; como publicador, na de publicação.
+    // Card "Aguardando Minha Ação": os atribuídos a mim -- como revisor, na etapa de revisão; como publicador, na de publicação.
     public static Specification<Documento> aguardandoAcaoDe(Long usuarioId) {
         return (root, query, cb) -> cb.or(
                 cb.and(cb.equal(root.get("revisorAtribuido").get("id"), usuarioId),
@@ -66,7 +66,7 @@ public class DocumentoSpecifications {
                         root.get("situacaoLocal").in(SITUACOES_DE_PUBLICACAO)));
     }
 
-    // Card "Publicados e revogados": os que estão (ou estiveram) em vigor, de qualquer OM, e SEM tramitação. Um
+    // Card "Publicados e Revogados": os que estão (ou estiveram) em vigor, de qualquer OM, e SEM tramitação. Um
     // documento publicado que está sendo alterado (ou em revogação) tem uma etapa em curso e aparece nos cards de trabalho
     // (os cards de tramitação e o "aguardando"), não neste: cada documento fica num só lugar, e volta para cá quando a etapa termina.
     public static Specification<Documento> publicadosERevogados() {
