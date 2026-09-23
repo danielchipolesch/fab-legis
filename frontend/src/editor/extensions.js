@@ -32,8 +32,8 @@ function baseExtensions({ history = true } = {}) {
 }
 
 // Usado por WysiwygEditor.vue fora do modo colaborativo (elemento ainda sem id
-// persistido) e por generateHTML() nas telas de leitura (ComparisonPage,
-// DocumentoPreview) -- essas nunca editam, então o histórico é irrelevante pra elas.
+// persistido) e por conteudoParaHtml() nas telas de leitura (ComparisonPage,
+// DocumentoPreview, NpaPreview) -- essas nunca editam, então o histórico é irrelevante pra elas.
 export const editorExtensions = baseExtensions()
 
 // Usado só por WysiwygEditor.vue quando o elemento já tem sala Yjs (ver

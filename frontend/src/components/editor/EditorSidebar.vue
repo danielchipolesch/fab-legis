@@ -16,14 +16,14 @@
       <div v-if="documento?.titulo" class="text-body2 text-grey-8 q-mt-xxs ellipsis-2-lines">
         {{ documento.titulo }}
       </div>
-      <div v-if="documento?.assunto_basico" class="text-caption text-grey-6 q-mt-xxs ellipsis">
-        {{ documento.assunto_basico }}
+      <div v-if="documento?.assunto_basico || (perfil.ehNpa && documento?.titulo)" class="text-caption text-grey-6 q-mt-xxs ellipsis">
+        {{ documento.assunto_basico || documento.titulo }}
       </div>
     </div>
 
     <!-- Status -->
     <div class="q-px-sm q-pb-sm">
-      <StatusBadge v-if="documento?.status" :status="documento.status" size="sm" />
+      <StatusBadge v-if="documento?.situacao_bca" :situacao-bca="documento.situacao_bca" :situacao-local="documento.situacao_local" size="sm" />
     </div>
 
     <q-separator />
@@ -434,10 +434,11 @@
           <div class="col-4">
             <q-input :model-value="props.documento?.especie" label="Espécie" outlined dense disable />
           </div>
-          <div class="col-4">
+          <!-- Número básico e secundário são do ato normativo; a NPA se identifica só pelo texto livre da criação. -->
+          <div v-if="!perfil.ehNpa" class="col-4">
             <q-input :model-value="props.documento?.numero_basico" label="Número Básico" outlined dense disable />
           </div>
-          <div class="col-4">
+          <div v-if="!perfil.ehNpa" class="col-4">
             <q-input
               v-model="metaForm.numero_secundario"
               label="Número Secundário"
@@ -447,17 +448,30 @@
             />
           </div>
           <div class="col-12">
-            <q-input :model-value="props.documento?.codigo_documento" label="Código do documento" outlined dense disable />
+            <!-- O código da NPA é texto livre e pode ser corrigido até a Minuta; o das convencionais é gerado (espécie + assunto + sequencial). -->
+            <q-input
+              v-if="codigoEditavel"
+              v-model="metaForm.identificacao"
+              label="Código do documento"
+              hint="Texto livre, conforme o padrão do setor. Só pode ser alterado em Rascunho ou Minuta."
+              outlined dense
+              maxlength="120"
+              :rules="[v => !!(v && v.trim()) || 'Informe o código do documento']"
+            />
+            <q-input v-else :model-value="props.documento?.codigo_documento" label="Código do documento" outlined dense disable />
           </div>
           <div class="col-12">
             <q-select
               v-if="omEditavel"
               v-model="metaForm.om_id"
-              :options="omOptions"
+              :options="omOptionsFiltradas"
               option-label="label"
               option-value="value"
               emit-value
               map-options
+              use-input
+              input-debounce="0"
+              @filter="filtrarOm"
               label="Organização Militar"
               outlined dense
               hint="Impressa na capa do ato normativo (NSCA 5-3, Art. 17)."
@@ -475,13 +489,13 @@
         <!-- Conteúdo -->
         <div class="text-caption text-weight-bold text-grey-6 text-uppercase q-mb-sm">Conteúdo</div>
         <div class="column q-col-gutter-sm q-mb-md">
-          <div>
+          <div v-if="!perfil.ehNpa">
             <q-input :model-value="props.documento?.assunto_basico" label="Assunto Básico" outlined dense disable />
           </div>
           <div>
             <q-input
               v-model="metaForm.titulo"
-              label="Título"
+              :label="perfil.ehNpa ? 'Assunto' : 'Título'"
               outlined dense
               autofocus
               :disable="!metaEditavel"
@@ -493,7 +507,7 @@
         <div class="text-caption text-weight-bold text-grey-6 text-uppercase q-mb-sm">Situação</div>
         <div class="row q-col-gutter-sm q-mb-md">
           <div class="col-8">
-            <q-input :model-value="props.documento?.status" label="Situação" outlined dense disable />
+            <q-input :model-value="situacaoTexto" label="Situação" outlined dense disable />
           </div>
           <div class="col-4">
             <q-input :model-value="props.documento?.qtd_replicas" label="Réplicas" outlined dense disable />
@@ -614,12 +628,15 @@
 import { reactive, ref, computed, watch } from 'vue'
 import { useQuasar } from 'quasar'
 import StatusBadge from '@/components/common/StatusBadge.vue'
+import { situacaoBcaMeta, situacaoLocalMeta, temEtapaEmCurso } from '@/utils/statusDocumento.js'
 import { formatLabel, elementIcon } from '@/utils/numbering.js'
+import { perfilDoDocumento } from '@/perfis/index.js'
 import { useEditorStore } from '@/stores/editor.js'
 import { useDocumentosStore } from '@/stores/documentos.js'
 import { useAuthStore } from '@/stores/auth.js'
 import { BASE_URL } from '@/api/client.js'
 import { listOrganizacoesMilitares } from '@/api/usuarios.js'
+import { normalizarBusca } from '@/utils/texto.js'
 
 const $q = useQuasar()
 const editorStore = useEditorStore()
@@ -655,7 +672,7 @@ function formatarData(iso) {
 
 const metaDialogOpen = ref(false)
 const metaSalvando   = ref(false)
-const metaForm = reactive({ titulo: '', numero_secundario: '', om_id: null })
+const metaForm = reactive({ titulo: '', numero_secundario: '', om_id: null, identificacao: '' })
 // Espelha a regra do backend (DocumentoService.update só aceita
 // RASCUNHO/MINUTA -- ver GlobalExceptionHandler, StatusCannotBeUpdatedException
 // mapeada para 403): dentro do editor, o único outro status possível é
@@ -664,15 +681,30 @@ const metaEditavel = computed(() => !props.isEmAlteracao)
 // OM impressa na capa (NSCA 5-3, Art. 17, II) -- mais restrito que metaEditavel
 // de propósito: só faz sentido trocar a OM que assina o ato enquanto o
 // documento ainda não avançou pra revisão (ver DocumentoService.update).
-const omEditavel = computed(() => ['RASCUNHO', 'MINUTA'].includes(props.documento?.status))
+const omEditavel = computed(() => ['RASCUNHO', 'MINUTA'].includes(props.documento?.situacao_local))
+// O código do documento (identificação): só a NPA o escreve, e só até a Minuta -- mesma regra de CriacaoDeNpa.novaIdentificacao
+// no backend. Nas convencionais ele é gerado.
+const codigoEditavel = computed(() => perfil.value.ehNpa && omEditavel.value)
+const situacaoTexto = computed(() => {
+  const d = props.documento
+  if (!d) return ''
+  const bca = situacaoBcaMeta(d.situacao_bca).label
+  return temEtapaEmCurso(d.situacao_local) ? `${bca} · ${situacaoLocalMeta(d.situacao_local).label}` : bca
+})
 
+// Catálogo real de OMs da FAB passou de 1 (seed antigo) pra 300+ (ver
+// V1__initial.sql) -- uma lista desse tamanho sem busca é impraticável de rolar.
+// omOptions guarda a lista completa (carregada uma vez); omOptionsFiltradas é o
+// que o q-select de fato mostra, recalculado a cada tecla via filtrarOm.
 const omOptions = ref([])
+const omOptionsFiltradas = ref([])
 let omOptionsCarregadas = false
 async function carregarOmOptions() {
   if (omOptionsCarregadas) return
   try {
     const lista = await listOrganizacoesMilitares()
-    omOptions.value = lista.map(om => ({ label: om.nome, value: String(om.id) }))
+    omOptions.value = lista.map(om => ({ label: `${om.nome} (${om.sigla})`, value: String(om.id), busca: normalizarBusca(`${om.nome} ${om.sigla}`) }))
+    omOptionsFiltradas.value = omOptions.value
     omOptionsCarregadas = true
   } catch {
     // Sem lista, o seletor só fica vazio -- o valor atual (om_id) ainda aparece
@@ -680,22 +712,37 @@ async function carregarOmOptions() {
   }
 }
 
+function filtrarOm(val, update) {
+  update(() => {
+    const termo = normalizarBusca(val)
+    omOptionsFiltradas.value = termo
+      ? omOptions.value.filter(o => o.busca.includes(termo))
+      : omOptions.value
+  })
+}
+
 function abrirDialogMeta() {
   metaForm.titulo           = props.documento?.titulo ?? ''
   metaForm.numero_secundario = props.documento?.numero_secundario ?? ''
   metaForm.om_id             = props.documento?.om_id ?? null
+  metaForm.identificacao     = props.documento?.codigo_documento ?? ''
   metaDialogOpen.value = true
   if (omEditavel.value) carregarOmOptions()
 }
 
 async function salvarMeta() {
   if (!props.documento?.id) return
+  if (codigoEditavel.value && !metaForm.identificacao.trim()) {
+    $q.notify({ type: 'negative', message: 'Informe o código do documento.' })
+    return
+  }
   metaSalvando.value = true
   try {
     await documentsStore.updateMetadados(props.documento.id, {
       titulo:            metaForm.titulo,
       numero_secundario: metaForm.numero_secundario !== '' ? metaForm.numero_secundario : null,
       om_id:             omEditavel.value ? metaForm.om_id : undefined,
+      identificacao:     codigoEditavel.value ? metaForm.identificacao.trim() : undefined,
     })
     // props.documento vem de editorStore.documento (árvore própria do editor,
     // separada de documentsStore.documentos usado acima) -- sem isso, título/OM
@@ -723,32 +770,14 @@ const CAPITULO_PRESETS = [
 const GROUPING_TIPOS = new Set(['capitulo', 'secao_normativa', 'subsecao_normativa'])
 const ARTIGO_TIPOS   = new Set(['artigo', 'paragrafo', 'paragrafo_unico', 'inciso', 'alinea', 'sub_alinea'])
 
-const CHILD_MAP = {
-  capitulo:           [
-    { tipo: 'secao_normativa', label: 'Seção' },
-    { tipo: 'artigo',          label: 'Artigo' },
-  ],
-  secao_normativa:    [
-    { tipo: 'subsecao_normativa', label: 'Subseção' },
-    { tipo: 'artigo',             label: 'Artigo' },
-  ],
-  subsecao_normativa: [{ tipo: 'artigo', label: 'Artigo' }],
-  artigo:             [
-    { tipo: 'paragrafo_unico', label: 'Parágrafo único' },
-    { tipo: 'paragrafo',       label: 'Parágrafo (§)' },
-    { tipo: 'inciso',          label: 'Inciso' },
-  ],
-  paragrafo_unico: [{ tipo: 'inciso', label: 'Inciso' }],
-  paragrafo:       [{ tipo: 'inciso', label: 'Inciso' }],
-  inciso:          [{ tipo: 'alinea', label: 'Alínea' }],
-  alinea:          [{ tipo: 'sub_alinea', label: 'Sub-alínea' }],
-}
+// O que cabe dentro de cada elemento é regra da espécie do documento (perfis/index.js).
+const perfil = computed(() => perfilDoDocumento(props.documento))
 
 // ── Helpers p/ q-tree ────────────────────────────────────────────────────────
 const isGroupingType = (tipo) => GROUPING_TIPOS.has(tipo)
-const canPromoteNode = (node) => ARTIGO_TIPOS.has(node.tipo) && node.tipo !== 'artigo'
-const canDemoteNode  = (node) => ARTIGO_TIPOS.has(node.tipo)
-const childOptions   = (node) => CHILD_MAP[node.tipo] ?? []
+const canPromoteNode = (node) => perfil.value.permitePromoverRebaixar && ARTIGO_TIPOS.has(node.tipo) && node.tipo !== 'artigo'
+const canDemoteNode  = (node) => perfil.value.permitePromoverRebaixar && ARTIGO_TIPOS.has(node.tipo)
+const childOptions   = (node) => perfil.value.filhosPermitidos(node.tipo)
 
 // ── "Mover para" (reparenteamento sem alterar tipo) ─────────────────────────
 // A lista de destinos válidos (incluindo "Nível superior", quando aplicável) é
@@ -770,13 +799,49 @@ function extractText(conteudo) {
   } catch { return '' }
 }
 
+// Nem todo conteúdo é texto -- um elemento só com uma figura ou uma tabela (sem
+// nenhuma célula preenchida) já está preenchido, mas extractText() devolve ''
+// porque só soma nós de texto. Sem isto, um artigo cujo conteúdo inteiro é uma
+// imagem aparecia com o alerta de "Vazio" mesmo depois de preenchido.
+function hasContent(conteudo) {
+  if (!conteudo) return false
+  try {
+    const visit = (node) => {
+      if (!node) return false
+      if (node.type === 'figure' || node.type === 'table') return true
+      if (node.text && node.text.trim().length > 0) return true
+      if (node.content) return node.content.some(visit)
+      return false
+    }
+    return visit(JSON.parse(conteudo))
+  } catch { return false }
+}
+
 const isNodeFilled = (node) => isGroupingType(node?.tipo)
   ? (node?.titulo ?? '').trim().length > 0
-  : extractText(node?.conteudo).length > 0
+  : hasContent(node?.conteudo)
+
+// Achado usado só quando não há texto nenhum (ver hasContent) -- indica pra
+// quem está navegando a árvore que o conteúdo existe, mesmo sem prévia textual.
+function nonTextHint(conteudo) {
+  if (!conteudo) return ''
+  try {
+    let achado = ''
+    const visit = (node) => {
+      if (!node || achado) return
+      if (node.type === 'figure') { achado = '[Figura]'; return }
+      if (node.type === 'table') { achado = '[Tabela]'; return }
+      node.content?.forEach(visit)
+    }
+    visit(JSON.parse(conteudo))
+    return achado
+  } catch { return '' }
+}
 
 const nodePreview = (node) => {
   const text = extractText(node?.conteudo)
-  return text.length > 28 ? text.slice(0, 28) + '…' : text
+  if (text) return text.length > 28 ? text.slice(0, 28) + '…' : text
+  return nonTextHint(node?.conteudo)
 }
 
 // ── Estado das seções colapsadas ─────────────────────────────────────────────

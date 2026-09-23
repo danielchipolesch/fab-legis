@@ -87,6 +87,45 @@
         Tabela
       </q-btn>
 
+      <!-- Edição de estrutura da tabela: só aparece com o cursor dentro de uma
+           tabela -- os comandos (addRowAfter, deleteTable etc.) são nativos do
+           @tiptap/extension-table, a UI é a única parte que faltava. Também
+           checa !readonly explicitamente (os outros botões da toolbar não
+           checam, um gap pré-existente fora do escopo desta mudança) porque
+           comandos do editor rodam mesmo com a view não-editável -- `editable`
+           só bloqueia digitação/clique nativos no ProseMirror, não uma
+           chamada direta a editor.commands.*, então sem isto alguém em modo
+           leitura conseguiria excluir linha/coluna/tabela pela toolbar. -->
+      <template v-if="editor.isActive('table') && !props.readonly">
+        <q-btn-group outline>
+          <q-btn outline color="primary" size="sm" icon="mdi-table-row-plus-before" @click="editor.chain().focus().addRowBefore().run()" :disable="!editor.can().addRowBefore()">
+            <q-tooltip anchor="top middle" self="bottom middle">Inserir linha acima</q-tooltip>
+          </q-btn>
+          <q-btn outline color="primary" size="sm" icon="mdi-table-row-plus-after" @click="editor.chain().focus().addRowAfter().run()" :disable="!editor.can().addRowAfter()">
+            <q-tooltip anchor="top middle" self="bottom middle">Inserir linha abaixo</q-tooltip>
+          </q-btn>
+          <q-btn outline color="negative" size="sm" icon="mdi-table-row-remove" @click="editor.chain().focus().deleteRow().run()" :disable="!editor.can().deleteRow()">
+            <q-tooltip anchor="top middle" self="bottom middle">Excluir linha</q-tooltip>
+          </q-btn>
+        </q-btn-group>
+
+        <q-btn-group outline>
+          <q-btn outline color="primary" size="sm" icon="mdi-table-column-plus-before" @click="editor.chain().focus().addColumnBefore().run()" :disable="!editor.can().addColumnBefore()">
+            <q-tooltip anchor="top middle" self="bottom middle">Inserir coluna à esquerda</q-tooltip>
+          </q-btn>
+          <q-btn outline color="primary" size="sm" icon="mdi-table-column-plus-after" @click="editor.chain().focus().addColumnAfter().run()" :disable="!editor.can().addColumnAfter()">
+            <q-tooltip anchor="top middle" self="bottom middle">Inserir coluna à direita</q-tooltip>
+          </q-btn>
+          <q-btn outline color="negative" size="sm" icon="mdi-table-column-remove" @click="editor.chain().focus().deleteColumn().run()" :disable="!editor.can().deleteColumn()">
+            <q-tooltip anchor="top middle" self="bottom middle">Excluir coluna</q-tooltip>
+          </q-btn>
+        </q-btn-group>
+
+        <q-btn outline color="negative" size="sm" icon="mdi-table-remove" @click="editor.chain().focus().deleteTable().run()">
+          <q-tooltip anchor="top middle" self="bottom middle">Excluir tabela</q-tooltip>
+        </q-btn>
+      </template>
+
       <q-separator vertical class="q-mx-xs" style="height:24px" />
 
       <!-- Image insertion -->
@@ -130,6 +169,7 @@ import { editorExtensions, editorExtensionsColaborativas } from '@/editor/extens
 import { useAuthStore } from '@/stores/auth.js'
 import { useQuasar } from 'quasar'
 import { primeMinioUrlCache } from '@/utils/minioUrls.js'
+import { caixaAlta } from '@/utils/texto.js'
 
 // Throttle simples (leading+trailing): a primeira chamada roda na hora, chamadas
 // subsequentes dentro da janela viram uma única execução ao final dela -- garante
@@ -207,9 +247,9 @@ function corDoUsuario(usuarioId) {
 function rotuloDoUsuario(usuario) {
   if (!usuario) return 'Anônimo'
   if (usuario.postoGraduacaoBigrama && usuario.nomeGuerra) {
-    return `${usuario.postoGraduacaoBigrama} ${usuario.nomeGuerra}`
+    return `${usuario.postoGraduacaoBigrama} ${caixaAlta(usuario.nomeGuerra)}`
   }
-  return usuario.nome ?? 'Anônimo'
+  return caixaAlta(usuario.nome) ?? 'Anônimo'
 }
 
 const colaborativo = !!(props.documentoId && props.elementoId)
@@ -251,23 +291,36 @@ if (colaborativo) {
   // onContentUpdate), nunca chegou ao Y.Doc. Sem isto, o primeiro sync carrega
   // o snapshot mais antigo do Postgres e descarta essas teclas silenciosamente.
   // Roda só uma vez (no primeiro sync) para não sobrescrever edições reais de
-  // outra pessoa em reconexões futuras -- e nunca se o usuário já começou a
-  // digitar no editor novo (usuarioEditouAntesDoSync, setado no onUpdate
-  // abaixo): sobrescrever o Y.Doc por cima de uma digitação em andamento
-  // intercala as duas transações e embaralha o texto (pior que perder as
-  // teclas de antes do remount, que é o caso raro que este reconcile cobre).
+  // outra pessoa em reconexões futuras -- e nunca se alguém (outra pessoa já
+  // na sala) alterou o Y.Doc antes do reconcile (usuarioEditouAntesDoSync,
+  // setado no onUpdate abaixo): sobrescrever o Y.Doc por cima de uma edição
+  // concorrente intercala as duas transações e embaralha o texto. O editor
+  // nasce `editable: false` (ver useEditor abaixo) exatamente para que a
+  // digitação do PRÓPRIO usuário nunca dispare esse onUpdate antes daqui --
+  // sem isso, era o caso comum (não o raro): o usuário emenda a digitação do
+  // editor local direto no novo editor colaborativo, ainda dentro da janela
+  // de conexão da sala, e o reconcile via de que "já tem edição" e desistia,
+  // perdendo tudo que foi digitado antes do remount.
   let reconciliadoInicial = false
   let usuarioEditouAntesDoSync = false
   provider.on('synced', () => {
     if (reconciliadoInicial) return
     reconciliadoInicial = true
-    if (usuarioEditouAntesDoSync) return
-    const localParsed = parseContent(props.modelValue)
-    if (!localParsed || !editor.value) return
-    const atual = JSON.stringify(editor.value.getJSON())
-    if (atual !== JSON.stringify(localParsed)) {
-      editor.value.commands.setContent(localParsed, false)
+    if (!usuarioEditouAntesDoSync && editor.value) {
+      const localParsed = parseContent(props.modelValue)
+      if (localParsed) {
+        const atual = JSON.stringify(editor.value.getJSON())
+        if (atual !== JSON.stringify(localParsed)) {
+          editor.value.commands.setContent(localParsed, false)
+        }
+      }
     }
+    // Libera a edição (travada até aqui) e só agora devolve o foco -- fazer
+    // isso a cada 'synced' (inclusive reconexões futuras) roubaria o cursor de
+    // quem já está digitando havia tempo; reconciliadoInicial acima garante
+    // que só acontece nesta primeira vez.
+    editor.value?.setEditable(!props.readonly)
+    if (deveDevolverFoco) editor.value?.commands.focus('end')
   })
   // 'saving' | 'saved' | 'error' -- emitido pelo collab/server.js (avisarStatus em
   // onChange/onStoreDocument). unsyncedChanges (contador de updates locais ainda
@@ -305,8 +358,12 @@ if (colaborativo) {
   focoPendente = false
 
   editor = useEditor({
-    editable: !props.readonly,
-    autofocus: deveDevolverFoco ? 'end' : false,
+    // Trancado até o primeiro 'synced' (ver handler acima) -- fecha a janela
+    // de corrida em que a digitação do usuário chegaria ao Y.Doc antes da
+    // reconciliação rodar, o que fazia o reconcile desistir e perder o texto
+    // digitado no editor local antes deste remount.
+    editable: false,
+    autofocus: false,
     extensions: [
       ...editorExtensionsColaborativas,
       Collaboration.configure({ document: provider.document, field: 'default' }),
@@ -468,6 +525,13 @@ async function onFileSelected(event) {
 }
 .tiptap-editor .ProseMirror table {
   border-collapse: collapse;
+  /* Sem isto, a largura da coluna (colwidth do redimensionamento, ver
+     extensions.js Table.configure({resizable:true})) é só uma sugestão: o
+     table-layout automático (padrão do navegador) ainda encolhe/estica colunas
+     pelo conteúdo, e uma imagem inserida na célula (max-width:100% relativo a
+     uma célula cujo tamanho final o navegador ainda está calculando) ignora o
+     limite e estoura a borda -- ver .figura-img abaixo e FigureView.vue. */
+  table-layout: fixed;
   width: 100%;
   margin: 12px 0;
 }

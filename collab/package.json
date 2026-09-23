@@ -22,7 +22,7 @@
     "@tiptap/extension-text-style": "^2.10.4",
     "@tiptap/extension-underline": "^2.10.4",
     "@tiptap/starter-kit": "^2.10.4",
-    "jsonwebtoken": "^9.0.2",
+    "jose": "^5.9.6",
     "y-prosemirror": "^1.2.15",
     "yjs": "^13.6.20"
   },

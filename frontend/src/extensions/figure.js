@@ -36,7 +36,7 @@ export const Figure = Node.create({
   renderHTML({ node }) {
     const { src, alt, titulo, fonte } = node.attrs
     // titulo armazenado limpo (sem número) — o número é gerado por CSS counter
-    // no preview web e pelo backend ao exportar PDF/DOCX/HTML.
+    // no preview web e pelo backend ao exportar PDF/HTML.
     // "Fonte: " é embutido no HTML para portabilidade sem CSS.
     return [
       'figure', { 'data-type': 'figura', class: 'doc-figure' },

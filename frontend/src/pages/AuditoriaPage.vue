@@ -62,8 +62,8 @@
 
         <template #body-cell-usuario="props">
           <q-td :props="props">
-            <div>{{ props.row.usuarioNome }}</div>
-            <div class="text-caption text-grey-7">{{ formatarCpf(props.row.usuarioCpf) }}</div>
+            <div>{{ caixaAlta(props.row.usuarioNome) }}</div>
+            <div class="text-caption text-grey-7">{{ ocultarCpf(props.row.usuarioCpf) }}</div>
           </q-td>
         </template>
 
@@ -98,7 +98,8 @@
 import { ref, reactive, onMounted, watch } from 'vue'
 import { useQuasar } from 'quasar'
 import { listAuditoria } from '@/api/auditoria.js'
-import { formatarCpf } from '@/utils/cpf.js'
+import { ocultarCpf } from '@/utils/cpf.js'
+import { caixaAlta } from '@/utils/texto.js'
 
 const $q = useQuasar()
 

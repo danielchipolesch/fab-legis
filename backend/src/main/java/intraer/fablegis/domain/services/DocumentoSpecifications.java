@@ -1,0 +1,159 @@
+package intraer.fablegis.domain.services;
+
+import intraer.fablegis.domain.entities.estruturaDocumento.Documento;
+import intraer.fablegis.domain.entities.estruturaDocumento.DocumentoCompartilhamento;
+import intraer.fablegis.domain.entities.estruturaDocumento.SituacaoBcaEnum;
+import intraer.fablegis.domain.entities.estruturaDocumento.SituacaoLocalEnum;
+import intraer.fablegis.domain.regras.TipoDeEspecie;
+import jakarta.persistence.criteria.CommonAbstractCriteria;
+import jakarta.persistence.criteria.CriteriaBuilder;
+import jakarta.persistence.criteria.Predicate;
+import jakarta.persistence.criteria.Root;
+import jakarta.persistence.criteria.Subquery;
+import org.springframework.data.jpa.domain.Specification;
+
+import java.util.Collection;
+import java.util.EnumSet;
+import java.util.Set;
+
+// Predicados dinâmicos pra listagem paginada de documentos (ver
+// DocumentoService.getAllPaginado) -- mesmo padrão de LogAuditoriaService.filtrar: cada
+// filtro só entra na consulta se foi realmente informado (um Predicate nulo casa
+// com tudo -- é o que o JPA Criteria API entende como "sem restrição"; substitui
+// Specification.where(null), removido no Spring Data JPA 4/Boot 4), nunca
+// "(:param IS NULL OR campo = :param)".
+public class DocumentoSpecifications {
+
+    private DocumentoSpecifications() {
+    }
+
+    // Os três cards do hub (tela inicial) -- ver DocumentoService.getPainel*:
+    //   em tramitação: etapas em que o documento ainda está em trabalho (nunca SEM_ETAPA nem CANCELADO);
+    //   revisão: etapas em que o documento espera a decisão do revisor atribuído (Documento.revisorAtribuido);
+    //   publicação: etapas em que espera o registro do publicador atribuído (Documento.publicadorAtribuido).
+    public static final Set<SituacaoLocalEnum> SITUACOES_EM_TRAMITACAO = EnumSet.of(
+            SituacaoLocalEnum.RASCUNHO, SituacaoLocalEnum.MINUTA, SituacaoLocalEnum.EM_ALTERACAO,
+            SituacaoLocalEnum.EM_REVISAO, SituacaoLocalEnum.EM_PUBLICACAO,
+            SituacaoLocalEnum.ANALISE_REVOGACAO, SituacaoLocalEnum.EM_REVOGACAO);
+    public static final Set<SituacaoLocalEnum> SITUACOES_DE_REVISAO = EnumSet.of(
+            SituacaoLocalEnum.EM_REVISAO, SituacaoLocalEnum.ANALISE_REVOGACAO);
+    public static final Set<SituacaoLocalEnum> SITUACOES_DE_PUBLICACAO = EnumSet.of(
+            SituacaoLocalEnum.EM_PUBLICACAO, SituacaoLocalEnum.EM_REVOGACAO);
+    public static final Set<SituacaoBcaEnum> SITUACOES_OFICIAIS_PUBLICADAS = EnumSet.of(
+            SituacaoBcaEnum.PUBLICADO, SituacaoBcaEnum.REVOGADO);
+
+    // Card "Meus Documentos em Tramitação": autoria ou coautoria (a mesma regra da aba "meus") em etapa de trabalho.
+    public static Specification<Documento> minhasEmTramitacao(Long usuarioId) {
+        return aba("meus", usuarioId, null).and(situacaoLocalEm(SITUACOES_EM_TRAMITACAO));
+    }
+
+    // Card "Documentos em Tramitação nas OMs": o que está em tramitação, de qualquer OM, EXCETO onde a pessoa é autora ou coautora
+    // (isso já está em "Meus Documentos em Tramitação" -- o mesmo documento não aparece duas vezes). É o panorama do que os
+    // outros estão fazendo: a pessoa só o visualiza.
+    public static Specification<Documento> emTramitacaoDeOutros(Long usuarioId) {
+        Specification<Documento> meus = aba("meus", usuarioId, null);
+        return (root, query, cb) -> cb.and(
+                root.get("situacaoLocal").in(SITUACOES_EM_TRAMITACAO),
+                cb.not(meus.toPredicate(root, query, cb)));
+    }
+
+    // Card "Aguardando Minha Ação": os atribuídos a mim -- como revisor, na etapa de revisão; como publicador, na de publicação.
+    public static Specification<Documento> aguardandoAcaoDe(Long usuarioId) {
+        return (root, query, cb) -> cb.or(
+                cb.and(cb.equal(root.get("revisorAtribuido").get("id"), usuarioId),
+                        root.get("situacaoLocal").in(SITUACOES_DE_REVISAO)),
+                cb.and(cb.equal(root.get("publicadorAtribuido").get("id"), usuarioId),
+                        root.get("situacaoLocal").in(SITUACOES_DE_PUBLICACAO)));
+    }
+
+    // Card "Publicados e Revogados": os que estão (ou estiveram) em vigor, de qualquer OM, e SEM tramitação. Um
+    // documento publicado que está sendo alterado (ou em revogação) tem uma etapa em curso e aparece nos cards de trabalho
+    // (os cards de tramitação e o "aguardando"), não neste: cada documento fica num só lugar, e volta para cá quando a etapa termina.
+    public static Specification<Documento> publicadosERevogados() {
+        return (root, query, cb) -> cb.and(
+                root.get("situacaoBca").in(SITUACOES_OFICIAIS_PUBLICADAS),
+                cb.equal(root.get("situacaoLocal"), SituacaoLocalEnum.SEM_ETAPA));
+    }
+
+    public static Specification<Documento> situacaoLocalEm(Collection<SituacaoLocalEnum> situacoes) {
+        return (root, query, cb) -> root.get("situacaoLocal").in(situacoes);
+    }
+
+    public static Specification<Documento> situacaoBcaEm(Collection<SituacaoBcaEnum> situacoes) {
+        return (root, query, cb) -> root.get("situacaoBca").in(situacoes);
+    }
+
+    // Espelha EXATAMENTE ABA_FILTROS em HomePage.vue (não é uma expansão de escopo).
+    // "meus" é autoria OU coautoria (ver DocumentoCompartilhamento), sempre, independente
+    // da OM do documento -- coautoria nunca é barrada por OM. "minha_om"/"outras_oms" são
+    // só sobre a OM do documento em si (om do autor no momento da criação), sem levar em
+    // conta autoria/coautoria nenhuma -- por isso as 4 abas propositalmente NÃO são uma
+    // partição estrita do acervo: um documento que eu autorei (OM A) com um coautor da OM
+    // B aparece em "meus" pros dois, mas em "minha_om" só pra mim (é da OM A) e em
+    // "outras_oms" só pro coautor (não é da OM dele) -- a OM nunca esconde um documento de
+    // quem é autor/coautor dele, só decide em qual das outras duas abas ele cai pra quem
+    // não é. Mesmo comentário já existente em HomePage.vue.
+    public static Specification<Documento> aba(String aba, Long usuarioId, Long omId) {
+        if (aba == null) return (root, query, cb) -> null;
+        return switch (aba) {
+            case "meus" -> (root, query, cb) -> cb.or(
+                    cb.equal(root.get("autor").get("id"), usuarioId),
+                    root.get("id").in(coautorDocumentoIds(query, cb, usuarioId))
+            );
+            case "minha_om" -> (root, query, cb) -> cb.equal(root.get("om").get("id"), omId);
+            case "outras_oms" -> (root, query, cb) -> cb.notEqual(root.get("om").get("id"), omId);
+            case "revogados" -> (root, query, cb) -> cb.equal(root.get("situacaoBca"), SituacaoBcaEnum.REVOGADO);
+            default -> (root, query, cb) -> null;
+        };
+    }
+
+    // Ids de documento em que usuarioId é coautor (t_documento_compartilhamento), não
+    // autor -- usado só por "meus", pra incluir esses documentos além dos que o usuário
+    // autorou diretamente.
+    private static Subquery<Long> coautorDocumentoIds(CommonAbstractCriteria query, CriteriaBuilder cb, Long usuarioId) {
+        Subquery<Long> sub = query.subquery(Long.class);
+        Root<DocumentoCompartilhamento> compRoot = sub.from(DocumentoCompartilhamento.class);
+        Predicate condicao = cb.equal(compRoot.get("usuario").get("id"), usuarioId);
+        return sub.select(compRoot.get("documento").get("id")).where(condicao);
+    }
+
+    // Nome e código do assunto básico, sigla da espécie e -- o que uma NPA, sem assunto básico, tem no lugar --
+    // a identificação e o título do documento. O assunto básico é LEFT JOIN: um documento sem ele (NPA) não pode
+    // sumir da listagem só porque o filtro de texto foi usado.
+    public static Specification<Documento> busca(String texto) {
+        if (texto == null || texto.isBlank()) return (root, query, cb) -> null;
+        String termo = "%" + texto.toLowerCase() + "%";
+        return (root, query, cb) -> {
+            var assunto = root.join("assuntoBasico", jakarta.persistence.criteria.JoinType.LEFT);
+            return cb.or(
+                    cb.like(cb.lower(assunto.get("nome")), termo),
+                    cb.like(cb.lower(assunto.get("codigo")), termo),
+                    cb.like(cb.lower(root.get("especieNormativa").get("sigla")), termo),
+                    cb.like(cb.lower(root.get("identificacao")), termo),
+                    cb.like(cb.lower(root.get("tituloDocumento")), termo)
+            );
+        };
+    }
+
+    // O módulo do sistema (Espécies Convencionais, NPA...): os documentos cuja espécie é do tipo pedido. Cada tela de módulo
+    // lista só os seus, para os de um módulo nunca aparecerem na tabela do outro.
+    public static Specification<Documento> tipoDeEspecie(TipoDeEspecie tipo) {
+        if (tipo == null) return (root, query, cb) -> null;
+        return (root, query, cb) -> cb.equal(root.get("especieNormativa").get("tipoDeEspecie"), tipo);
+    }
+
+    public static Specification<Documento> especieSigla(String sigla) {
+        if (sigla == null || sigla.isBlank()) return (root, query, cb) -> null;
+        return (root, query, cb) -> cb.equal(root.get("especieNormativa").get("sigla"), sigla);
+    }
+
+    public static Specification<Documento> situacaoBca(SituacaoBcaEnum situacao) {
+        if (situacao == null) return (root, query, cb) -> null;
+        return (root, query, cb) -> cb.equal(root.get("situacaoBca"), situacao);
+    }
+
+    public static Specification<Documento> situacaoLocal(SituacaoLocalEnum situacao) {
+        if (situacao == null) return (root, query, cb) -> null;
+        return (root, query, cb) -> cb.equal(root.get("situacaoLocal"), situacao);
+    }
+}

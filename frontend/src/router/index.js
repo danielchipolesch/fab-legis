@@ -1,5 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import { Notify } from 'quasar'
 import { useAuthStore } from '@/stores/auth.js'
+import { MODULOS } from '@/perfis/index.js'
 
 const routes = [
   {
@@ -9,11 +11,25 @@ const routes = [
     meta: { title: 'Entrar', public: true, paginaAvulsa: true },
   },
   {
+    path: '/callback',
+    name: 'oauth-callback',
+    component: () => import('@/pages/OAuthCallbackPage.vue'),
+    meta: { title: 'Entrando…', public: true, paginaAvulsa: true },
+  },
+  {
     path: '/',
     name: 'home',
-    component: () => import('@/pages/HomePage.vue'),
-    meta: { title: 'Gestão de Legislação' },
+    component: () => import('@/pages/HubPage.vue'),
+    meta: { title: 'Área de Trabalho' },
   },
+  // A tela inicial de cada módulo (perfis/index.js): a mesma tela, configurada pelo tipo de espécie.
+  ...MODULOS.map(modulo => ({
+    path: modulo.caminho,
+    name: modulo.rota,
+    component: () => import('@/pages/ModuloPage.vue'),
+    props: { tipoDeEspecie: modulo.tipoDeEspecie },
+    meta: { title: modulo.nome },
+  })),
   {
     path: '/documento/novo',
     name: 'documento-novo',
@@ -37,6 +53,12 @@ const routes = [
     name: 'documento-comparar',
     component: () => import('@/pages/ComparisonPage.vue'),
     meta: { title: 'Comparar Versões' },
+  },
+  {
+    path: '/busca',
+    name: 'busca',
+    component: () => import('@/pages/BuscaPage.vue'),
+    meta: { title: 'Busca Textual' },
   },
   {
     path: '/revisao',
@@ -91,6 +113,26 @@ router.beforeEach((to) => {
     return { name: 'home' }
   }
   return true
+})
+
+// Navegação que falha (ex.: a tela é carregada sob demanda e o módulo não pôde ser baixado -- app
+// atualizado desde que a página foi aberta, servidor reiniciando) não pode ser silenciosa: sem isto
+// o link parece "ativo" mas nada acontece. Mesmo feedback (canto inferior direito) das demais falhas.
+const ERRO_CARGA_MODULO = /dynamically imported module|Importing a module script failed|error loading dynamically|Failed to fetch/i
+
+router.onError((erro, to) => {
+  console.error('[router] Falha ao navegar:', erro)
+  const falhaDeCarga = ERRO_CARGA_MODULO.test(String(erro?.message ?? erro))
+  Notify.create({
+    type: 'negative',
+    message: falhaDeCarga
+      ? 'Não foi possível abrir esta tela: a aplicação foi atualizada ou perdeu a conexão com o servidor.'
+      : 'Não foi possível abrir esta tela. Tente novamente.',
+    timeout: falhaDeCarga ? 0 : 6000,
+    actions: falhaDeCarga
+      ? [{ label: 'Recarregar', color: 'white', handler: () => { window.location.href = to?.fullPath ?? '/' } }]
+      : [{ icon: 'mdi-close', color: 'white', round: true, dense: true }],
+  })
 })
 
 export default router

@@ -1,7 +1,7 @@
 export const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? ''
 
 // Referência de módulo (não um import direto do store, para evitar ciclo
-// api/client.js -> stores/auth.js -> api/auth.js -> api/client.js) --
+// api/client.js -> stores/auth.js -> api/client.js) --
 // setAuthTokenGetter/setUnauthorizedHandler/setRefreshHandler são chamados
 // uma vez, no boot do app (ver stores/auth.js), plugando o client no estado
 // real de autenticação.
@@ -73,10 +73,10 @@ async function request(method, path, extraHeaders, body, isRetry) {
 
   const res = await fetch(`${BASE_URL}${path}`, opts)
 
-  // /auth/** nunca tenta refresh sobre si mesmo -- senão um refresh token
-  // expirado (401 em /auth/refresh) reentraria em tentarRefresh() e ficaria
-  // esperando a própria promise em andamento resolver (deadlock).
-  const elegivelParaRefresh = !isRetry && !path.startsWith('/auth/')
+  // Login/refresh agora são chamadas diretas a /oauth2/token (fora deste
+  // client, ver stores/auth.js), então nenhum path daqui é o próprio endpoint
+  // de refresh -- só falta não tentar de novo numa retentativa já em curso.
+  const elegivelParaRefresh = !isRetry
   if (res.status === 401 && elegivelParaRefresh && (await tentarRefresh())) {
     return request(method, path, extraHeaders, body, true)
   }

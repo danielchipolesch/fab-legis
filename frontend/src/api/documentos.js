@@ -55,6 +55,7 @@ function apiItemParaFrontend(item) {
     justificativaEmenda: item.justificativaEmenda ?? null,
     clausulaEmenda: item.clausulaEmenda ?? null,
     clausulaEmendaAnterior: item.clausulaEmendaAnterior ?? null,
+    clausulaRenumeracao: item.clausulaRenumeracao ?? null,
     incluidoPorEmenda: item.incluidoPorEmenda ?? false,
     filhos: sortEmendaItens(item.children ?? []).map(apiItemParaFrontend),
   }
@@ -119,6 +120,52 @@ export function aplicarIdsPersistidos(locais, resposta) {
   }
 }
 
+// Reconcilia numero/letra calculados localmente por frontend/src/utils/
+// numbering.js (que roda a cada arrastar/promover/rebaixar, pra dar feedback
+// instantâneo sem esperar rede) com o valor recém-calculado pelo servidor
+// (NumeracaoService, mesma regra) -- elimina o risco das duas implementações
+// divergirem silenciosamente, sem trocar o cálculo local por uma chamada de
+// rede a cada interação (só reconcilia aqui, no round-trip que o autosave já
+// faz de qualquer forma). `numeracaoPorId` é um Map<idBackend, {numero,letra}>
+// -- só cobre capítulo/seção/subseção/artigo (mesmo escopo de NumeracaoService;
+// parágrafo/inciso/alínea/subalínea continuam só no cálculo local, numerados
+// por posição dentro do próprio pai/artigo).
+export function aplicarNumeracao(locais, resposta, numeracaoPorId) {
+  if (!locais || !resposta || !numeracaoPorId?.size) return
+  const n = Math.min(locais.length, resposta.length)
+  for (let i = 0; i < n; i++) {
+    const info = numeracaoPorId.get(resposta[i].id)
+    if (info) {
+      locais[i].numero = info.numero
+      locais[i]._emendaLetra = info.letra ?? null
+      // NPA: o rótulo pelo caminho (1.2, a)) também vem do servidor, a fonte de verdade.
+      if (locais[i]._caminho != null && info.label != null) locais[i]._caminho = info.label
+    }
+    aplicarNumeracao(locais[i].filhos, resposta[i].children, numeracaoPorId)
+  }
+}
+
+// Mesma reconciliação de aplicarNumeracao acima, mas pra quando só existe UMA
+// árvore (não duas paralelas locais/resposta) e os ids já são os reais do
+// backend -- caso de fetchDocumento (stores/documentos.js), chamado após
+// GET /{id} (carga inicial, conflito de versão) e também depois de qualquer
+// ação do diálogo de emenda (emendar/incluirElementoEmenda/
+// reordenarElementoEmenda, ver DocumentosStore) -- nenhuma delas passa por
+// PATCH /secoes, mas todas recarregam via GET /{id} logo em seguida, que já
+// veio com a numeração pronta (ver DocumentoResponseComAnexoTextualDto).
+export function aplicarNumeracaoPorId(elementos, numeracaoPorId) {
+  if (!elementos || !numeracaoPorId?.size) return
+  for (const el of elementos) {
+    const info = numeracaoPorId.get(idPersistido(el.id))
+    if (info) {
+      el.numero = info.numero
+      el._emendaLetra = info.letra ?? null
+      if (el._caminho != null && info.label != null) el._caminho = info.label
+    }
+    aplicarNumeracaoPorId(el.filhos, numeracaoPorId)
+  }
+}
+
 export function backendParaFrontend(doc) {
   if (!doc) return null
 
@@ -127,7 +174,7 @@ export function backendParaFrontend(doc) {
 
   // A parte preliminar (epígrafe/ementa/preâmbulo/fecho/assinatura) não é
   // mais mostrada na edição -- só existe de fato a partir da publicação (ver
-  // formulário de publicação em HomePage.vue), então itensPreliminares nunca
+  // formulário de publicação em ModuloPage.vue), então itensPreliminares nunca
   // vira uma seção aqui, mesmo quando presente (documento já publicado).
   // Ainda conta para "hasAnyData" para não re-templatizar um documento já
   // publicado que, por algum motivo, não tenha itens de parte normativa.
@@ -141,6 +188,9 @@ export function backendParaFrontend(doc) {
   return {
     id: doc.idDocumento,
     especie: doc.siglaEspecieNormativa,
+    // Qual conjunto de regras a espécie segue (CONVENCIONAL, COMUNICACAO_OFICIAL_PADRONIZADA): escolhe o perfil de edição, prévia e publicação
+    // (ver perfis/index.js) -- nunca a sigla da espécie.
+    tipo_de_especie: doc.tipoDeEspecie ?? 'CONVENCIONAL',
     numero_basico: doc.codigoAssuntoBasico,
     numero_secundario: doc.numeroSecundario != null ? String(doc.numeroSecundario) : null,
     assunto_basico: doc.nomeAssuntoBasico ?? doc.codigoAssuntoBasico,
@@ -155,7 +205,10 @@ export function backendParaFrontend(doc) {
     data_cancelamento: parseDtCriacao(doc.dtCancelamento),
     data_em_alteracao: parseDtCriacao(doc.dtEmAlteracao),
     data_alterado:     parseDtCriacao(doc.dtAlterado),
-    status: doc.statusDocumento,
+    // Situação BCA (real: NAO_PUBLICADO/PUBLICADO/REVOGADO) e Situação Local (etapa interna;
+    // SEM_ETAPA quando não há nenhuma em curso) -- ver SituacaoBcaEnum/SituacaoLocalEnum.
+    situacao_bca: doc.situacaoBca,
+    situacao_local: doc.situacaoLocal,
     // Ver Documento.revisorAtribuido/publicadorAtribuido no backend -- quem pode
     // agir/editar o documento agora, enquanto ele estiver em EM_REVISAO/
     // EM_PUBLICACAO/ANALISE_REVOGACAO/EM_REVOGACAO.
@@ -174,8 +227,21 @@ export function backendParaFrontend(doc) {
     autor_nome: doc.autorNome ?? null,
     om_id: doc.omId != null ? String(doc.omId) : null,
     om_nome: doc.omNome ?? null,
+    om_sigla: doc.omSigla ?? null,
+    // Só vem preenchido (true/false) na listagem paginada (obter-todos) --
+    // ver DocumentoResponseSemAnexoTextualDto.ehAutorOuCoautor. null nos
+    // demais usos deste mapeamento (GET /{id} não manda esse campo — a
+    // posse ali é decidida por outra via, ver DocumentoAcessoService).
+    eh_autor_ou_coautor: doc.ehAutorOuCoautor ?? null,
     versoes: [],
     secoes,
+    // Numeração já calculada pelo servidor pros elementos de itensNormativos
+    // (ver NumeracaoService/DocumentoParteNormativaService.calcularNumeracao) --
+    // não é um campo de domínio do documento, só carona pra fetchDocumento
+    // (stores/documentos.js) reconciliar com o cálculo local de numbering.js
+    // logo depois. Nome com "_" de propósito, pra não ser confundido com um
+    // atributo do documento em si.
+    _numeracaoServidor: doc.numeracao ?? [],
   }
 }
 
@@ -183,23 +249,26 @@ export function frontendParaBackendCreate(payload) {
   return {
     idEspecieNormativa: payload.idEspecieNormativa,
     idAssuntoBasico:    payload.idAssuntoBasico,
+    identificacao:      payload.identificacao,
     tituloDocumento:    payload.tituloDocumento,
   }
 }
 
 // Paginação de verdade (ver DocumentoController.getAll): antes disso, listDocumentos()
-// chamava isso uma vez com size=200 e a HomePage filtrava/paginava tudo no navegador --
+// chamava isso uma vez com size=200 e a ModuloPage filtrava/paginava tudo no navegador --
 // acima de 200 documentos no acervo, o resto nunca aparecia. Mesmo padrão de
 // listAuditoria em api/auditoria.js: devolve o Page cru ({content, totalElements, ...}),
 // só mapeando os itens de content pro formato do frontend.
 export async function listDocumentosPaginado({
-  aba, busca, especieSigla, status, page = 0, size = 15, sortBy = 'dtCriacao', descending = true,
+  aba, busca, tipoDeEspecie, especieSigla, situacaoBca, situacaoLocal, page = 0, size = 15, sortBy = 'dtCriacao', descending = true,
 } = {}) {
   const params = new URLSearchParams()
   if (aba) params.set('aba', aba)
   if (busca) params.set('busca', busca)
+  if (tipoDeEspecie) params.set('tipoDeEspecie', tipoDeEspecie)
   if (especieSigla) params.set('especieSigla', especieSigla)
-  if (status) params.set('status', status)
+  if (situacaoBca) params.set('situacaoBca', situacaoBca)
+  if (situacaoLocal) params.set('situacaoLocal', situacaoLocal)
   params.set('page', page)
   params.set('size', size)
   params.set('sortBy', sortBy)
@@ -211,13 +280,14 @@ export async function listDocumentosPaginado({
   }
 }
 
-// Contagens pros badges das 4 abas e chips de situação da HomePage -- mesmos filtros de
+// Contagens pros badges das 4 abas e chips de situação da tela do módulo -- mesmos filtros de
 // busca/espécie/aba da listagem acima, pra ficar em sincronia com o que ela está
 // mostrando no momento.
-export async function getResumoDocumentos({ aba, busca, especieSigla } = {}) {
+export async function getResumoDocumentos({ aba, busca, tipoDeEspecie, especieSigla } = {}) {
   const params = new URLSearchParams()
   if (aba) params.set('aba', aba)
   if (busca) params.set('busca', busca)
+  if (tipoDeEspecie) params.set('tipoDeEspecie', tipoDeEspecie)
   if (especieSigla) params.set('especieSigla', especieSigla)
   return http.get(`/documentos/resumo?${params.toString()}`)
 }
@@ -230,9 +300,9 @@ function filaParaFrontend(doc) {
     id: doc.idDocumento,
     codigo_documento: doc.codigoDocumento,
     titulo: doc.tituloDocumento,
-    status: doc.statusDocumento,
+    situacao_bca: doc.situacaoBca,
+    situacao_local: doc.situacaoLocal,
     autores: doc.autores ?? [],
-    ja_publicado_antes: !!doc.jaPublicadoAntes,
   }
 }
 
@@ -279,18 +349,22 @@ export async function updateDocumento(id, data) {
     // difere da atual (ver DocumentoService.update); só a tela de metadados
     // efetivamente muda esse valor.
     ...(data.om_id != null && { omId: parseInt(data.om_id, 10) || undefined }),
+    // O código da NPA (texto livre), só da tela de metadados: o autosave do editor não o envia, e o backend só troca o valor
+    // quando a espécie admite e o documento está em Rascunho/Minuta (RegrasDeCriacaoDoDocumento.novaIdentificacao).
+    ...(data.identificacao != null && { identificacao: data.identificacao }),
   }
   const result = await http.put(`/documentos/${id}`, body)
   return backendParaFrontend(result)
 }
 
-export async function changeDocumentoStatus(id, novoStatus, refs) {
-  const body = { status: novoStatus }
+// situacaoLocal: a nova Situação Local. SEM_ETAPA = concluir a etapa em curso (publicar, revogar,
+// devolver a análise de revogação ou cancelar a alteração, conforme a origem).
+export async function changeDocumentoStatus(id, situacaoLocal, refs) {
+  const body = { situacaoLocal }
   if (refs) {
     // revisorId: quem vai revisar (destino EM_REVISAO/ANALISE_REVOGACAO), escolhido
-    // pelo Editor. publicadorId: quem vai publicar (destino APROVADO/ALTERADO, que já
-    // cascateia pra EM_PUBLICACAO no backend, ou EM_REVOGACAO), escolhido pelo
-    // Aprovador -- ver SelecionarPessoaDialog.vue/DocumentoStatusRequestDto.
+    // pelo Editor. publicadorId: quem vai publicar (destino EM_PUBLICACAO ou EM_REVOGACAO),
+    // escolhido pelo Aprovador -- ver SelecionarPessoaDialog.vue/DocumentoStatusRequestDto.
     body.revisorId       = refs.revisorId ?? null
     body.publicadorId    = refs.publicadorId ?? null
     body.orgaoPortaria   = refs.orgaoPortaria ?? null
@@ -305,6 +379,9 @@ export async function changeDocumentoStatus(id, novoStatus, refs) {
     body.fecho           = refs.fecho ?? null
     body.assinatura      = refs.assinatura ?? null
     body.portariaPdfUrl  = refs.portariaPdfUrl ?? null
+    // Só numa NPA: o Boletim Interno que a publica ou revoga (no lugar de portaria + BCA).
+    body.numeroBoletimInterno = refs.numeroBoletimInterno ?? null
+    body.dataBoletimInterno   = refs.dataBoletimInterno ?? null
   }
   const result = await http.patch(`/documentos/${id}/status`, body)
   return backendParaFrontend(result)
@@ -352,6 +429,8 @@ export async function saveSecoes(id, secoes, versaoEsperada) {
   // X-Client-Id: devolvido no broadcast SSE (event: estrutura) -- é assim que
   // DocumentoEditorPage.vue reconhece e ignora o próprio eco (já aplicou a mudança
   // localmente antes de mandar esta requisição).
+  // Resposta: { itens, numeracao } -- ver aplicarIdsPersistidos/aplicarNumeracao
+  // abaixo pra como cada metade é reconciliada com a árvore local.
   return http.patch(`/documentos/${id}/secoes`, { itens, versaoEsperada: versaoEsperada ?? null }, { 'X-Client-Id': clientId })
 }
 

@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
-import { renumberElements, removeById, findById, promoteType, demoteType, canDemoteSubtree, formatLabel } from '@/utils/numbering.js'
+import { renumerarElementos, perfilDoDocumento } from '@/perfis/index.js'
+import { removeById, findById, promoteType, demoteType, canDemoteSubtree, formatLabel } from '@/utils/numbering.js'
 import { idPersistido } from '@/api/documentos.js'
 import { useDocumentosStore } from './documentos.js'
 
@@ -103,13 +104,14 @@ export const useEditorStore = defineStore('editor', {
     async save() {
       const store = useDocumentosStore()
       await store.saveDocumento(this.documento)
-      if (this.hasUserEdit && this.documento?.status === 'RASCUNHO') {
+      if (this.hasUserEdit && this.documento?.situacao_local === 'RASCUNHO') {
         await store.changeStatus(this.documentoId, 'MINUTA')
         this.hasUserEdit = false
       }
       const atualizado = store.getById(this.documentoId)
-      if (atualizado?.status && this.documento) {
-        this.documento.status = atualizado.status
+      if (atualizado?.situacao_local && this.documento) {
+        this.documento.situacao_bca = atualizado.situacao_bca
+        this.documento.situacao_local = atualizado.situacao_local
       }
       // Mantém a versão local em dia com a do banco após salvar -- é ela que
       // vai como versaoEsperada no próximo salvamento (ver
@@ -128,7 +130,9 @@ export const useEditorStore = defineStore('editor', {
       // Se o novo elemento não é um agrupamento (ex.: artigo direto num capítulo/seção
       // que já tem subgrupos), insere ANTES do primeiro subgrupo em vez de no final —
       // evita que ele apareça, na renderização, como se pertencesse ao último subgrupo.
-      if (GROUPING_TYPES.has(parent.tipo) && !GROUPING_TYPES.has(tipo)) {
+      // Na NPA seção, subseção e parágrafo do mesmo pai dividem a sequência, em qualquer ordem: acrescenta no fim.
+      if (perfilDoDocumento(this.documento).conteudoAntesDosAgrupamentos
+          && GROUPING_TYPES.has(parent.tipo) && !GROUPING_TYPES.has(tipo)) {
         const firstGroupIdx = filhosAtual.findIndex(f => GROUPING_TYPES.has(f.tipo))
         parent.filhos = firstGroupIdx === -1
           ? [...filhosAtual, novo]
@@ -244,8 +248,9 @@ export const useEditorStore = defineStore('editor', {
     },
 
     moveUp(id) {
+      const trocaLivre = !perfilDoDocumento(this.documento).conteudoAntesDosAgrupamentos
       for (const secao of this.documento.secoes) {
-        if (moveInTree(secao.elementos, id, -1)) {
+        if (moveInTree(secao.elementos, id, -1, trocaLivre)) {
           this.renumberNormativa()
           this.markUserEdit()
           return { ok: true }
@@ -255,8 +260,9 @@ export const useEditorStore = defineStore('editor', {
     },
 
     moveDown(id) {
+      const trocaLivre = !perfilDoDocumento(this.documento).conteudoAntesDosAgrupamentos
       for (const secao of this.documento.secoes) {
-        if (moveInTree(secao.elementos, id, 1)) {
+        if (moveInTree(secao.elementos, id, 1, trocaLivre)) {
           this.renumberNormativa()
           this.markUserEdit()
           return { ok: true }
@@ -266,6 +272,7 @@ export const useEditorStore = defineStore('editor', {
     },
 
     promote(id) {
+      if (!perfilDoDocumento(this.documento).permitePromoverRebaixar) return { ok: false, reason: 'nao-se-aplica' }
       const normSecao = this.normativaSecao
       for (const secao of this.documento.secoes) {
         const result = promoteInTree(secao.elementos, id)
@@ -281,6 +288,7 @@ export const useEditorStore = defineStore('editor', {
     },
 
     demote(id) {
+      if (!perfilDoDocumento(this.documento).permitePromoverRebaixar) return { ok: false, reason: 'nao-se-aplica' }
       const el = this.findElement(id)
       if (!el) return { ok: false }
       if (!canDemoteSubtree(el)) return { ok: false, reason: 'at-bottom' }
@@ -302,7 +310,7 @@ export const useEditorStore = defineStore('editor', {
       const el = this.findElement(elementId)
       const normSecao = this.normativaSecao
       if (!el || !normSecao) return []
-      const rule = VALID_MOVE_PARENT_TYPES[el.tipo]
+      const rule = regrasDeMoverPara(this.documento)[el.tipo]
       if (!rule) return []
       const searchRoots = lineageSearchRoots(normSecao.elementos, elementId, rule)
       const targets = []
@@ -327,7 +335,7 @@ export const useEditorStore = defineStore('editor', {
       const el = findById(normSecao.elementos, elementId)
       if (!el) return { ok: false }
 
-      const rule = VALID_MOVE_PARENT_TYPES[el.tipo]
+      const rule = regrasDeMoverPara(this.documento)[el.tipo]
       if (!rule) return { ok: false, reason: 'not-movable' }
 
       if (newParentId) {
@@ -368,7 +376,7 @@ export const useEditorStore = defineStore('editor', {
 
     renumberNormativa() {
       const secao = this.normativaSecao
-      if (secao) renumberElements(secao.elementos)
+      if (secao) renumerarElementos(secao.elementos, this.documento)
     },
 
     findElement(id) {
@@ -447,6 +455,19 @@ const VALID_MOVE_PARENT_TYPES = {
   capitulo:            { parents: new Set([]), root: true },
   secao_normativa:     { parents: new Set(['capitulo']), root: false },
   subsecao_normativa:  { parents: new Set(['secao_normativa']), root: false },
+}
+
+// Na NPA o parágrafo também é movível (para qualquer capítulo, seção ou subseção): é o dispositivo em si e fica
+// direto sob o agrupamento. A alínea segue o parágrafo e não é movida sozinha.
+const VALID_MOVE_PARENT_TYPES_NPA = {
+  paragrafo:           { parents: new Set(['capitulo', 'secao_normativa', 'subsecao_normativa']), root: false },
+  capitulo:            { parents: new Set([]), root: true },
+  secao_normativa:     { parents: new Set(['capitulo']), root: false },
+  subsecao_normativa:  { parents: new Set(['secao_normativa']), root: false },
+}
+
+function regrasDeMoverPara(documento) {
+  return perfilDoDocumento(documento).ehNpa ? VALID_MOVE_PARENT_TYPES_NPA : VALID_MOVE_PARENT_TYPES
 }
 
 function isSameOrDescendant(el, id) {
@@ -550,18 +571,20 @@ function canSwapSiblings(elements, i, newIdx) {
   return GROUPING_TYPES.has(elements[i].tipo) === GROUPING_TYPES.has(elements[newIdx].tipo)
 }
 
-function moveInTree(elements, id, direction) {
+// trocaLivre: na NPA seção, subseção e parágrafo trocam de lugar entre si (dividem a mesma sequência); nos atos
+// normativos só se troca agrupamento com agrupamento e conteúdo com conteúdo (canSwapSiblings).
+function moveInTree(elements, id, direction, trocaLivre = false) {
   for (let i = 0; i < elements.length; i++) {
     if (elements[i].id === id) {
       const newIdx = i + direction
       if (newIdx < 0 || newIdx >= elements.length) return false
-      if (!canSwapSiblings(elements, i, newIdx)) return false
+      if (!trocaLivre && !canSwapSiblings(elements, i, newIdx)) return false
       const tmp = elements[i]
       elements[i] = elements[newIdx]
       elements[newIdx] = tmp
       return true
     }
-    if (elements[i].filhos?.length && moveInTree(elements[i].filhos, id, direction)) return true
+    if (elements[i].filhos?.length && moveInTree(elements[i].filhos, id, direction, trocaLivre)) return true
   }
   return false
 }

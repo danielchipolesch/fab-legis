@@ -16,11 +16,14 @@
           :options="opcoes"
           option-label="rotulo"
           option-value="id"
-          label="Pessoa"
+          label="Buscar por nome de guerra ou nome completo"
           outlined
           dense
           emit-value
           map-options
+          use-input
+          input-debounce="300"
+          @filter="filtrar"
           :loading="carregando"
           :error="!!erro"
           :error-message="erro"
@@ -29,7 +32,7 @@
           <template #no-option>
             <q-item>
               <q-item-section class="text-grey-6">
-                Ninguém com esse papel na sua OM ainda.
+                Ninguém com esse papel na sua OM encontrado.
               </q-item-section>
             </q-item>
           </template>
@@ -53,7 +56,8 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
 import { listUsuariosElegiveis } from '@/api/usuarios.js'
-import { formatarCpf } from '@/utils/cpf.js'
+import { ocultarCpf } from '@/utils/cpf.js'
+import { caixaAlta } from '@/utils/texto.js'
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
@@ -62,7 +66,7 @@ const props = defineProps({
   descricao: { type: String, default: '' },
   acaoLabel: { type: String, default: 'Confirmar' },
   // Controlado por quem usa o diálogo (RevisaoPage.vue/PublicacaoPage.vue/
-  // HomePage.vue) enquanto a chamada de status está em andamento.
+  // ModuloPage.vue) enquanto a chamada de status está em andamento.
   enviando: { type: Boolean, default: false },
 })
 const emit = defineEmits(['update:modelValue', 'confirmar'])
@@ -74,15 +78,14 @@ const erro = ref('')
 
 const opcoes = computed(() => candidatos.value.map(c => ({
   id: c.id,
-  rotulo: `${c.postoGraduacaoBigrama && c.nomeGuerra ? `${c.postoGraduacaoBigrama} ${c.nomeGuerra}` : c.nome} — ${formatarCpf(c.cpf)}`,
+  rotulo: `${c.postoGraduacaoBigrama && c.nomeGuerra ? `${c.postoGraduacaoBigrama} ${caixaAlta(c.nomeGuerra)}` : caixaAlta(c.nome)} — ${ocultarCpf(c.cpf)}`,
 })))
 
-async function carregar() {
+async function carregar(termo) {
   carregando.value = true
   erro.value = ''
-  selecionado.value = null
   try {
-    candidatos.value = await listUsuariosElegiveis(props.papel)
+    candidatos.value = await listUsuariosElegiveis(props.papel, termo)
   } catch (e) {
     erro.value = e?.message ?? 'Erro ao carregar pessoas elegíveis'
   } finally {
@@ -90,7 +93,18 @@ async function carregar() {
   }
 }
 
-watch(() => props.modelValue, (aberto) => { if (aberto) carregar() })
+watch(() => props.modelValue, (aberto) => {
+  if (aberto) {
+    selecionado.value = null
+    carregar()
+  }
+})
+
+// Quasar chama isto a cada tecla (já espaçado pelo input-debounce acima) --
+// `update()` troca as opções do dropdown pelo resultado da busca no backend.
+function filtrar(val, update, abort) {
+  carregar(val).then(() => update()).catch(() => abort())
+}
 
 function fechar() {
   if (props.enviando) return

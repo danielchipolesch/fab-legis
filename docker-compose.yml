@@ -5,9 +5,9 @@ services:
     image: postgres:16-alpine
     container_name: fab-legis-postgres
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: "123456"
-      POSTGRES_DB: fab-legis-dev
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-123456}
+      POSTGRES_DB: ${POSTGRES_DB:-fab-legis-dev}
     ports:
       - "5432:5432"
     volumes:
@@ -28,8 +28,8 @@ services:
       - "9000:9000"   # API S3
       - "9001:9001"   # Console web
     environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin123
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin123}
     volumes:
       - minio_data:/data
     healthcheck:
@@ -51,20 +51,39 @@ services:
       SPRING_PROFILES_ACTIVE: dev
       DB_HOST: postgres
       DB_PORT: "5432"
-      DB_NAME: fab-legis-dev
-      SPRING_DATASOURCE_USERNAME: postgres
-      SPRING_DATASOURCE_PASSWORD: "123456"
+      DB_NAME: ${POSTGRES_DB:-fab-legis-dev}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-postgres}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-123456}
       MINIO_ENDPOINT: http://minio:9000
-      MINIO_ACCESS_KEY: minioadmin
-      MINIO_SECRET_KEY: minioadmin123
-      MINIO_BUCKET: fab-legis-imagens
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin123}
+      MINIO_BUCKET: ${MINIO_BUCKET:-fab-legis-imagens}
       MINIO_PUBLIC_URL: http://localhost:9000
-      JWT_SECRET: ${JWT_SECRET:-fab-legis-dev-secret-troque-em-producao-1234567890}
+      APP_OAUTH2_ISSUER: ${APP_OAUTH2_ISSUER:-http://127.0.0.1:8081}
+      APP_OAUTH2_REDIRECT_URI: ${APP_OAUTH2_REDIRECT_URI:-http://127.0.0.1:5173/callback}
+      APP_FRONTEND_LOGIN_URL: ${APP_FRONTEND_LOGIN_URL:-http://127.0.0.1:5173/login}
+      APP_ADMIN_CPF: ${APP_ADMIN_CPF:-11144477735}
+      APP_ADMIN_SENHA: ${APP_ADMIN_SENHA:-Admin@123}
+      APP_ADMIN_NOME: ${APP_ADMIN_NOME:-Administrador}
+      APP_PDF_MAX_CONCORRENTES: ${APP_PDF_MAX_CONCORRENTES:-2}
+      APP_PDF_ESPERA_MAXIMA_SEGUNDOS: ${APP_PDF_ESPERA_MAXIMA_SEGUNDOS:-30}
     depends_on:
       postgres:
         condition: service_healthy
       minio:
         condition: service_started
+    # /actuator/health (Spring Boot Actuator, liberado sem autenticação --
+    # ver SecurityConfig) -- antes, o backend não tinha healthcheck nenhum
+    # aqui, então frontend/collab/docs só esperavam o container INICIAR, não
+    # ficar de fato pronto pra aceitar conexão (ex.: ainda rodando migration
+    # do Flyway). wget, não curl: a imagem de runtime é eclipse-temurin
+    # jre-alpine, sem curl instalado -- wget já vem no busybox do Alpine.
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8081/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
     restart: unless-stopped
 
   # ── Frontend — desenvolvimento (Vite + HMR) ─────────────────────────────────
@@ -82,12 +101,20 @@ services:
       - ./frontend/index.html:/app/index.html
     environment:
       NODE_ENV: development
-      VITE_USE_MOCK_API: "false"
-      VITE_API_BASE_URL: "http://127.0.0.1:8081/v1"
-      VITE_COLLAB_URL: "ws://127.0.0.1:1234"
+      VITE_USE_MOCK_API: ${VITE_USE_MOCK_API:-false}
+      VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://127.0.0.1:8081/v1}
+      VITE_COLLAB_URL: ${VITE_COLLAB_URL:-ws://127.0.0.1:1234}
+      # NÃO é VITE_* de propósito -- só o próprio processo do Vite (node, lado
+      # servidor) usa isto pra saber pra onde proxiar /oauth2/**, /login,
+      # /logout (ver vite.config.js); nunca vai pro bundle do navegador.
+      # http://backend:8081 (nome do serviço Docker) porque quem faz essa
+      # chamada é o container do frontend, não o navegador do usuário.
+      PROXY_BACKEND_TARGET: http://backend:8081
     depends_on:
-      - backend
-      - collab
+      backend:
+        condition: service_healthy
+      collab:
+        condition: service_started
     restart: unless-stopped
 
   # ── Frontend — produção (Nginx, perfil production) ──────────────────────────
@@ -96,6 +123,19 @@ services:
       context: .
       dockerfile: frontend/Dockerfile
       target: production
+      # VITE_* é build-time (embutido no JS estático em "npm run build" dentro
+      # do Dockerfile, não lido em runtime como o environment: do backend
+      # abaixo) -- sem estes args, o build de produção sempre usava o padrão
+      # fixo do Dockerfile (http://localhost:8081/v1), ignorando o .env
+      # silenciosamente. Lidos do mesmo .env da raiz que o serviço "frontend"
+      # de dev já usa (ver docs/instalacao.md, seção "Deploy em produção") --
+      # é o único lugar que precisa mudar pra apontar produção pro domínio
+      # real; mudar só o .env não move este build já existente, precisa
+      # reconstruir a imagem (ver aviso na documentação).
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://127.0.0.1:8081/v1}
+        VITE_COLLAB_URL: ${VITE_COLLAB_URL:-ws://127.0.0.1:1234}
+        VITE_USE_MOCK_API: ${VITE_USE_MOCK_API:-false}
     container_name: fab-legis-frontend-prod
     ports:
       - "80:8080"
@@ -104,7 +144,8 @@ services:
     profiles:
       - production
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     restart: unless-stopped
 
   # ── Colaboração em tempo real (Hocuspocus/Yjs) ──────────────────────────────
@@ -116,10 +157,15 @@ services:
     ports:
       - "1234:1234"
     environment:
-      JWT_SECRET: ${JWT_SECRET:-fab-legis-dev-secret-troque-em-producao-1234567890}
+      # ISSUER precisa bater com o claim "iss" do token (o que o NAVEGADOR usa,
+      # ver APP_OAUTH2_ISSUER no backend) -- JWKS_URL é só o endereço INTERNO
+      # (rede Docker) de onde buscar as chaves públicas, pode ser diferente.
+      OAUTH2_ISSUER: ${APP_OAUTH2_ISSUER:-http://127.0.0.1:8081}
+      OAUTH2_JWKS_URL: http://backend:8081/oauth2/jwks
       BACKEND_URL: http://backend:8081/v1
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     restart: unless-stopped
 
   # ── Documentação técnica (MkDocs Material, build estático servido por Nginx) ─

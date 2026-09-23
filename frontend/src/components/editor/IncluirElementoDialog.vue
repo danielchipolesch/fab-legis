@@ -132,7 +132,7 @@ import { ref, computed, watch } from 'vue'
 import { useQuasar } from 'quasar'
 import { useDocumentosStore } from '@/stores/documentos.js'
 import { useEditorStore } from '@/stores/editor.js'
-import { formatLabel, bodyLabel } from '@/utils/numbering.js'
+import { formatLabel, rotuloDaInclusao } from '@/utils/numbering.js'
 import WysiwygEditor from '@/components/editor/WysiwygEditor.vue'
 
 const props = defineProps({
@@ -174,20 +174,6 @@ const TIPO_OPTIONS = [
 
 const tipoOptions = computed(() => TIPO_OPTIONS)
 
-// Lista flat de todos os artigos do documento em ordem DFS.
-// Usada para verificar globalmente se um INCLUIDO está "ao final da sequência".
-const flatArtigos = computed(() => {
-  const result = []
-  const collect = (els) => {
-    for (const el of els) {
-      if (el.tipo === 'artigo') result.push(el)
-      if (el.filhos?.length) collect(el.filhos)
-    }
-  }
-  collect(props.elementos)
-  return result
-})
-
 // Extrai preview de texto de um elemento
 function extractPreview(el) {
   if (!el?.conteudo) return ''
@@ -225,18 +211,6 @@ function collectContainersOfTypes(elementos, tipos, result = []) {
     if (el.filhos?.length) collectContainersOfTypes(el.filhos, tipos, result)
   }
   return result
-}
-
-// Lista DFS de TODOS os elementos (qualquer tipo) — usada para comparar a posição
-// relativa de um container e de um artigo qualquer no documento inteiro.
-const dfsFlatAll = computed(() => {
-  const arr = []
-  const walk = (els) => { for (const el of els ?? []) { arr.push(el); if (el.filhos?.length) walk(el.filhos) } }
-  walk(props.elementos)
-  return arr
-})
-function dfsIndexOf(el) {
-  return el ? dfsFlatAll.value.indexOf(el) : -1
 }
 
 // ── Onde inserir: containers válidos para o tipo selecionado ─────────────────
@@ -358,13 +332,13 @@ const computedOrder = computed(() => {
   // Encontra o próximo não-INCLUIDO após afterEl
   let nextNonIncluded = null
   for (let i = afterIdx + 1; i < sorted.length; i++) {
-    if (sorted[i].emendaStatus !== 'INCLUIDO') { nextNonIncluded = sorted[i]; break }
+    if (sorted[i].incluidoPorEmenda !== true) { nextNonIncluded = sorted[i]; break }
   }
 
   const alreadyInserted = sorted
     .slice(afterIdx + 1)
     .filter(s => {
-      if (s.emendaStatus !== 'INCLUIDO') return false
+      if (s.incluidoPorEmenda !== true) return false
       if (nextNonIncluded && (s.elementOrder ?? 0) >= (nextNonIncluded.elementOrder ?? 0)) return false
       return true
     }).length
@@ -387,116 +361,14 @@ const parentId = computed(() => {
   return opt.parentEl?.id ? parseInt(opt.parentEl.id, 10) : null
 })
 
-// Tipos cujos elementos internos são livremente renumeráveis (nunca letra-sufixo)
-const SUB_ARTIGO_TIPOS = new Set(['paragrafo', 'paragrafo_unico', 'inciso', 'alinea', 'sub_alinea'])
-
 // ── Pré-visualização do rótulo resultante ─────────────────────────────────────
-// Só uma prévia — a numeração real e definitiva é recalculada no back-end/store
-// ao salvar/recarregar o documento. ARTIGO usa numeração GLOBAL (todo o
-// documento, via flatArtigos + posição DFS); os demais tipos usam numeração
-// LOCAL (escopada aos irmãos dentro do container escolhido). É essencial não
-// misturar os dois: um container recém-criado pode não ter nenhum artigo entre
-// seus próprios filhos, mas isso não significa que a numeração global "reinicia".
-const labelResultante = computed(() => {
-  const opt = posicaoEntry.value
-  if (!opt) return null
-
-  const targetTipo  = tipo.value?.toLowerCase()
-  const isSubArtigo = SUB_ARTIGO_TIPOS.has(targetTipo)
-
-  if (targetTipo === 'artigo') {
-    const flat = flatArtigos.value
-    const refIndex = opt.isFirst ? dfsIndexOf(containerEntry.value?.el) : dfsIndexOf(opt.el)
-
-    let nextActive = null
-    for (const a of flat) {
-      if (dfsIndexOf(a) > refIndex && a.emendaStatus !== 'INCLUIDO' && a.emendaStatus !== 'REVOGADO') {
-        nextActive = a
-        break
-      }
-    }
-    let lastActive = null
-    for (let i = flat.length - 1; i >= 0; i--) {
-      const a = flat[i]
-      if (dfsIndexOf(a) <= refIndex && a.emendaStatus !== 'INCLUIDO' && a.emendaStatus !== 'REVOGADO') {
-        lastActive = a
-        break
-      }
-    }
-
-    if (!nextActive) {
-      // Ao final da sequência global → numeração sequencial normal.
-      const alreadyAtEnd = flat.filter(a => dfsIndexOf(a) > refIndex && a.emendaStatus === 'INCLUIDO').length
-      const nextNum = (lastActive?.numero ?? 0) + alreadyAtEnd + 1
-      const mockEl  = { tipo: targetTipo, numero: nextNum, _emendaLetra: null }
-      return (bodyLabel(mockEl) || formatLabel(mockEl)).trim() || null
-    }
-
-    // Entre dois artigos ativos → letra-sufixo.
-    const zoneStart = lastActive ? flat.indexOf(lastActive) + 1 : 0
-    const alreadyInZone = opt.isFirst
-      ? flat.filter((a, idx) => idx >= zoneStart && dfsIndexOf(a) <= refIndex && a.emendaStatus === 'INCLUIDO').length
-      : flat.slice(zoneStart, flat.indexOf(opt.el) + 1).filter(a => a.emendaStatus === 'INCLUIDO').length
-    const letra   = String.fromCharCode(65 + alreadyInZone)
-    const baseNum = lastActive?.numero ?? 0
-    const mockEl  = { tipo: targetTipo, numero: baseNum, _emendaLetra: letra }
-    return (bodyLabel(mockEl) || formatLabel(mockEl)).trim() || null
-  }
-
-  // ── Demais tipos: numeração LOCAL, escopada aos irmãos do container ─────────
-  const siblings = opt.siblings ?? []
-  const sorted    = [...siblings].sort((a, b) => (a.elementOrder ?? 0) - (b.elementOrder ?? 0))
-  const afterIdx  = opt.isFirst ? -1 : sorted.findIndex(s => s.id === opt.el.id)
-  if (!opt.isFirst && afterIdx < 0) return null
-
-  let nextNonIncludedSameType = null
-  for (let i = afterIdx + 1; i < sorted.length; i++) {
-    const s = sorted[i]
-    if (s.tipo === targetTipo && s.emendaStatus !== 'INCLUIDO' && s.emendaStatus !== 'REVOGADO') {
-      nextNonIncludedSameType = s
-      break
-    }
-  }
-
-  const anchorNumero = opt.isFirst ? 0 : (opt.el.numero ?? 0)
-
-  if (!nextNonIncludedSameType || isSubArtigo) {
-    // Inserção ao FINAL da sequência (ou elemento interno ao artigo):
-    // o novo elemento recebe numeração sequencial normal.
-    const alreadyAtEnd = sorted
-      .slice(afterIdx + 1)
-      .filter(s => s.tipo === targetTipo && s.emendaStatus === 'INCLUIDO')
-      .length
-    const nextNum = anchorNumero + alreadyAtEnd + 1
-    const mockEl  = { tipo: targetTipo, numero: nextNum, _emendaLetra: null }
-    return (bodyLabel(mockEl) || formatLabel(mockEl)).trim() || null
-  }
-
-  // Inserção ENTRE elementos existentes → letra-sufixo.
-  // O último não-INCLUIDO do mesmo tipo ANTES do ponto de inserção define a base.
-  let lastNonIncluded = null
-  for (let i = afterIdx; i >= 0; i--) {
-    const s = sorted[i]
-    if (s.tipo === targetTipo && s.emendaStatus !== 'INCLUIDO' && s.emendaStatus !== 'REVOGADO') {
-      lastNonIncluded = s
-      break
-    }
-  }
-
-  // Conta INCLUIDOs do mesmo tipo entre lastNonIncluded e o ponto de inserção (inclusive)
-  const zoneStart = lastNonIncluded
-    ? sorted.findIndex(s => s.id === lastNonIncluded.id) + 1
-    : 0
-  const alreadyInZone = sorted
-    .slice(zoneStart, afterIdx + 1)
-    .filter(s => s.tipo === targetTipo && s.emendaStatus === 'INCLUIDO')
-    .length
-
-  const letra   = String.fromCharCode(65 + alreadyInZone) // A, B, C…
-  const baseNum = lastNonIncluded?.numero ?? anchorNumero
-  const mockEl  = { tipo: targetTipo, numero: baseNum, _emendaLetra: letra }
-  return (bodyLabel(mockEl) || formatLabel(mockEl)).trim() || null
-})
+// Só uma prévia -- a numeração real é recalculada ao salvar. As regras estão em rotuloDaInclusao (utils/numbering.js),
+// com testes; aqui só se junta a posição escolhida.
+const labelResultante = computed(() => rotuloDaInclusao(
+  props.elementos,
+  tipo.value?.toLowerCase(),
+  posicaoEntry.value && { ...posicaoEntry.value, containerEl: containerEntry.value?.el },
+))
 
 // ── Reset ao abrir ────────────────────────────────────────────────────────────
 // containerEntry/posicaoEntry não precisam de reset explícito: são computeds com

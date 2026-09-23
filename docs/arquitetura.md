@@ -25,7 +25,7 @@ graph TB
     C -->|"REST /v1/* (com o JWT do próprio usuário)"| A
 ```
 
-O serviço **collab** (`collab/`, `Node.js` + [Hocuspocus](https://tiptap.dev/docs/hocuspocus/introduction)) implementa a edição colaborativa em tempo real (CRDT/Yjs) do editor: cada elemento aberto para edição vira uma sala Yjs própria (`documento:{id}:elemento:{elementoId}`), sincronizada por WebSocket entre todos os navegadores conectados a ela — duas pessoas editando o mesmo elemento fazem *merge* automático caractere a caractere, sem bloqueio otimista. Existe como serviço separado (não embutido no backend Java) porque o Yjs só tem implementação madura em JavaScript; ele reaproveita o **mesmo schema do editor** (via `@tiptap/core`'s `getSchema`, aplicado à mesma lista de extensões de `frontend/src/editor/extensions.js`) para converter entre o `Y.Doc` e o JSON TipTap sem duplicar/divergir a definição do documento. Autenticação e autorização reaproveitam o backend: o `collab` valida o JWT do usuário (mesmo segredo do `JwtService`) e confirma a permissão de edição chamando `GET /v1/documentos/{id}/pode-editar` (mesma regra de `DocumentoAcessoService.podeEditar` usada em todo o resto da API) antes de aceitar a conexão a uma sala; toda leitura/escrita subsequente no backend (`GET /v1/documentos/{id}` para carregar o conteúdo inicial, `PATCH /v1/documentos/{id}/elementos/{elementoId}/conteudo` para persistir, debounced) acontece com o token do próprio usuário conectado — não existe uma credencial de serviço à parte. Mudanças estruturais da árvore (criar/mover/excluir elemento) ficam fora do Yjs — continuam passando por `PATCH /v1/documentos/{id}/secoes` (que aplica um *diff* contra o que já está persistido, nunca reescrevendo `conteudo`) e são propagadas aos demais clientes conectados via o mesmo canal SSE de presença (`event: estrutura`).
+O serviço **collab** (`collab/`, `Node.js` + [Hocuspocus](https://tiptap.dev/docs/hocuspocus/introduction)) implementa a edição colaborativa em tempo real (CRDT/Yjs) do editor: cada elemento aberto para edição vira uma sala Yjs própria (`documento:{id}:elemento:{elementoId}`), sincronizada por WebSocket entre todos os navegadores conectados a ela — duas pessoas editando o mesmo elemento fazem *merge* automático caractere a caractere, sem bloqueio otimista. Existe como serviço separado (não embutido no backend Java) porque o Yjs só tem implementação madura em JavaScript; ele reaproveita o **mesmo schema do editor** (via `@tiptap/core`'s `getSchema`, aplicado à mesma lista de extensões de `frontend/src/editor/extensions.js`) para converter entre o `Y.Doc` e o JSON TipTap sem duplicar/divergir a definição do documento. Autenticação e autorização reaproveitam o backend: o `collab` valida o JWT do usuário via JWKS (`GET /oauth2/jwks`, mesma chave pública RSA que o Authorization Server embutido usa — ver `AuthorizationServerConfig`/`autenticacao.md`) e confirma a permissão de edição chamando `GET /v1/documentos/{id}/pode-editar` (mesma regra de `DocumentoAcessoService.podeEditar` usada em todo o resto da API) antes de aceitar a conexão a uma sala; toda leitura/escrita subsequente no backend (`GET /v1/documentos/{id}/elementos/{elementoId}/conteudo` para carregar o conteúdo inicial, `PATCH` na mesma rota para persistir, debounced) acontece com o token do próprio usuário conectado — não existe uma credencial de serviço à parte. Mudanças estruturais da árvore (criar/mover/excluir elemento) ficam fora do Yjs — continuam passando por `PATCH /v1/documentos/{id}/secoes` (que aplica um *diff* contra o que já está persistido, nunca reescrevendo `conteudo`) e são propagadas aos demais clientes conectados via o mesmo canal SSE de presença (`event: estrutura`).
 
 O bucket do MinIO é **privado** — o navegador nunca acessa um objeto direto pela URL "canônica" devolvida no upload. Toda leitura (imagem de figura, PDF do documento, PDF de portaria) passa antes por `POST /v1/imagens/urls-assinadas` (autenticado, igual ao resto do `/v1/**`), que troca a URL canônica por uma URL assinada (S3 pre-signed, válida por 1h) — só essa é usada como `src`/`href` no navegador. O backend, por sua vez, nunca depende de acesso público: lê os objetos direto via SDK autenticado (`ImagemService.getImageAsDataUri`/`getObjectStream`), usado por exemplo na geração do PDF oficial (Apache FOP embute a imagem como *data URI*, sem depender de rede).
 
@@ -34,7 +34,7 @@ O bucket do MinIO é **privado** — o navegador nunca acessa um objeto direto p
 O backend adota uma separação clara em três camadas, com a dependência sempre apontando para dentro (`infrastructure → application → domain`):
 
 ```
-br.com.danielchipolesch
+intraer.fablegis
 │
 ├── application/           ← Camada de aplicação (entrada/saída)
 │   ├── controllers/       ← REST: Documento, Emenda, Anexo, EspecieNormativa,
@@ -51,14 +51,14 @@ br.com.danielchipolesch
 │   │   │                            Anexo, EmendaHistorico, DocumentoCompartilhamento,
 │   │   │                            PortariaPublicacao + enums
 │   │   ├── numeracaoDocumento/   ← EspecieNormativa, AssuntoBasico
-│   │   ├── usuario/              ← Usuario, OrganizacaoMilitar, RefreshToken, PapelEnum
+│   │   ├── usuario/              ← Usuario, OrganizacaoMilitar, PapelEnum
 │   │   ├── auditoria/             ← LogAuditoria, AcaoAuditoriaEnum
 │   │   └── notificacao/           ← Notificacao, TipoNotificacaoEnum
 │   ├── services/          ← Regras de negócio (DocumentoService, DocumentoStatusService,
 │   │                        DocumentoAcessoService, DocumentoConcorrenciaService,
 │   │                        DocumentoParteNormativaService, EmendaService,
 │   │                        PortariaPublicacaoService, UsuarioService,
-│   │                        AuthService, RefreshTokenService, LogAuditoriaService,
+│   │                        LogAuditoriaService, DocumentoBuscaService,
 │   │                        NotificacaoService, DocumentoPresencaService,
 │   │                        ImagemService, DocumentoPdfService, MapaAlteracaoPdfService,
 │   │                        FopFactoryProvider…)
@@ -69,10 +69,12 @@ br.com.danielchipolesch
 │
 └── infrastructure/        ← Detalhes técnicos
     ├── repositories/      ← Spring Data JPA
-    ├── security/          ← JwtService, JwtAuthenticationFilter, UsuarioPrincipal,
+    ├── security/          ← UsuarioPrincipal, UsuarioDetailsService,
+    │                        JwtToUsuarioAuthenticationConverter, SseBearerTokenResolver,
     │                        AutenticacaoUtil, DataSeeder (usuário admin padrão)
     ├── notificacao/       ← NotificacaoEmitterRegistry, DocumentoPresencaEmitterRegistry (SSE)
-    ├── configurations/    ← Cors, Swagger, Security, Minio
+    ├── configurations/    ← Cors, Swagger, SecurityConfig (resource server),
+    │                        AuthorizationServerConfig, Minio
     ├── enums/             ← Catálogos oficiais (espécies, assuntos, cabeçalho)
     └── runners/           ← Carga inicial das tabelas de referência
 ```
@@ -81,20 +83,45 @@ br.com.danielchipolesch
 
 **Seed automático:** os `runners` (`EspecieNormativaRunner`, `AssuntoBasicoRunner`) populam na inicialização as espécies normativas e os assuntos básicos oficiais do COMAER, cada um com sua descrição normativa completa — o catálogo já nasce pronto para uso.
 
+## Regras por espécie normativa — atrás de interfaces
+
+Nem toda espécie normativa obedece às mesmas regras. Para o restante do sistema **nunca testar a espécie** de um documento, cada `EspecieNormativa` aponta para o **tipo de espécie** (`EspecieNormativa.tipoDeEspecie`, coluna `st_tipo_especie`) — com os nomes da NSCA 5-3: `CONVENCIONAL` (as Espécies Convencionais: MCA, NSCA, ICA, ROCA, DCA…) e `COMUNICACAO_OFICIAL_PADRONIZADA` (as Espécies de Comunicações Oficiais Padronizadas, Capítulo VIII, Seção VIII, onde a NPA se enquadra) — e a implementação desse tipo entrega as regras por meio de interfaces — pacote `domain.regras`. As classes de `domain.regras.convencional` e `domain.regras.comunicacaooficialpadronizada` implementam essas interfaces; as que descrevem a própria NPA (`CabecalhoDaNpa`, `CamposDeNpa`, `DocumentoFoNpaBuilder`…) mantêm o nome dela, que é a espécie concreta da norma:
+
+| Interface | O que a espécie decide | Implementação em `CONVENCIONAL` |
+|---|---|---|
+| `RegrasDeCriacaoDoDocumento` | o que a espécie exige para criar um documento e como ele se identifica (a `identificacao` é gravada na criação) | `CriacaoDeEspecieConvencional` (assunto básico + sequencial: "DCA 11-3") |
+| `CamposEspecificosDaEspecie` | o ciclo de vida dos dados que só algumas espécies têm, numa estrutura 1:1 com o documento (criar e copiar junto com ele; a exclusão é em cascata no banco) | `SemCamposEspecificos` (nenhum) · NPA: `CamposDeNpa` |
+| `RegrasDeHierarquiaDosElementos` | quem pode ficar dentro de quem na parte normativa; o backend recusa, no salvamento, o que a espécie não permite | `HierarquiaDeEspecieConvencional` (o editor impõe a ordem; o backend não recusa) |
+| `CalculadoraDeNumeracaoDosElementos` | o rótulo de cada elemento da parte normativa | `NumeracaoService` |
+| `EstruturaInicialDeNovoDocumento` | os elementos com que um documento novo já nasce | `CapitulosPadronizadosService` (NSCA 5-3) |
+| `RotuloDosAnexos` | como os anexos são rotulados | `RotuloDeAnexoDeEspecieConvencional` (ANEXO II, III…) |
+| `LeiauteDoPdf` | a diagramação do PDF (XSL-FO) | `DocumentoFoBuilder` |
+| `LeiauteDoHtml` | a diagramação do HTML | `LeiauteHtmlDeEspecieConvencional` |
+| `RegrasDeRegistroDaPublicacao` | o que se registra (e o que é obrigatório informar) ao publicar ou revogar oficialmente | `PublicacaoDeEspecieConvencional` (portaria + BCA e, na 1ª publicação, a parte preliminar) · NPA: `PublicacaoDeNpa` (Boletim Interno) |
+| `RegrasDoCicloDeVidaDoDocumento` | as mudanças de etapa permitidas (`AcaoDeEtapa`) | `CicloDeVidaDeEspecieConvencional` |
+
+`RegrasDaEspecieNormativa` reúne as regras de uma espécie (`RegrasDeEspecieConvencional` para o tipo `CONVENCIONAL`; `RegrasDeComunicacaoOficialPadronizada` para o tipo `COMUNICACAO_OFICIAL_PADRONIZADA`) e `RegrasDasEspecies.para(especie)` devolve as regras — toda `RegrasDaEspecieNormativa` registrada como bean entra sozinha, então acrescentar uma espécie com regras próprias **não exige mexer no registro nem nos serviços**. Quem só precisa da regra depende da interface: `DocumentoService.create`/`clone` (criação, estrutura inicial e campos específicos), `DocumentoParteNormativaService` (hierarquia e numeração), `DocumentoPdfService` e `DocumentoHtmlService` (layouts, que continuam dono da parte que não depende da espécie: escolher a versão, gerar, armazenar e servir o arquivo) e `DocumentoStatusService` (ciclo de vida e registro da publicação).
+
+**Regra para código novo:** um comportamento que varia por espécie entra como método de uma dessas interfaces (ou de uma interface nova), nunca como `if (espécie == …)` no serviço. Ver o que falta da NPA, a primeira espécie de comunicação oficial padronizada, no [Roadmap](roadmap.md#npa-norma-padrao-de-acao-o-que-falta).
+
 ## Camadas do frontend
 
 ```
 frontend/src
 │
-├── pages/          ← LoginPage · HomePage · DocumentEditorPage · DocumentViewerPage ·
+├── pages/          ← LoginPage · HubPage · ModuloPage · DocumentEditorPage · DocumentViewerPage ·
 │                      ComparisonPage · UsersPage · AuditoriaPage
 ├── components/
 │   ├── editor/     ← WysiwygEditor, EditorSidebar (com dialog de metadados),
 │   │                 DocumentPreview, NormTreeItem, FigureView,
 │   │                 CompartilharDialog, Lc95HelpDialog
 │   ├── comparison/ ← DiffViewer
+│   ├── hub/        ← PainelCard, DetalhesDoDocumentoDialog, EtapasDoCiclo (tela inicial)
 │   └── common/     ← AppTopBar (menu de usuário, sino de notificações),
 │                      StatusBadge, NewDocumentDialog
+├── perfis/         ← as regras que variam por espécie no frontend (hierarquia dos elementos,
+│                      numeração, cabeçalho da NPA), escolhidas pelo `tipoDeEspecie` que o backend
+│                      informa: espelho das interfaces de `domain.regras` (ver abaixo)
 ├── stores/         ← Pinia: auth (sessão) · documents (acervo) · editor (documento em edição)
 ├── api/            ← client (fetch tipado, com renovação automática de token) +
 │                      módulos por recurso (documents, auth, usuarios, auditoria,
@@ -105,6 +132,8 @@ frontend/src
 ├── services/       ← pdfService (geração e download de PDF server-side)
 └── router/         ← Rotas SPA, com guarda de autenticação e de papel (admin/auditor)
 ```
+
+**Perfis por espécie no frontend.** `perfis/index.js` entrega, para o `tipo_de_especie` de um documento, o perfil com o que a tela precisa decidir: `filhosPermitidos(tipoPai)` (menu "adicionar"), `renumerar(elementos, documento)`, se admite promover/rebaixar, alteração e a ordem livre entre irmãos. `convencional.js` envolve `utils/numbering.js`; `npa.js` espelha `HierarquiaDeNpa`, `NumeracaoDeNpa` e `CabecalhoDaNpa` do backend — com os **mesmos cenários de teste** (`npa.test.js`), como já é a regra da numeração dos atos. Tela nenhuma testa a sigla da espécie.
 
 **Estado com Pinia — três stores complementares:**
 
@@ -133,7 +162,7 @@ fab-legis/
 │   ├── Dockerfile              # Multi-stage: Maven build → JRE Alpine (+ Carlito)
 │   ├── pom.xml
 │   └── src/main/
-│       ├── java/br/com/danielchipolesch/
+│       ├── java/intraer/fablegis/
 │       │   ├── application/    # Controllers, DTOs, helpers
 │       │   ├── domain/         # Entidades, serviços, builders, mappers, exceções
 │       │   └── infrastructure/ # Repositórios, configurações, enums, runners

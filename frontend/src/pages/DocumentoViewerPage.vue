@@ -9,6 +9,7 @@
             <q-icon name="mdi-chevron-right" size="16px" color="primary" />
           </template>
           <q-breadcrumbs-el :to="{ name: 'home' }" icon="mdi-home" />
+          <q-breadcrumbs-el label="Área de Trabalho" :to="{ name: 'home' }" />
           <q-breadcrumbs-el :label="origemCrumb.label" :to="origemCrumb.to" />
           <q-breadcrumbs-el :label="docLabel" />
           <q-breadcrumbs-el
@@ -21,18 +22,18 @@
         <div v-if="documento?.titulo" class="text-body2 text-grey-7 q-mt-xs">{{ documento.titulo }}</div>
       </div>
 
-      <StatusBadge v-if="documento" :status="documento.status" />
+      <StatusBadge v-if="documento" :situacao-bca="documento.situacao_bca" :situacao-local="documento.situacao_local" />
 
       <q-separator vertical style="height:36px" />
 
-      <q-btn outline color="primary" size="sm"
+      <q-btn v-if="perfil.permiteAlteracao" outline color="primary" size="sm"
         :to="{ name: 'documento-comparar', params: { id: documentoId } }">
         <q-icon left name="mdi-source-branch" />
         Versões
       </q-btn>
 
       <q-btn
-        v-if="documento?.status === 'EM_PUBLICACAO' && !!documento?.data_publicacao"
+        v-if="documento && ehAlteracaoPublicada(documento)"
         outline color="primary" size="sm"
         @click="abrirTextoSugerido"
       >
@@ -40,15 +41,21 @@
         Texto Sugerido
       </q-btn>
 
-      <q-btn outline color="deep-orange-7" size="sm" :loading="pdfLoading" @click="baixarPdf">
-        <q-icon left name="mdi-file-pdf-box" />
-        PDF
-      </q-btn>
+      <BotaoBaixarVersao
+        label="PDF" icon="mdi-file-pdf-box" testid="baixar-pdf"
+        :loading="pdfLoading"
+        :tem-vigente="!!documento && temVersaoVigente(documento)"
+        :tem-tramitacao="!!documento && temVersaoEmTramitacao(documento)"
+        @baixar="baixarPdf"
+      />
 
-      <q-btn outline color="deep-orange-7" size="sm" :loading="htmlLoading" @click="baixarHtml">
-        <q-icon left name="mdi-language-html5" />
-        HTML
-      </q-btn>
+      <BotaoBaixarVersao
+        label="HTML" icon="mdi-language-html5" testid="baixar-html"
+        :loading="htmlLoading"
+        :tem-vigente="!!documento && temVersaoVigente(documento)"
+        :tem-tramitacao="!!documento && temVersaoEmTramitacao(documento)"
+        @baixar="baixarHtml"
+      />
 
       <q-btn outline color="primary" size="sm" @click="clonar">
         <q-icon left name="mdi-content-copy" />
@@ -84,20 +91,28 @@
                     <div class="col-6">
                       <div class="info-label">Número</div>
                       <div class="info-value text-primary text-weight-medium">
-                        {{ documento.especie }} {{ documento.numero_basico }}<template v-if="documento.numero_secundario">-{{ documento.numero_secundario }}</template>
+                        {{ documento.codigo_documento }}
                       </div>
                     </div>
                     <div class="col-12">
                       <div class="info-label">Título</div>
                       <div class="info-value">{{ documento.titulo || '—' }}</div>
                     </div>
-                    <div class="col-12">
+                    <div v-if="!perfil.ehNpa" class="col-12">
                       <div class="info-label">Assunto Básico</div>
                       <div class="info-value">{{ documento.assunto_basico || '—' }}</div>
                     </div>
                     <div class="col-6">
-                      <div class="info-label">Situação atual</div>
-                      <StatusBadge :status="documento.status" class="q-mt-xs" />
+                      <div class="info-label">{{ perfil.ehNpa ? 'Situação (Boletim Interno)' : 'Situação BCA' }}</div>
+                      <StatusBadge :situacao-bca="documento.situacao_bca" mostrar="bca" class="q-mt-xs" data-testid="info-situacao-bca" />
+                    </div>
+                    <div class="col-6">
+                      <div class="info-label">Situação Local</div>
+                      <StatusBadge :situacao-local="documento.situacao_local" mostrar="local" class="q-mt-xs" data-testid="info-situacao-local" />
+                    </div>
+                    <div v-if="perfil.ehNpa && documento.bca_referencia" class="col-12">
+                      <div class="info-label">Publicação</div>
+                      <div class="info-value">{{ documento.bca_referencia }}</div>
                     </div>
                     <div class="col-6">
                       <div class="info-label">Código</div>
@@ -157,8 +172,9 @@
           </q-expansion-item>
         </q-card>
 
-        <!-- 2. Portarias (edição, alterações e revogação -- fechada por padrão) -->
-        <q-card flat class="section-card">
+        <!-- 2. Portarias (edição, alterações e revogação -- fechada por padrão). A NPA não tem portaria:
+             é publicada e revogada no Boletim Interno (ver "Publicação" acima). -->
+        <q-card v-if="!perfil.ehNpa" flat class="section-card">
           <q-expansion-item
             v-model="expanded.portarias"
             icon="mdi-file-certificate-outline"
@@ -209,6 +225,27 @@
             header-class="text-primary text-weight-medium"
           >
             <q-separator />
+            <!-- Duas versões possíveis: a EM TRAMITAÇÃO (a etapa local em curso; padrão quando
+                 existe) e a VIGENTE (a da Situação BCA). Sem etapa em curso só há a vigente. -->
+            <q-card-section
+              v-if="documento && temVersaoVigente(documento) && temVersaoEmTramitacao(documento)"
+              class="q-py-sm row items-center" style="gap:12px"
+            >
+              <span class="text-caption text-grey-7">Versão exibida:</span>
+              <q-btn-toggle
+                v-model="versaoSelecionada"
+                no-caps unelevated dense
+                toggle-color="primary" color="grey-3" text-color="grey-8"
+                data-testid="seletor-versao"
+                :options="[
+                  { value: 'TRAMITACAO', label: 'Em tramitação' },
+                  { value: 'VIGENTE', label: 'Vigente (BCA)' },
+                ]"
+              />
+            </q-card-section>
+            <q-banner v-else-if="documento && temVersaoEmTramitacao(documento)" dense class="bg-blue-1 text-blue-10">
+              Versão em tramitação. Ainda não há versão vigente: o documento não foi publicado.
+            </q-banner>
             <q-card-section class="q-pa-none pdf-section">
               <iframe
                 v-if="iframePdfSrc"
@@ -217,16 +254,17 @@
                 title="Visualização do documento"
                 @load="pdfIframeLoading = false"
               />
-              <div v-else-if="documento" class="column items-center q-py-xl text-grey-6">
+              <div v-else-if="erroPdf" class="column items-center q-py-xl text-grey-6">
                 <q-icon name="mdi-file-pdf-box" size="64px" class="q-mb-md" color="grey-4" />
                 <div class="text-body1 text-weight-medium q-mb-xs">PDF não disponível</div>
-                <div class="text-body2 text-center text-grey-5" style="max-width:480px">
-                  O PDF é gerado automaticamente quando o documento é <strong>aprovado</strong>.
-                  Use o botão <strong>PDF</strong> na barra superior para baixar o rascunho.
-                </div>
+                <div class="text-body2 text-center text-grey-5" style="max-width:480px">{{ erroPdf }}</div>
+                <q-btn flat color="primary" icon="mdi-refresh" label="Tentar novamente" class="q-mt-md" data-testid="pdf-tentar-novamente" @click="carregarPdf" />
               </div>
 
-              <q-inner-loading :showing="!documento || pdfIframeLoading" />
+              <q-inner-loading :showing="!documento || pdfIframeLoading" data-testid="pdf-carregando">
+                <q-spinner-gears size="56px" color="primary" />
+                <div class="text-caption text-grey-7 q-mt-sm">Gerando a visualização do documento...</div>
+              </q-inner-loading>
             </q-card-section>
           </q-expansion-item>
         </q-card>
@@ -315,15 +353,21 @@
 </template>
 
 <script setup>
-import { ref, computed, reactive, watch, onMounted } from 'vue'
+import { ref, computed, reactive, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { useDocumentosStore } from '@/stores/documentos.js'
 import { useAuthStore } from '@/stores/auth.js'
 import StatusBadge from '@/components/common/StatusBadge.vue'
-import { gerarPdf, gerarHtml } from '@/services/pdfService.js'
+import { gerarPdf, gerarHtml, buscarPdfBlob } from '@/services/pdfService.js'
 import { gerarTextoSugeridoPortaria } from '@/utils/textoSugeridoPortaria.js'
-import { resolveMinioUrl, resolveMinioUrls } from '@/utils/minioUrls.js'
+import { resolveMinioUrls } from '@/utils/minioUrls.js'
+import BotaoBaixarVersao from '@/components/common/BotaoBaixarVersao.vue'
+import { perfilDoDocumento, moduloDoDocumento } from '@/perfis/index.js'
+import { itensRenumeracaoUnico } from '@/utils/numbering.js'
+import {
+  ehAlteracaoPublicada, temVersaoVigente, temVersaoEmTramitacao, versaoPadrao, eventoDoHistorico,
+} from '@/utils/fluxoDocumento.js'
 
 const route    = useRoute()
 const router   = useRouter()
@@ -342,44 +386,57 @@ const expanded = reactive({
   versoes:   false,
 })
 
-// Só mostra o PDF quando existe uma cópia ARMAZENADA e confiável no MinIO
-// (DocumentoPdfService.STATUS_COM_PDF_ARMAZENADO) -- nunca renderiza ao vivo
-// aqui. Renderização ao vivo (Apache FOP) é pesada, e ligá-la à navegação da
-// tela de visualização (que qualquer usuário abre a qualquer momento) chegou a
-// sobrecarregar o backend inteiro; quem precisa ver o conteúdo current de um
-// documento ainda editável (EM_REVISAO etc.) usa o editor, que já tem uma
-// prévia própria (DocumentoPreview.vue, renderizada no próprio navegador, sem
-// tocar o backend). Fora dessas situações, a seção mostra "PDF indisponível".
-// APROVADO/ALTERADO nunca ficam parados como status atual (cascateiam direto
-// pra EM_PUBLICACAO) -- é esse quem carrega a cópia gerada com a marca d'água
-// "APROVADO" enquanto aguarda a publicação de fato.
-const STATUS_COM_PDF = new Set(['APROVADO', 'ALTERADO', 'EM_PUBLICACAO', 'PUBLICADO', 'REVOGADO'])
-
 const documentoId = computed(() => route.params.id)
 const documento   = computed(() => docStore.getById(documentoId.value))
+// As regras da espécie do documento (perfis/index.js): o que a tela mostra varia por espécie.
+const perfil      = computed(() => perfilDoDocumento(documento.value))
 
-const iframePdfSrcBruto = computed(() => {
-  const doc = documento.value
-  if (!doc) return null
-  if (STATUS_COM_PDF.has(doc.status)) return doc.url_pdf || null
-  return null
-})
-
-// doc.url_pdf é a URL "canônica" de um PDF já gerado/armazenado no MinIO (bucket
-// privado) -- precisa virar uma URL assinada antes de servir de src pro iframe.
+// Versão exibida no iframe: a em tramitação (se houver) é a padrão; senão, a vigente. O PDF só
+// é buscado com a seção aberta: a versão em tramitação é renderizada na hora pelo backend quando
+// o texto ainda muda (Apache FOP é pesado), e ligá-lo à simples abertura desta tela -- que
+// qualquer usuário faz a qualquer momento -- já sobrecarregou o backend antes.
+const versaoSelecionada = ref(null)
 const iframePdfSrc = ref(null)
-watch(iframePdfSrcBruto, async (src) => {
-  iframePdfSrc.value = src ? await resolveMinioUrl(src) : null
+const pdfIframeLoading = ref(false)
+const erroPdf = ref('')
+let pdfObjectUrl = null
+let pdfRequisicao = 0
+
+watch(documento, (doc) => {
+  if (doc && versaoSelecionada.value == null) versaoSelecionada.value = versaoPadrao(doc)
 }, { immediate: true })
 
-const pdfIframeLoading = ref(false)
-watch(iframePdfSrc, (src) => { pdfIframeLoading.value = !!src }, { immediate: true })
+function liberarPdf() {
+  if (pdfObjectUrl) URL.revokeObjectURL(pdfObjectUrl)
+  pdfObjectUrl = null
+  iframePdfSrc.value = null
+}
+
+async function carregarPdf() {
+  const doc = documento.value
+  if (!doc || !expanded.preview || !versaoSelecionada.value) return
+  const requisicao = ++pdfRequisicao
+  liberarPdf()
+  erroPdf.value = ''
+  pdfIframeLoading.value = true
+  try {
+    const blob = await buscarPdfBlob(doc.id, versaoSelecionada.value)
+    if (requisicao !== pdfRequisicao) return // o usuário já trocou de versão
+    pdfObjectUrl = URL.createObjectURL(blob)
+    iframePdfSrc.value = pdfObjectUrl
+  } catch (e) {
+    if (requisicao !== pdfRequisicao) return
+    pdfIframeLoading.value = false
+    erroPdf.value = e?.message ?? 'Erro ao carregar o PDF.'
+  }
+}
+watch([() => expanded.preview, versaoSelecionada, () => documento.value?.id], carregarPdf)
+onBeforeUnmount(liberarPdf)
 
 const docLabel = computed(() => {
   const d = documento.value
   if (!d) return 'Documento'
-  const num = [d.numero_basico, d.numero_secundario].filter(Boolean).join('-')
-  return [d.especie, num].filter(Boolean).join(' ') || 'Documento'
+  return d.codigo_documento || 'Documento'
 })
 
 // Rascunho/Minuta oferecem o atalho de voltar para o editor pelo breadcrumb
@@ -390,8 +447,10 @@ const docLabel = computed(() => {
 const podeEditar = computed(() => {
   const doc = documento.value
   if (!doc) return false
-  if (doc.status === 'EM_REVISAO') return doc.revisor_atribuido_id === String(auth.usuario?.id)
-  return ['RASCUNHO', 'MINUTA'].includes(doc.status)
+  if (doc.situacao_local === 'EM_REVISAO') {
+    return doc.situacao_bca !== 'PUBLICADO' && doc.revisor_atribuido_id === String(auth.usuario?.id)
+  }
+  return ['RASCUNHO', 'MINUTA'].includes(doc.situacao_local)
 })
 
 // Ver comentário equivalente em DocumentoEditorPage.vue -- quando aberto a
@@ -400,26 +459,16 @@ const podeEditar = computed(() => {
 const ORIGEM_CRUMB = {
   revisao:    { label: 'Revisão',    to: { name: 'revisao' } },
   publicacao: { label: 'Publicação', to: { name: 'publicacao' } },
+  busca:      { label: 'Busca Textual', to: { name: 'busca' } },
 }
-const origemCrumb = computed(() => ORIGEM_CRUMB[route.query.origem] ?? { label: 'Documentos', to: { name: 'home' } })
-
-// Metadados visuais por status — os ciclos EM_ALTERACAO <-> ALTERADO podem se repetir
-// várias vezes até a republicação, então o histórico vem do log de transições
-// (t_historico_documento), não de um timestamp único por status.
-const STATUS_META = {
-  RASCUNHO:          { titulo: 'Rascunho',              icon: 'mdi-pencil-outline',        color: 'grey'        },
-  MINUTA:            { titulo: 'Minuta',                icon: 'mdi-file-edit-outline',     color: 'orange'      },
-  EM_REVISAO:        { titulo: 'Em Revisão',            icon: 'mdi-account-search-outline', color: 'orange'     },
-  APROVADO:          { titulo: 'Aprovado',              icon: 'mdi-check-circle-outline',  color: 'green'       },
-  EM_PUBLICACAO:     { titulo: 'Em Publicação',         icon: 'mdi-timer-sand',            color: 'blue'        },
-  PUBLICADO:         { titulo: 'Publicado',             icon: 'mdi-publish',               color: 'primary'    },
-  EM_ALTERACAO:      { titulo: 'Em Alteração',          icon: 'mdi-pencil-lock-outline',   color: 'deep-orange' },
-  ALTERADO:          { titulo: 'Alterado',              icon: 'mdi-check-circle-outline',  color: 'teal'        },
-  ANALISE_REVOGACAO: { titulo: 'Análise de Revogação',  icon: 'mdi-file-search-outline',   color: 'brown'       },
-  EM_REVOGACAO:      { titulo: 'Em Revogação',          icon: 'mdi-timer-sand',            color: 'brown'       },
-  REVOGADO:          { titulo: 'Revogado',              icon: 'mdi-file-remove-outline',   color: 'brown'       },
-  CANCELADO:         { titulo: 'Cancelado',             icon: 'mdi-close-circle-outline',  color: 'negative'    },
-}
+// Sem origem, o crumb do meio é o módulo a que o documento pertence (a tela inicial dele).
+const moduloCrumb = computed(() => {
+  const m = moduloDoDocumento(documento.value)
+  return { label: m.nome, to: { name: m.rota } }
+})
+const origemCrumb = computed(() => ORIGEM_CRUMB[route.query.origem] ?? moduloCrumb.value)
+// O histórico vem do log de transições (t_historico_documento), não de um timestamp único por
+// situação: as etapas locais se repetem a cada alteração. Ver eventoDoHistorico (utils/fluxoDocumento.js).
 
 const historico = computed(() => docStore.historicoPorDocumento[String(documentoId.value)] ?? [])
 const portariasBrutas = computed(() => docStore.portariasPorDocumento[String(documentoId.value)] ?? [])
@@ -455,7 +504,7 @@ const timelineEventos = computed(() => {
     .sort((a, b) => String(a.dtRegistro).localeCompare(String(b.dtRegistro)))
     .map(h => ({
       key: h.id,
-      ...(STATUS_META[h.statusNovo] ?? { titulo: h.statusNovo, icon: 'mdi-help', color: 'grey' }),
+      ...eventoDoHistorico(h),
       data: formatarData(h.dtRegistro),
     }))
 })
@@ -485,11 +534,11 @@ onMounted(async () => {
   }
 })
 
-async function baixarPdf() {
+async function baixarPdf(versao) {
   if (!documento.value) return
   pdfLoading.value = true
   try {
-    await gerarPdf(documento.value)
+    await gerarPdf(documento.value, versao)
   } catch (e) {
     $q.notify({ type: 'negative', message: `Erro ao gerar PDF: ${e?.message ?? 'erro desconhecido'}` })
   } finally {
@@ -497,11 +546,11 @@ async function baixarPdf() {
   }
 }
 
-async function baixarHtml() {
+async function baixarHtml(versao) {
   if (!documento.value) return
   htmlLoading.value = true
   try {
-    await gerarHtml(documento.value)
+    await gerarHtml(documento.value, versao)
   } catch (e) {
     $q.notify({ type: 'negative', message: `Erro ao gerar HTML: ${e?.message ?? 'erro desconhecido'}` })
   } finally {
@@ -527,7 +576,10 @@ function executarClone() {
 // ── Texto sugerido da portaria de alteração (NSCA 5-3, Art. 22) ────────────────
 // Geração em si vive em utils/textoSugeridoPortaria.js, compartilhada com
 // ComparisonPage.vue. Sempre sobre o ciclo PENDENTE (ainda não publicado).
-const mapaAlteracao = computed(() => docStore.mapaAlteracaoPorDocumento[String(documentoId.value)] ?? [])
+const mapaAlteracao = computed(() => [
+  ...(docStore.mapaAlteracaoPorDocumento[String(documentoId.value)] ?? []),
+  ...itensRenumeracaoUnico(documento.value),
+])
 const itensCicloPendente = computed(() => mapaAlteracao.value.filter(item => item.cicloReferencia == null))
 
 const dialogTextoSugerido = ref(false)

@@ -21,6 +21,7 @@
                 v-model="form.especieNormativa"
                 :options="especiesFiltradas"
                 :loading="carregandoRefs"
+                :readonly="especies.length === 1"
                 option-label="label"
                 option-value="id"
                 label="Espécie Normativa *"
@@ -45,8 +46,24 @@
               </q-select>
             </div>
 
-            <!-- Assunto Básico -->
-            <div class="col-12">
+            <!-- Identificação (NPA): texto livre, conforme o padrão do setor que emite -->
+            <div v-if="ehNpa" class="col-12">
+              <q-input
+                v-model="form.identificacao"
+                label="Identificação *"
+                hint="Texto livre, conforme o padrão do setor. Ex.: NPA-AGO-01 ou NPA 44-__/2026"
+                :rules="[obrigatorio]"
+                outlined
+                maxlength="120"
+              >
+                <template #prepend>
+                  <q-icon name="mdi-identifier" />
+                </template>
+              </q-input>
+            </div>
+
+            <!-- Assunto Básico (atos normativos; a NPA não usa) -->
+            <div v-else class="col-12">
               <q-select
                 v-model="form.assuntoBasico"
                 :options="assuntosFiltrados"
@@ -79,7 +96,7 @@
             <div class="col-12">
               <q-input
                 v-model="form.titulo"
-                label="Título do Documento *"
+                :label="ehNpa ? 'Assunto *' : 'Título do Documento *'"
                 :rules="[obrigatorio, minLen]"
                 outlined
                 counter
@@ -95,7 +112,7 @@
         </q-form>
 
         <q-banner
-          v-if="form.especieNormativa && form.assuntoBasico"
+          v-if="!ehNpa && form.especieNormativa && form.assuntoBasico"
           dense
           rounded
           class="bg-info text-white q-mt-sm"
@@ -131,10 +148,14 @@
 import { ref, reactive, computed, watch } from 'vue'
 import { useDocumentosStore } from '@/stores/documentos.js'
 import { useRouter } from 'vue-router'
+import { perfilDe } from '@/perfis/index.js'
 import { listEspeciesNormativas, listAssuntosBasicos, normalizeEspecie, normalizeAssunto } from '@/api/referencias.js'
 
+// tipoDeEspecie: o módulo de onde o diálogo foi aberto -- só as espécies dele podem ser criadas ali. Se o módulo tem uma
+// única espécie (a NPA), ela já vem escolhida.
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
+  tipoDeEspecie: { type: String, default: null },
 })
 const emit = defineEmits(['update:modelValue'])
 
@@ -159,7 +180,7 @@ async function carregarReferencias() {
       listEspeciesNormativas(),
       listAssuntosBasicos(),
     ])
-    especies.value = esp.map(normalizeEspecie)
+    especies.value = esp.map(normalizeEspecie).filter(e => !props.tipoDeEspecie || e.tipoDeEspecie === props.tipoDeEspecie)
     assuntos.value = ass.map(normalizeAssunto)
     especiesFiltradas.value = especies.value
     assuntosFiltrados.value = assuntos.value
@@ -197,8 +218,13 @@ function filtrarAssuntos(val, update) {
 const form = reactive({
   especieNormativa: null,
   assuntoBasico:    null,
+  identificacao:    '',
   titulo:           '',
 })
+
+// A espécie escolhida decide o que o documento pede na criação (perfis/index.js): um ato normativo, o assunto
+// básico; uma NPA, a identificação em texto livre.
+const ehNpa = computed(() => perfilDe(form.especieNormativa?.tipoDeEspecie).ehNpa)
 
 const aberto = computed({
   get: () => props.modelValue,
@@ -208,10 +234,14 @@ const aberto = computed({
 watch(aberto, async (v) => {
   if (v) {
     formRef.value?.resetValidation()
-    Object.assign(form, { especieNormativa: null, assuntoBasico: null, titulo: '' })
+    Object.assign(form, { especieNormativa: null, assuntoBasico: null, identificacao: '', titulo: '' })
     await carregarReferencias()
+    if (especies.value.length === 1) form.especieNormativa = especies.value[0]
   }
 })
+
+// A tela do módulo é a mesma nos dois módulos: ao trocar de módulo, o catálogo carregado deixa de valer.
+watch(() => props.tipoDeEspecie, () => { especies.value = []; especiesFiltradas.value = [] })
 
 const obrigatorio = (v) => (v != null && String(typeof v === 'object' ? (v.label ?? '') : v).trim() !== '') || 'Campo obrigatório'
 const minLen      = (v) => (String(v ?? '').trim().length >= 5) || 'Mínimo de 5 caracteres'
@@ -224,7 +254,8 @@ async function confirmar() {
   try {
     const doc = await store.createDocumento({
       idEspecieNormativa: form.especieNormativa.id,
-      idAssuntoBasico:    form.assuntoBasico.id,
+      idAssuntoBasico:    ehNpa.value ? null : form.assuntoBasico.id,
+      identificacao:      ehNpa.value ? form.identificacao : null,
       tituloDocumento:    form.titulo,
     })
     if (doc?.id) {
@@ -241,6 +272,6 @@ async function confirmar() {
 function fechar() {
   aberto.value = false
   formRef.value?.resetValidation()
-  Object.assign(form, { especieNormativa: null, assuntoBasico: null, titulo: '' })
+  Object.assign(form, { especieNormativa: null, assuntoBasico: null, identificacao: '', titulo: '' })
 }
 </script>

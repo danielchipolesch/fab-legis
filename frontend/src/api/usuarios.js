@@ -41,8 +41,18 @@ export async function redefinirSenha(id, novaSenha) {
 // Candidatos pro seletor de "escolher pessoa" (enviar para revisão/revogação,
 // aprovar escolhendo o publicador) -- sempre restrito à própria OM de quem
 // pede, resolvida no backend a partir do token (ver UsuarioController.elegiveis).
-export async function listUsuariosElegiveis(papel) {
-  return http.get(`/usuarios/elegiveis?papel=${papel}`)
+// `q` opcional filtra por nome/nome de guerra (busca-conforme-digita).
+export async function listUsuariosElegiveis(papel, q) {
+  const termo = q ? `&q=${encodeURIComponent(q)}` : ''
+  return http.get(`/usuarios/elegiveis?papel=${papel}${termo}`)
+}
+
+// Busca de coautor por nome/nome de guerra (CompartilharDialog.vue) -- sem
+// filtro de OM, já que coautoria não é restrita a isso (ver
+// UsuarioController.buscar). Só busca com 2+ caracteres.
+export async function buscarUsuariosPorNome(q) {
+  if (!q || q.trim().length < 2) return []
+  return http.get(`/usuarios/buscar?q=${encodeURIComponent(q.trim())}`)
 }
 
 export async function listOrganizacoesMilitares() {

@@ -1,16 +1,14 @@
 import { defineStore } from 'pinia'
 import { v4 as uuidv4 } from 'uuid'
-import { renumberElements, renumberElementsEmAlteracao } from '@/utils/numbering.js'
+import { renumerarElementos } from '@/perfis/index.js'
 import * as api from '@/api/documentos.js'
 
 function renumerarSecaoNormativa(doc) {
   const normativa = doc.secoes?.find(s => s.tipo === 'parte_normativa')
   if (!normativa?.elementos?.length) return
-  if (doc.status === 'EM_ALTERACAO' || doc.status === 'ALTERADO') {
-    renumberElementsEmAlteracao(normativa.elementos)
-  } else {
-    renumberElements(normativa.elementos)
-  }
+  // A numeração é regra da espécie do documento (perfis/index.js): num ato normativo já publicado a
+  // numeração é por emenda (elemento em vigor nunca é renumerado); numa NPA, pelo caminho.
+  renumerarElementos(normativa.elementos, doc)
 }
 
 function makeElement(tipo, numero, conteudo = '', filhos = []) {
@@ -28,7 +26,7 @@ const CAPITULOS_DEFAULT = [
   'DISPOSIÇÕES TRANSITÓRIAS',
 ]
 
-// Exportados para reuso no formulário de publicação (HomePage.vue) -- é o
+// Exportados para reuso no formulário de publicação (ModuloPage.vue) -- é o
 // mesmo envelope JSON (tipo ProseMirror/TipTap) que o WysiwygEditor e o
 // backend já esperam em "conteudo", então textos simples digitados ali
 // entram no mesmo contrato de dados sem precisar de um editor rico.
@@ -45,7 +43,7 @@ export function jDoc(...paragraphs) {
 // A parte preliminar (epígrafe/ementa/preâmbulo/fecho/assinatura) não faz
 // mais parte da edição -- só existe de fato a partir da publicação em BCA,
 // então passou a ser coletada no próprio formulário de publicação
-// (HomePage.vue), não como uma seção editável aqui.
+// (ModuloPage.vue), não como uma seção editável aqui.
 function gerarSecoesTemplate(doc) {
   return [
     {
@@ -68,24 +66,42 @@ function gerarSecoesTemplate(doc) {
 export const useDocumentosStore = defineStore('documents', {
   state: () => ({
     // Antes, "o acervo inteiro visível" (até 200 documentos, carregado uma vez). Agora
-    // é só a página atual da HomePage -- getById continua funcionando pras outras telas
+    // é só a página atual da tela do módulo -- getById continua funcionando pras outras telas
     // porque elas sempre chamam fetchDocumento(id) antes de ler por ali (ver
     // DocumentoViewerPage.vue/DocumentoEditorPage.vue/ComparisonPage.vue), nunca dependem
     // do array já estar populado por uma listagem anterior.
     documentos: [],
     totalElements: 0,
     resumoAbas: { meus: 0, minha_om: 0, outras_oms: 0, revogados: 0 },
-    resumoStatus: {},
+    resumoSituacaoBca: {},
+    resumoSituacaoLocal: {},
     loading: false,
     anexosPorDocumento: {},
     portariasPorDocumento: {},
     historicoPorDocumento: {},
     mapaAlteracaoPorDocumento: {},
     documentosComHistorico: [],
+    // Persistido aqui (não um ref/reactive local em ModuloPage.vue) pra
+    // sobreviver a sair e voltar pra Home dentro da mesma sessão (ex.: abrir
+    // um documento e apertar "voltar") -- mesmo raciocínio de
+    // stores/busca.js. Sem custo de rede extra: o onMounted da tela do módulo já
+    // dispara uma busca de qualquer forma a cada montagem do componente
+    // (não tem keep-alive); persistir só troca OS PARÂMETROS dessa mesma
+    // busca (aba/filtro/ordenação de antes, em vez dos padrões), não
+    // adiciona uma segunda chamada.
+    viewMode: 'tabela',
+    // Qual módulo (tipo de espécie) a listagem acima está mostrando. Aba, filtros, página e modo de visualização abaixo são
+    // do módulo ativo; ao trocar de módulo, os do que saiu ficam guardados aqui, por módulo (ver entrarNoModulo), e voltam
+    // quando a pessoa retorna a ele -- os filtros de um módulo não fazem sentido no outro, mas também não se perdem.
+    moduloAtivo: null,
+    estadosPorModulo: {},
+    abaAtiva: 'meus',
+    filtros: { busca: '', especie: null, situacaoBca: null, situacaoLocal: null },
+    tablePagination: { page: 1, rowsPerPage: 15, sortBy: 'data_criacao', descending: true, rowsNumber: 0 },
     // Incrementado quando algo fora da própria tela (ex.: alguém te adicionou
     // como coautor -- ver notificação DOCUMENTO_COMPARTILHADO em
-    // AppTopBar.vue) deveria mudar a listagem/contagem da HomePage sem
-    // esperar o usuário trocar de aba ou recarregar a página. HomePage.vue
+    // AppTopBar.vue) deveria mudar a listagem/contagem da tela do módulo sem
+    // esperar o usuário trocar de aba ou recarregar a página. ModuloPage.vue
     // observa esse contador (watch) e refaz carregar() quando ele muda; um
     // número simples em vez de um evento porque Pinia não tem barramento de
     // eventos embutido, e o valor em si não importa, só a mudança.
@@ -102,10 +118,35 @@ export const useDocumentosStore = defineStore('documents', {
       this.refreshSignal++
     },
 
+    // Chamada pela tela de cada módulo ao abrir: se o módulo mudou desde a última vez, guarda aba, filtros, página e modo de
+    // visualização do que saiu, traz os do que entra (ou os padrões, na primeira vez) e esvazia a lista mostrada (senão a
+    // tabela do módulo novo apareceria, por um instante, com os documentos do anterior).
+    entrarNoModulo(tipoDeEspecie) {
+      if (this.moduloAtivo === tipoDeEspecie) return
+      if (this.moduloAtivo) {
+        this.estadosPorModulo[this.moduloAtivo] = {
+          viewMode: this.viewMode,
+          abaAtiva: this.abaAtiva,
+          filtros: { ...this.filtros },
+          tablePagination: { ...this.tablePagination },
+        }
+      }
+      const salvo = this.estadosPorModulo[tipoDeEspecie]
+      this.moduloAtivo = tipoDeEspecie
+      this.viewMode = salvo?.viewMode ?? 'tabela'
+      this.abaAtiva = salvo?.abaAtiva ?? 'meus'
+      this.filtros = salvo ? { ...salvo.filtros } : { busca: '', especie: null, situacaoBca: null, situacaoLocal: null }
+      this.tablePagination = salvo
+        ? { ...salvo.tablePagination }
+        : { page: 1, rowsPerPage: 15, sortBy: 'data_criacao', descending: true, rowsNumber: 0 }
+      this.documentos = []
+      this.totalElements = 0
+    },
+
     // Busca a página atual do acervo (filtrada por aba/busca/espécie/situação) --
     // substitui o antigo fetchAll(), que carregava tudo de uma vez e filtrava no
-    // navegador. Chamada pela HomePage a cada troca de aba/filtro/página (ver
-    // HomePage.vue).
+    // navegador. Chamada pela ModuloPage a cada troca de aba/filtro/página (ver
+    // ModuloPage.vue).
     async fetchPagina(params) {
       this.loading = true
       try {
@@ -120,7 +161,8 @@ export const useDocumentosStore = defineStore('documents', {
     async fetchResumo(params) {
       const resp = await api.getResumoDocumentos(params)
       this.resumoAbas = resp?.porAba ?? { meus: 0, minha_om: 0, outras_oms: 0, revogados: 0 }
-      this.resumoStatus = resp?.porStatus ?? {}
+      this.resumoSituacaoBca = resp?.porSituacaoBca ?? {}
+      this.resumoSituacaoLocal = resp?.porSituacaoLocal ?? {}
     },
 
     async fetchComHistoricoEmenda() {
@@ -135,7 +177,20 @@ export const useDocumentosStore = defineStore('documents', {
         doc._fromTemplate = true
       } else {
         doc._fromTemplate = false
+        // Local primeiro (numbering.js): cobre TODOS os tipos, inclusive
+        // parágrafo/inciso/alínea/subalínea, que NumeracaoService não
+        // calcula (numerados localmente ao pai, fora do escopo dela -- ver
+        // NumeracaoService). Servidor depois, por cima: reconcilia só o que
+        // ele de fato calcula (capítulo/seção/subseção/artigo) com a fonte
+        // de verdade -- cobre tanto a carga inicial quanto o retorno do
+        // diálogo de emenda (emendar/incluirElementoEmenda/
+        // reordenarElementoEmenda sempre recarregam por aqui).
         renumerarSecaoNormativa(doc)
+        const secaoNormativa = doc.secoes.find(s => s.tipo === 'parte_normativa')
+        if (secaoNormativa) {
+          const numeracaoPorId = new Map((doc._numeracaoServidor ?? []).map(n => [n.elementoId, n]))
+          api.aplicarNumeracaoPorId(secaoNormativa.elementos, numeracaoPorId)
+        }
       }
       const idx = this.documentos.findIndex(d => String(d.id) === String(id))
       if (idx !== -1) this.documentos[idx] = doc
@@ -173,9 +228,13 @@ export const useDocumentosStore = defineStore('documents', {
       const idx = this.documentos.findIndex(d => String(d.id) === String(documento.id))
       if (idx === -1) return
       if (documento.secoes) {
-        const normativos = await api.saveSecoes(documento.id, documento.secoes, documento.versao)
+        const resposta = await api.saveSecoes(documento.id, documento.secoes, documento.versao)
         const secaoNormativa = documento.secoes.find(s => s.tipo === 'parte_normativa')
-        if (secaoNormativa) api.aplicarIdsPersistidos(secaoNormativa.elementos, normativos ?? [])
+        if (secaoNormativa && resposta) {
+          api.aplicarIdsPersistidos(secaoNormativa.elementos, resposta.itens ?? [])
+          const numeracaoPorId = new Map((resposta.numeracao ?? []).map(n => [n.elementoId, n]))
+          api.aplicarNumeracao(secaoNormativa.elementos, resposta.itens ?? [], numeracaoPorId)
+        }
       }
       const atualizado = await api.updateDocumento(documento.id, documento)
       if (atualizado) {
@@ -184,18 +243,18 @@ export const useDocumentosStore = defineStore('documents', {
       return atualizado
     },
 
-    async updateMetadados(id, { titulo, numero_secundario, om_id }) {
+    async updateMetadados(id, { titulo, numero_secundario, om_id, identificacao }) {
       const idx = this.documentos.findIndex(d => String(d.id) === String(id))
       if (idx === -1) return
-      const atualizado = await api.updateDocumento(id, { titulo, numero_secundario, om_id })
+      const atualizado = await api.updateDocumento(id, { titulo, numero_secundario, om_id, identificacao })
       if (atualizado) {
         this.documentos[idx] = { ...this.documentos[idx], ...atualizado, secoes: this.documentos[idx].secoes }
       }
       return atualizado
     },
 
-    async changeStatus(id, novoStatus, refs) {
-      const atualizado = await api.changeDocumentoStatus(id, novoStatus, refs)
+    async changeStatus(id, situacaoLocal, refs) {
+      const atualizado = await api.changeDocumentoStatus(id, situacaoLocal, refs)
       if (atualizado) {
         const idx = this.documentos.findIndex(d => String(d.id) === String(id))
         if (idx !== -1) this.documentos[idx] = { ...this.documentos[idx], ...atualizado }
@@ -219,8 +278,8 @@ export const useDocumentosStore = defineStore('documents', {
 
     async deleteDocumento(id) {
       const doc = this.documentos.find(d => String(d.id) === String(id))
-      if (doc && !['RASCUNHO', 'MINUTA'].includes(doc.status)) {
-        throw new Error(`Não é possível excluir um documento com situação "${doc.status}". Somente documentos em RASCUNHO ou MINUTA podem ser excluídos.`)
+      if (doc && !['RASCUNHO', 'MINUTA'].includes(doc.situacao_local)) {
+        throw new Error(`Não é possível excluir um documento com situação local "${doc.situacao_local}". Somente documentos em RASCUNHO ou MINUTA podem ser excluídos.`)
       }
       await api.deleteDocumento(id)
       this.documentos = this.documentos.filter(d => String(d.id) !== String(id))
@@ -279,7 +338,7 @@ export const useDocumentosStore = defineStore('documents', {
         addToParent(secaoNormativa.elementos)
       }
 
-      renumberElements(secaoNormativa.elementos)
+      renumerarElementos(secaoNormativa.elementos, doc)
     },
   },
 })

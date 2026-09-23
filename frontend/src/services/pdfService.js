@@ -10,6 +10,19 @@ function authHeaders() {
   return token ? { Authorization: `Bearer ${token}` } : {}
 }
 
+// Mensagem legível de uma resposta de erro: o backend responde JSON ({ message }), inclusive o 503
+// de "sistema ocupado" (todas as vagas de geração de PDF em uso -- ver LimitadorGeracaoPdf).
+async function mensagemDeErro(response) {
+  let msg = `Erro ${response.status}`
+  try {
+    const text = await response.text()
+    if (text) {
+      try { msg = JSON.parse(text).message ?? text } catch { msg = text }
+    }
+  } catch { /* noop */ }
+  return msg
+}
+
 function sanitize(str) {
   // Remove apenas caracteres proibidos em nomes de arquivo (Windows + Linux)
   return (str ?? '').replace(/[<>:"/\\|?*]/g, '').trim()
@@ -20,31 +33,43 @@ function sanitize(str) {
 function buildFilename(documento, extensao) {
   const numero = [documento.numero_basico, documento.numero_secundario].filter(Boolean).join('-')
   const ano = documento.data_criacao ? documento.data_criacao.slice(0, 4) : String(new Date().getFullYear())
+  // Sem assunto básico (NPA) a identificação inteira é o texto livre informado na criação.
+  const identificacao = documento.numero_basico
+    ? [sanitize(documento.especie), sanitize(numero)]
+    : [sanitize(documento.codigo_documento)]
   const partes = [
-    sanitize(documento.especie),
-    sanitize(numero),
+    ...identificacao,
     sanitize(documento.titulo),
     sanitize(ano),
   ].filter(Boolean)
   return partes.join('_') + '.' + extensao
 }
 
-export function pdfUrl(documentoId) {
-  return `${API_BASE}/documentos/${documentoId}/pdf`
+// versao: 'VIGENTE' (a da Situação BCA) ou 'TRAMITACAO' (a da etapa local em curso). Sem ela, o
+// backend serve a em tramitação, se houver, senão a vigente (ver VersoesDocumento no backend).
+function pdfUrl(documentoId, versao) {
+  return `${API_BASE}/documentos/${documentoId}/pdf${versao ? `?versao=${versao}` : ''}`
 }
 
-export function htmlUrl(documentoId) {
-  return `${API_BASE}/documentos/${documentoId}/html`
+function htmlUrl(documentoId, versao) {
+  return `${API_BASE}/documentos/${documentoId}/html${versao ? `?versao=${versao}` : ''}`
+}
+
+// Só o blob do PDF (para exibir num iframe, sem baixar) -- a versão em tramitação é renderizada
+// na hora pelo backend quando o texto ainda muda, então quem chama deve pedir só sob demanda.
+export async function buscarPdfBlob(documentoId, versao) {
+  const response = await fetch(pdfUrl(documentoId, versao), { method: 'GET', headers: authHeaders() })
+  if (!response.ok) {
+    throw new Error(await mensagemDeErro(response))
+  }
+  // Força o tipo: sem ele (ou com um genérico) o iframe mostra os bytes do PDF como texto.
+  const blob = await response.blob()
+  return new Blob([blob], { type: 'application/pdf' })
 }
 
 async function baixarArquivo(response, filename) {
   if (!response.ok) {
-    let msg = `Erro ${response.status}`
-    try {
-      const text = await response.text()
-      if (text) msg = text
-    } catch { /* noop */ }
-    throw new Error(msg)
+    throw new Error(await mensagemDeErro(response))
   }
 
   const blob = await response.blob()
@@ -58,13 +83,13 @@ async function baixarArquivo(response, filename) {
   URL.revokeObjectURL(url)
 }
 
-export async function gerarPdf(documento) {
-  const response = await fetch(pdfUrl(documento.id), { method: 'GET', headers: authHeaders() })
+export async function gerarPdf(documento, versao) {
+  const response = await fetch(pdfUrl(documento.id, versao), { method: 'GET', headers: authHeaders() })
   await baixarArquivo(response, buildFilename(documento, 'pdf'))
 }
 
-export async function gerarHtml(documento) {
-  const response = await fetch(htmlUrl(documento.id), { method: 'GET', headers: authHeaders() })
+export async function gerarHtml(documento, versao) {
+  const response = await fetch(htmlUrl(documento.id, versao), { method: 'GET', headers: authHeaders() })
   await baixarArquivo(response, buildFilename(documento, 'html'))
 }
 
@@ -79,12 +104,7 @@ export async function gerarMapaAlteracaoPdf(documentoId, payload, filenameHint) 
   })
   if (!response.ok) {
     novaAba?.close()
-    let msg = `Erro ${response.status}`
-    try {
-      const text = await response.text()
-      if (text) msg = text
-    } catch { /* noop */ }
-    throw new Error(msg)
+    throw new Error(await mensagemDeErro(response))
   }
   const blob = await response.blob()
   // Empacota o blob num File nomeado: navegadores usam esse nome como sugestão ao

@@ -48,6 +48,16 @@
     <!-- Dialog de referência: técnica legislativa (LC 95/1998) -->
     <Lc95HelpDialog v-model="lc95DialogOpen" />
 
+    <!-- Cabeçalho e assinaturas da NPA (setor emissor, local do fecho, blocos de assinatura em texto livre) -->
+    <CamposDaNpaDialog
+      v-if="perfil.ehNpa"
+      v-model="camposNpaDialogOpen"
+      :campos="camposNpa"
+      :salvando="camposNpaSalvando"
+      :somente-leitura="isReadonly"
+      @salvar="salvarCamposNpa"
+    />
+
     <!-- Dialog de compartilhamento (coautoria) -->
     <CompartilharDialog v-if="documentoId" v-model="compartilharDialogOpen" :documento-id="documentoId" />
 
@@ -61,6 +71,7 @@
             <q-icon name="mdi-chevron-right" size="16px" color="primary" />
           </template>
           <q-breadcrumbs-el :to="{ name: 'home' }" icon="mdi-home" />
+          <q-breadcrumbs-el label="Área de Trabalho" :to="{ name: 'home' }" />
           <q-breadcrumbs-el :label="origemCrumb.label" :to="origemCrumb.to" />
           <q-breadcrumbs-el :label="docLabel" />
           <q-breadcrumbs-el v-if="selectedElement" :label="selectedElementLabel" />
@@ -91,7 +102,12 @@
 
         <q-space />
 
-        <q-btn round flat color="primary" @click="lc95DialogOpen = true">
+        <q-btn v-if="perfil.ehNpa" outline color="primary" @click="camposNpaDialogOpen = true">
+          <q-icon left name="mdi-table-headers-eye" />
+          Cabeçalho e assinaturas
+        </q-btn>
+
+        <q-btn v-if="!perfil.ehNpa" round flat color="primary" @click="lc95DialogOpen = true">
           <q-icon name="mdi-help-circle-outline" size="22px" />
           <q-tooltip anchor="bottom middle" self="top middle">Técnica legislativa (LC 95/1998)</q-tooltip>
         </q-btn>
@@ -103,6 +119,7 @@
         </q-btn>
 
         <q-btn
+          v-if="perfil.permiteAlteracao"
           outline
           color="primary"
           :to="{ name: 'documento-comparar', params: { id: documentoId } }"
@@ -150,7 +167,7 @@
       <div v-if="presencaOutros.length" class="q-px-md q-py-xs row items-center" style="background:#FFF3E0;border-bottom:1px solid #FFCC80;gap:8px">
         <q-icon name="mdi-account-alert-outline" color="deep-orange-8" size="16px" />
         <span class="text-caption text-deep-orange-9 text-weight-bold">
-          {{ presencaOutros.map(p => p.nome).join(', ') }}
+          {{ presencaOutros.map(p => caixaAlta(p.nome)).join(', ') }}
           {{ presencaOutros.length === 1 ? 'também está editando' : 'também estão editando' }} este documento agora.
         </span>
       </div>
@@ -208,7 +225,7 @@
                 @update:model-value="onTituloUpdate"
               />
               <p class="text-caption text-grey-7 q-mt-xs">
-                O título aparecerá em maiúsculas no documento (NSCA 5-3).
+                {{ perfil.ehNpa ? 'O título do capítulo aparece em maiúsculas e o da seção, sublinhado.' : 'O título aparecerá em maiúsculas no documento (NSCA 5-3).' }}
               </p>
             </template>
 
@@ -230,7 +247,7 @@
             />
 
             <!-- Add child element shortcuts -->
-            <div v-if="childOptions.length && !isReadonly" class="q-mt-md row items-center" style="flex-wrap:wrap">
+            <div v-if="(childOptions.length || !isGroupingEl) && !isReadonly" class="q-mt-md row items-center" style="flex-wrap:wrap">
               <span class="text-caption text-grey-7">Adicionar:</span>
               <q-btn
                 v-for="opt in childOptions"
@@ -263,8 +280,14 @@
 
         <!-- PDF Preview panel -->
         <div class="preview-panel" style="overflow-y:auto; position:relative">
+          <NpaPreview
+            v-if="previewMounted && documento && perfil.ehNpa"
+            :documento="documento"
+            :campos="camposNpa"
+            :selected-element-id="editorStore.selectedElementId"
+          />
           <DocumentoPreview
-            v-if="previewMounted && documento"
+            v-else-if="previewMounted && documento"
             :documento="documento"
             :selected-element-id="editorStore.selectedElementId"
           />
@@ -282,21 +305,26 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { useEditorStore } from '@/stores/editor.js'
 import { useDocumentosStore } from '@/stores/documentos.js'
 import { useAuthStore } from '@/stores/auth.js'
-import { formatLabel, elementIcon, renumberElements } from '@/utils/numbering.js'
+import { formatLabel, elementIcon } from '@/utils/numbering.js'
+import { perfilDoDocumento, renumerarElementos, moduloDoDocumento } from '@/perfis/index.js'
 import { gerarPdf, gerarHtml } from '@/services/pdfService.js'
 import EditorSidebar from '@/components/editor/EditorSidebar.vue'
 import WysiwygEditor from '@/components/editor/WysiwygEditor.vue'
 import DocumentoPreview from '@/components/editor/DocumentoPreview.vue'
+import NpaPreview from '@/components/editor/NpaPreview.vue'
+import CamposDaNpaDialog from '@/components/editor/CamposDaNpaDialog.vue'
+import { obterCamposDaNpa, salvarCamposDaNpa } from '@/api/npa.js'
 import EmendaDialog from '@/components/editor/EmendaDialog.vue'
 import IncluirElementoDialog from '@/components/editor/IncluirElementoDialog.vue'
 import Lc95HelpDialog from '@/components/editor/Lc95HelpDialog.vue'
 import CompartilharDialog from '@/components/editor/CompartilharDialog.vue'
+import { caixaAlta } from '@/utils/texto.js'
 import * as documentsApi from '@/api/documentos.js'
 import { clientId } from '@/utils/clientId.js'
 
@@ -312,6 +340,37 @@ const pdfLoading    = ref(false)
 const htmlLoading   = ref(false)
 const lc95DialogOpen = ref(false)
 const compartilharDialogOpen = ref(false)
+
+// Campos que só a NPA tem (setor emissor, local do fecho, assinaturas): carregados junto com o documento e
+// regravados pelo diálogo "Cabeçalho e assinaturas"; alimentam a prévia da NPA.
+const camposNpaDialogOpen = ref(false)
+const camposNpaSalvando = ref(false)
+const camposNpa = ref(null)
+
+async function carregarCamposNpa() {
+  try {
+    camposNpa.value = await obterCamposDaNpa(documentoId.value)
+  } catch (e) {
+    console.error('[NPA] Erro ao carregar o cabeçalho e as assinaturas:', e)
+  }
+}
+
+async function salvarCamposNpa(campos) {
+  camposNpaSalvando.value = true
+  try {
+    camposNpa.value = await salvarCamposDaNpa(documentoId.value, campos)
+    camposNpaDialogOpen.value = false
+  } catch (e) {
+    $q.notify({
+      type: 'negative',
+      message: `Erro ao salvar o cabeçalho e as assinaturas: ${e?.message ?? 'erro desconhecido'}`,
+      position: 'bottom-right',
+      timeout: 6000,
+    })
+  } finally {
+    camposNpaSalvando.value = false
+  }
+}
 
 // ── Presença de edição (aviso de colisão, não trava nada) ───────────────────────
 // "Quem está editando agora" é literalmente "quem tem esta conexão SSE
@@ -444,21 +503,22 @@ const documentoId    = computed(() => route.params.id)
 const documento      = computed(() => editorStore.documento)
 const selectedElement = computed(() => editorStore.selectedElement)
 
-const isEmAlteracao = computed(() => documento.value?.status === 'EM_ALTERACAO')
+const isEmAlteracao = computed(() => documento.value?.situacao_local === 'EM_ALTERACAO')
 
-// Editável por posse (RASCUNHO/MINUTA/EM_ALTERACAO) OU por quem foi atribuído
-// como revisor enquanto o documento estiver EM_REVISAO (ver
-// Documento.revisorAtribuido no backend/roadmap "revisar e editar"). Todos os
-// demais status (aprovação/publicação/revogação em andamento, já publicado,
-// cancelado) são sempre somente-leitura -- em especial EM_PUBLICACAO em diante,
-// onde ninguém mais edita o conteúdo.
-const isReadonly = computed(() => {
-  const status = documento.value?.status
-  if (status === 'EM_REVISAO') {
-    return documento.value?.revisor_atribuido_id !== String(auth.usuario?.id)
+// Editável por posse (RASCUNHO/MINUTA/EM_ALTERACAO) OU por quem foi atribuído como revisor
+// enquanto o documento (ainda NÃO publicado) estiver EM_REVISAO (ver Documento.revisorAtribuido
+// no backend). Todas as demais etapas (publicação/revogação em andamento, sem etapa,
+// cancelado) e a revisão de uma alteração de documento PUBLICADO são somente-leitura: o texto
+// vigente só muda por emenda, na etapa EM_ALTERACAO.
+function podeEditarAgora(doc) {
+  if (!doc) return false
+  const local = doc.situacao_local
+  if (local === 'EM_REVISAO') {
+    return doc.situacao_bca !== 'PUBLICADO' && doc.revisor_atribuido_id === String(auth.usuario?.id)
   }
-  return !['RASCUNHO', 'MINUTA', 'EM_ALTERACAO'].includes(status)
-})
+  return ['RASCUNHO', 'MINUTA', 'EM_ALTERACAO'].includes(local)
+}
+const isReadonly = computed(() => !podeEditarAgora(documento.value))
 
 // Elemento ALTERADO por emenda: o texto vigente fica em conteudoEmenda, não em
 // conteudo (que preserva o original para o tachado no preview). Demais status
@@ -530,14 +590,18 @@ const ORIGEM_CRUMB = {
   revisao:    { label: 'Revisão',    to: { name: 'revisao' } },
   publicacao: { label: 'Publicação', to: { name: 'publicacao' } },
 }
-const origemCrumb = computed(() => ORIGEM_CRUMB[route.query.origem] ?? { label: 'Documentos', to: { name: 'home' } })
+// Sem origem, o crumb do meio é o módulo a que o documento pertence (a tela inicial dele).
+const moduloCrumb = computed(() => {
+  const m = moduloDoDocumento(documento.value)
+  return { label: m.nome, to: { name: m.rota } }
+})
+const origemCrumb = computed(() => ORIGEM_CRUMB[route.query.origem] ?? moduloCrumb.value)
 
 const docLabel = computed(() => {
   const d = documento.value
   if (!d) return 'Novo Documento'
-  const numStr = [d.numero_basico, d.numero_secundario].filter(Boolean).join('-')
-  const num = [d.especie, numStr].filter(Boolean).join(' ')
-  return num || 'Documento sem título'
+  // A identificação é gravada na criação pelas regras da espécie ("ICA 5-3"; numa NPA, o texto livre informado).
+  return d.codigo_documento || 'Documento sem título'
 })
 
 const selectedElementLabel = computed(() => {
@@ -561,30 +625,23 @@ const groupingLabel = computed(() => {
   }
 })
 
-const CHILD_OPTIONS = {
-  capitulo:           [
-    { tipo: 'secao_normativa', label: 'Seção' },
-    { tipo: 'artigo',          label: 'Artigo' },
-  ],
-  secao_normativa:    [
-    { tipo: 'subsecao_normativa', label: 'Subseção' },
-    { tipo: 'artigo',             label: 'Artigo' },
-  ],
-  subsecao_normativa: [{ tipo: 'artigo', label: 'Artigo' }],
-  artigo:             [
-    { tipo: 'paragrafo_unico', label: 'Parágrafo único' },
-    { tipo: 'paragrafo',       label: 'Parágrafo (§)' },
-    { tipo: 'inciso',          label: 'Inciso' },
-  ],
-  paragrafo_unico: [{ tipo: 'inciso', label: 'Inciso' }],
-  paragrafo:       [{ tipo: 'inciso', label: 'Inciso' }],
-  inciso:          [{ tipo: 'alinea', label: 'Alínea' }],
-  alinea:          [{ tipo: 'sub_alinea', label: 'Sub-alínea' }],
-}
+// O que cabe dentro de cada elemento é regra da espécie do documento (perfis/index.js).
+const perfil = computed(() => perfilDoDocumento(documento.value))
+
+// "Elaborado por" (autor e coautores) e "Aprovado por" (quem aprovou) saem do documento: refaz a leitura quando a coautoria
+// muda (ao fechar o diálogo de compartilhamento) e quando a etapa ou a pessoa escolhida para revisar mudam.
+watch(compartilharDialogOpen, (aberto) => {
+  if (!aberto && perfil.value.ehNpa && documentoId.value) carregarCamposNpa()
+})
+watch(
+  () => [documento.value?.situacao_local, documento.value?.revisor_atribuido_id, documento.value?.data_aprovacao],
+  () => { if (perfil.value.ehNpa && documentoId.value) carregarCamposNpa() },
+)
+
 
 const childOptions = computed(() => {
   const el = selectedElement.value
-  return el ? (CHILD_OPTIONS[el.tipo] ?? []) : []
+  return el ? perfil.value.filhosPermitidos(el.tipo) : []
 })
 
 onMounted(async () => {
@@ -609,11 +666,8 @@ onMounted(async () => {
       return
     }
 
-    // Mesma regra de isReadonly: editável por posse (RASCUNHO/MINUTA/EM_ALTERACAO)
-    // ou pelo revisor atribuído enquanto EM_REVISAO -- fora daí, manda pro viewer.
-    const editavelAgora = ['RASCUNHO', 'MINUTA', 'EM_ALTERACAO'].includes(doc.status)
-      || (doc.status === 'EM_REVISAO' && doc.revisor_atribuido_id === String(auth.usuario?.id))
-    if (!editavelAgora) {
+    // Mesma regra de isReadonly -- fora dela, manda pro viewer.
+    if (!podeEditarAgora(doc)) {
       router.replace({ name: 'documento-visualizar', params: { id: documentoId.value }, query: route.query })
       return
     }
@@ -630,6 +684,7 @@ onMounted(async () => {
     if (primeiro) editorStore.selectElement(primeiro.id)
 
     iniciarPresenca()
+    if (perfilDoDocumento(doc).ehNpa) await carregarCamposNpa()
   } else {
     editorStore.loadNew()
   }
@@ -708,7 +763,7 @@ function onTituloUpdate(titulo) {
 function onReorderNormativa() {
   const secao = editorStore.normativaSecao
   if (secao) {
-    renumberElements(secao.elementos)
+    renumerarElementos(secao.elementos, documento.value)
     editorStore.markUserEdit()
     scheduleAutoSave()
   }
@@ -789,7 +844,7 @@ function addArtigo() {
     filhos: [],
   }
   secao.elementos.push(novo)
-  renumberElements(secao.elementos)
+  renumerarElementos(secao.elementos, documento.value)
   editorStore.selectedElementId = novo.id
   editorStore.markUserEdit()
   scheduleAutoSave()

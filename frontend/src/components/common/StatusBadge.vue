@@ -1,45 +1,76 @@
 <template>
-  <q-chip
-    :color="config.bg"
-    :text-color="config.fg"
-    :size="size"
-    square
-    class="text-weight-bold status-badge"
-  >
-    <q-icon :name="config.icon" size="14px" class="q-mr-xs" />
-    {{ config.label }}
-  </q-chip>
+  <span class="status-badge-group">
+    <q-chip
+      v-if="exibirBca"
+      :color="bca.bg"
+      :text-color="bca.fg"
+      :size="size"
+      :dense="dense"
+      :icon="dense ? bca.icon : undefined"
+      square
+      class="text-weight-bold status-badge"
+      data-testid="chip-situacao-bca"
+    >
+      <q-icon v-if="!dense" :name="bca.icon" size="14px" class="q-mr-xs" />
+      {{ bca.label }}
+    </q-chip>
+    <!-- Situação local: contorno e texto na cor forte da família (a cor clara do fundo tonal, usada
+         só como borda, quase desaparecia sobre o fundo branco). -->
+    <q-chip
+      v-if="exibirLocal"
+      :color="local.color"
+      :text-color="local.fg"
+      :size="size"
+      :dense="dense"
+      :icon="dense ? local.icon : undefined"
+      square
+      outline
+      class="text-weight-bold status-badge status-badge-local"
+      data-testid="chip-situacao-local"
+    >
+      <q-icon v-if="!dense" :name="local.icon" size="14px" class="q-mr-xs" />
+      {{ local.label }}
+    </q-chip>
+    <!-- Quem usa pode encaixar algo no conjunto (ex.: um q-tooltip que explica os dois selos). -->
+    <slot />
+  </span>
 </template>
 
 <script setup>
 import { computed } from 'vue'
+import { situacaoBcaMeta, situacaoLocalMeta, temEtapaEmCurso } from '@/utils/statusDocumento.js'
 
+// Situação BCA = chip principal (a real); Situação Local = chip secundário (etapa interna).
+// `mostrar` escolhe qual(is) exibir: 'ambos' (padrão; o local só aparece com etapa em curso),
+// 'bca' ou 'local' -- este último para telas que separam as duas em colunas/campos próprios, e
+// que mostram "Sem etapa em curso" quando não há nenhuma.
 const props = defineProps({
-  status: { type: String, required: true },
-  variant: { type: String, default: 'tonal' },
+  situacaoBca: { type: String, default: null },
+  situacaoLocal: { type: String, default: null },
+  mostrar: { type: String, default: 'ambos', validator: v => ['ambos', 'bca', 'local'].includes(v) },
   size: { type: String, default: 'sm' },
+  // dense: o chip compacto do Quasar (menos espaço nas laterais e menor altura), para linhas de tabela estreitas; o ícone
+  // passa a ser o do próprio q-chip, que acompanha o tamanho dele.
+  dense: { type: Boolean, default: false },
 })
 
-// Quasar não tem "tonal": usamos um fundo claro (bg) + texto colorido (fg)
-// para reproduzir a aparência translúcida do Vuetify.
-const STATUS_MAP = {
-  RASCUNHO:  { label: 'Rascunho',  bg: 'grey-3',        fg: 'grey-9',    icon: 'mdi-pencil-outline' },
-  MINUTA:    { label: 'Minuta',    bg: 'orange-2',      fg: 'orange-10', icon: 'mdi-file-edit-outline' },
-  EM_REVISAO: { label: 'Em Revisão', bg: 'orange-2', fg: 'orange-10', icon: 'mdi-account-search-outline' },
-  APROVADO:  { label: 'Aprovado',  bg: 'green-2',       fg: 'green-10',  icon: 'mdi-check-circle-outline' },
-  EM_PUBLICACAO: { label: 'Em Publicação', bg: 'blue-2', fg: 'primary', icon: 'mdi-timer-sand' },
-  PUBLICADO: { label: 'Publicado', bg: 'blue-2',        fg: 'primary',   icon: 'mdi-publish' },
-  EM_ALTERACAO: { label: 'Em Alteração', bg: 'deep-orange-2', fg: 'deep-orange-10', icon: 'mdi-pencil-lock-outline' },
-  ALTERADO: { label: 'Alterado', bg: 'teal-2', fg: 'teal-10', icon: 'mdi-check-circle-outline' },
-  ANALISE_REVOGACAO: { label: 'Análise de Revogação', bg: 'brown-2', fg: 'brown-10', icon: 'mdi-file-search-outline' },
-  EM_REVOGACAO: { label: 'Em Revogação', bg: 'brown-2', fg: 'brown-10', icon: 'mdi-timer-sand' },
-  CANCELADO: { label: 'Cancelado', bg: 'red-2',         fg: 'red-10',    icon: 'mdi-cancel' },
-  REVOGADO:  { label: 'Revogado',  bg: 'brown-2',       fg: 'brown-10',  icon: 'mdi-file-remove-outline' },
-}
-
-const config = computed(() => STATUS_MAP[props.status] ?? { label: props.status, bg: 'grey-3', fg: 'grey-9', icon: 'mdi-help' })
+const bca = computed(() => situacaoBcaMeta(props.situacaoBca))
+const local = computed(() => situacaoLocalMeta(props.situacaoLocal))
+const exibirBca = computed(() => !!props.situacaoBca && props.mostrar !== 'local')
+const exibirLocal = computed(() => {
+  if (props.mostrar === 'bca') return false
+  if (props.mostrar === 'local') return !!props.situacaoLocal
+  return temEtapaEmCurso(props.situacaoLocal)
+})
 </script>
 
 <script>
 export default { name: 'StatusBadge' }
 </script>
+
+<style scoped>
+.status-badge-group { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 2px; }
+.status-badge-group .q-chip { margin: 0; }
+/* Contorno mais grosso: o outline padrão do Quasar (1px) some em chips pequenos. */
+.status-badge-local.q-chip--outline:before { border-width: 2px; }
+</style>

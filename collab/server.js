@@ -1,11 +1,21 @@
 import { Server } from '@hocuspocus/server'
-import jwt from 'jsonwebtoken'
+import { createRemoteJWKSet, jwtVerify } from 'jose'
 import { prosemirrorJSONToYDoc, yDocToProsemirrorJSON } from 'y-prosemirror'
 import { schema } from './schema.js'
 
 const PORT = Number(process.env.PORT ?? 1234)
-const JWT_SECRET = process.env.JWT_SECRET
 const BACKEND_URL = process.env.BACKEND_URL ?? 'http://backend:8081/v1'
+
+// ISSUER precisa bater com o claim "iss" do token -- o endereço que o
+// NAVEGADOR usa (ver APP_OAUTH2_ISSUER no backend), não necessariamente
+// alcançável a partir deste container. JWKS_URL é só de onde buscar as
+// chaves públicas para verificar a assinatura -- esse sim precisa ser
+// alcançável daqui (endereço interno da rede Docker), podendo ser diferente
+// do ISSUER. createRemoteJWKSet cacheia as chaves e não crasha o processo se
+// o endpoint estiver fora do ar num boot isolado -- só falha a verificação
+// (por conexão, não derruba a colaboração inteira).
+const OAUTH2_ISSUER = process.env.OAUTH2_ISSUER
+const JWKS = createRemoteJWKSet(new URL(process.env.OAUTH2_JWKS_URL ?? 'http://backend:8081/oauth2/jwks'))
 
 // Nome da sala Yjs: "documento:{id}:elemento:{elementoId}" -- granularidade por
 // elemento, não por documento inteiro (ver Decisão de arquitetura 1 do plano de
@@ -29,22 +39,23 @@ function conteudoPadrao() {
 }
 
 // onAuthenticate roda uma vez por conexão, antes de qualquer sync -- valida a
-// assinatura/expiração do MESMO JWT que o backend emite (HS384, ver
-// JwtService.java) e, em seguida, pergunta ao backend (com esse mesmo token,
-// reaproveitando @documentoAcessoService.podeEditar via o novo endpoint
-// GET /documentos/{id}/pode-editar) se esta pessoa pode editar o documento.
-// O contexto retornado aqui (usuarioId/nome/token) fica disponível nos hooks
-// seguintes desta mesma conexão -- é assim que onLoadDocument/onStoreDocument
-// sabem com qual token chamar o backend, sem precisar de uma credencial de
-// serviço separada: cada leitura/escrita no backend acontece EM NOME do
-// usuário conectado, então a autorização (podeEditar) vale pra cada uma, não
-// só na entrada da sala.
+// assinatura/expiração do access token via JWKS (ver AuthorizationServerConfig,
+// chaves RSA expostas em /oauth2/jwks) e, em seguida, pergunta ao backend (com
+// esse mesmo token, reaproveitando @documentoAcessoService.podeEditar via o
+// endpoint GET /documentos/{id}/pode-editar) se esta pessoa pode editar o
+// documento. O contexto retornado aqui (usuarioId/nome/token) fica disponível
+// nos hooks seguintes desta mesma conexão -- é assim que
+// onLoadDocument/onStoreDocument sabem com qual token chamar o backend, sem
+// precisar de uma credencial de serviço separada: cada leitura/escrita no
+// backend acontece EM NOME do usuário conectado, então a autorização
+// (podeEditar) vale pra cada uma, não só na entrada da sala.
 async function onAuthenticate({ token, documentName }) {
   if (!token) throw new Error('Token ausente.')
 
   let claims
   try {
-    claims = jwt.verify(token, JWT_SECRET, { algorithms: ['HS384'] })
+    const { payload } = await jwtVerify(token, JWKS, { issuer: OAUTH2_ISSUER })
+    claims = payload
   } catch {
     throw new Error('Token invalido ou expirado.')
   }
@@ -146,11 +157,6 @@ async function onStoreDocument({ documentName, document, context }) {
     console.error(`[onStoreDocument] Falha ao persistir elemento ${elementoId}:`, err)
     avisarStatus(document, 'error')
   }
-}
-
-if (!JWT_SECRET) {
-  console.error('JWT_SECRET não definido -- não é possível validar tokens. Abortando.')
-  process.exit(1)
 }
 
 // Rede de segurança: este processo atende TODAS as salas simultaneamente, então

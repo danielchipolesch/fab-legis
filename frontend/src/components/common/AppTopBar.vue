@@ -73,14 +73,17 @@
                 </q-avatar>
               </q-item-section>
               <q-item-section>
-                <q-item-label class="text-weight-bold text-white">{{ auth.usuario.nome }}</q-item-label>
-                <q-item-label caption class="text-white" style="opacity:.85">{{ formatarCpf(auth.usuario.cpf) }}</q-item-label>
+                <q-item-label class="text-weight-bold text-white">{{ caixaAlta(auth.usuario.nome) }}</q-item-label>
+                <q-item-label caption class="text-white" style="opacity:.85">{{ ocultarCpf(auth.usuario.cpf) }}</q-item-label>
                 <q-item-label caption class="text-white" style="opacity:.85">{{ auth.usuario.omNome }}</q-item-label>
               </q-item-section>
             </q-item>
 
-            <!-- Navegação: só Início é sempre visível -- Usuários/Auditoria
-                 exigem o papel correspondente (ver stores/auth.js). -->
+            <!-- Navegação: Início é sempre visível -- Usuários/Auditoria exigem o papel
+                 correspondente (ver stores/auth.js). A Busca Textual saiu deste menu: o acesso é
+                 o botão "Busca no conteúdo" do card de filtros da homepage (a rota não tem
+                 requiresX nenhum porque visualizar já é liberado a qualquer autenticado, de
+                 qualquer OM -- ver DocumentoAcessoService). -->
             <q-item-label header class="text-caption text-weight-medium text-grey-7 q-pb-none">
               Navegação
             </q-item-label>
@@ -136,7 +139,8 @@ import { useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { useAuthStore } from '@/stores/auth.js'
 import { useDocumentosStore } from '@/stores/documentos.js'
-import { formatarCpf } from '@/utils/cpf.js'
+import { ocultarCpf } from '@/utils/cpf.js'
+import { caixaAlta } from '@/utils/texto.js'
 import * as notificacoesApi from '@/api/notificacoes.js'
 
 const router = useRouter()
@@ -150,14 +154,16 @@ const nomeExibicao = computed(() => {
   const usuario = auth.usuario
   if (!usuario) return ''
   if (usuario.postoGraduacaoBigrama && usuario.nomeGuerra) {
-    return `${usuario.postoGraduacaoBigrama} ${usuario.nomeGuerra}`
+    return `${usuario.postoGraduacaoBigrama} ${caixaAlta(usuario.nomeGuerra)}`
   }
-  return usuario.nome
+  return caixaAlta(usuario.nome)
 })
 
+// auth.logout() já navega pro /logout do backend (window.location.href) e
+// volta sozinho pro /login (logoutSuccessUrl) -- nada a fazer depois daqui,
+// a página inteira está prestes a trocar.
 function sair() {
   auth.logout()
-  router.push({ name: 'login' })
 }
 
 // ── Notificações em tempo real (SSE) ────────────────────────────────────────
@@ -168,6 +174,7 @@ function sair() {
 // WebSocket não faria isso de graça.
 const naoLidas = ref([])
 let eventSource = null
+let tratandoErroSse = false
 
 const NOTIF_ICON = {
   DOCUMENTO_COMPARTILHADO: 'mdi-account-multiple-plus-outline',
@@ -206,7 +213,7 @@ function conectarSse() {
     $q.notify({
       type: 'info',
       icon: notifIcon(notificacao.tipo),
-      position: 'top-right',
+      position: 'bottom-right',
       message: notificacao.mensagem,
     })
     // Coautoria muda quem vê o quê em "Meus Documentos" (ver
@@ -217,8 +224,34 @@ function conectarSse() {
       documentosStore.sinalizarRefresh()
     }
   })
-  // onerror não precisa de tratamento manual: o browser reconecta o
-  // EventSource sozinho, a menos que o servidor feche a conexão de propósito.
+  eventSource.onerror = tratarErroSse
+}
+
+// O token vai preso na URL da conexão (ver notificacoesApi.streamUrl) --
+// quando ele expira (access token de 30 min, sem refresh token, ver
+// AuthorizationServerConfig), o servidor responde com erro HTTP na tentativa
+// de conexão, e o browser NÃO tenta de novo sozinho nesse caso (só reconecta
+// automaticamente em falha de rede/queda de conexão já estabelecida) -- ele
+// só encerra: readyState vira CLOSED. Sem esse handler, o stream ficava morto
+// pra sempre depois da expiração, sem avisar ninguém (era exatamente o item
+// do roadmap "Notificação de sessão expirada via SSE"). readyState CONNECTING
+// significa que o próprio browser já está tentando de novo sozinho (queda de
+// rede passageira) -- nesse caso não fazemos nada, só evita reautenticar à
+// toa a cada soluço de rede.
+async function tratarErroSse() {
+  if (tratandoErroSse || eventSource?.readyState !== EventSource.CLOSED) return
+  tratandoErroSse = true
+  desconectarSse()
+  try {
+    const renovou = await auth.refresh()
+    if (renovou) {
+      conectarSse()
+    } else {
+      auth.logout()
+    }
+  } finally {
+    tratandoErroSse = false
+  }
 }
 
 function desconectarSse() {

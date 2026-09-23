@@ -13,8 +13,12 @@
            Estrutura: cabeçalho → epígrafe → ementa → preâmbulo → RESOLVE: → artigos → assinatura
            (No PDF real da NSCA 5-3, a portaria vem ANTES da capa)
       ════════════════════════════════════════════════════════ -->
-      <div class="pdf-page">
+      <!-- Só aparece depois da 1ª publicação (a Portaria é coletada nela e é perene); antes, a prévia
+           começa na capa. As alterações posteriores aparecem por cláusula em cada elemento. -->
+      <div v-if="mostrarPortaria" class="pdf-page" data-testid="pagina-portaria">
         <div v-if="wmText" class="wm-overlay" :style="{ color: wmColor }">{{ wmText }}</div>
+        <!-- Revogação total: selo no canto superior direito da página da parte preliminar; nenhum elemento é tachado -->
+        <div v-if="seloRevogado" class="selo-revogado" data-testid="selo-revogado">REVOGADO</div>
 
         <!-- Cabeçalho (Art. 18): Brasão + hierarquia institucional -->
         <div class="cabecalho">
@@ -166,6 +170,14 @@
         <!-- Parte Normativa — capítulos, seções, artigos, parágrafos, incisos, alíneas -->
         <template v-for="item in normativaFlat" :key="item.el.id">
 
+          <!-- Parágrafo único que virou "§ Nº" (único caso de renumeração de parágrafo): a linha inteira
+               "Parágrafo único. texto" sai riscada e o texto se repete abaixo, sob o novo número, com a
+               cláusula de renumeração -->
+          <div v-if="item.el._unicoRenumerado" class="body-el norm-el" data-testid="unico-riscado">
+            <span class="norm-lbl emenda-strikethrough">Parágrafo único.&nbsp;&nbsp;</span>
+            <div class="norm-content-block emenda-strikethrough" v-html="conteudoToHtml(item.el.conteudo)"></div>
+          </div>
+
           <div v-if="isGrouping(item.el.tipo)" :id="'prev-' + item.el.id" :class="groupingHeadingClass(item.el.tipo)">
             <p :class="groupingNumeroClass(item.el.tipo)">{{ groupingLabel(item.el) }}</p>
             <!-- REVOGADO: título original tachado (+ cláusula anterior tachada, se
@@ -198,7 +210,7 @@
                já havia sido publicada com sua própria emenda) + referência inline -->
           <div v-else-if="item.el.emendaStatus === 'REVOGADO'" :id="'prev-' + item.el.id" class="body-el norm-el">
             <span class="norm-lbl emenda-strikethrough" :class="{ 'norm-lbl-bold': item.el.tipo === 'artigo' }">{{ item.label }}</span>
-            <div class="norm-content-block emenda-strikethrough" v-html="conteudoToHtml(item.el.conteudo)"></div><span v-if="item.el.clausulaEmendaAnterior" class="emenda-ref emenda-strikethrough"> {{ item.el.clausulaEmendaAnterior }}</span><span class="emenda-ref"> {{ emendaRef(item.el) }}</span>
+            <div class="norm-content-block emenda-strikethrough" v-html="conteudoToHtml(item.el.conteudo)"></div><span v-if="item.el.clausulaEmendaAnterior" class="emenda-ref emenda-strikethrough"> {{ item.el.clausulaEmendaAnterior }}</span><span class="emenda-ref"> {{ emendaRef(item.el) }}</span><span v-if="item.el._unicoRenumerado" class="emenda-ref"> {{ clausulaRenumeracao(item.el) }}</span>
           </div>
 
           <!-- ALTERADO: original tachado (+ cláusula anterior tachada) + nova redação + referência inline -->
@@ -209,23 +221,23 @@
             </div>
             <div class="body-el norm-el emenda-incluido">
               <span class="norm-lbl" :class="{ 'norm-lbl-bold': item.el.tipo === 'artigo' }">{{ item.label }}</span>
-              <div class="norm-content-block" v-html="conteudoToHtml(item.el.conteudoEmenda)"></div><span class="emenda-ref"> {{ emendaRef(item.el) }}</span>
+              <div class="norm-content-block" v-html="conteudoToHtml(item.el.conteudoEmenda)"></div><span class="emenda-ref"> {{ emendaRef(item.el) }}</span><span v-if="item.el._unicoRenumerado" class="emenda-ref"> {{ clausulaRenumeracao(item.el) }}</span>
             </div>
           </template>
 
           <!-- INCLUIDO: conteúdo em verde + referência inline -->
           <div v-else-if="item.el.emendaStatus === 'INCLUIDO'" :id="'prev-' + item.el.id" class="body-el norm-el">
             <span class="norm-lbl emenda-incluido" :class="{ 'norm-lbl-bold': item.el.tipo === 'artigo' }">{{ item.label }}</span>
-            <div class="norm-content-block emenda-incluido" v-html="conteudoToHtml(item.el.conteudo)"></div><span class="emenda-ref"> {{ emendaRef(item.el) }}</span>
+            <div class="norm-content-block emenda-incluido" v-html="conteudoToHtml(item.el.conteudo)"></div><span class="emenda-ref"> {{ emendaRef(item.el) }}</span><span v-if="item.el._unicoRenumerado" class="emenda-ref"> {{ clausulaRenumeracao(item.el) }}</span>
           </div>
 
           <!-- INALTERADO: comportamento padrão -->
           <div v-else-if="hasBlockContent(conteudoToHtml(item.el.conteudo))" :id="'prev-' + item.el.id" class="body-el norm-el">
             <span class="norm-lbl" :class="{ 'norm-lbl-bold': item.el.tipo === 'artigo' }">{{ item.label }}</span>
-            <div class="norm-content-block" v-html="conteudoToHtml(item.el.conteudo)"></div>
+            <div class="norm-content-block" v-html="conteudoToHtml(item.el.conteudo)"></div><span v-if="item.el._unicoRenumerado" class="emenda-ref"> {{ clausulaRenumeracao(item.el) }}</span>
           </div>
           <p v-else :id="'prev-' + item.el.id" class="body-el norm-el">
-            <span class="norm-lbl" :class="{ 'norm-lbl-bold': item.el.tipo === 'artigo' }">{{ item.label }}</span><span class="norm-content" v-html="stripHtml(conteudoToHtml(item.el.conteudo))"></span>
+            <span class="norm-lbl" :class="{ 'norm-lbl-bold': item.el.tipo === 'artigo' }">{{ item.label }}</span><span class="norm-content" v-html="htmlEmLinha(conteudoToHtml(item.el.conteudo))"></span><span v-if="item.el._unicoRenumerado" class="emenda-ref"> {{ clausulaRenumeracao(item.el) }}</span>
           </p>
 
         </template>
@@ -255,20 +267,18 @@
 
 <script setup>
 import { ref, computed, watch, nextTick, onMounted, onUnmounted, onUpdated } from 'vue'
-import { generateHTML } from '@tiptap/html'
-import { editorExtensions } from '@/editor/extensions.js'
-import { bodyLabel, formatLabel, toRoman } from '@/utils/numbering.js'
+import { conteudoParaHtml } from '@/editor/conteudoParaHtml.js'
+import { bodyLabel, formatLabel, toRoman, clausulaRenumeracao } from '@/utils/numbering.js'
 import { useDocumentosStore } from '@/stores/documentos.js'
 import { resolveMinioUrls } from '@/utils/minioUrls.js'
+import { exibeSeloRevogado, exibePortaria } from '@/utils/fluxoDocumento.js'
+import { htmlEmLinha } from '@/utils/htmlEmLinha.js'
 
 function toRomanStr(n) { return toRoman(n ?? 0) }
 
 const documentsStore = useDocumentosStore()
 
-function conteudoToHtml(conteudo) {
-  if (!conteudo) return ''
-  try { return generateHTML(JSON.parse(conteudo), editorExtensions) } catch { return '' }
-}
+const conteudoToHtml = conteudoParaHtml
 
 const props = defineProps({
   documento:         { type: Object, default: null },
@@ -315,7 +325,7 @@ onMounted(() => {
 })
 onUnmounted(() => _ro?.disconnect())
 
-// Figuras embutidas via v-html (conteudoToHtml/generateHTML) e os <img> de anexo
+// Figuras embutidas via v-html (conteudoToHtml/conteudoParaHtml) e os <img> de anexo
 // (:src="anexo.urlImagem") acabam, os dois, como <img src="..."> reais no DOM depois
 // da renderização -- como o bucket do MinIO é privado, cada um precisa da sua URL
 // trocada por uma assinada. Mais simples resolver aqui, uma vez por atualização do
@@ -349,14 +359,15 @@ const ESPECIE_COMPLETA = {
 }
 
 // Espelha DocumentoFoContext.buildStaticContentWatermark() (backend) -- mesmos
-// status mostram marca d'água, mesmo texto, cor equivalente.
+// etapas locais mostram marca d'água, mesmo texto, cor equivalente. A versão vigente
+// (SEM_ETAPA) não tem marca d'água.
 const WM_TEXT = {
   RASCUNHO: 'RASCUNHO', MINUTA: 'MINUTA', EM_ALTERACAO: 'EM ALTERAÇÃO',
-  EM_REVISAO: 'EM REVISÃO', APROVADO: 'APROVADO', ALTERADO: 'APROVADO',
+  EM_REVISAO: 'EM REVISÃO', EM_PUBLICACAO: 'APROVADO',
 }
 const WM_COLOR = {
   RASCUNHO: '#b50000', MINUTA: '#b50000', EM_ALTERACAO: '#b57a00',
-  EM_REVISAO: '#3a5bb5', APROVADO: '#1a6b1a', ALTERADO: '#1a6b1a',
+  EM_REVISAO: '#3a5bb5', EM_PUBLICACAO: '#1a6b1a',
 }
 
 // ─── Helpers ─────────────────────────────────────────────
@@ -375,7 +386,7 @@ function stripHtml(html) {
 // para aquele elemento (ver os v-if de clausulaEmenda no template).
 function emendaRef(el) {
   if (el.clausulaEmenda) return ` ${el.clausulaEmenda}`
-  const acao = { ALTERADO: 'alterado', REVOGADO: 'revogado', INCLUIDO: 'incluído' }[el.emendaStatus] ?? 'modificado'
+  const acao = { ALTERADO: 'redação dada', REVOGADO: 'revogado', INCLUIDO: 'incluído' }[el.emendaStatus] ?? 'modificado'
   return ` (${acao} pela Portaria DIRAD n° XYZ, de DD de MÊS de AAAA, publicada no BCA n° ABC, de DD de mês de AAAA)`
 }
 
@@ -441,8 +452,7 @@ function flattenNorm(elementos, out = []) {
 const docId = computed(() => {
   const d = props.documento
   if (!d) return ''
-  const numStr = [d.numero_basico, d.numero_secundario].filter(Boolean).join('-')
-  return [d.especie, numStr].filter(Boolean).join(' ')
+  return d.codigo_documento ?? ''
 })
 
 const especieCompleta = computed(() =>
@@ -457,8 +467,10 @@ const orgLabel = computed(() =>
     .toUpperCase()
 )
 
-const wmText  = computed(() => WM_TEXT[props.documento?.status] ?? '')
-const wmColor = computed(() => WM_COLOR[props.documento?.status] ?? '#888')
+const mostrarPortaria = computed(() => exibePortaria(props.documento))
+const seloRevogado = computed(() => exibeSeloRevogado(props.documento))
+const wmText  = computed(() => WM_TEXT[props.documento?.situacao_local] ?? '')
+const wmColor = computed(() => WM_COLOR[props.documento?.situacao_local] ?? '#888')
 
 // Acesso direto às seções por tipo
 const secaoPreliminar = computed(() =>
@@ -686,6 +698,17 @@ const anexosDocumento = computed(() =>
 }
 
 /* ─── Marca d'água ──────────────────────────────────────── */
+.selo-revogado {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  border: 2px solid #c00000;
+  color: #c00000;
+  font-weight: 700;
+  font-size: 14px;
+  padding: 2px 8px;
+  z-index: 11;
+}
 .wm-overlay {
   position:      absolute;
   top:   50%;
@@ -929,6 +952,12 @@ const anexosDocumento = computed(() =>
 }
 .norm-content-block :deep(table) {
   border-collapse: collapse;
+  /* Ver mesmo comentário em WysiwygEditor.vue -- sem table-layout:fixed, uma
+     imagem inserida numa célula (max-width:100% do .figura-img abaixo) ignora
+     o limite da coluna e estoura a borda, porque o navegador ainda calcula a
+     largura da célula pelo conteúdo em vez de respeitar a proporção da
+     tabela. */
+  table-layout: fixed;
   width: 100%;
   margin: 4px 0;
   font-size: 14px;
@@ -1040,7 +1069,7 @@ const anexosDocumento = computed(() =>
 /* ═══════════════════════════════════════════════════════════
    FIGURAS — renderização no corpo do documento
    CSS counter numera automaticamente no preview web.
-   Para exportações (PDF nativo, DOCX, HTML), o backend percorre
+   Para exportações (PDF, HTML), o backend percorre
    o documento e embute o número real antes de gerar o arquivo.
 ════════════════════════════════════════════════════════════ */
 

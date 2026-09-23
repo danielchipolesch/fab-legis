@@ -1,3 +1,5 @@
+import { rotulo as rotuloNpa, rotuloDoCorpo as rotuloDoCorpoNpa } from '@/perfis/npa.js'
+
 export function toRoman(n) {
   const vals = [1000,900,500,400,100,90,50,40,10,9,5,4,1]
   const syms = ['M','CM','D','CD','C','XC','L','XL','X','IX','V','IV','I']
@@ -31,7 +33,9 @@ function ordinalWithLetra(n, letra) {
   return `${comSeparadorMilhar(n)}-${letra}.`
 }
 
+// Elemento numerado pelas regras da NPA (`_caminho`, ver perfis/npa.js): rótulo pelo caminho (1, 1.1, a)).
 export function formatLabel(element) {
+  if (element._caminho != null) return rotuloNpa(element)
   const letra = element._emendaLetra ?? null
   switch (element.tipo) {
     case 'capitulo': {
@@ -167,9 +171,18 @@ export function renumberElements(elements, _ctx = null) {
   const unicoOnly = paragrafos.length === 1 && paragrafos[0].tipo === 'paragrafo_unico'
   if (unicoOnly) {
     paragrafos[0].numero = null
+    paragrafos[0]._unicoRenumerado = false
   } else if (paragrafos.length > 0) {
+    // Edição livre (documento ainda NAO_PUBLICADO): nada é riscado. Só um parágrafo único cuja
+    // renumeração já foi publicada (clausulaRenumeracao) continua marcado como renumerado.
     let pNum = 0
-    for (const p of paragrafos) { pNum++; p.tipo = 'paragrafo'; p.numero = pNum }
+    for (const p of paragrafos) {
+      pNum++
+      if (p.tipo === 'paragrafo_unico') p._eraUnico = true
+      p.tipo = 'paragrafo'
+      p.numero = pNum
+      p._unicoRenumerado = p._eraUnico === true && p.clausulaRenumeracao != null
+    }
   }
 }
 
@@ -197,10 +210,12 @@ export function demoteType(tipo) {
  *
  * Regras (LGCP):
  * - Artigos e unidades SUPERIORES ao artigo (capítulo, seção, subseção) NÃO podem
- *   ser renumerados. Elementos INALTERADO/ALTERADO/REVOGADO recebem números fixos.
- * - Elemento INCLUIDO inserido ENTRE dois elementos não-INCLUIDO do mesmo tipo:
+ *   ser renumerados. Elementos INALTERADO/ALTERADO/REVOGADO recebem números fixos --
+ *   inclusive o REVOGADO: continua ocupando seu número, e um INCLUIDO inserido antes
+ *   dele recebe letra (nunca o número do revogado).
+ * - Elemento INCLUIDO inserido ANTES de algum elemento original (não-INCLUIDO, mesmo REVOGADO) do mesmo tipo:
  *   recebe _emendaLetra ('A', 'B', …) sem consumir a contagem.
- * - Elemento INCLUIDO inserido APÓS o último não-INCLUIDO do mesmo tipo (final da
+ * - Elemento INCLUIDO inserido APÓS o último elemento original do mesmo tipo (final da
  *   sequência): recebe numeração sequencial normal (sem letra-sufixo).
  * - Unidades INTERNAS ao artigo (parágrafo, inciso, alínea, sub-alínea) são livremente
  *   reordenáveis e sempre numeradas sequencialmente.
@@ -216,35 +231,42 @@ function collectArtigosFlat(elements, result = []) {
   return result
 }
 
-// Verifica se há algum artigo INALTERADO/ALTERADO DEPOIS de `el` na sequência global.
-// REVOGADO é ignorado: não bloqueia a numeração sequencial de INCLUIDOs.
+// Verifica se há algum artigo ORIGINAL (não incluído por emenda) DEPOIS de `el` na sequência
+// global -- inclusive REVOGADO: um revogado continua ocupando o número que sempre teve
+// (LC 95/1998), então um incluído antes dele recebe letra, nunca o número dele.
+// Espelha NumeracaoService.hasActiveArtigoAfterGlobal (backend).
 // A lista `flatArtigos` é construída uma única vez na chamada raiz e compartilhada.
 function hasActiveArtigoAfterGlobal(el, flatArtigos) {
   const idx = flatArtigos.indexOf(el)
   for (let i = idx + 1; i < flatArtigos.length; i++) {
     const s = flatArtigos[i]
-    if (s.emendaStatus !== 'INCLUIDO' && s.emendaStatus !== 'REVOGADO') return true
+    // Marca permanente (incluidoPorEmenda), não o status ao vivo -- mesmo critério de
+    // `isIncluido` em renumberElementsEmAlteracao e do NumeracaoService no backend.
+    if (s.incluidoPorEmenda !== true) return true
   }
   return false
 }
 
-// Verifica localmente (mesmo array de irmãos) se há elemento do mesmo tipo não-INCLUIDO
-// e não-REVOGADO após o índice dado. Usado para capítulos, seções e subseções, cuja
-// numeração é local ao pai (não cruzam capítulos).
+// Verifica localmente (mesmo array de irmãos) se há elemento ORIGINAL (não incluído por
+// emenda) do mesmo tipo após o índice dado -- inclusive REVOGADO, que mantém seu número
+// (LC 95/1998). Usado para capítulos, seções e subseções, cuja numeração é local ao pai
+// (não cruzam capítulos). Espelha NumeracaoService.hasNonIncludedSameTypeAfter (backend).
 function hasNonIncludedSameTypeAfter(elements, idx, tipo) {
   for (let i = idx + 1; i < elements.length; i++) {
     const s = elements[i]
-    if (s.tipo === tipo && s.emendaStatus !== 'INCLUIDO' && s.emendaStatus !== 'REVOGADO') return true
+    if (s.tipo === tipo && s.incluidoPorEmenda !== true) return true
   }
   return false
 }
 
-// Mesma checagem, mas para uma lista já homogênea (ex.: parágrafos de um mesmo
-// artigo, coletados à parte) — não precisa filtrar por tipo.
+// Checagem para uma lista já homogênea de PARÁGRAFOS de um mesmo artigo (coletados à
+// parte) -- não precisa filtrar por tipo. Parágrafo em vigor nunca é renumerado (Decreto
+// nº 12.002/2024, art. 14, IV): conta como "ativo" todo parágrafo ORIGINAL (não incluído
+// por emenda), inclusive o REVOGADO, e a decisão usa a marca permanente incluidoPorEmenda,
+// não o status ao vivo. Espelha NumeracaoService.numerarParagrafos (backend).
 function hasActiveAfterInList(list, idx) {
   for (let i = idx + 1; i < list.length; i++) {
-    const s = list[i]
-    if (s.emendaStatus !== 'INCLUIDO' && s.emendaStatus !== 'REVOGADO') return true
+    if (list[i].incluidoPorEmenda !== true) return true
   }
   return false
 }
@@ -384,6 +406,7 @@ export function renumberElementsEmAlteracao(elements, _ctx = null) {
   // do Decreto nº 12.002/2024, art. 14, IV (renumeração de parágrafo já em vigor).
   const unicoOnly = paragrafos.length === 1 && paragrafos[0].tipo === 'paragrafo_unico'
   if (unicoOnly) {
+    paragrafos[0]._unicoRenumerado = false
     paragrafos[0].numero       = null
     paragrafos[0]._emendaLetra = null
     paragrafos[0]._emendaBase  = null
@@ -391,6 +414,12 @@ export function renumberElementsEmAlteracao(elements, _ctx = null) {
     let pNum = 0, letterIdx = 0
     for (let i = 0; i < paragrafos.length; i++) {
       const p = paragrafos[i]
+      // Parágrafo único em vigor que ganhou irmãos vira "§ Nº" -- o ÚNICO caso de renumeração de
+      // parágrafo (art. 14, IV): a linha "Parágrafo único. texto" sai riscada e o texto se repete
+      // sob o novo número, com a cláusula de renumeração. Espelha NumeracaoService.unicoRenumerado.
+      if (p.tipo === 'paragrafo_unico') p._eraUnico = true
+      const inclusaoPendente = p.emendaStatus === 'INCLUIDO' && !p.clausulaEmenda
+      p._unicoRenumerado = p._eraUnico === true && (p.clausulaRenumeracao != null || !inclusaoPendente)
       p.tipo = 'paragrafo'
       const isIncluido = p.incluidoPorEmenda === true
       const atEnd = isIncluido && !hasActiveAfterInList(paragrafos, i)
@@ -407,6 +436,44 @@ export function renumberElementsEmAlteracao(elements, _ctx = null) {
       }
     }
   }
+}
+
+// Cláusula da renumeração de um parágrafo único: a congelada na publicação da alteração ou, se ainda
+// pendente, a ao vivo com o mesmo placeholder XYZ/ABC das demais cláusulas pendentes.
+export function clausulaRenumeracao(element) {
+  return element.clausulaRenumeracao
+    ?? '(redação dada pela Portaria DIRAD n° XYZ, de DD de MÊS de AAAA,'
+       + ' publicada no BCA n° ABC, de DD de mês de AAAA)'
+}
+
+// Itens sintéticos do Quadro de Justificativas / texto sugerido da portaria para cada parágrafo
+// único que passou a "§ Nº" nesta alteração (ainda não publicada): a renumeração não é uma emenda
+// do elemento -- vem da inclusão de um irmão --, mas a portaria precisa transcrevê-lo.
+export function itensRenumeracaoUnico(documento) {
+  const itens = []
+  const visita = (elementos) => {
+    for (const el of elementos ?? []) {
+      if (el._unicoRenumerado && el.clausulaRenumeracao == null) {
+        itens.push({
+          id: 'renumeracao-' + el.id,
+          secao: 'PARTE_NORMATIVA',
+          elementoId: el.id,
+          acao: 'ALTERAR',
+          textoAnterior: el.conteudo,
+          textoNovo: el.conteudo,
+          tituloAnterior: null,
+          tituloNovo: null,
+          justificativa: 'Renumerado do parágrafo único: o artigo passou a ter mais de um parágrafo.',
+          dtEmenda: new Date().toISOString(),
+          cicloReferencia: null,
+        })
+      }
+      visita(el.filhos)
+    }
+  }
+  const normativa = documento?.secoes?.find(s => s.tipo === 'parte_normativa')
+  visita(normativa?.elementos)
+  return itens
 }
 
 /**
@@ -456,6 +523,7 @@ const S1 = '\xA0'     // um espaco — alinea/item (incisos XII, XIV)
  *   Item   -> "1. texto"    (inciso XIV: arabe + ponto + espaco)
  */
 export function bodyLabel(element) {
+  if (element._caminho != null) return rotuloDoCorpoNpa(element)
   const n    = element.numero ?? 0
   const letra = element._emendaLetra ?? null
   switch (element.tipo) {
@@ -467,4 +535,76 @@ export function bodyLabel(element) {
     case 'sub_alinea':      return n + '.' + S1
     default:                return ''
   }
+}
+
+// ─── Prévia do rótulo de um elemento a incluir por emenda ─────────────────────
+// Usada pelo diálogo "Incluir elemento": mostra o rótulo que o novo elemento vai receber DEPOIS de salvo, com as
+// mesmas regras de renumberElementsEmAlteracao / NumeracaoService. Um elemento ORIGINAL é o que não foi incluído por
+// emenda (marca permanente incluidoPorEmenda) -- INALTERADO, ALTERADO e também REVOGADO, que continua ocupando o
+// número que tinha (LC 95/1998): um artigo incluído logo depois de um revogado é "3º-A" se o revogado era o 3º, nunca
+// "2º-A". Quando o critério aqui muda, mude também as duas renumerações.
+//
+//   elementos: a árvore da parte normativa
+//   tipoAlvo : tipo do novo elemento em minúsculas ('artigo', 'paragrafo'...)
+//   opcao    : a posição escolhida -- { isFirst, el (o elemento-âncora, "Após ..."), siblings, containerEl }
+const TIPOS_INTERNOS_AO_ARTIGO = new Set(['paragrafo', 'paragrafo_unico', 'inciso', 'alinea', 'sub_alinea'])
+const ehOriginal = (el) => el.incluidoPorEmenda !== true
+const foiIncluido = (el) => el.incluidoPorEmenda === true
+
+function rotuloDoModelo(tipo, numero, letra) {
+  const modelo = { tipo, numero, _emendaLetra: letra }
+  return (bodyLabel(modelo) || formatLabel(modelo)).trim() || null
+}
+
+export function rotuloDaInclusao(elementos, tipoAlvo, opcao) {
+  if (!opcao || !tipoAlvo) return null
+
+  if (tipoAlvo === 'artigo') {
+    // Artigo: numeração GLOBAL (todo o documento, em ordem de leitura), não a dos irmãos.
+    const todos = []
+    const percorrer = (els) => { for (const el of els ?? []) { todos.push(el); percorrer(el.filhos) } }
+    percorrer(elementos)
+    const posicao = (el) => (el ? todos.indexOf(el) : -1)
+    const artigos = todos.filter(el => el.tipo === 'artigo')
+    const ref = opcao.isFirst ? posicao(opcao.containerEl) : posicao(opcao.el)
+
+    const proximo = artigos.find(a => posicao(a) > ref && ehOriginal(a)) ?? null
+    const anterior = [...artigos].reverse().find(a => posicao(a) <= ref && ehOriginal(a)) ?? null
+
+    if (!proximo) {
+      // Depois de todos os originais → numeração sequencial normal, sem letra.
+      const jaNoFim = artigos.filter(a => posicao(a) > ref && foiIncluido(a)).length
+      return rotuloDoModelo(tipoAlvo, (anterior?.numero ?? 0) + jaNoFim + 1, null)
+    }
+
+    // Entre dois originais → sufixo de letra do original anterior (A, B, C… conforme os já incluídos ali).
+    const inicioDaZona = anterior ? artigos.indexOf(anterior) + 1 : 0
+    const jaNaZona = opcao.isFirst
+      ? artigos.filter((a, i) => i >= inicioDaZona && posicao(a) <= ref && foiIncluido(a)).length
+      : artigos.slice(inicioDaZona, artigos.indexOf(opcao.el) + 1).filter(foiIncluido).length
+    return rotuloDoModelo(tipoAlvo, anterior?.numero ?? 0, String.fromCharCode(65 + jaNaZona))
+  }
+
+  // Demais tipos: numeração LOCAL, entre os irmãos do container.
+  const irmaos = [...(opcao.siblings ?? [])].sort((a, b) => (a.elementOrder ?? 0) - (b.elementOrder ?? 0))
+  const depoisDe = opcao.isFirst ? -1 : irmaos.findIndex(s => s.id === opcao.el.id)
+  if (!opcao.isFirst && depoisDe < 0) return null
+
+  const proximoOriginal = irmaos.slice(depoisDe + 1).find(s => s.tipo === tipoAlvo && ehOriginal(s)) ?? null
+  const numeroDaAncora = opcao.isFirst ? 0 : (opcao.el.numero ?? 0)
+
+  if (!proximoOriginal || TIPOS_INTERNOS_AO_ARTIGO.has(tipoAlvo)) {
+    // No fim da sequência (ou dentro de um artigo, que se renumera livremente): número sequencial normal.
+    const jaNoFim = irmaos.slice(depoisDe + 1).filter(s => s.tipo === tipoAlvo && foiIncluido(s)).length
+    return rotuloDoModelo(tipoAlvo, numeroDaAncora + jaNoFim + 1, null)
+  }
+
+  // Entre dois originais → letra, a partir do último original do mesmo tipo antes do ponto de inserção.
+  let anterior = null
+  for (let i = depoisDe; i >= 0; i--) {
+    if (irmaos[i].tipo === tipoAlvo && ehOriginal(irmaos[i])) { anterior = irmaos[i]; break }
+  }
+  const inicioDaZona = anterior ? irmaos.findIndex(s => s.id === anterior.id) + 1 : 0
+  const jaNaZona = irmaos.slice(inicioDaZona, depoisDe + 1).filter(s => s.tipo === tipoAlvo && foiIncluido(s)).length
+  return rotuloDoModelo(tipoAlvo, anterior?.numero ?? numeroDaAncora, String.fromCharCode(65 + jaNaZona))
 }
