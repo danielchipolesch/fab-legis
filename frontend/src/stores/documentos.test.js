@@ -1,6 +1,7 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 import { useDocumentosStore } from './documentos.js'
+import * as api from '@/api/documentos.js'
 
 const CONVENCIONAL = 'CONVENCIONAL'
 const NPA = 'COMUNICACAO_OFICIAL_PADRONIZADA'
@@ -73,5 +74,47 @@ describe('entrarNoModulo', () => {
     store.entrarNoModulo(NPA)
     expect(store.documentos).toEqual([])
     expect(store.totalElements).toBe(0)
+  })
+})
+
+// POST /documentos e POST /documentos/{id}/clonar devolvem o DTO enxuto, sem a árvore de itens -- mas o backend já
+// criou a estrutura inicial da espécie na hora (EstruturaInicialDeNovoDocumento). createDocumento/cloneDocumento têm
+// de buscar essa estrutura real (fetchDocumento -> GET /documentos/{id}), nunca supor um template genérico no
+// cliente: um template fixo de espécie convencional, salvo de volta pelo autoSave assim que o editor abre
+// (DocumentoEditorPage.vue, _fromTemplate), sobrescreveria a estrutura certa de uma NPA recém-criada pela errada.
+describe('createDocumento e cloneDocumento buscam a estrutura real, não um template', () => {
+  let store
+
+  const secaoNpaReal = { tipo: 'parte_normativa', elementos: [{ id: 'e1', tipo: 'capitulo', titulo: 'DISPOSIÇÕES PRELIMINARES' }] }
+  const npaCriada = { id: 42, tipo_de_especie: NPA, codigo_documento: 'NPA-1' }
+  const npaComEstrutura = { ...npaCriada, secoes: [secaoNpaReal] }
+
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    store = useDocumentosStore()
+    vi.restoreAllMocks()
+  })
+
+  it('createDocumento não usa gerarSecoesTemplate -- busca a estrutura que o backend já criou', async () => {
+    vi.spyOn(api, 'createDocumento').mockResolvedValue(npaCriada)
+    vi.spyOn(api, 'getDocumento').mockResolvedValue(npaComEstrutura)
+
+    const doc = await store.createDocumento({ idEspecieNormativa: 12, identificacao: 'NPA-1' })
+
+    expect(api.getDocumento).toHaveBeenCalledWith(42)
+    expect(doc.secoes).toEqual([secaoNpaReal])
+    expect(doc._fromTemplate).toBe(false)
+  })
+
+  it('cloneDocumento idem, e mantém a contagem de réplicas do original', async () => {
+    store.documentos = [{ id: 7, qtd_replicas: 0 }]
+    vi.spyOn(api, 'cloneDocumento').mockResolvedValue(npaCriada)
+    vi.spyOn(api, 'getDocumento').mockResolvedValue(npaComEstrutura)
+
+    const clone = await store.cloneDocumento(7)
+
+    expect(api.getDocumento).toHaveBeenCalledWith(42)
+    expect(clone.secoes).toEqual([secaoNpaReal])
+    expect(store.documentos.find(d => d.id === 7).qtd_replicas).toBe(1)
   })
 })

@@ -198,24 +198,25 @@ export const useDocumentosStore = defineStore('documents', {
       return doc
     },
 
+    // POST /documentos devolve o DTO enxuto (sem a árvore de itens), mas o backend já criou a estrutura inicial da
+    // espécie na hora (EstruturaInicialDeNovoDocumento -- capítulos padronizados numa espécie convencional, os
+    // próprios da NPA na NPA). Por isso busca a estrutura real com fetchDocumento em vez de supor um template no
+    // cliente: gerarSecoesTemplate() só sabe montar os capítulos de espécie convencional, e usá-lo aqui incondicional
+    // sobrescrevia a estrutura certa de uma NPA recém-criada pela errada assim que o editor abria (autoSave em
+    // _fromTemplate, ver DocumentoEditorPage.vue) -- bug encontrado ao investigar clonagem de NPA.
     async createDocumento(payload) {
       const novo = await api.createDocumento(payload)
-      novo.secoes = gerarSecoesTemplate(novo)
-      novo._fromTemplate = true
       this.documentos.unshift(novo)
-      return novo
+      return await this.fetchDocumento(novo.id)
     },
 
     async cloneDocumento(id) {
       const clone = await api.cloneDocumento(id)
-      if (clone) {
-        clone.secoes = gerarSecoesTemplate(clone)
-        clone._fromTemplate = true
-        this.documentos.unshift(clone)
-        const original = this.documentos.find(d => String(d.id) === String(id))
-        if (original) original.qtd_replicas = (original.qtd_replicas ?? 0) + 1
-      }
-      return clone
+      if (!clone) return clone
+      this.documentos.unshift(clone)
+      const original = this.documentos.find(d => String(d.id) === String(id))
+      if (original) original.qtd_replicas = (original.qtd_replicas ?? 0) + 1
+      return await this.fetchDocumento(clone.id)
     },
 
     // Sequencial de propósito, não Promise.all: saveSecoes checa
