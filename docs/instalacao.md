@@ -259,6 +259,19 @@ Sem Docker (com Node 22 local): `npm install` e `npm test` dentro de `frontend/`
 
 Nenhum teste está desabilitado no momento. Quando um teste descrever uma regra documentada que o código ainda não cumpre, ele fica desabilitado (`@Disabled` no backend, `it.skip` no frontend) **com o motivo**, para o alvo não se perder — ver a regra no `CLAUDE.md`.
 
+### Análise estática
+
+Duas ferramentas, uma por lado — achar **bug**, não estilo (por isso não há Checkstyle nem Prettier configurados; ver `CLAUDE.md`):
+
+- **Backend — [SpotBugs](https://spotbugs.github.io/)**: `mvn spotbugs:spotbugs` (dentro de `backend/`) gera o relatório em `target/spotbugsXml.xml`/`target/spotbugsHtml.html`. É o goal `spotbugs` (não `check`): **nunca falha o build**, mesmo com achados — não faz parte de `mvn test` nem tem `<executions>` no `pom.xml`, só roda quando chamado assim ou pelo CI.
+- **Frontend — [ESLint](https://eslint.org/)** com o preset `flat/essential` do [`eslint-plugin-vue`](https://eslint.vuejs.org/) (a camada "evita erro real" — v-for sem `:key`, mutar prop direto, chave duplicada… — não a camada de estilo do plugin, que fica desligada de propósito): `npm run lint` dentro de `frontend/` (ou via Docker, mesmo padrão dos testes). Falha o build se achar algo — diferente do SpotBugs, porque já roda limpo.
+
+Sem regra customizada em nenhuma das duas — é o primeiro passo deliberadamente mínimo; afinar limiar/filtro ou adicionar mais ferramentas (Checkstyle, PMD, cobertura) é uma decisão futura, feita uma de cada vez.
+
+## Integração contínua (GitHub Actions)
+
+`.github/workflows/ci.yml` roda a cada `push` (qualquer branch) e a cada `pull_request` para `master` — três jobs independentes, cada um repetindo exatamente o que este documento já manda rodar manualmente: `mvn test` + SpotBugs (backend), `npm run lint` + `npm test` + `npm run build` (frontend) e `docker compose build docs` (o build estrito do MkDocs). Nenhum deploy — o workflow existe só para pegar cedo o que apareceu nesta mesma sessão (um commit com erro de compilação passando batido por a suíte não ter rodado até o fim).
+
 ## Servindo esta documentação técnica
 
 O serviço `docs` do `docker compose.yml` empacota esta documentação (MkDocs Material) como um site estático servido por Nginx (`docs/Dockerfile`: builda com `mkdocs build --strict`, depois serve com `docs/nginx.conf`) — faz parte do `docker compose up -d`/`docker compose up --build` normal, junto com os demais serviços, disponível em `http://localhost:8000`.

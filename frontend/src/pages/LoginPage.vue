@@ -123,7 +123,7 @@ onMounted(async () => {
     // iniciarLogin normalmente NUNCA resolve de fato -- ela navega a página
     // inteira pra fora daqui (window.location.href) antes de retornar. Só
     // chega neste ponto se, por algum motivo, a navegação não aconteceu.
-  } catch (e) {
+  } catch {
     // Sem isso, qualquer falha aqui (ex.: crypto.subtle indisponível no
     // navegador, backend fora do ar) deixava o spinner girando pra sempre,
     // sem nenhum sinal do que deu errado -- exatamente o tipo de falha

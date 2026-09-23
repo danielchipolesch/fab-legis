@@ -44,7 +44,7 @@ export function jDoc(...paragraphs) {
 // mais parte da edição -- só existe de fato a partir da publicação em BCA,
 // então passou a ser coletada no próprio formulário de publicação
 // (ModuloPage.vue), não como uma seção editável aqui.
-function gerarSecoesTemplate(doc) {
+function gerarSecoesTemplate() {
   return [
     {
       id: uuidv4(),

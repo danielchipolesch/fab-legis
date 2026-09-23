@@ -268,7 +268,7 @@
 <script setup>
 import { ref, computed, watch, nextTick, onMounted, onUnmounted, onUpdated } from 'vue'
 import { conteudoParaHtml } from '@/editor/conteudoParaHtml.js'
-import { bodyLabel, formatLabel, toRoman, clausulaRenumeracao } from '@/utils/numbering.js'
+import { bodyLabel, toRoman, clausulaRenumeracao } from '@/utils/numbering.js'
 import { useDocumentosStore } from '@/stores/documentos.js'
 import { resolveMinioUrls } from '@/utils/minioUrls.js'
 import { exibeSeloRevogado, exibePortaria } from '@/utils/fluxoDocumento.js'

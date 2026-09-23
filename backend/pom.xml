@@ -153,6 +153,14 @@
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
             </plugin>
+            <!-- Análise estática (achar bug, não estilo; ver CLAUDE.md/docs/instalacao.md). Sem <executions>: não roda
+                 dentro de `mvn test`, só quando chamado explicitamente (`mvn spotbugs:spotbugs`) ou pelo CI. Sempre
+                 gera o relatório, nunca falha o build: é o passo "reporta, não bloqueia" combinado com o usuário. -->
+            <plugin>
+                <groupId>com.github.spotbugs</groupId>
+                <artifactId>spotbugs-maven-plugin</artifactId>
+                <version>4.10.4.1</version>
+            </plugin>
         </plugins>
     </build>
 

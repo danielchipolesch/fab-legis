@@ -651,7 +651,7 @@ const props = defineProps({
   isEmAlteracao:  { type: Boolean, default: false },
 })
 
-const emit = defineEmits([
+defineEmits([
   'select',
   'move-up', 'move-down',
   'add-child', 'add-artigo', 'add-capitulo',
@@ -882,7 +882,6 @@ watch(normativaElementos, (els) => {
 }, { immediate: true })
 
 // ── Computeds para os botões de adicionar ────────────────────────────────────
-const hasCapitulos       = computed(() => normativaElementos.value.some(e => e.tipo === 'capitulo'))
 const hasTopLevelArtigos = computed(() => normativaElementos.value.some(e => e.tipo === 'artigo'))
 
 const existingCapituloTitulos = computed(() =>
@@ -954,7 +953,7 @@ function removerAnexo(anexoId) {
     try {
       await documentsStore.removeAnexo(props.documento.id, anexoId)
       $q.notify({ type: 'positive', message: 'Anexo removido.' })
-    } catch (e) {
+    } catch {
       $q.notify({ type: 'negative', message: 'Erro ao remover anexo.' })
     }
   })

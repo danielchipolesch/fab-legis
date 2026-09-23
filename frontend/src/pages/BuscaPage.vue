@@ -66,7 +66,11 @@
                 <q-badge :color="situacaoBcaMeta(item.situacaoBca).color">{{ situacaoBcaMeta(item.situacaoBca).label }}</q-badge>
                 <q-badge v-if="temEtapaEmCurso(item.situacaoLocal)" outline :color="situacaoLocalMeta(item.situacaoLocal).color" class="q-ml-xs">{{ situacaoLocalMeta(item.situacaoLocal).label }}</q-badge>
               </q-item-label>
-              <q-item-label caption class="q-mt-sm text-body2 text-grey-9" v-html="destacarTrecho(item.trecho)" />
+              <!-- v-html só é garantido pelo Vue em elemento nativo, não em componente (ver eslint-plugin-vue,
+                   vue/no-v-text-v-html-on-component) -- por isso vai no <span>, não no q-item-label em si. -->
+              <q-item-label caption class="q-mt-sm text-body2 text-grey-9">
+                <span v-html="destacarTrecho(item.trecho)" />
+              </q-item-label>
             </q-item-section>
           </q-item>
         </q-list>
@@ -119,7 +123,7 @@ const TIPO_LABEL = {
 }
 
 // ts_headline (backend) marca o trecho encontrado com sentinelas de controle
-// (/), NUNCA com <mark> literal -- o texto ao redor não é
+// (\x01/\x02), NUNCA com <mark> literal -- o texto ao redor não é
 // escapado pelo Postgres, então tratá-lo como HTML confiável seria um XSS
 // armazenado (um parágrafo real pode conter "<"/"&" digitados por um
 // usuário). Escapa o texto inteiro primeiro, só DEPOIS troca as sentinelas
@@ -132,7 +136,7 @@ function destacarTrecho(trecho) {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
   return escapado
-    .replaceAll('', '<mark>')
-    .replaceAll('', '</mark>')
+    .replaceAll('\x01', '<mark>')
+    .replaceAll('\x02', '</mark>')
 }
 </script>
