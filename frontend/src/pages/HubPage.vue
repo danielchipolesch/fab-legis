@@ -105,7 +105,7 @@
           <q-icon :name="m.icone" size="48px" color="primary" />
           <div class="text-subtitle1 text-weight-medium text-grey-9 q-mt-sm">{{ m.nome }}</div>
           <div class="text-caption text-grey-7">{{ m.subtitulo }}</div>
-          <q-tooltip>Acessar o módulo {{ m.nome }}</q-tooltip>
+          <q-tooltip>Acessar módulo {{ m.nome }}</q-tooltip>
         </q-btn>
       </q-card>
     </div>
