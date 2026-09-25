@@ -23,7 +23,7 @@ docker compose up -d
 docker compose logs -f backend frontend
 ```
 
-O `.env` na raiz (fora do git, só o `.env.example` é versionado) é lido automaticamente pelo `docker compose` para preencher os `${VAR:-padrão}` do `docker-compose.yml` — sem ele, cada variável cai no próprio padrão já embutido no compose, então o comportamento é idêntico ao de antes deste arquivo existir. É o **mesmo arquivo** usado pela Opção 2 (frontend rodando fora do Docker via `npm run dev`) — ver nota na aba "Frontend" abaixo.
+O `.env` na raiz (fora do git, só o `.env.example` é versionado) é lido automaticamente pelo `docker compose` para preencher os `${VAR:-padrão}` do `docker-compose.yml` — sem ele, cada variável cai no próprio padrão já embutido no compose. É o **mesmo arquivo** usado pela Opção 2 (frontend rodando fora do Docker via `npm run dev`) — ver nota na aba "Frontend" abaixo.
 
 **Serviços disponíveis:**
 
@@ -193,7 +193,7 @@ Todas já são parametrizáveis (ver tabelas acima), só precisam do valor certo
 
 ### 4. `application-prod.properties` ainda é um rascunho
 
-`backend/src/main/resources/application-prod.properties` hoje tem placeholders de um scaffold anterior a este projeto (origens de CORS genéricas tipo `localhost:4200`, sem `app.oauth2.*`, sem conexão de banco real) — **precisa ser preenchido** antes de rodar com `SPRING_PROFILES_ACTIVE=prod`, com o equivalente de produção do que `application-dev.properties` já tem hoje (`app.oauth2.issuer`, `app.oauth2.redirect-uri`, `app.frontend.login-url`, conexão real do PostgreSQL).
+`backend/src/main/resources/application-prod.properties` tem placeholders (origens de CORS genéricas tipo `localhost:4200`, sem `app.oauth2.*`, sem conexão de banco real) — **precisa ser preenchido** antes de rodar com `SPRING_PROFILES_ACTIVE=prod`, com o equivalente de produção do que `application-dev.properties` já tem hoje (`app.oauth2.issuer`, `app.oauth2.redirect-uri`, `app.frontend.login-url`, conexão real do PostgreSQL).
 
 ### 5. Chave de assinatura RSA — efêmera por padrão
 

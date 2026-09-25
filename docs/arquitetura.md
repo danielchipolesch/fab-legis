@@ -137,11 +137,11 @@ frontend/src
 
 **Estado com Pinia — três stores complementares:**
 
-- **`auth`** — sessão. Guarda o access token e o usuário logado (persistidos em `localStorage`), expõe getters de papel (`isEditor`/`isAprovador`/`isPublicador`/`isAdmin`/`isAuditor`, todos independentes entre si — nenhum papel implica outro) e o fluxo de renovação via refresh token, chamado automaticamente pelo `client.js` num 401.
+- **`auth`** — sessão. Guarda o access token e o usuário logado (persistidos em `localStorage`), expõe getters de papel (`isEditor`/`isAprovador`/`isPublicador`/`isAdmin`/`isAuditor`, todos independentes entre si — nenhum papel implica outro) e a renovação silenciosa do token (`refresh()`, reautorização por iframe oculto), chamada automaticamente pelo `client.js` num 401.
 - **`documents`** — o acervo. Busca, cria, clona, salva e transiciona documentos; gera o *template* inicial de seções ao criar um novo ato; também busca as portarias e o mapa de alteração de um documento.
 - **`editor`** — o documento aberto. Mantém uma cópia profunda para edição isolada, controla o elemento selecionado, o flag `isDirty` (salvamento automático), a versão esperada para o bloqueio otimista e todas as operações de árvore, disparando a renumeração após cada mutação. `reload()` sempre busca a versão real no servidor (nunca do cache local) — importante após um `409` de conflito de edição. `aplicarEventosEstrutura()` faz o mesmo tipo de mutação de árvore, mas a partir de eventos recebidos via SSE (mudança feita por outra pessoa, ver [Autenticação e Colaboração](autenticacao.md)) — sempre um *patch* incremental (criar/reparentear/renomear/excluir um nó), nunca um `reload()`, porque isso preservaria a identidade local de todo elemento já aberto por quem estiver editando ao vivo no momento.
 
-**Camada de API desacoplada:** o `client.js` encapsula `fetch` com verbos tipados (`get`/`post`/`put`/`patch`/`del`), injeta o header `Authorization` via um *getter* plugado pelo `auth` store (evita import circular) e tenta renovar o token automaticamente uma vez antes de repassar um `401`; os módulos por recurso fazem a **tradução entre a nomenclatura do backend e a do frontend** (`SECAO` ⇄ `secao_normativa`, `PARAGRAFO_NUMERADO` ⇄ `paragrafo`, `ITEM` ⇄ `sub_alinea`), de modo que uma mudança no contrato REST não vaza para os componentes. Conexões SSE (notificações, presença — que também carrega o evento `estrutura` de mudanças em tempo real na árvore, ver [Autenticação e Colaboração](autenticacao.md)) não passam pelo `client.js` — são `EventSource` nativas, com o token na *query string* (única forma de autenticar um `EventSource`, que não permite headers customizados). O `EventSource` reconecta automaticamente em caso de erro, mas hoje **sem nenhum handler ligado à store de autenticação** — se a sessão expirar, a conexão tenta reconectar silenciosamente em vez de forçar logout.
+**Camada de API desacoplada:** o `client.js` encapsula `fetch` com verbos tipados (`get`/`post`/`put`/`patch`/`del`), injeta o header `Authorization` via um *getter* plugado pelo `auth` store (evita import circular) e tenta renovar o token automaticamente uma vez antes de repassar um `401`; os módulos por recurso fazem a **tradução entre a nomenclatura do backend e a do frontend** (`SECAO` ⇄ `secao_normativa`, `PARAGRAFO_NUMERADO` ⇄ `paragrafo`, `ITEM` ⇄ `sub_alinea`), de modo que uma mudança no contrato REST não vaza para os componentes. Conexões SSE (notificações, presença — que também carrega o evento `estrutura` de mudanças em tempo real na árvore, ver [Autenticação e Colaboração](autenticacao.md)) não passam pelo `client.js` — são `EventSource` nativas, com o token na *query string* (única forma de autenticar um `EventSource`, que não permite headers customizados). Quando o token expira, o servidor recusa a conexão e o `EventSource` passa a `CLOSED` sem reconectar sozinho; o `AppTopBar.vue` detecta isso, tenta a renovação silenciosa do token (`auth.refresh()`) e reconecta, ou desloga se não conseguir (ver [Autenticação e Colaboração](autenticacao.md#login-e-sessao)).
 
 **Build otimizado:** o Vite separa *chunks* por vendor (`vendor-vue`, `vendor-quasar`, `vendor-tiptap`, `vendor-utils`, `vendor-dnd`) para maximizar o cache do navegador; o `pdfmake` é importado dinamicamente e fica fora do bundle inicial.
 
@@ -169,7 +169,7 @@ fab-legis/
 │       └── resources/
 │           ├── application*.properties
 │           ├── fop-config.xml  # Registro de fontes (Carlito como "Calibri") para o Apache FOP
-│           └── db/migration/   # Scripts SQL versionados (Flyway)
+│           └── db/migration/   # Scripts SQL do esquema (Flyway)
 └── frontend/
     ├── Dockerfile              # Multi-stage: base → development | build → Nginx
     ├── nginx.conf
@@ -179,4 +179,4 @@ fab-legis/
     └── src/                    # pages, components, stores, api, utils, extensions
 ```
 
-**Migrações de banco:** versionadas em `resources/db/migration` (Flyway), estritamente aditivas — nunca se edita uma migração já aplicada. Atualmente em **V17**, com histórico rastreável de toda mudança de esquema: da remoção de `FUNDAMENTACAO` (V1) ao rastreio de ciclo de emenda por publicação (V7/V8), passando pela introdução de usuários/OM/papéis (V9), refresh token (V10), auditoria (V11), notificações (V12) e o registro histórico de portarias por documento (V17).
+**Migrações de banco:** scripts SQL em `resources/db/migration`, aplicados pelo Flyway. Em produção são estritamente aditivas — nunca se edita uma migração já aplicada.

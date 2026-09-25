@@ -121,6 +121,6 @@ Disponível como botão "Texto Sugerido" tanto na página de comparação (`Comp
 
 ### Escopo
 
-O texto é gerado sempre a partir do **ciclo pendente atual** (`cicloReferencia == null` no mapa de alteração) — independente de qual ciclo estiver selecionado no seletor da própria tela de comparação. Sem itens pendentes, exibe "Nenhuma alteração pendente neste ciclo." em vez de texto vazio. Sem portaria de edição registrada (documento antigo, dado ausente), o cabeçalho cai para o rótulo do documento, sem data.
+O texto é gerado sempre a partir do **ciclo pendente atual** (`cicloReferencia == null` no mapa de alteração) — independente de qual ciclo estiver selecionado no seletor da própria tela de comparação. Sem itens pendentes, exibe "Nenhuma alteração pendente neste ciclo." em vez de texto vazio. Sem portaria de edição registrada (dado ausente), o cabeçalho cai para o rótulo do documento, sem data.
 
 Fora de escopo: qualquer geração/validação do PDF final da portaria (continua 100% manual/externa — só o texto de apoio é gerado).
