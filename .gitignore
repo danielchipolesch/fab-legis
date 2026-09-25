@@ -74,3 +74,6 @@ backend/nbproject/private/
 backend/nbbuild/
 backend/nbdist/
 backend/.nb-gradle/
+
+# Material de apresentação (apenas local)
+apresentacao/

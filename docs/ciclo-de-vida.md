@@ -19,7 +19,7 @@ Combinações que existem (`SituacaoLocalEnum` documenta as mesmas):
 | `PUBLICADO` | `SEM_ETAPA`, `EM_ALTERACAO`, `EM_REVISAO`, `EM_PUBLICACAO`, `ANALISE_REVOGACAO`, `EM_REVOGACAO` |
 | `REVOGADO` | `SEM_ETAPA` |
 
-> **NPA:** a [NPA](dominio.md#npa-norma-padrao-de-acao) percorre o mesmo caminho de elaboração, revisão, publicação e revogação, mas **sem alteração**: não existe a etapa `EM_ALTERACAO`, nem iniciar/cancelar alteração, nem ciclo de emenda. "Devolver" leva sempre à `MINUTA`. Para mudar uma NPA publicada cria-se outra e revoga-se a anterior (`CicloDeVidaDeNpa`).
+> **NPA:** a [NPA](dominio.md#npa-norma-padrao-de-acao) percorre o mesmo caminho de elaboração, revisão, publicação e revogação, mas **sem alteração** — o fluxo completo está em [Fluxo da NPA](#fluxo-da-npa-norma-padrao-de-acao).
 
 ## Transições da Situação Local
 
@@ -99,6 +99,42 @@ Os arquivos armazenados são gerados **depois do commit** da mudança de etapa (
 ## Revogação em três etapas
 
 Revogar um ato publicado segue o mesmo padrão de atribuição pessoal do fluxo normal: o Editor envia (`SEM_ETAPA → ANALISE_REVOGACAO`, escolhendo um Aprovador), o Aprovador atribuído analisa e aprova a revogação (`ANALISE_REVOGACAO → EM_REVOGACAO`, escolhendo um Publicador) ou devolve (`ANALISE_REVOGACAO → SEM_ETAPA`: o pedido é recusado e o documento **segue `PUBLICADO`**, sem exigir nada), e o Publicador atribuído formaliza (`EM_REVOGACAO → SEM_ETAPA`, com Portaria/BCA — a Situação BCA passa a `REVOGADO`). A revogação não reabre o conteúdo do documento para edição em nenhuma etapa.
+
+## Fluxo da NPA (Norma Padrão de Ação)
+
+A NPA usa as mesmas etapas locais, a mesma **atribuição pessoal** (revisor com papel Aprovador, publicador com papel Publicador, ambos da mesma OM) e a mesma imutabilidade das espécies convencionais, com três diferenças: **não há alteração**, a publicação e a revogação são feitas no **Boletim Interno** (sem Portaria nem BCA) e "Devolver" leva sempre à `MINUTA`. As regras estão em `CicloDeVidaDeNpa` (coberto por `CicloDeVidaDeNpaTest`).
+
+```mermaid
+stateDiagram-v2
+    [*] --> RASCUNHO
+    RASCUNHO --> MINUTA
+    RASCUNHO --> CANCELADO
+    MINUTA --> EM_REVISAO: enviar para revisão
+    MINUTA --> CANCELADO
+    EM_REVISAO --> EM_PUBLICACAO: aprovar
+    EM_REVISAO --> MINUTA: devolver
+    EM_PUBLICACAO --> SEM_ETAPA: publicar (Boletim Interno)
+    EM_PUBLICACAO --> MINUTA: devolver
+    SEM_ETAPA --> ANALISE_REVOGACAO: pedir revogação (PUBLICADO)
+    ANALISE_REVOGACAO --> EM_REVOGACAO: aprovar
+    ANALISE_REVOGACAO --> SEM_ETAPA: devolver (segue PUBLICADO)
+    EM_REVOGACAO --> SEM_ETAPA: revogar (Boletim Interno)
+```
+
+Passo a passo, com o que muda no cabeçalho do documento (prévia, PDF e HTML — ver [Campos do cabeçalho e do fecho](dominio.md#campos-do-cabecalho-e-do-fecho)):
+
+| Etapa | Quem age | O que acontece |
+|---|---|---|
+| **1. Criar** (`RASCUNHO`) | Editor | Informa a **Identificação** (texto livre) e o **Assunto**; a NPA nasce com a estrutura do Anexo XII. Preenche o cabeçalho (*Cabeçalho e assinaturas*: setor emissor, local, blocos de assinatura). Identificação editável até a Minuta |
+| **2. Minutar** (`MINUTA`) | Editor | Passo de organização, sem atribuição. Pode ser cancelada (`CANCELADO`) nesta etapa e na anterior |
+| **3. Enviar para revisão** (`EM_REVISAO`) | Editor | Escolhe **pessoalmente** o Aprovador. "Aprovado por" ainda leva a máscara `[POSTO] FULANO DE TAL` |
+| **4. Aprovar** (`EM_PUBLICACAO`) | Aprovador atribuído | Pode editar o texto enquanto revisa (a NPA ainda não foi publicada); ao aprovar escolhe pessoalmente o Publicador. Grava a **data de aprovação**: ela vira a EMISSÃO e o nome do aprovador passa a aparecer em "Aprovado por". Pode **devolver** (volta à `MINUTA`; a atribuição é limpa) |
+| **5. Publicar** (`SEM_ETAPA`, situação real `PUBLICADO`) | Publicador atribuído | Informa só o **número (1 a 9999) e a data do Boletim Interno** — sem Portaria, BCA nem PDF de portaria. Passa a valer a EFETIVAÇÃO (`BIO <número>` + data) e a linha "(Publicada no …)". Pode **devolver** (volta à `MINUTA`). Depois de publicada, o conteúdo e os campos do cabeçalho não mudam mais |
+| **6. Pedir revogação** (`ANALISE_REVOGACAO`) | Editor | Só de NPA `PUBLICADO`; escolhe o Aprovador que analisa |
+| **7. Aprovar a revogação** (`EM_REVOGACAO`) | Aprovador atribuído | Escolhe o Publicador. Se **devolver**, o pedido é recusado e a NPA segue `PUBLICADO` |
+| **8. Revogar** (`REVOGADO`) | Publicador atribuído | Informa o Boletim Interno da revogação, cuja data **não pode ser anterior** à da publicação. Não há devolução. A NPA revogada mantém a referência da publicação, ganha "(Revogada pelo …)" e o selo `REVOGADO` |
+
+**Para mudar uma NPA publicada:** não existe "Iniciar Alteração", `EM_ALTERACAO`, ciclo de emenda nem comparação de versões. Cria-se outra NPA (clonando, se quiser partir da anterior — o clone é da OM de quem clona) e, depois, pede-se a revogação da antiga; uma ação "Substituir" que ligue as duas está no [roadmap](roadmap.md).
 
 ## Portaria, BCA e registro de publicações
 
