@@ -61,6 +61,9 @@ public class DocumentoHtmlService {
     @Autowired
     private RegrasDasEspecies regras;
 
+    @Autowired
+    private DocumentoRenderCacheService renderCacheService;
+
     public String gerarHtml(
             Documento doc,
             List<ItemPartePreliminarResponseDto> preliminares,
@@ -95,7 +98,16 @@ public class DocumentoHtmlService {
             // URL presente mas não recuperável (objeto removido/inconsistência): recai
             // na renderização ao vivo em vez de falhar a exportação.
         }
+        // Documento em tramitação sem cópia congelada: mesmo cache do PDF (DocumentoRenderCacheService),
+        // pela mesma regra de consistência entre os dois formatos.
+        var doCache = renderCacheService.buscar(doc, DocumentoRenderCacheService.TipoDeRenderizacao.HTML);
+        if (doCache.isPresent()) {
+            byte[] cacheado = doCache.get();
+            return outputStream -> outputStream.write(cacheado);
+        }
+
         byte[] renderizado = renderHtml(doc).getBytes(StandardCharsets.UTF_8);
+        renderCacheService.salvar(doc, DocumentoRenderCacheService.TipoDeRenderizacao.HTML, renderizado);
         return outputStream -> outputStream.write(renderizado);
     }
 

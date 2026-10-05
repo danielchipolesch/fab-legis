@@ -54,6 +54,9 @@ public class DocumentoPdfService {
     @Autowired
     private LimitadorGeracaoPdf limitador;
 
+    @Autowired
+    private DocumentoRenderCacheService renderCacheService;
+
     // A geração armazenada (depois de aprovar/publicar/revogar) não tem ninguém esperando o
     // resultado: pode aguardar bem mais por uma vaga que um pedido de tela.
     private static final java.time.Duration ESPERA_GERACAO_ARMAZENADA = java.time.Duration.ofMinutes(5);
@@ -89,9 +92,19 @@ public class DocumentoPdfService {
             // URL presente mas não recuperável (objeto removido/inconsistência): recai
             // na renderização ao vivo em vez de falhar a exportação.
         }
+        // Documento em tramitação sem cópia congelada: antes de renderizar de novo (caro, pelo
+        // FOP), tenta o cache em MinIO -- ver DocumentoRenderCacheService. Cache hit não passa
+        // pelo limitador: é exatamente esse custo que o cache evita.
+        var doCache = renderCacheService.buscar(doc, DocumentoRenderCacheService.TipoDeRenderizacao.PDF);
+        if (doCache.isPresent()) {
+            byte[] cacheado = doCache.get();
+            return outputStream -> outputStream.write(cacheado);
+        }
+
         // Renderiza ANTES de devolver o corpo: assim, com todas as vagas ocupadas, ainda dá para
         // responder 503 (depois de iniciado o streaming os cabeçalhos já saíram).
         byte[] renderizado = limitador.executar(() -> renderPdf(doc));
+        renderCacheService.salvar(doc, DocumentoRenderCacheService.TipoDeRenderizacao.PDF, renderizado);
         return outputStream -> outputStream.write(renderizado);
     }
 

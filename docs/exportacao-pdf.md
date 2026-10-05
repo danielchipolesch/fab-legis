@@ -94,6 +94,18 @@ Passada a espera, o pedido recebe **`503` com `Retry-After`** e a mensagem "O si
 
 Métricas no Actuator/Prometheus: `fab.pdf.geracoes.em.andamento` e `fab.pdf.geracoes.aguardando`. Uma thread esperando por vaga já pode estar segurando uma conexão do pool do banco (transação aberta): não configure `max-concorrentes` e a espera de modo que as threads em espera esgotem o pool do Hikari.
 
+## Cache de PDF/HTML em tramitação
+
+Enquanto o documento está em tramitação sem cópia congelada (ou seja, cai no caminho de renderização ao vivo descrito acima), reabrir a mesma minuta sem editá-la não precisa gerar o PDF/HTML de novo: `DocumentoRenderCacheService` guarda o resultado no próprio MinIO, sob o prefixo `cache/pdf/` ou `cache/html/`, e `DocumentoPdfService.streamPdf`/`DocumentoHtmlService.streamHtml` tentam esse cache antes de renderizar (um acerto não passa pelo `LimitadorGeracaoPdf` — é exatamente o custo que o cache evita).
+
+A chave do cache é um fingerprint (SHA-256) do que pode mudar o PDF/HTML: `Documento.versao`/`dt_alteracao` (mudanças estruturais e de metadados — ver `DocumentoConcorrenciaService`) combinados com a data de atualização de cada item de conteúdo (preliminar e normativo/anexo) e os ids dos anexos de imagem. Isso é necessário porque a edição colaborativa (`PATCH /elementos/{id}/conteudo`) grava só no item, sem tocar `Documento.versao`/`dt_alteracao` — por isso o fingerprint não pode se basear só nesses dois campos.
+
+| Propriedade (variável de ambiente) | Padrão | O que faz |
+|---|---|---|
+| `app.pdf.cache.ttl-dias` (`APP_PDF_CACHE_TTL_DIAS`) | `2` | Dias até o MinIO expirar (lifecycle rule no prefixo `cache/`) um objeto em cache — não há exclusão manual, o "flush" é só por tempo |
+
+É estritamente um atalho: qualquer falha ao ler ou gravar o cache (MinIO fora do ar, por exemplo) só vira um cache miss, logado como aviso — nunca falha a exportação, que sempre recai na renderização ao vivo. A geração armazenada ao aprovar/publicar/revogar (`gerarEArmazenarPdf`/`gerarEArmazenarHtml`) não usa este cache: aquilo já é uma cópia definitiva, sem TTL.
+
 ## Revogação total: selo "REVOGADO"
 
 Uma **revogação total** (situação BCA `REVOGADO`) **não tacha nenhum elemento**: o documento continua com o texto normal e ganha só um selo vermelho "REVOGADO" no **canto superior direito da página que contém a parte preliminar** (a Portaria) — no PDF (`DocumentoFoFrontMatterBuilder.buildPortariaSequence`), no HTML (`.selo-revogado`) e na prévia do editor (`DocumentoPreview.vue`). O selo também aparece na versão em tramitação congelada da revogação aprovada (`EM_REVOGACAO`), para o publicador ver o que vai ser publicado (`VersoesDocumento.exibeSeloRevogado`). É diferente da **revogação parcial** (por elemento, via emenda), que continua sendo tachado + cláusula.

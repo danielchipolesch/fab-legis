@@ -67,6 +67,7 @@ services:
       APP_ADMIN_NOME: ${APP_ADMIN_NOME:-Administrador}
       APP_PDF_MAX_CONCORRENTES: ${APP_PDF_MAX_CONCORRENTES:-2}
       APP_PDF_ESPERA_MAXIMA_SEGUNDOS: ${APP_PDF_ESPERA_MAXIMA_SEGUNDOS:-30}
+      APP_PDF_CACHE_TTL_DIAS: ${APP_PDF_CACHE_TTL_DIAS:-2}
     depends_on:
       postgres:
         condition: service_healthy
