@@ -10,10 +10,12 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.http.CacheControl;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.Duration;
 import java.util.List;
 
 @RestController
@@ -35,6 +37,9 @@ public class EspecieNormativaController {
         return  ResponseEntity.status(HttpStatus.OK).body(especieNormativaService.getById(id));
     }
 
+    // Lista de referência (povoa seletor de espécie) -- muda raramente, então o navegador pode
+    // reaproveitar a resposta por alguns minutos em vez de bater no banco a cada abertura de tela.
+    // cachePrivate(): a resposta já exige autenticação, não deve ficar num cache compartilhado.
     @GetMapping("obter-todos")
     public ResponseEntity<List<EspecieNormativaResponseDto>> getAll(
             @RequestParam(defaultValue = "0") int page,
@@ -42,7 +47,9 @@ public class EspecieNormativaController {
             @RequestParam(defaultValue = "id") String sortBy
     ) throws Exception {
         Pageable pageable = PageRequest.of(page, size, Sort.by(sortBy));
-        return ResponseEntity.status(HttpStatus.OK).body(especieNormativaService.getAll(pageable));
+        return ResponseEntity.status(HttpStatus.OK)
+                .cacheControl(CacheControl.maxAge(Duration.ofMinutes(5)).cachePrivate())
+                .body(especieNormativaService.getAll(pageable));
     }
 
     @PutMapping("{id}")

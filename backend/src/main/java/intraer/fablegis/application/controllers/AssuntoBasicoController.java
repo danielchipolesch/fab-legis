@@ -10,10 +10,12 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.http.CacheControl;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.Duration;
 import java.util.List;
 
 @RestController
@@ -50,6 +52,7 @@ public class AssuntoBasicoController {
         return  ResponseEntity.status(HttpStatus.OK).body(assuntoBasicoService.getByNumber(code));
     }
 
+    // Mesma razão do EspecieNormativaController.getAll: lista de referência que muda raramente.
     @GetMapping("obter-todos")
     public ResponseEntity<List<AssuntoBasicoResponseDto>> getAll(
             @RequestParam(defaultValue = "0") int page,
@@ -57,6 +60,8 @@ public class AssuntoBasicoController {
             @RequestParam(defaultValue = "id") String sortBy
     ) throws Exception {
         Pageable pageable = PageRequest.of(page, size, Sort.by(sortBy));
-        return ResponseEntity.status(HttpStatus.OK).body(assuntoBasicoService.getAll(pageable));
+        return ResponseEntity.status(HttpStatus.OK)
+                .cacheControl(CacheControl.maxAge(Duration.ofMinutes(5)).cachePrivate())
+                .body(assuntoBasicoService.getAll(pageable));
     }
 }
