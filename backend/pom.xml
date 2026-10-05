@@ -13,6 +13,13 @@
     <version>0.0.1-SNAPSHOT</version>
     <name>FAB Legis</name>
     <description>Spring Boot project to generate standard documents in HTML and PDF</description>
+    <licenses>
+        <license>
+            <name>GNU General Public License v3.0 or later</name>
+            <url>https://www.gnu.org/licenses/gpl-3.0.txt</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
     <properties>
         <java.version>25</java.version>
         <maven.compiler.source>25</maven.compiler.source>

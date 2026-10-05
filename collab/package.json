@@ -2,6 +2,7 @@
   "name": "fab-legis-collab",
   "version": "0.0.1",
   "private": true,
+  "license": "GPL-3.0-or-later",
   "type": "module",
   "description": "Servidor de colaboracao em tempo real (Yjs/Hocuspocus) para o editor do FAB Legis. Ver docs/arquitetura.md.",
   "main": "server.js",

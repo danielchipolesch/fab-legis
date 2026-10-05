@@ -15,6 +15,7 @@
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-336791)
 ![MinIO](https://img.shields.io/badge/MinIO-on--premise-C72E49)
 ![Docker](https://img.shields.io/badge/Docker-Compose-2496ED)
+![License](https://img.shields.io/badge/License-GPLv3-blue.svg)
 
 📖 **[Documentação técnica completa](docs/index.md)**
 
@@ -75,6 +76,21 @@ O desenvolvimento ocorre na branch **`desenvolvimento`**. Ao contribuir:
 3. Mudou uma regra de negócio? Atualize na mesma tarefa o **teste unitário** correspondente e a **página de `docs/`** que a descreve — as convenções (linguagem ubíqua em português para o domínio, consistência entre PDF, HTML e prévia) estão no [`CLAUDE.md`](CLAUDE.md);
 4. Escreva mensagens de commit descritivas em português;
 5. Abra um Pull Request para `desenvolvimento`.
+
+## Licença
+
+Copyright (C) 2026 Comando da Aeronáutica (FAB).
+
+Este programa é software livre: você pode redistribuí-lo e/ou modificá-lo sob os termos da
+**Licença Pública Geral GNU (GPL)**, conforme publicada pela Free Software Foundation, na versão 3
+da licença, ou (a seu critério) qualquer versão posterior.
+
+Este programa é distribuído na esperança de que seja útil, mas **SEM NENHUMA GARANTIA**; nem mesmo a
+garantia implícita de **COMERCIALIZAÇÃO** ou **ADEQUAÇÃO A UM PROPÓSITO ESPECÍFICO**. Veja a Licença
+Pública Geral GNU para mais detalhes.
+
+O texto completo da licença está em [`LICENSE`](LICENSE) (também disponível em
+[gnu.org/licenses/gpl-3.0](https://www.gnu.org/licenses/gpl-3.0.html)).
 
 ---
 
