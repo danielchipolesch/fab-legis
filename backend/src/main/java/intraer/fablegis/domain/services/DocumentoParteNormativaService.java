@@ -14,6 +14,7 @@ import intraer.fablegis.domain.entities.estruturaDocumento.*;
 import intraer.fablegis.domain.entities.estruturaDocumento.SituacaoBcaEnum;
 import intraer.fablegis.domain.entities.estruturaDocumento.TipoAlteracaoEnum;
 import intraer.fablegis.domain.handlers.exceptions.InvalidInputException;
+import intraer.fablegis.domain.handlers.exceptions.RegraDeNegocioException;
 import intraer.fablegis.domain.handlers.exceptions.ResourceNotFoundException;
 import intraer.fablegis.domain.mappers.DocumentoMapper;
 import intraer.fablegis.domain.regras.RegrasDasEspecies;
@@ -141,7 +142,7 @@ public class DocumentoParteNormativaService {
         // vigente só muda por emenda, elemento a elemento -- é o que preserva a redação anterior
         // riscada e a numeração (LC 95/1998).
         if (documento.getSituacaoBca() == SituacaoBcaEnum.PUBLICADO) {
-            throw new IllegalStateException(
+            throw new RegraDeNegocioException(
                     "Documento publicado: utilize os endpoints de emenda para modificar elementos "
                     + "individualmente, nunca o salvamento em massa.");
         }
@@ -351,7 +352,7 @@ public class DocumentoParteNormativaService {
             ItemAnexoParteNormativa parent = itemAnexoParteNormativaRepository.findById(dto.parentId())
                     .orElseThrow(() -> new ResourceNotFoundException("Item pai não encontrado"));
             if (!parent.getDocumento().getId().equals(documento.getId())) {
-                throw new InvalidInputException("O item pai não pertence ao mesmo documento.");
+                throw new RegraDeNegocioException("O item pai não pertence ao mesmo documento.");
             }
             novoItem.setParent(parent);
         }

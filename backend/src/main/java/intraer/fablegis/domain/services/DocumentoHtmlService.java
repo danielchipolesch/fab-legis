@@ -10,6 +10,7 @@ import intraer.fablegis.domain.entities.estruturaDocumento.VersaoDocumentoEnum;
 import intraer.fablegis.domain.entities.estruturaDocumento.SituacaoBcaEnum;
 import intraer.fablegis.domain.entities.estruturaDocumento.ElementoEmendaStatusEnum;
 import intraer.fablegis.domain.entities.estruturaDocumento.ItemAnexoParteNormativaTipoEnum;
+import intraer.fablegis.domain.handlers.exceptions.FalhaNaRenderizacaoException;
 import intraer.fablegis.domain.handlers.exceptions.ResourceNotFoundException;
 import intraer.fablegis.domain.regras.RegrasDasEspecies;
 import intraer.fablegis.domain.handlers.exceptions.enums.DocumentoException;
@@ -117,7 +118,7 @@ public class DocumentoHtmlService {
             String filename = "documento-" + documento.getId() + "-" + Instant.now().toEpochMilli() + ".html";
             return imagemService.uploadHtml(htmlBytes, filename);
         } catch (Exception e) {
-            throw new RuntimeException("Erro ao gerar/armazenar HTML: " + e.getMessage(), e);
+            throw new FalhaNaRenderizacaoException("Erro ao gerar/armazenar HTML: " + e.getMessage(), e);
         }
     }
 

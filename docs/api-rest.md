@@ -134,3 +134,21 @@ Duas rotas sob `/v1/usuarios` sobrescrevem a restrição de Admin da classe (`is
 | `GET` | `/stream` | Conexão SSE: notificações ao vivo do usuário autenticado |
 | `GET` | `/nao-lidas` · `/` | Notificações não lidas, ou histórico completo paginado |
 | `PATCH` | `/{id}/lida` · `/lidas` | Marca uma notificação, ou todas, como lida |
+
+## Erros
+
+Todo erro da API é JSON no mesmo formato — `{ "timestamp", "status", "error", "message", "path" }` — e o `status` é o do HTTP. A tela mostra o `message`; só dois códigos têm tratamento próprio no frontend: **401** (sessão expirada → renova ou desloga) e **409** (conflito de edição → recarrega o documento). Quem trata é o `GlobalExceptionHandler`:
+
+| Status | Quando | Origem |
+|---|---|---|
+| `400` | Corpo ilegível, campo inválido (a mensagem lista os campos), parâmetro ausente ou de tipo errado, página negativa, ordenação por propriedade que não existe, valor grande demais para o banco, **regra de negócio violada** (`RegraDeNegocioException`: ex. elemento revogado é permanente, justificativa obrigatória) | erro de quem pediu |
+| `401` | Credenciais inválidas / sessão expirada | `CredenciaisInvalidasException`, Spring Security |
+| `403` | Sem posse, ou documento em etapa que não aceita a operação | `AccessDeniedException` (`@PreAuthorize`), `StatusCannotBeUpdatedException`, `ResourceCannotBeUpdatedException` |
+| `404` | Documento/elemento inexistente, ou rota que não existe | `ResourceNotFoundException`, rota desconhecida |
+| `405` · `415` · `413` | Método HTTP, tipo de conteúdo ou tamanho de upload que a rota não aceita | Spring MVC, com o status que ele define |
+| `406` | Validação de um valor de entrada pelo domínio (`InvalidInputException`: ex. identificação da NPA em branco, orientação de anexo inválida) | convenção histórica do projeto |
+| `409` | Conflito: edição concorrente (`@Version`), valor duplicado ou referência inexistente no banco, nome já usado | `ConflitoEdicaoException`, `ObjectOptimisticLockingFailureException`, `DataIntegrityViolationException`, `ResourceAlreadyExistsException` |
+| `500` | **Falha do servidor**: bug ou infraestrutura (inclui a falha de renderização do PDF). A mensagem é neutra, sem detalhe interno, e a pilha vai para o **log** com nível `ERROR` | qualquer exceção sem handler próprio |
+| `503` | Todas as vagas de geração de PDF ocupadas (com `Retry-After`) | `SistemaOcupadoException` |
+
+Antes, qualquer exceção sem handler próprio — inclusive os erros do próprio Spring (rota inexistente, tipo de conteúdo, upload grande) e bugs de verdade — saía como `400`, sem registro no log. Hoje só é 4xx o que de fato é erro de quem pediu; o resto é `500`, e aparece no log. Um cliente que desconecta no meio de uma resposta longa (SSE, PDF) não é erro: não há resposta nem log de erro.

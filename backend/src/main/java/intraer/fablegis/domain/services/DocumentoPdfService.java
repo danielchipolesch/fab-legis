@@ -6,6 +6,7 @@ import intraer.fablegis.application.dtos.itemAnexoParteNormativaDtos.ItemAnexoPa
 import intraer.fablegis.application.dtos.itemPartePreliminarDtos.ItemPartePreliminarResponseDto;
 import intraer.fablegis.domain.entities.estruturaDocumento.Documento;
 import intraer.fablegis.domain.entities.estruturaDocumento.VersaoDocumentoEnum;
+import intraer.fablegis.domain.handlers.exceptions.FalhaNaRenderizacaoException;
 import intraer.fablegis.domain.handlers.exceptions.ResourceNotFoundException;
 import intraer.fablegis.domain.regras.RegrasDasEspecies;
 import intraer.fablegis.domain.handlers.exceptions.enums.DocumentoException;
@@ -108,7 +109,7 @@ public class DocumentoPdfService {
             String filename = "documento-" + documento.getId() + "-" + Instant.now().toEpochMilli() + ".pdf";
             return imagemService.uploadPdf(pdfBytes, filename);
         } catch (Exception e) {
-            throw new RuntimeException("Erro ao gerar/armazenar PDF: " + e.getMessage(), e);
+            throw new FalhaNaRenderizacaoException("Erro ao gerar/armazenar PDF: " + e.getMessage(), e);
         }
     }
 

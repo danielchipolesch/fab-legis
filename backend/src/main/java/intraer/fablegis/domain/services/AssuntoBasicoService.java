@@ -35,7 +35,7 @@ public class AssuntoBasicoService {
     }
 
 
-    public AssuntoBasicoResponseDto update(Long id, AssuntoBasicoRequestUpdateDto request) throws Exception{
+    public AssuntoBasicoResponseDto update(Long id, AssuntoBasicoRequestUpdateDto request) {
 
         AssuntoBasico assuntoBasico = assuntoBasicoRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException(AssuntoBasicoException.NOT_FOUND.getMessage()));
 

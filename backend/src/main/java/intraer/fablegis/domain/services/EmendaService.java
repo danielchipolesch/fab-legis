@@ -1,6 +1,7 @@
 package intraer.fablegis.domain.services;
 
 import lombok.RequiredArgsConstructor;
+import intraer.fablegis.domain.handlers.exceptions.RegraDeNegocioException;
 import intraer.fablegis.domain.handlers.exceptions.ResourceNotFoundException;
 import intraer.fablegis.application.dtos.emendaDtos.EmendaAcaoEnum;
 import intraer.fablegis.application.dtos.emendaDtos.EmendaElementoRequestDto;
@@ -44,7 +45,7 @@ public class EmendaService {
     public void emendar(Long docId, String secao, Long elementoId, EmendaElementoRequestDto req) {
         Documento documento = carregarEmAlteracao(docId);
         concorrenciaService.checarEAtualizarVersao(documento, req.versaoEsperada());
-        SecaoDocumentoEnum secaoEnum = SecaoDocumentoEnum.valueOf(secao.toUpperCase());
+        SecaoDocumentoEnum secaoEnum = secaoDe(secao);
 
         switch (secaoEnum) {
             case PARTE_PRELIMINAR -> emendar(docId, secaoEnum, elementoId, req,
@@ -71,12 +72,12 @@ public class EmendaService {
         // é mais possível. clausulaEmenda só é preenchido em consolidarPublicacao, então
         // sua presença aqui distingue "já publicada" de "ainda pendente, desfazível".
         if (item.getEmendaStatus() == ElementoEmendaStatusEnum.REVOGADO && item.getClausulaEmenda() != null) {
-            throw new IllegalStateException(ELEMENTO_REVOGADO_PERMANENTE);
+            throw new RegraDeNegocioException(ELEMENTO_REVOGADO_PERMANENTE);
         }
         // Para INCLUIDO/ALTERADO já publicados, só o desfazer cru é vedado — alterar ou
         // revogar de novo continuam permitidos: é assim que o ciclo de emendas se repete.
         if (acao == EmendaAcaoEnum.DESFAZER && item.getClausulaEmenda() != null) {
-            throw new IllegalStateException(ELEMENTO_JA_PUBLICADO_PERMANENTE);
+            throw new RegraDeNegocioException(ELEMENTO_JA_PUBLICADO_PERMANENTE);
         }
 
         if (acao == EmendaAcaoEnum.DESFAZER) {
@@ -113,7 +114,7 @@ public class EmendaService {
         // qualquer outro elemento).
         if (acao == EmendaAcaoEnum.REVOGAR && item.getEmendaStatus() == ElementoEmendaStatusEnum.INCLUIDO
                 && item.getClausulaEmenda() == null) {
-            throw new IllegalArgumentException(
+            throw new RegraDeNegocioException(
                     "Elemento incluído por emenda ainda não publicado não pode ser revogado. Use a opção de excluir.");
         }
 
@@ -164,12 +165,12 @@ public class EmendaService {
         // é mais possível. clausulaEmenda só é preenchido em consolidarPublicacao, então
         // sua presença aqui distingue "já publicada" de "ainda pendente, desfazível".
         if (item.getEmendaStatus() == ElementoEmendaStatusEnum.REVOGADO && item.getClausulaEmenda() != null) {
-            throw new IllegalStateException(ELEMENTO_REVOGADO_PERMANENTE);
+            throw new RegraDeNegocioException(ELEMENTO_REVOGADO_PERMANENTE);
         }
         // Para INCLUIDO/ALTERADO já publicados, só o desfazer cru é vedado — alterar ou
         // revogar de novo continuam permitidos: é assim que o ciclo de emendas se repete.
         if (acao == EmendaAcaoEnum.DESFAZER && item.getClausulaEmenda() != null) {
-            throw new IllegalStateException(ELEMENTO_JA_PUBLICADO_PERMANENTE);
+            throw new RegraDeNegocioException(ELEMENTO_JA_PUBLICADO_PERMANENTE);
         }
 
         if (acao == EmendaAcaoEnum.DESFAZER) {
@@ -206,7 +207,7 @@ public class EmendaService {
         // qualquer outro elemento).
         if (acao == EmendaAcaoEnum.REVOGAR && item.getEmendaStatus() == ElementoEmendaStatusEnum.INCLUIDO
                 && item.getClausulaEmenda() == null) {
-            throw new IllegalArgumentException(
+            throw new RegraDeNegocioException(
                     "Elemento incluído por emenda ainda não publicado não pode ser revogado. Use a opção de excluir.");
         }
 
@@ -257,12 +258,12 @@ public class EmendaService {
         // é mais possível. clausulaEmenda só é preenchido em consolidarPublicacao, então
         // sua presença aqui distingue "já publicada" de "ainda pendente, desfazível".
         if (item.getEmendaStatus() == ElementoEmendaStatusEnum.REVOGADO && item.getClausulaEmenda() != null) {
-            throw new IllegalStateException(ELEMENTO_REVOGADO_PERMANENTE);
+            throw new RegraDeNegocioException(ELEMENTO_REVOGADO_PERMANENTE);
         }
         // Para INCLUIDO/ALTERADO já publicados, só o desfazer cru é vedado — alterar ou
         // revogar de novo continuam permitidos: é assim que o ciclo de emendas se repete.
         if (acao == EmendaAcaoEnum.DESFAZER && item.getClausulaEmenda() != null) {
-            throw new IllegalStateException(ELEMENTO_JA_PUBLICADO_PERMANENTE);
+            throw new RegraDeNegocioException(ELEMENTO_JA_PUBLICADO_PERMANENTE);
         }
 
         if (acao == EmendaAcaoEnum.DESFAZER) {
@@ -299,7 +300,7 @@ public class EmendaService {
         // qualquer outro elemento).
         if (acao == EmendaAcaoEnum.REVOGAR && item.getEmendaStatus() == ElementoEmendaStatusEnum.INCLUIDO
                 && item.getClausulaEmenda() == null) {
-            throw new IllegalArgumentException(
+            throw new RegraDeNegocioException(
                     "Elemento incluído por emenda ainda não publicado não pode ser revogado. Use a opção de excluir.");
         }
 
@@ -352,11 +353,20 @@ public class EmendaService {
     // REVOGADO), pois isso equivaleria a renumerá-lo.
 
     @Transactional
+    // A seção vem do caminho da requisição (texto livre): um valor que não é seção é erro de quem chamou (400), não do servidor.
+    private static SecaoDocumentoEnum secaoDe(String secao) {
+        try {
+            return SecaoDocumentoEnum.valueOf(secao.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new RegraDeNegocioException("Seção inválida: '" + secao + "'. Use PARTE_PRELIMINAR, PARTE_NORMATIVA ou PARTE_FINAL.");
+        }
+    }
+
     public void reordenarIncluido(Long docId, String secao, Long elementoId, String direcao) {
         carregarEmAlteracao(docId);
-        SecaoDocumentoEnum secaoEnum = SecaoDocumentoEnum.valueOf(secao.toUpperCase());
+        SecaoDocumentoEnum secaoEnum = secaoDe(secao);
         if (secaoEnum != SecaoDocumentoEnum.PARTE_NORMATIVA) {
-            throw new IllegalArgumentException("Reordenação só é permitida na parte normativa.");
+            throw new RegraDeNegocioException("Reordenação só é permitida na parte normativa.");
         }
 
         ItemAnexoParteNormativa item = normativaRepository.findById(elementoId)
@@ -369,7 +379,7 @@ public class EmendaService {
             // clausulaEmenda != null significa que este artigo já foi consolidado numa
             // publicação anterior: sua posição (e portanto sua numeração/letra) já é
             // definitiva e reordená-lo mudaria essa identidade — vedado.
-            throw new IllegalArgumentException(
+            throw new RegraDeNegocioException(
                     "Só é possível reordenar artigos incluídos por emenda e ainda não publicados.");
         }
 
@@ -381,14 +391,14 @@ public class EmendaService {
         boolean cima = "CIMA".equalsIgnoreCase(direcao);
         int targetIdx = idx + (cima ? -1 : 1);
         if (idx < 0 || targetIdx < 0 || targetIdx >= siblings.size()) {
-            throw new IllegalArgumentException("Não é possível mover o elemento nessa direção.");
+            throw new RegraDeNegocioException("Não é possível mover o elemento nessa direção.");
         }
 
         ItemAnexoParteNormativa vizinho = siblings.get(targetIdx);
         if (vizinho.getTipo() != ItemAnexoParteNormativaTipoEnum.ARTIGO
                 || vizinho.getEmendaStatus() != ElementoEmendaStatusEnum.INCLUIDO
                 || vizinho.getClausulaEmenda() != null) {
-            throw new IllegalArgumentException(
+            throw new RegraDeNegocioException(
                     "Só é possível trocar de posição com outro artigo incluído por emenda e ainda não publicado.");
         }
 
@@ -406,10 +416,10 @@ public class EmendaService {
         Documento documento = carregarEmAlteracao(docId);
         concorrenciaService.checarEAtualizarVersao(documento, req.versaoEsperada());
         if (req.justificativa() == null || req.justificativa().isBlank()) {
-            throw new IllegalArgumentException(JUSTIFICATIVA_REQUERIDA);
+            throw new RegraDeNegocioException(JUSTIFICATIVA_REQUERIDA);
         }
 
-        SecaoDocumentoEnum secaoEnum = SecaoDocumentoEnum.valueOf(secao.toUpperCase());
+        SecaoDocumentoEnum secaoEnum = secaoDe(secao);
         switch (secaoEnum) {
             case PARTE_PRELIMINAR -> incluirPreliminar(docId, secaoEnum, req);
             case PARTE_NORMATIVA  -> incluirNormativo(docId, secaoEnum, req);
@@ -669,14 +679,14 @@ public class EmendaService {
         Documento doc = documentoRepository.findById(docId)
                 .orElseThrow(() -> new ResourceNotFoundException(DOC_NAO_ENCONTRADO));
         if (doc.getSituacaoLocal() != SituacaoLocalEnum.EM_ALTERACAO) {
-            throw new IllegalStateException(DOC_NAO_EM_ALTERACAO);
+            throw new RegraDeNegocioException(DOC_NAO_EM_ALTERACAO);
         }
         return doc;
     }
 
     private void validarJustificativa(String justificativa) {
         if (justificativa == null || justificativa.isBlank()) {
-            throw new IllegalArgumentException(JUSTIFICATIVA_REQUERIDA);
+            throw new RegraDeNegocioException(JUSTIFICATIVA_REQUERIDA);
         }
     }
 }
