@@ -21,7 +21,7 @@ public class AssuntoBasicoService {
 
     private final AssuntoBasicoRepository assuntoBasicoRepository;
 
-    public AssuntoBasicoResponseDto create(AssuntoBasicoRequestCreateDto request) throws Exception {
+    public AssuntoBasicoResponseDto create(AssuntoBasicoRequestCreateDto request) {
         if(assuntoBasicoRepository.existsByCodigo(request.codigo())){
             throw new ResourceAlreadyExistsException(AssuntoBasicoException.ALREADY_EXISTS.getMessage());
         }
@@ -48,7 +48,7 @@ public class AssuntoBasicoService {
         return toDto(assuntoBasico);
     }
 
-    public AssuntoBasicoResponseDto delete(Long id) throws Exception {
+    public AssuntoBasicoResponseDto delete(Long id) {
         AssuntoBasico assuntoBasico = assuntoBasicoRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException(AssuntoBasicoException.NOT_FOUND.getMessage()));
 
@@ -57,18 +57,18 @@ public class AssuntoBasicoService {
         return toDto(assuntoBasico);
     }
 
-    public AssuntoBasicoResponseDto getById(Long id) throws Exception {
+    public AssuntoBasicoResponseDto getById(Long id) {
         AssuntoBasico assuntoBasico = assuntoBasicoRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException(AssuntoBasicoException.NOT_FOUND.getMessage()));
         return toDto(assuntoBasico);
     }
 
-    public AssuntoBasicoResponseDto getByNumber(String number) throws Exception {
+    public AssuntoBasicoResponseDto getByNumber(String number) {
         AssuntoBasico assuntoBasico = assuntoBasicoRepository.findByCodigo(number);
         return toDto(assuntoBasico);
     }
 
-    public List<AssuntoBasicoResponseDto> getAll(Pageable pageable) throws Exception {
+    public List<AssuntoBasicoResponseDto> getAll(Pageable pageable) {
         Page<AssuntoBasico> basicSubjects = assuntoBasicoRepository.findAll(pageable);
         return basicSubjects.stream().map(this::toDto).toList();
     }

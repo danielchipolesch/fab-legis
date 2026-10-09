@@ -1,6 +1,6 @@
 <template>
   <!-- Cabeçalho da NPA como no modelo do Anexo XII (mesma grade do PDF): as bordas de cima e dos lados são as da moldura. -->
-  <table class="cabecalho">
+  <table class="cabecalho" role="presentation">
     <colgroup><col style="width:24.5%"><col style="width:25%"><col style="width:26.5%"><col style="width:24%"></colgroup>
     <tbody>
       <tr style="height:72px">

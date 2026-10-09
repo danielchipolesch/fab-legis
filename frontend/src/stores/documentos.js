@@ -173,7 +173,7 @@ export const useDocumentosStore = defineStore('documents', {
       const doc = await api.getDocumento(id)
       if (!doc) return null
       if (!doc.secoes) {
-        doc.secoes = gerarSecoesTemplate(doc)
+        doc.secoes = gerarSecoesTemplate()
         doc._fromTemplate = true
       } else {
         doc._fromTemplate = false

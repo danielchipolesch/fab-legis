@@ -27,28 +27,28 @@ public class AssuntoBasicoController {
     final AssuntoBasicoService assuntoBasicoService;
 
     @PostMapping
-    public ResponseEntity<AssuntoBasicoResponseDto> post(@RequestBody @Valid AssuntoBasicoRequestCreateDto request) throws Exception {
+    public ResponseEntity<AssuntoBasicoResponseDto> post(@RequestBody @Valid AssuntoBasicoRequestCreateDto request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(assuntoBasicoService.create(request));
     }
 
     @PutMapping("{id}")
     public ResponseEntity<AssuntoBasicoResponseDto> put(@PathVariable(value = "id") Long id,
-                                                        @RequestBody AssuntoBasicoRequestUpdateDto request) throws Exception {
+                                                        @RequestBody AssuntoBasicoRequestUpdateDto request) {
         return ResponseEntity.status(HttpStatus.OK).body(assuntoBasicoService.update(id, request));
     }
 
     @DeleteMapping("{id}")
-    public ResponseEntity<AssuntoBasicoResponseDto> delete(@PathVariable(value = "id") Long id) throws Exception {
+    public ResponseEntity<AssuntoBasicoResponseDto> delete(@PathVariable(value = "id") Long id) {
         return ResponseEntity.status(HttpStatus.NO_CONTENT).body(assuntoBasicoService.delete(id));
     }
 
     @GetMapping("{id}")
-    public ResponseEntity<AssuntoBasicoResponseDto>  getById(@PathVariable(value = "id") Long id) throws Exception {
+    public ResponseEntity<AssuntoBasicoResponseDto>  getById(@PathVariable(value = "id") Long id) {
         return  ResponseEntity.status(HttpStatus.OK).body(assuntoBasicoService.getById(id));
     }
 
     @GetMapping("/obter-por-codigo-assunto-basico/{code}")
-    public ResponseEntity<AssuntoBasicoResponseDto>  getByNumber(@PathVariable(value = "code") String code) throws Exception {
+    public ResponseEntity<AssuntoBasicoResponseDto>  getByNumber(@PathVariable(value = "code") String code) {
         return  ResponseEntity.status(HttpStatus.OK).body(assuntoBasicoService.getByNumber(code));
     }
 
@@ -58,7 +58,7 @@ public class AssuntoBasicoController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(defaultValue = "id") String sortBy
-    ) throws Exception {
+    ) {
         Pageable pageable = PageRequest.of(page, size, Sort.by(sortBy));
         return ResponseEntity.status(HttpStatus.OK)
                 .cacheControl(CacheControl.maxAge(Duration.ofMinutes(5)).cachePrivate())

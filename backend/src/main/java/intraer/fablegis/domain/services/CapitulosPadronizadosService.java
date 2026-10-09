@@ -10,10 +10,8 @@ import intraer.fablegis.domain.util.tiptap.ConteudoTipTapComOrientacao;
 import intraer.fablegis.infrastructure.repositories.ItemAnexoParteNormativaRepository;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 import java.util.Set;
 
 import static intraer.fablegis.domain.entities.estruturaDocumento.ItemAnexoParteNormativaTipoEnum.ARTIGO;

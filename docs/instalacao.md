@@ -269,6 +269,22 @@ Duas ferramentas, uma por lado — achar **bug**, não estilo (por isso não há
 
 Sem regra customizada em nenhuma das duas — é o primeiro passo deliberadamente mínimo; afinar limiar/filtro ou adicionar mais ferramentas (Checkstyle, PMD, cobertura) é uma decisão futura, feita uma de cada vez.
 
+#### SonarQube/SonarLint (opcional, sob demanda)
+
+O projeto não depende do Sonar (não está no CI nem no `pom.xml`), mas dá para conferir os achados que o SonarLint do VS Code mostra com uma análise completa, num servidor descartável — o SonarLint só olha os arquivos abertos, então o total do editor é menor que o do projeto inteiro:
+
+```bash
+# servidor local (porta 9100, para não colidir com o MinIO em 9000) e um token de análise
+docker run -d --name sonar-tmp -p 9100:9000 -e SONAR_SEARCH_JAVAADDITIONALOPTS="-Dnode.store.allow_mmap=false" sonarqube:community
+# backend (Java): dentro do container do Maven, com o token gerado em http://127.0.0.1:9100 (admin/admin no primeiro acesso)
+mvn -B compile org.sonarsource.scanner.maven:sonar-maven-plugin:sonar -Dsonar.host.url=http://host.docker.internal:9100 -Dsonar.token=<token> -Dsonar.projectKey=fab-legis-backend
+# frontend (JS/Vue) e collab: o scanner em container, na raiz do repositório
+docker run --rm -v "$PWD:/usr/src" -e SONAR_HOST_URL=http://host.docker.internal:9100 -e SONAR_TOKEN=<token> sonarsource/sonar-scanner-cli -Dsonar.projectKey=fab-legis-frontend -Dsonar.sources=frontend/src,collab/server.js -Dsonar.exclusions="**/node_modules/**,**/*.test.js"
+```
+
+Achados que são **ruído deste projeto**, não defeito: `java:S1135` ("TODO") dispara em "todo/toda" — palavra comum em português nos comentários; `java:S120` (nome de pacote) contesta pacotes como `documentoDtos`, que seguem a convenção do projeto; `java:S4502`/`S5122` (CSRF desligado, CORS) são intencionais numa API sem sessão, autenticada por token Bearer (JWT); `javascript:S5332` (`http://`) são os endereços padrão da rede interna do Docker em `collab/server.js`, trocados por variáveis de ambiente em produção. Para silenciar o primeiro no editor, `"sonarlint.rules": {"java:S1135": {"level": "off"}}` nas configurações do VS Code.
+
+
 ## Integração contínua (GitHub Actions)
 
 `.github/workflows/ci.yml` roda a cada `push` (qualquer branch) e a cada `pull_request` para `master` — três jobs independentes, cada um repetindo exatamente o que este documento já manda rodar manualmente: `mvn test` + SpotBugs (backend), `npm run lint` + `npm test` + `npm run build` (frontend) e `docker compose build docs` (o build estrito do MkDocs). Nenhum deploy — o workflow existe só para pegar cedo o que apareceu nesta mesma sessão (um commit com erro de compilação passando batido por a suíte não ter rodado até o fim).

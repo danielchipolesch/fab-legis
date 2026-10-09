@@ -5,6 +5,7 @@
       ref="fileInputRef"
       type="file"
       accept="image/png,image/jpeg,image/gif,image/webp"
+      aria-label="Escolher imagem para inserir no texto"
       style="display:none"
       @change="onFileSelected"
     />

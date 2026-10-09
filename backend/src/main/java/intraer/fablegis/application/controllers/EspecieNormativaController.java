@@ -28,12 +28,12 @@ public class EspecieNormativaController {
     final EspecieNormativaService especieNormativaService;
 
     @PostMapping
-    public ResponseEntity<EspecieNormativaResponseDto> post(@RequestBody @Valid EspecieNormativaRequestCreateDto request) throws Exception {
+    public ResponseEntity<EspecieNormativaResponseDto> post(@RequestBody @Valid EspecieNormativaRequestCreateDto request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(especieNormativaService.create(request));
     }
 
     @GetMapping("{id}")
-    public ResponseEntity<EspecieNormativaResponseDto>  getById(@PathVariable(value = "id") Long id) throws Exception {
+    public ResponseEntity<EspecieNormativaResponseDto>  getById(@PathVariable(value = "id") Long id) {
         return  ResponseEntity.status(HttpStatus.OK).body(especieNormativaService.getById(id));
     }
 
@@ -45,7 +45,7 @@ public class EspecieNormativaController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(defaultValue = "id") String sortBy
-    ) throws Exception {
+    ) {
         Pageable pageable = PageRequest.of(page, size, Sort.by(sortBy));
         return ResponseEntity.status(HttpStatus.OK)
                 .cacheControl(CacheControl.maxAge(Duration.ofMinutes(5)).cachePrivate())
@@ -54,12 +54,12 @@ public class EspecieNormativaController {
 
     @PutMapping("{id}")
     public ResponseEntity<EspecieNormativaResponseDto> put(@PathVariable(value = "id") Long id,
-                                                            @RequestBody EspecieNormativaRequestUpdateDto request) throws Exception {
+                                                            @RequestBody EspecieNormativaRequestUpdateDto request) {
         return ResponseEntity.status(HttpStatus.OK).body(especieNormativaService.update(id, request));
     }
 
     @DeleteMapping("{id}")
-    public ResponseEntity<EspecieNormativaResponseDto> delete(@PathVariable(value = "id") Long id) throws Exception {
+    public ResponseEntity<EspecieNormativaResponseDto> delete(@PathVariable(value = "id") Long id) {
         return ResponseEntity.status(HttpStatus.NO_CONTENT).body(especieNormativaService.delete(id));
     }
 }

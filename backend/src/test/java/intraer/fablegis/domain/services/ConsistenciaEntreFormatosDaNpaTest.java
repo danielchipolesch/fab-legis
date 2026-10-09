@@ -2,7 +2,6 @@ package intraer.fablegis.domain.services;
 
 import intraer.fablegis.application.dtos.anexoDtos.AnexoResponseDto;
 import intraer.fablegis.application.dtos.itemAnexoParteNormativaDtos.ItemAnexoParteNormativaResponseDto;
-import intraer.fablegis.application.dtos.npaDtos.AssinaturaDaNpaDto;
 import intraer.fablegis.application.dtos.npaDtos.CamposDaNpaDto;
 import intraer.fablegis.domain.entities.estruturaDocumento.Documento;
 import intraer.fablegis.domain.entities.estruturaDocumento.ElementoEmendaStatusEnum;
