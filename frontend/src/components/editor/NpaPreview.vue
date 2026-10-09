@@ -2,7 +2,7 @@
   <div ref="outerRef" class="preview-outer">
     <div class="preview-hint">Prévia aproximada · {{ documento?.codigo_documento }} {{ documento?.titulo ? '— ' + documento.titulo : '' }}</div>
 
-    <div class="pages-wrap" :style="{ zoom: pageScale }">
+    <div class="pages-wrap" :style="{ zoom: pageScale, width: larguraDasFolhas + 'px' }">
       <!-- Uma folha A4 por página do PDF: a moldura vai até o fim de todas elas; o cabeçalho só está na primeira; da
            segunda em diante o "n/total" fica acima da moldura. A quebra é calculada (ver paginarAgora) medindo os blocos. -->
       <div v-for="(pagina, p) in folhas" :key="p" class="pdf-page npa-texto" data-testid="pagina-npa">
@@ -19,7 +19,10 @@
       </div>
 
       <!-- Anexos de imagem: no PDF vêm ao final, cada um em sua página, rotulados A, B, C… -->
-      <div v-for="anexo in anexos" :key="anexo.id" class="pdf-page npa-texto pdf-page--anexo">
+      <div
+        v-for="anexo in anexos" :key="anexo.id" class="pdf-page npa-texto pdf-page--anexo"
+        :class="{ 'pdf-page--paisagem': anexo.orientacao === 'PAISAGEM' }"
+      >
         <p class="anexo-titulo">ANEXO {{ letraDoAnexo(anexo.ordem) }}</p>
         <p class="anexo-titulo">{{ (anexo.titulo || '').toUpperCase() }}</p>
         <div v-if="anexo.urlImagem" class="anexo-imagem"><img :src="anexo.urlImagem" alt="" /></div>
@@ -171,14 +174,23 @@ watch(() => props.selectedElementId, async (id) => {
 
 // ─── Escala: ResizeObserver + CSS zoom (mesma técnica de DocumentoPreview) ───
 const A4_W = 794
+const A4_H = 1123  // = largura da folha deitada (anexo em paisagem)
 const outerRef = ref(null)
-const pageScale = ref(0.75)
+const larguraDisponivel = ref(0)
+
+// Com algum anexo em paisagem, o wrapper passa a ter a largura da folha deitada (as folhas em retrato ficam
+// centralizadas nele) e o zoom é calculado sobre ela, para a folha deitada também caber no painel.
+const larguraDasFolhas = computed(() => (anexos.value.some(a => a.orientacao === 'PAISAGEM') ? A4_H : A4_W))
+const pageScale = computed(() =>
+  larguraDisponivel.value
+    ? +(Math.min(1, larguraDisponivel.value / larguraDasFolhas.value).toFixed(4))
+    : 0.75 // default seguro até o ResizeObserver disparar
+)
 
 let _ro = null
 onMounted(() => {
   _ro = new ResizeObserver(([entry]) => {
-    const avail = entry.contentRect.width - 32
-    pageScale.value = +(Math.min(1, avail / A4_W).toFixed(4))
+    larguraDisponivel.value = entry.contentRect.width - 32
   })
   if (outerRef.value) _ro.observe(outerRef.value)
   resolverImagens()
@@ -240,7 +252,7 @@ async function resolverImagens() {
   height: 1123px;
   background: #fff;
   box-sizing: border-box;
-  margin-bottom: 20px;
+  margin: 0 auto 20px;  /* centralizada no wrapper (que é mais largo com um anexo em paisagem) */
   box-shadow: 0 3px 18px rgba(0, 0, 0, 0.55);
   position: relative;
   overflow: hidden;
@@ -296,6 +308,9 @@ async function resolverImagens() {
 }
 
 .pdf-page--anexo { height: auto; min-height: 1123px; padding: 76px; }
+/* Anexo em PAISAGEM (OrientacaoDoAnexo): a folha A4 deitada, 1123 x 794 px. */
+.pdf-page--anexo.pdf-page--paisagem { width: 1123px; min-height: 794px; }
+.pdf-page--paisagem .anexo-imagem img { max-height: 560px; }
 .anexo-titulo { text-align: center; font-weight: 700; margin: 0 0 6px; }
 .anexo-imagem { text-align: center; }
 .anexo-imagem img { max-width: 100%; }

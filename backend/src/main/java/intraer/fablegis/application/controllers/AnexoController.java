@@ -30,8 +30,10 @@ public class AnexoController {
     public ResponseEntity<AnexoResponseDto> adicionar(
             @PathVariable Long documentoId,
             @RequestParam("titulo") String titulo,
-            @RequestParam("arquivo") MultipartFile arquivo) throws Exception {
-        AnexoResponseDto dto = anexoService.adicionar(documentoId, titulo, arquivo);
+            @RequestParam("arquivo") MultipartFile arquivo,
+            // RETRATO | PAISAGEM. Opcional: ausente, o serviço sugere pela proporção da imagem.
+            @RequestParam(value = "orientacao", required = false) String orientacao) throws Exception {
+        AnexoResponseDto dto = anexoService.adicionar(documentoId, titulo, arquivo, orientacao);
         return ResponseEntity.status(HttpStatus.CREATED).body(dto);
     }
 

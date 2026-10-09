@@ -151,3 +151,7 @@ Nascem com orientação entre colchetes (`[SETOR EMISSOR]`, `[Local]`, sem bloco
 ### Anexos
 
 Ficam ao final do documento e são rotulados **A, B, C…** (`ANEXO A`) — não há "ANEXO I" reservado ao corpo normativo — e listados no campo ANEXOS do cabeçalho.
+
+#### Orientação da página do anexo de imagem (NPA e espécies convencionais)
+
+No upload de um anexo de imagem o usuário escolhe a **orientação da página A4** em que ele sai no PDF: **retrato** ou **paisagem** (`OrientacaoDoAnexo`, coluna `sg_orientacao` de `t_anexo`). Uma imagem larga (organograma, fluxograma, tabela) fica maior e mais legível numa folha deitada; o PDF mistura as duas orientações no mesmo documento, cada anexo na sua. A regra de sugestão é: **paisagem se a imagem é mais larga que alta; retrato se é mais alta, quadrada ou de dimensões inválidas** (`OrientacaoDoAnexo.sugeridaPara`, espelhada em `utils/orientacaoDoAnexo.js` — `OrientacaoDoAnexoTest` e `orientacaoDoAnexo.test.js` têm os mesmos cenários). O diálogo de upload já vem com a orientação sugerida pela imagem escolhida e o usuário pode trocá-la; sem o campo na requisição (`POST /anexos`), o servidor detecta pela imagem. A orientação não altera a numeração (`Anexo.ordem` segue sequencial: ANEXO II, III… nas convencionais; A, B, C… na NPA) e, depois do upload, só se muda removendo e reenviando o anexo. O HTML não tem páginas, então a orientação não se aplica a ele.

@@ -6,6 +6,7 @@ import intraer.fablegis.application.dtos.npaDtos.CamposDaNpaDto;
 import intraer.fablegis.domain.entities.estruturaDocumento.Documento;
 import intraer.fablegis.domain.entities.estruturaDocumento.ElementoEmendaStatusEnum;
 import intraer.fablegis.domain.entities.estruturaDocumento.ItemAnexoParteNormativaTipoEnum;
+import intraer.fablegis.domain.entities.estruturaDocumento.OrientacaoDoAnexo;
 import intraer.fablegis.domain.entities.estruturaDocumento.SituacaoBcaEnum;
 import intraer.fablegis.domain.entities.estruturaDocumento.SituacaoLocalEnum;
 import intraer.fablegis.domain.entities.numeracaoDocumento.EspecieNormativa;
@@ -118,6 +119,20 @@ class DocumentoFoNpaBuilderTest {
         return new AnexoResponseDto((long) ordem, titulo, null, ordem);
     }
 
+    private static AnexoResponseDto anexo(int ordem, String titulo, OrientacaoDoAnexo orientacao) {
+        return new AnexoResponseDto((long) ordem, titulo, null, ordem, orientacao);
+    }
+
+    // Largura x altura de cada página na árvore de áreas do FOP (bounds="0 0 largura altura").
+    private static List<String> orientacoesDasPaginas(String arvore) {
+        var orientacoes = new ArrayList<String>();
+        var m = java.util.regex.Pattern.compile("<pageViewport bounds=\"0 0 (\\d+) (\\d+)\"").matcher(arvore);
+        while (m.find()) {
+            orientacoes.add(Integer.parseInt(m.group(1)) > Integer.parseInt(m.group(2)) ? "PAISAGEM" : "RETRATO");
+        }
+        return orientacoes;
+    }
+
     private static Documento rascunho() {
         return documento(SituacaoBcaEnum.NAO_PUBLICADO, SituacaoLocalEnum.MINUTA);
     }
@@ -130,6 +145,21 @@ class DocumentoFoNpaBuilderTest {
 
         assertThat(fo).doesNotContain("PORTARIA").doesNotContain("SUMÁRIO").doesNotContain("ANEXO I<");
         assertThat(fo.split("<fo:page-sequence ", -1).length - 1).isEqualTo(1);
+    }
+
+    // Orientação por anexo (OrientacaoDoAnexo): a NPA usa o mesmo builder de anexo da espécie convencional, mas o
+    // rótulo é em letras e o corpo (com moldura) segue sempre em retrato.
+    @Test
+    void umAnexoEmPaisagemFicaDeitadoEOCorpoDaNpaContinuaEmRetrato() throws Exception {
+        var fo = fo(rascunho(), estruturaPequena(),
+                List.of(anexo(1, "Organograma", OrientacaoDoAnexo.RETRATO), anexo(2, "Fluxograma", OrientacaoDoAnexo.PAISAGEM)));
+
+        var arvore = arvoreDeAreas(fo);
+        var paginas = orientacoesDasPaginas(arvore);
+
+        assertThat(paginas).startsWith("RETRATO").endsWith("RETRATO", "PAISAGEM");
+        assertThat(paginas.stream().filter("PAISAGEM"::equals).count()).isEqualTo(1);
+        assertThat(textoCorrido(arvore)).contains("ANEXO A").contains("ANEXO B").doesNotContain("ANEXO II");
     }
 
     @Test

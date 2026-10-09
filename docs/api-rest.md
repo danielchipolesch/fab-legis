@@ -78,7 +78,7 @@ Os quatro cards do hub, de qualquer módulo; qualquer usuário autenticado. Devo
 | Método | Rota | Descrição |
 |---|---|---|
 | `GET` | `/` | Lista os anexos do documento |
-| `POST` | `/` | Envia um arquivo (multipart) como anexo |
+| `POST` | `/` | Envia uma imagem (multipart: `titulo`, `arquivo` e, opcional, `orientacao` = `RETRATO` ou `PAISAGEM`) como anexo. Sem `orientacao`, o servidor a sugere pela proporção da imagem (mais larga que alta = paisagem); valor inválido responde 400. A resposta (e `GET /`) traz `id`, `titulo`, `urlImagem`, `ordem` e `orientacao` |
 | `DELETE` | `/{anexoId}` | Remove um anexo |
 
 ## Espécies normativas — `/v1/especie-normativa`

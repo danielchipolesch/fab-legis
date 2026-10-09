@@ -6,7 +6,7 @@
       Todas as páginas têm largura A4 fixa (794 px).
       CSS zoom escala o layout inteiro para caber no painel.
     -->
-    <div class="pages-wrap" :style="{ zoom: pageScale }">
+    <div class="pages-wrap" :style="{ zoom: pageScale, width: larguraDasFolhas + 'px' }">
 
       <!-- ═══════════════════════════════════════════════════
            PÁGINA 1 — PORTARIA DE APROVAÇÃO
@@ -252,6 +252,7 @@
         v-for="anexo in anexosDocumento"
         :key="anexo.id"
         class="pdf-page"
+        :class="{ 'pdf-page--paisagem': anexo.orientacao === 'PAISAGEM' }"
       >
         <div v-if="wmText" class="wm-overlay" :style="{ color: wmColor }">{{ wmText }}</div>
         <p class="sumario-anexo">ANEXO {{ toRomanStr(anexo.ordem + 1) }}</p>
@@ -309,8 +310,20 @@ watch(() => props.selectedElementId, async (id) => {
 
 // ─── Scaling: ResizeObserver + CSS zoom ──────────────────
 const A4_W      = 794      // A4 width em px @ 96 dpi
+const A4_H      = 1123     // A4 height em px @ 96 dpi (= largura da folha deitada)
 const outerRef  = ref(null)
-const pageScale = ref(0.75) // default seguro até ResizeObserver disparar
+const larguraDisponivel = ref(0)
+
+// Com algum anexo em paisagem, o wrapper passa a ter a largura da folha deitada (as folhas em retrato ficam
+// centralizadas nele) e o zoom é calculado sobre ela, para a folha deitada também caber no painel.
+const larguraDasFolhas = computed(() =>
+  anexosDocumento.value.some(a => a.orientacao === 'PAISAGEM') ? A4_H : A4_W
+)
+const pageScale = computed(() =>
+  larguraDisponivel.value
+    ? +(Math.min(1, larguraDisponivel.value / larguraDasFolhas.value).toFixed(4))
+    : 0.75 // default seguro até ResizeObserver disparar
+)
 
 const brasaoFailed = ref(false)
 const gladioFailed = ref(false)
@@ -318,8 +331,7 @@ const gladioFailed = ref(false)
 let _ro = null
 onMounted(() => {
   _ro = new ResizeObserver(([entry]) => {
-    const avail = entry.contentRect.width - 32 // padding 16px × 2
-    pageScale.value = +(Math.min(1, avail / A4_W).toFixed(4))
+    larguraDisponivel.value = entry.contentRect.width - 32 // padding 16px × 2
   })
   if (outerRef.value) _ro.observe(outerRef.value)
 })
@@ -685,7 +697,7 @@ const anexosDocumento = computed(() =>
   background: #fff;
   box-sizing: border-box;
   padding:    76px;          /* 2 cm */
-  margin-bottom: 20px;
+  margin: 0 auto 20px;       /* centralizada no wrapper (que é mais largo com um anexo em paisagem) */
   box-shadow: 0 3px 18px rgba(0,0,0,0.55);
   position:   relative;
   overflow:   hidden;
@@ -1148,5 +1160,13 @@ const anexosDocumento = computed(() =>
   max-height: 850px;
   height: auto;
   object-fit: contain;
+}
+/* Anexo em PAISAGEM (OrientacaoDoAnexo): a folha A4 deitada, 1123 x 794 px. */
+.pdf-page--paisagem {
+  width: 1123px;
+  min-height: 794px;
+}
+.pdf-page--paisagem .anexo-img {
+  max-height: 560px;
 }
 </style>

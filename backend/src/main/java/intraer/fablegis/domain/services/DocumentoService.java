@@ -372,6 +372,7 @@ public class DocumentoService {
             copia.setTitulo(orig.getTitulo());
             copia.setUrlImagem(orig.getUrlImagem());
             copia.setOrdem(orig.getOrdem());
+            copia.setOrientacao(orig.getOrientacao());
             anexoRepository.save(copia);
         }
 

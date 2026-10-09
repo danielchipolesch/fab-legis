@@ -2,6 +2,7 @@ package intraer.fablegis.domain.services;
 
 import intraer.fablegis.application.dtos.anexoDtos.AnexoResponseDto;
 import intraer.fablegis.domain.entities.estruturaDocumento.ItemAnexoParteNormativaTipoEnum;
+import intraer.fablegis.domain.entities.estruturaDocumento.OrientacaoDoAnexo;
 import intraer.fablegis.domain.regras.RotuloDosAnexos;
 
 import java.time.LocalDate;
@@ -70,6 +71,31 @@ final class DocumentoFoFrontMatterBuilder {
                 <fo:repeatable-page-master-alternatives>
                   <fo:conditional-page-master-reference master-reference="a4" page-position="first"/>
                   <fo:conditional-page-master-reference master-reference="a4-continuacao" page-position="rest"/>
+                </fo:repeatable-page-master-alternatives>
+              </fo:page-sequence-master>
+              <!-- Mesmos masters com o A4 deitado, para o anexo de imagem em PAISAGEM (OrientacaoDoAnexo): mesmas
+                   margens e regiões, só a página tem largura e altura trocadas. -->
+              <fo:simple-page-master master-name="a4-paisagem"
+                  page-width="29.7cm" page-height="21cm"
+                  margin-top="2cm" margin-bottom="1cm"
+                  margin-left="2cm" margin-right="2cm">
+                <fo:region-body region-name="xsl-region-body" margin-bottom="1cm"/>
+                <fo:region-before region-name="wm" extent="0pt" overflow="visible"/>
+                <fo:region-after region-name="xsl-region-after" extent="1cm" display-align="after"/>
+              </fo:simple-page-master>
+              <fo:simple-page-master master-name="a4-continuacao-paisagem"
+                  page-width="29.7cm" page-height="21cm"
+                  margin-top="2cm" margin-bottom="1cm"
+                  margin-left="2cm" margin-right="2cm">
+                <fo:region-body region-name="xsl-region-body" margin-top="1cm" margin-bottom="1cm"/>
+                <fo:region-before region-name="continuacao" extent="1cm"/>
+                <fo:region-after region-name="xsl-region-after" extent="1cm" display-align="after"/>
+                <fo:region-start region-name="wm-continuacao" extent="0pt" overflow="visible"/>
+              </fo:simple-page-master>
+              <fo:page-sequence-master master-name="a4-anexo-paisagem">
+                <fo:repeatable-page-master-alternatives>
+                  <fo:conditional-page-master-reference master-reference="a4-paisagem" page-position="first"/>
+                  <fo:conditional-page-master-reference master-reference="a4-continuacao-paisagem" page-position="rest"/>
                 </fo:repeatable-page-master-alternatives>
               </fo:page-sequence-master>
             """ + mastersAdicionais + "</fo:layout-master-set>\n";
@@ -236,16 +262,21 @@ final class DocumentoFoFrontMatterBuilder {
 
     // ─── Anexos ───────────────────────────────────────────────────────────────
 
+    // A orientação (retrato/paisagem) é escolhida por anexo no upload e define o master da sequência -- o resto
+    // (rótulo, título, rodapé, "Continuação do ANEXO X", numeração de página) é igual nas duas.
     String buildAnexoSequence(AnexoResponseDto anexo) {
+        boolean paisagem = anexo.orientacao() == OrientacaoDoAnexo.PAISAGEM;
+        OrientacaoDoAnexo orientacao = paisagem ? OrientacaoDoAnexo.PAISAGEM : OrientacaoDoAnexo.RETRATO;
         var sb = new StringBuilder();
-        sb.append("<fo:page-sequence master-reference=\"a4-anexo\" font-family=\"Calibri\">\n");
+        sb.append("<fo:page-sequence master-reference=\"").append(paisagem ? "a4-anexo-paisagem" : "a4-anexo")
+          .append("\" font-family=\"Calibri\">\n");
         sb.append("<fo:static-content flow-name=\"xsl-region-after\">\n");
         sb.append("  <fo:block text-align=\"right\" font-size=\"10pt\"><fo:page-number/></fo:block>\n");
         sb.append("</fo:static-content>\n");
         // Da 2ª página do anexo em diante: "Continuação do ANEXO X".
         sb.append(buildContinuacaoAnexo(rotuloDosAnexos.rotulo(anexo.ordem())));
-        sb.append(ctx.buildStaticContentWatermark());
-        sb.append(ctx.buildStaticContentWatermark("wm-continuacao"));
+        sb.append(ctx.buildStaticContentWatermark("wm", orientacao));
+        sb.append(ctx.buildStaticContentWatermark("wm-continuacao", orientacao));
         sb.append("<fo:flow flow-name=\"xsl-region-body\">\n");
 
         sb.append(block(rotuloDosAnexos.rotulo(anexo.ordem()), "center", "12pt", "bold", "0", "4pt"));
@@ -257,7 +288,14 @@ final class DocumentoFoFrontMatterBuilder {
                 if (dataUri != null && !dataUri.isBlank()) {
                     sb.append("<fo:block text-align=\"center\">");
                     sb.append("<fo:external-graphic src=\"url('").append(dataUri).append("')\"");
-                    sb.append(" content-width=\"scale-to-fit\" width=\"17cm\" scaling=\"uniform\"/>");
+                    if (paisagem) {
+                        // Caixa útil da folha deitada: 25,7 cm de largura (29,7 - 2 - 2) por ~14,5 cm de altura
+                        // (21 - 2 - 2 de margens - ~2,5 do rótulo e título); a imagem cresce até caber, sem distorcer.
+                        sb.append(" content-width=\"scale-to-fit\" content-height=\"scale-to-fit\"")
+                          .append(" width=\"25.7cm\" height=\"14.5cm\" scaling=\"uniform\"/>");
+                    } else {
+                        sb.append(" content-width=\"scale-to-fit\" width=\"17cm\" scaling=\"uniform\"/>");
+                    }
                     sb.append("</fo:block>\n");
                 }
             } catch (Exception ignored) {}

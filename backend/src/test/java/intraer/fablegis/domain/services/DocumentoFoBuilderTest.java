@@ -1,6 +1,7 @@
 package intraer.fablegis.domain.services;
 
 import intraer.fablegis.domain.entities.estruturaDocumento.Documento;
+import intraer.fablegis.domain.entities.estruturaDocumento.OrientacaoDoAnexo;
 import intraer.fablegis.domain.entities.estruturaDocumento.SituacaoBcaEnum;
 import intraer.fablegis.domain.entities.estruturaDocumento.SituacaoLocalEnum;
 import intraer.fablegis.domain.entities.numeracaoDocumento.AssuntoBasico;
@@ -187,5 +188,67 @@ class DocumentoFoBuilderTest {
                 List.of(), List.of(artigo(1)), List.of(anexo(1, "Curto")));
 
         assertThat(textoCorrido(arvoreDeAreas(fo))).doesNotContain("Continuação do");
+    }
+
+    // ─── Orientação do anexo de imagem (OrientacaoDoAnexo) ─────────────────────────
+
+    private static intraer.fablegis.application.dtos.anexoDtos.AnexoResponseDto anexo(
+            int ordem, String titulo, OrientacaoDoAnexo orientacao) {
+        return new intraer.fablegis.application.dtos.anexoDtos.AnexoResponseDto((long) ordem, titulo, null, ordem, orientacao);
+    }
+
+    // Tamanho de cada página, na ordem, a partir da árvore de áreas do FOP (atributo bounds="0 0 largura altura").
+    private static List<String> orientacoesDasPaginas(String arvore) {
+        var orientacoes = new java.util.ArrayList<String>();
+        var m = java.util.regex.Pattern.compile("<pageViewport bounds=\"0 0 (\\d+) (\\d+)\"").matcher(arvore);
+        while (m.find()) {
+            orientacoes.add(Integer.parseInt(m.group(1)) > Integer.parseInt(m.group(2)) ? "PAISAGEM" : "RETRATO");
+        }
+        return orientacoes;
+    }
+
+    // Cada anexo escolhe a orientação da própria página: o PDF mistura as duas no mesmo documento.
+    @Test
+    void umAnexoEmPaisagemTemPaginaDeitadaEOsDemaisContinuamEmRetrato() throws Exception {
+        var fo = builder.buildFo(documento(SituacaoBcaEnum.NAO_PUBLICADO, SituacaoLocalEnum.MINUTA),
+                List.of(), List.of(artigo(1)),
+                List.of(anexo(1, "Retrato", OrientacaoDoAnexo.RETRATO),
+                        anexo(2, "Paisagem", OrientacaoDoAnexo.PAISAGEM),
+                        anexo(3, "Outro retrato", OrientacaoDoAnexo.RETRATO)));
+
+        // capa, ANEXO I (sumário + corpo), ANEXO II, ANEXO III, ANEXO IV
+        assertThat(orientacoesDasPaginas(arvoreDeAreas(fo)))
+                .containsExactly("RETRATO", "RETRATO", "RETRATO", "PAISAGEM", "RETRATO");
+    }
+
+    @Test
+    void aContinuacaoDeUmAnexoEmPaisagemTambemFicaDeitada() throws Exception {
+        var titulo = "PALAVRA ".repeat(900);
+        var fo = builder.buildFo(documento(SituacaoBcaEnum.NAO_PUBLICADO, SituacaoLocalEnum.MINUTA),
+                List.of(), List.of(artigo(1)), List.of(anexo(1, titulo, OrientacaoDoAnexo.PAISAGEM)));
+
+        var arvore = arvoreDeAreas(fo);
+        var paginasDoAnexo = orientacoesDasPaginas(arvore).subList(2, orientacoesDasPaginas(arvore).size()); // sem capa e ANEXO I
+
+        assertThat(paginasDoAnexo).hasSizeGreaterThanOrEqualTo(2).containsOnly("PAISAGEM");
+        assertThat(ocorrencias(textoCorrido(arvore), "Continuação do ANEXO II")).isEqualTo(paginasDoAnexo.size() - 1);
+    }
+
+    @Test
+    void semOrientacaoInformadaOAnexoFicaEmRetrato() throws Exception {
+        var fo = builder.buildFo(documento(SituacaoBcaEnum.NAO_PUBLICADO, SituacaoLocalEnum.MINUTA),
+                List.of(), List.of(artigo(1)), List.of(anexo(1, "Curto")));
+
+        assertThat(fo).contains("master-reference=\"a4-anexo\"").doesNotContain("master-reference=\"a4-anexo-paisagem\"");
+    }
+
+    // A marca d'água de tramitação é centrada na página: em paisagem o centro muda de lugar.
+    @Test
+    void aMarcaDAguaDoAnexoEmPaisagemFicaNoCentroDaFolhaDeitada() {
+        var fo = builder.buildFo(documento(SituacaoBcaEnum.NAO_PUBLICADO, SituacaoLocalEnum.MINUTA),
+                List.of(), List.of(artigo(1)), List.of(anexo(1, "Paisagem", OrientacaoDoAnexo.PAISAGEM)));
+
+        assertThat(fo).contains("top=\"421pt\" left=\"211pt\"")   // folha deitada (anexo II)
+                .contains("top=\"545pt\" left=\"87pt\"");          // retrato (capa, corpo)
     }
 }
