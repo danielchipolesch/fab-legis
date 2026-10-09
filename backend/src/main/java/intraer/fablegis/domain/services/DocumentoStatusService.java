@@ -65,7 +65,7 @@ public class DocumentoStatusService {
     // respaçamento de nr_ordem, portaria, histórico) e não pode ficar parcialmente aplicada
     // se alguma etapa falhar.
     @Transactional
-    public DocumentoResponseSemAnexoTextualDto changeStatus(Long id, DocumentoStatusRequestDto request) throws RuntimeException {
+    public DocumentoResponseSemAnexoTextualDto changeStatus(Long id, DocumentoStatusRequestDto request) {
 
         Documento documento = documentoRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException(DocumentoException.NOT_FOUND.getMessage()));

@@ -1,13 +1,10 @@
 package intraer.fablegis.domain.util.tiptap;
 
+import intraer.fablegis.domain.util.ImagemRemota;
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.time.Duration;
 import java.util.Base64;
 import java.util.List;
 import java.util.Locale;
@@ -19,10 +16,6 @@ import java.util.regex.Pattern;
  * One instance per PDF render; figCount tracks figure numbering across all sections.
  */
 public class XslFoContentRenderer {
-
-    private static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()
-            .connectTimeout(Duration.ofSeconds(6))
-            .build();
 
     private static final Pattern BLOCK_PATTERN =
             Pattern.compile("(?i)^\\s*(table|bulletList|orderedList|heading|figure)$");
@@ -373,33 +366,9 @@ public class XslFoContentRenderer {
             if (resolved != null && !resolved.isBlank()) return resolved;
         }
         if (src.startsWith("http://") || src.startsWith("https://")) {
-            return fetchDataUri(src);
+            return ImagemRemota.comoDataUri(src);
         }
         return src;
-    }
-
-    private static String fetchDataUri(String url) {
-        try {
-            var req = HttpRequest.newBuilder().uri(URI.create(url))
-                    .timeout(Duration.ofSeconds(8)).GET().build();
-            var res = HTTP_CLIENT.send(req, HttpResponse.BodyHandlers.ofByteArray());
-            if (res.statusCode() != 200) return url;
-            String ct = res.headers().firstValue("content-type").orElse(guessMimeType(url));
-            String mime = ct.split(";")[0].trim();
-            if (!mime.startsWith("image/")) return url;
-            return "data:" + mime + ";base64," + Base64.getEncoder().encodeToString(res.body());
-        } catch (Exception e) {
-            return url;
-        }
-    }
-
-    private static String guessMimeType(String url) {
-        String lc = url.toLowerCase();
-        if (lc.endsWith(".png"))                       return "image/png";
-        if (lc.endsWith(".jpg") || lc.endsWith(".jpeg")) return "image/jpeg";
-        if (lc.endsWith(".gif"))                       return "image/gif";
-        if (lc.endsWith(".webp"))                      return "image/webp";
-        return "image/png";
     }
 
     static String foEsc(String s) {

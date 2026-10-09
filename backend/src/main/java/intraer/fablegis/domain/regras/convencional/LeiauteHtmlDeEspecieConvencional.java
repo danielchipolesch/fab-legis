@@ -1,5 +1,6 @@
 package intraer.fablegis.domain.regras.convencional;
 
+import intraer.fablegis.domain.util.ImagemRemota;
 import intraer.fablegis.application.dtos.anexoDtos.AnexoResponseDto;
 import intraer.fablegis.application.dtos.itemAnexoParteNormativaDtos.ItemAnexoParteNormativaResponseDto;
 import intraer.fablegis.application.dtos.itemPartePreliminarDtos.ItemPartePreliminarResponseDto;
@@ -21,13 +22,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.io.InputStream;
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.sql.Timestamp;
-import java.time.Duration;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Base64;
@@ -106,10 +102,6 @@ public class LeiauteHtmlDeEspecieConvencional implements LeiauteDoHtml {
         // Substituir src="http://..." por data URIs para garantir renderização offline/Docker
         private static final Pattern IMG_SRC_HTTP = Pattern.compile(
                 "src=([\"'])(https?://[^\"'\\s]+)\\1", Pattern.CASE_INSENSITIVE);
-
-        private static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()
-                .connectTimeout(Duration.ofSeconds(4))
-                .build();
 
         private static final String S2 = "  ";
         private static final String S1 = " ";
@@ -793,36 +785,7 @@ public class LeiauteHtmlDeEspecieConvencional implements LeiauteDoHtml {
                 String viaMinio = imagemService.getImageAsDataUri(url);
                 if (viaMinio != null && !viaMinio.isBlank()) return viaMinio;
             }
-            return fetchDataUri(url);
-        }
-
-        private static String fetchDataUri(String url) {
-            try {
-                var request = HttpRequest.newBuilder()
-                        .uri(URI.create(url))
-                        .timeout(Duration.ofSeconds(8))
-                        .GET()
-                        .build();
-                var response = HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofByteArray());
-                if (response.statusCode() != 200) return url;
-                String ct = response.headers().firstValue("content-type")
-                        .orElse(guessMimeType(url));
-                String mime = ct.split(";")[0].trim();
-                if (!mime.startsWith("image/")) return url;
-                return "data:" + mime + ";base64," + Base64.getEncoder().encodeToString(response.body());
-            } catch (Exception e) {
-                return url;
-            }
-        }
-
-        private static String guessMimeType(String url) {
-            String lc = url.toLowerCase();
-            if (lc.endsWith(".png"))              return "image/png";
-            if (lc.endsWith(".jpg") || lc.endsWith(".jpeg")) return "image/jpeg";
-            if (lc.endsWith(".gif"))              return "image/gif";
-            if (lc.endsWith(".webp"))             return "image/webp";
-            if (lc.endsWith(".svg"))              return "image/svg+xml";
-            return "image/png";
+            return ImagemRemota.comoDataUri(url);
         }
 
         private ItemPartePreliminarResponseDto findPreli(ItemAnexoParteNormativaTipoEnum tipo) {

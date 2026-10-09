@@ -104,7 +104,7 @@ public class DocumentoParteNormativaService {
     public List<NumeracaoElementoResponseDto> listarNumeracao(Long documentoId) {
         List<ItemAnexoParteNormativaResponseDto> normativos = getItensNormativosByDocumento(documentoId)
                 .stream().map(ItemAnexoParteNormativaResponseDto::from).toList();
-        return calcularNumeracao(documentoRepository.findById(documentoId).orElseThrow(() -> new RuntimeException("Documento não encontrado")), normativos);
+        return calcularNumeracao(documentoRepository.findById(documentoId).orElseThrow(() -> new ResourceNotFoundException("Documento não encontrado")), normativos);
     }
 
     // Mesmo cálculo acima, mas a partir de uma lista já carregada -- usado por
@@ -121,7 +121,7 @@ public class DocumentoParteNormativaService {
 
     public DocumentoResponseComAnexoTextualDto getDocumentoComAnexoTextualDtoById(Long documentoId) {
         Documento documento = documentoRepository.findById(documentoId)
-                .orElseThrow(() -> new RuntimeException("Documento não encontrado"));
+                .orElseThrow(() -> new ResourceNotFoundException("Documento não encontrado"));
 
         List<ItemPartePreliminarResponseDto> preliminares = getItensPreliminaresByDocumento(documentoId)
                 .stream().map(ItemPartePreliminarResponseDto::from).toList();
@@ -142,7 +142,7 @@ public class DocumentoParteNormativaService {
     @Transactional
     public void salvarSecoes(Long documentoId, SecoesSaveRequestDto request, String clientId) {
         Documento documento = documentoRepository.findById(documentoId)
-                .orElseThrow(() -> new RuntimeException("Documento não encontrado"));
+                .orElseThrow(() -> new ResourceNotFoundException("Documento não encontrado"));
 
         // Um documento PUBLICADO (situação BCA) nunca é reescrito em massa, em nenhuma etapa
         // local (alteração em elaboração, revisão da alteração, aguardando publicação): o texto
@@ -347,7 +347,7 @@ public class DocumentoParteNormativaService {
 
     public DocumentoResponseComAnexoTextualDto adicionarItemAoDocumento(Long idDocumento, ItemAnexoParteNormativaRequestDto dto) {
         Documento documento = documentoRepository.findById(idDocumento)
-                .orElseThrow(() -> new RuntimeException("Documento não encontrado"));
+                .orElseThrow(() -> new ResourceNotFoundException("Documento não encontrado"));
 
         ItemAnexoParteNormativa novoItem = new ItemAnexoParteNormativa();
         novoItem.setDocumento(documento);
@@ -357,9 +357,9 @@ public class DocumentoParteNormativaService {
 
         if (dto.parentId() != null) {
             ItemAnexoParteNormativa parent = itemAnexoParteNormativaRepository.findById(dto.parentId())
-                    .orElseThrow(() -> new RuntimeException("Item pai não encontrado"));
+                    .orElseThrow(() -> new ResourceNotFoundException("Item pai não encontrado"));
             if (!parent.getDocumento().getId().equals(documento.getId())) {
-                throw new RuntimeException("O item pai não pertence ao mesmo documento!");
+                throw new InvalidInputException("O item pai não pertence ao mesmo documento.");
             }
             novoItem.setParent(parent);
         }

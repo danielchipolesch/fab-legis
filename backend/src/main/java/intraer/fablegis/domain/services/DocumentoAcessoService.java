@@ -7,7 +7,7 @@ import intraer.fablegis.domain.entities.usuario.PapelEnum;
 import intraer.fablegis.domain.entities.usuario.Usuario;
 import intraer.fablegis.infrastructure.repositories.DocumentoCompartilhamentoRepository;
 import intraer.fablegis.infrastructure.repositories.DocumentoRepository;
-import intraer.fablegis.infrastructure.security.UsuarioPrincipal;
+import intraer.fablegis.infrastructure.security.AutenticacaoUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
@@ -19,7 +19,8 @@ import java.util.Set;
 // autenticação/autorização (§2). Visualizar e baixar PDF NÃO passam por
 // aqui: são liberados para qualquer usuário autenticado, em qualquer OM, em
 // qualquer situação (basta estar logado, o que o SecurityConfig já exige).
-// Só editar, compartilhar e excluir precisam de posse.
+// Só editar, compartilhar e excluir precisam de posse -- e editar depende também da ETAPA do documento (podeEditar):
+// conteúdo congelado não é editado por ninguém, nem pelo autor.
 //
 // ADMIN nunca aparece aqui como bypass: sob o modelo atual de papéis, Admin é
 // puramente administrativo (usuários/OMs) e não tem poder nenhum sobre o
@@ -177,6 +178,6 @@ public class DocumentoAcessoService {
     }
 
     private Usuario usuarioDe(Authentication auth) {
-        return ((UsuarioPrincipal) auth.getPrincipal()).getUsuario();
+        return AutenticacaoUtil.usuarioDe(auth);
     }
 }

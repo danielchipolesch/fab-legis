@@ -1,5 +1,6 @@
 package intraer.fablegis.domain.services;
 
+import intraer.fablegis.domain.handlers.exceptions.ResourceNotFoundException;
 import intraer.fablegis.application.dtos.emendaDtos.EmendaAcaoEnum;
 import intraer.fablegis.application.dtos.emendaDtos.EmendaElementoRequestDto;
 import intraer.fablegis.application.dtos.emendaDtos.EmendaIncluirRequestDto;
@@ -48,15 +49,15 @@ public class EmendaService {
             case PARTE_PRELIMINAR -> emendar(docId, secaoEnum, elementoId, req,
                     preliminarRepository.findById(elementoId)
                             .filter(e -> e.getDocumento().getId().equals(docId))
-                            .orElseThrow(() -> new RuntimeException(ELEM_NAO_ENCONTRADO)));
+                            .orElseThrow(() -> new ResourceNotFoundException(ELEM_NAO_ENCONTRADO)));
             case PARTE_NORMATIVA  -> emendar(docId, secaoEnum, elementoId, req,
                     normativaRepository.findById(elementoId)
                             .filter(e -> e.getDocumento().getId().equals(docId))
-                            .orElseThrow(() -> new RuntimeException(ELEM_NAO_ENCONTRADO)));
+                            .orElseThrow(() -> new ResourceNotFoundException(ELEM_NAO_ENCONTRADO)));
             case PARTE_FINAL      -> emendar(docId, secaoEnum, elementoId, req,
                     finalRepository.findById(elementoId)
                             .filter(e -> e.getDocumento().getId().equals(docId))
-                            .orElseThrow(() -> new RuntimeException(ELEM_NAO_ENCONTRADO)));
+                            .orElseThrow(() -> new ResourceNotFoundException(ELEM_NAO_ENCONTRADO)));
         }
     }
 
@@ -359,7 +360,7 @@ public class EmendaService {
 
         ItemAnexoParteNormativa item = normativaRepository.findById(elementoId)
                 .filter(e -> e.getDocumento().getId().equals(docId))
-                .orElseThrow(() -> new RuntimeException(ELEM_NAO_ENCONTRADO));
+                .orElseThrow(() -> new ResourceNotFoundException(ELEM_NAO_ENCONTRADO));
 
         if (item.getTipo() != ItemAnexoParteNormativaTipoEnum.ARTIGO
                 || item.getEmendaStatus() != ElementoEmendaStatusEnum.INCLUIDO
@@ -442,7 +443,7 @@ public class EmendaService {
         if (req.parentId() != null) {
             ItemAnexoParteNormativa parent = normativaRepository.findById(req.parentId())
                     .filter(p -> p.getDocumento().getId().equals(docId))
-                    .orElseThrow(() -> new RuntimeException("Elemento pai não encontrado"));
+                    .orElseThrow(() -> new ResourceNotFoundException("Elemento pai não encontrado"));
             item.setParent(parent);
         }
         ItemAnexoParteNormativa saved = normativaRepository.save(item);
@@ -665,7 +666,7 @@ public class EmendaService {
 
     private Documento carregarEmAlteracao(Long docId) {
         Documento doc = documentoRepository.findById(docId)
-                .orElseThrow(() -> new RuntimeException(DOC_NAO_ENCONTRADO));
+                .orElseThrow(() -> new ResourceNotFoundException(DOC_NAO_ENCONTRADO));
         if (doc.getSituacaoLocal() != SituacaoLocalEnum.EM_ALTERACAO) {
             throw new IllegalStateException(DOC_NAO_EM_ALTERACAO);
         }

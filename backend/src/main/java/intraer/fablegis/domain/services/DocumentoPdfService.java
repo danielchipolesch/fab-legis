@@ -10,22 +10,14 @@ import intraer.fablegis.domain.regras.RegrasDasEspecies;
 import intraer.fablegis.domain.handlers.exceptions.enums.DocumentoException;
 import intraer.fablegis.infrastructure.repositories.AnexoRepository;
 import intraer.fablegis.infrastructure.repositories.DocumentoRepository;
-import org.apache.fop.apps.Fop;
-import org.apache.fop.apps.FopFactory;
-import org.apache.fop.apps.MimeConstants;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
-import org.xml.sax.InputSource;
-import org.xml.sax.XMLReader;
 
-import javax.xml.parsers.SAXParserFactory;
-import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
-import java.io.StringReader;
 import java.time.Instant;
 import java.util.EnumSet;
 import java.util.List;
@@ -34,7 +26,6 @@ import java.util.Set;
 @Service
 public class DocumentoPdfService {
 
-    private static final FopFactory FOP_FACTORY = FopFactoryProvider.get();
 
     @Autowired
     private DocumentoRepository documentoRepository;
@@ -144,16 +135,6 @@ public class DocumentoPdfService {
         // O layout do PDF é regra da espécie (atos normativos: Portaria + Capa + Sumário + Corpo).
         String fo = regras.para(doc.getEspecieNormativa()).leiauteDoPdf().gerarFo(doc, preliminares, normativos, anexos);
 
-        try (var os = new ByteArrayOutputStream()) {
-            Fop fop = FOP_FACTORY.newFop(MimeConstants.MIME_PDF, FOP_FACTORY.newFOUserAgent(), os);
-            SAXParserFactory spf = SAXParserFactory.newInstance();
-            spf.setNamespaceAware(true);
-            XMLReader reader = spf.newSAXParser().getXMLReader();
-            reader.setContentHandler(fop.getDefaultHandler());
-            reader.parse(new InputSource(new StringReader(fo)));
-            return os.toByteArray();
-        } catch (Exception e) {
-            throw new RuntimeException("Erro ao renderizar PDF: " + e.getMessage(), e);
-        }
+        return RenderizadorDePdf.renderizar(fo, "PDF");
     }
 }

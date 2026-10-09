@@ -42,7 +42,7 @@ import intraer.fablegis.domain.services.ImagemService;
 import intraer.fablegis.domain.services.LogAuditoriaService;
 import intraer.fablegis.domain.services.MapaAlteracaoPdfService;
 import intraer.fablegis.domain.services.PortariaPublicacaoService;
-import intraer.fablegis.infrastructure.security.UsuarioPrincipal;
+import intraer.fablegis.infrastructure.security.AutenticacaoUtil;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -128,7 +128,7 @@ public class DocumentoController {
     @PreAuthorize("hasRole('EDIT')")
     @PostMapping
     public ResponseEntity<EntityModel<DocumentoResponseSemAnexoTextualDto>> post(
-            @RequestBody @Valid DocumentoRequestCreateDto request) throws RuntimeException {
+            @RequestBody @Valid DocumentoRequestCreateDto request) {
         DocumentoResponseSemAnexoTextualDto dto = documentoService.create(request);
         logAuditoriaService.registrar(dto.idDocumento(), dto.codigoDocumento(), AcaoAuditoriaEnum.CRIOU, null);
         return ResponseEntity.status(HttpStatus.CREATED).body(toModel(dto));
@@ -137,7 +137,7 @@ public class DocumentoController {
     @PreAuthorize("hasRole('EDIT')")
     @PostMapping("{id}/clonar")
     public ResponseEntity<EntityModel<DocumentoResponseSemAnexoTextualDto>> clone(
-            @PathVariable(value = "id") Long id) throws RuntimeException {
+            @PathVariable(value = "id") Long id) {
         DocumentoResponseSemAnexoTextualDto dto = documentoService.clone(id);
         logAuditoriaService.registrar(dto.idDocumento(), dto.codigoDocumento(), AcaoAuditoriaEnum.CLONOU, "Clonado do documento " + id);
         return ResponseEntity.status(HttpStatus.CREATED).body(toModel(dto));
@@ -145,7 +145,7 @@ public class DocumentoController {
 
     @GetMapping("{id}")
     public ResponseEntity<EntityModel<DocumentoResponseComAnexoTextualDto>> getById(
-            @PathVariable(value = "id") Long id) throws RuntimeException {
+            @PathVariable(value = "id") Long id) {
         DocumentoResponseComAnexoTextualDto dto = documentoParteNormativaService.getDocumentoComAnexoTextualDtoById(id);
         logAuditoriaService.registrar(dto.idDocumento(), dto.codigoDocumento(), AcaoAuditoriaEnum.VISUALIZOU, null);
         EntityModel<DocumentoResponseComAnexoTextualDto> model = EntityModel.of(dto,
@@ -160,7 +160,7 @@ public class DocumentoController {
     @GetMapping("filtrar")
     public ResponseEntity<List<EntityModel<DocumentoResponseSemAnexoTextualDto>>> getByEspecieNormativaAndAssuntoBasico(
             @RequestParam(value = "especie-normativa") Long especieNormativaId,
-            @RequestParam(value = "assunto-basico") Long assuntoBasicoId) throws RuntimeException {
+            @RequestParam(value = "assunto-basico") Long assuntoBasicoId) {
         List<EntityModel<DocumentoResponseSemAnexoTextualDto>> models = documentoService
                 .getByEspecieNormativaAndAssuntoBasico(especieNormativaId, assuntoBasicoId)
                 .stream().map(this::toModel).toList();
@@ -185,8 +185,8 @@ public class DocumentoController {
             @RequestParam(defaultValue = "15") int size,
             @RequestParam(defaultValue = "dtCriacao") String sortBy,
             @RequestParam(defaultValue = "true") boolean descending,
-            Authentication authentication) throws RuntimeException {
-        Usuario usuario = ((UsuarioPrincipal) authentication.getPrincipal()).getUsuario();
+            Authentication authentication) {
+        Usuario usuario = AutenticacaoUtil.usuarioDe(authentication);
         Sort sort = descending ? Sort.by(sortBy).descending() : Sort.by(sortBy).ascending();
         Page<Documento> resultado = documentoService.getAllPaginado(
                 usuario.getId(), usuario.getOm().getId(), aba, busca, tipoDeEspecie, especieSigla, situacaoBca, situacaoLocal,
@@ -202,13 +202,13 @@ public class DocumentoController {
     // Fila pessoal das telas de Revisão/Publicação -- ver DocumentoService.
     @GetMapping("/minha-revisao")
     public ResponseEntity<List<DocumentoFilaResponseDto>> getMinhaRevisao(Authentication authentication) {
-        Usuario usuario = ((UsuarioPrincipal) authentication.getPrincipal()).getUsuario();
+        Usuario usuario = AutenticacaoUtil.usuarioDe(authentication);
         return ResponseEntity.ok(documentoService.getMinhaRevisao(usuario.getId()));
     }
 
     @GetMapping("/minha-publicacao")
     public ResponseEntity<List<DocumentoFilaResponseDto>> getMinhaPublicacao(Authentication authentication) {
-        Usuario usuario = ((UsuarioPrincipal) authentication.getPrincipal()).getUsuario();
+        Usuario usuario = AutenticacaoUtil.usuarioDe(authentication);
         return ResponseEntity.ok(documentoService.getMinhaPublicacao(usuario.getId()));
     }
 
@@ -222,7 +222,7 @@ public class DocumentoController {
             @RequestParam(required = false) TipoDeEspecie tipoDeEspecie,
             @RequestParam(required = false) String especieSigla,
             Authentication authentication) {
-        Usuario usuario = ((UsuarioPrincipal) authentication.getPrincipal()).getUsuario();
+        Usuario usuario = AutenticacaoUtil.usuarioDe(authentication);
         return ResponseEntity.ok(documentoService.getResumo(
                 usuario.getId(), usuario.getOm().getId(), aba, busca, tipoDeEspecie, especieSigla));
     }
@@ -231,7 +231,7 @@ public class DocumentoController {
     @PatchMapping("{id}/status")
     public ResponseEntity<EntityModel<DocumentoResponseSemAnexoTextualDto>> changeStatus(
             @PathVariable(value = "id") Long id,
-            @RequestBody @Valid DocumentoStatusRequestDto request) throws RuntimeException {
+            @RequestBody @Valid DocumentoStatusRequestDto request) {
         DocumentoResponseSemAnexoTextualDto dto = documentoStatusService.changeStatus(id, request);
         logAuditoriaService.registrar(dto.idDocumento(), dto.codigoDocumento(), AcaoAuditoriaEnum.MUDOU_STATUS,
                 "Nova situação local: " + request.situacaoLocal());
@@ -268,7 +268,7 @@ public class DocumentoController {
     @PutMapping("{id}")
     public ResponseEntity<EntityModel<DocumentoResponseSemAnexoTextualDto>> update(
             @PathVariable(value = "id") Long id,
-            @RequestBody @Valid DocumentoRequestUpdateDto request) throws RuntimeException {
+            @RequestBody @Valid DocumentoRequestUpdateDto request) {
         DocumentoResponseSemAnexoTextualDto dto = documentoService.update(id, request);
         logAuditoriaService.registrar(dto.idDocumento(), dto.codigoDocumento(), AcaoAuditoriaEnum.EDITOU, "Dados do documento");
         return ResponseEntity.ok(toModel(dto));
@@ -278,7 +278,7 @@ public class DocumentoController {
     @PutMapping("{idDocumento}/adicionar-item-anexo-parte-textual")
     public ResponseEntity<EntityModel<DocumentoResponseComAnexoTextualDto>> addItemAnexoParteNormativa(
             @PathVariable(value = "idDocumento") Long idDocumento,
-            @RequestBody ItemAnexoParteNormativaRequestDto request) throws RuntimeException {
+            @RequestBody ItemAnexoParteNormativaRequestDto request) {
         DocumentoResponseComAnexoTextualDto dto = documentoParteNormativaService.adicionarItemAoDocumento(idDocumento, request);
         EntityModel<DocumentoResponseComAnexoTextualDto> model = EntityModel.of(dto,
                 Link.of(BASE + "/" + idDocumento).withSelfRel(),
@@ -312,7 +312,7 @@ public class DocumentoController {
             // clientId.js) -- devolvido no broadcast SSE (event: estrutura) pra quem
             // originou a mudança poder ignorar o próprio eco. Opcional: sem ele, o
             // broadcast simplesmente não tem como ser filtrado pelo emissor.
-            @RequestHeader(value = "X-Client-Id", required = false) String clientId) throws RuntimeException {
+            @RequestHeader(value = "X-Client-Id", required = false) String clientId) {
         documentoParteNormativaService.salvarSecoes(id, request, clientId);
         DocumentoResponseSemAnexoTextualDto dto = DocumentoMapper.documentoToDocumentoSemAnexoTextualResponseDto(
                 documentoService.getById(id));
@@ -363,7 +363,7 @@ public class DocumentoController {
 
     // Sem corpo de resposta -- existe só para o serviço de colaboração (Hocuspocus)
     // perguntar, com o JWT de quem está se conectando, "esta pessoa pode editar este
-    // documento?" antes de aceitar a conexão a uma sala Yjs. 204 = pode; o
+    // documento AGORA (nesta etapa)?" antes de aceitar a conexão a uma sala Yjs. 204 = pode; o
     // @PreAuthorize barra com 403 antes mesmo de o método rodar, caso contrário.
     @PreAuthorize("@documentoAcessoService.podeEditar(#id, authentication)")
     @GetMapping("{id}/pode-editar")
@@ -434,7 +434,7 @@ public class DocumentoController {
 
     @PreAuthorize("@documentoAcessoService.podeExcluir(#id, authentication)")
     @DeleteMapping("{id}")
-    public ResponseEntity<Void> delete(@PathVariable(value = "id") Long id) throws RuntimeException {
+    public ResponseEntity<Void> delete(@PathVariable(value = "id") Long id) {
         DocumentoResponseSemAnexoTextualDto dto = DocumentoMapper.documentoToDocumentoSemAnexoTextualResponseDto(
                 documentoService.getById(id));
         documentoService.delete(id);

@@ -49,6 +49,12 @@ public class GlobalExceptionHandler {
                 .contentType(MediaType.APPLICATION_JSON).body(body);
     }
 
+    @ExceptionHandler(FalhaNaRenderizacaoException.class)
+    public ResponseEntity<Map<String, Object>> handleFalhaNaRenderizacao(FalhaNaRenderizacaoException e, WebRequest request) {
+        Map<String, Object> body = ExceptionResponseUtil.buildErrorResponse(HttpStatus.INTERNAL_SERVER_ERROR, e.getMessage(), request);
+        return responder(HttpStatus.INTERNAL_SERVER_ERROR, body);
+    }
+
     @ExceptionHandler(ResourceNotFoundException.class)
     public ResponseEntity<Map<String, Object>> handleResourceNotFound(ResourceNotFoundException e, WebRequest request) {
         Map<String, Object> body = ExceptionResponseUtil.buildErrorResponse(HttpStatus.NOT_FOUND, e.getMessage(), request);

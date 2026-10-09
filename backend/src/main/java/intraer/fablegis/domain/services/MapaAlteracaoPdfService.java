@@ -4,17 +4,9 @@ import intraer.fablegis.application.dtos.emendaDtos.MapaAlteracaoPdfRequestDto;
 import intraer.fablegis.domain.util.tiptap.TipTapNode;
 import intraer.fablegis.domain.util.tiptap.XslFoContentRenderer;
 import tools.jackson.databind.ObjectMapper;
-import org.apache.fop.apps.Fop;
-import org.apache.fop.apps.FopFactory;
-import org.apache.fop.apps.MimeConstants;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import org.xml.sax.InputSource;
-import org.xml.sax.XMLReader;
 
-import javax.xml.parsers.SAXParserFactory;
-import java.io.ByteArrayOutputStream;
-import java.io.StringReader;
 
 // Exporta o Quadro de Justificativas das Modificações Propostas (NSCA 5-3, Anexo XXIV)
 // em PDF, via Apache FOP — o mesmo motor usado no PDF oficial do documento
@@ -35,7 +27,6 @@ public class MapaAlteracaoPdfService {
     // no cabeçalho da tabela e em HEADER_TEXT, reaproveitada aqui de propósito.
     private static final String COR_REFERENCIA_ATUAL = HEADER_TEXT;
 
-    private static final FopFactory FOP_FACTORY = FopFactoryProvider.get();
 
     @Autowired
     private ObjectMapper objectMapper;
@@ -53,17 +44,7 @@ public class MapaAlteracaoPdfService {
 
     private byte[] renderizar(MapaAlteracaoPdfRequestDto req) {
         String fo = buildFo(req);
-        try (var os = new ByteArrayOutputStream()) {
-            Fop fop = FOP_FACTORY.newFop(MimeConstants.MIME_PDF, FOP_FACTORY.newFOUserAgent(), os);
-            SAXParserFactory spf = SAXParserFactory.newInstance();
-            spf.setNamespaceAware(true);
-            XMLReader reader = spf.newSAXParser().getXMLReader();
-            reader.setContentHandler(fop.getDefaultHandler());
-            reader.parse(new InputSource(new StringReader(fo)));
-            return os.toByteArray();
-        } catch (Exception e) {
-            throw new RuntimeException("Erro ao renderizar PDF do mapa de alteração: " + e.getMessage(), e);
-        }
+        return RenderizadorDePdf.renderizar(fo, "PDF do mapa de alteração");
     }
 
     private String buildFo(MapaAlteracaoPdfRequestDto req) {

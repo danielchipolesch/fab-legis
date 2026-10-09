@@ -9,7 +9,7 @@ import intraer.fablegis.application.dtos.usuarioDtos.UsuarioUpdateRequestDto;
 import intraer.fablegis.domain.entities.usuario.PapelEnum;
 import intraer.fablegis.domain.services.UsuarioService;
 import intraer.fablegis.infrastructure.repositories.UsuarioRepository;
-import intraer.fablegis.infrastructure.security.UsuarioPrincipal;
+import intraer.fablegis.infrastructure.security.AutenticacaoUtil;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -53,7 +53,7 @@ public class UsuarioController {
             @RequestParam PapelEnum papel,
             @RequestParam(required = false) String q,
             Authentication authentication) {
-        var usuario = ((UsuarioPrincipal) authentication.getPrincipal()).getUsuario();
+        var usuario = AutenticacaoUtil.usuarioDe(authentication);
         var termo = q != null ? q.trim() : "";
         var elegiveis = termo.isEmpty()
                 ? usuarioRepository.findByOmIdAndPapel(usuario.getOm().getId(), papel)
@@ -72,7 +72,7 @@ public class UsuarioController {
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<UsuarioBuscaResponseDto>> buscar(
             @RequestParam String q, Authentication authentication) {
-        var usuario = ((UsuarioPrincipal) authentication.getPrincipal()).getUsuario();
+        var usuario = AutenticacaoUtil.usuarioDe(authentication);
         var termo = q.trim();
         if (termo.length() < 2) return ResponseEntity.ok(List.of());
         var candidatos = usuarioRepository.buscarPorNome(termo, usuario.getId()).stream()

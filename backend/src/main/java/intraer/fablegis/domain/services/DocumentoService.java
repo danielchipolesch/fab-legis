@@ -91,7 +91,7 @@ public class DocumentoService {
 
 
     @Transactional
-    public DocumentoResponseSemAnexoTextualDto create(DocumentoRequestCreateDto request) throws RuntimeException {
+    public DocumentoResponseSemAnexoTextualDto create(DocumentoRequestCreateDto request) {
 
         EspecieNormativa especieNormativa = especieNormativaRepository.findById(request.idEspecieNormativa()).orElseThrow(() -> new ResourceNotFoundException(EspecieNormativaException.NOT_FOUND.getMessage()));
 
@@ -109,7 +109,7 @@ public class DocumentoService {
         return DocumentoMapper.documentoToDocumentoSemAnexoTextualResponseDto(salvo);
     }
 
-    public Documento getById(Long id) throws RuntimeException{
+    public Documento getById(Long id) {
 
         return documentoRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException(DocumentoException.NOT_FOUND.getMessage()));
     }
@@ -223,19 +223,15 @@ public class DocumentoService {
     }
 
     @Transactional
-    public DocumentoResponseSemAnexoTextualDto update(Long id, DocumentoRequestUpdateDto request) throws RuntimeException {
+    public DocumentoResponseSemAnexoTextualDto update(Long id, DocumentoRequestUpdateDto request) {
 
         Documento documento = documentoRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException(DocumentoException.NOT_FOUND.getMessage()));
 
-        // Checagem de status redundante à de posse (@PreAuthorize podeEditar no
-        // controller já garante QUEM pode chamar isto -- inclusive o revisor
-        // atribuído durante EM_REVISAO); aqui só barra status que nunca deveriam
-        // aceitar edição nem por quem tem posse. RASCUNHO/MINUTA/EM_ALTERACAO
-        // batem com isReadonly do editor (DocumentoEditorPage.vue); EM_REVISAO
-        // porque o autosave estrutural (editorStore.save() -> este endpoint, ver
-        // stores/documentos.js) roda pra qualquer alteração de árvore -- inclusive
-        // as feitas pelo revisor atribuído, que já pode editar essa etapa.
+        // Segunda barreira, da etapa: o @PreAuthorize podeEditar do controller já decide QUEM pode chamar isto e em
+        // QUE etapa (DocumentoAcessoService.podeEditar); esta garante que a etapa seja barrada mesmo se o serviço for
+        // chamado por outro caminho. É a mesma regra (SituacaoLocalEnum.aceitaEdicao), que bate com o isReadonly do
+        // editor (DocumentoEditorPage.vue).
         if (!documento.getSituacaoLocal().aceitaEdicao()) {
             throw new StatusCannotBeUpdatedException(DocumentoException.CANNOT_BE_UPDATED.getMessage());
         }
@@ -299,7 +295,7 @@ public class DocumentoService {
     }
 
     @Transactional
-    public DocumentoResponseSemAnexoTextualDto delete(Long id) throws RuntimeException {
+    public DocumentoResponseSemAnexoTextualDto delete(Long id) {
         Documento documento = documentoRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException(DocumentoException.NOT_FOUND.getMessage()));
 
@@ -319,7 +315,7 @@ public class DocumentoService {
     }
 
     @Transactional
-    public DocumentoResponseSemAnexoTextualDto clone(Long id) throws RuntimeException {
+    public DocumentoResponseSemAnexoTextualDto clone(Long id) {
 
         Documento documentoAntigo = documentoRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException(DocumentoException.NOT_FOUND.getMessage()));

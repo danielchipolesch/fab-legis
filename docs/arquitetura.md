@@ -94,7 +94,7 @@ Nem toda espécie normativa obedece às mesmas regras. Para o restante do sistem
 | `RegrasDeHierarquiaDosElementos` | quem pode ficar dentro de quem na parte normativa; o backend recusa, no salvamento, o que a espécie não permite | `HierarquiaDeEspecieConvencional` (o editor impõe a ordem; o backend não recusa) |
 | `CalculadoraDeNumeracaoDosElementos` | o rótulo de cada elemento da parte normativa | `NumeracaoService` |
 | `EstruturaInicialDeNovoDocumento` | os elementos com que um documento novo já nasce | `CapitulosPadronizadosService` (NSCA 5-3) |
-| `RotuloDosAnexos` | como os anexos são rotulados | `RotuloDeAnexoDeEspecieConvencional` (ANEXO II, III…) |
+| `RotuloDosAnexos` | como os anexos são rotulados | `RotuloDeAnexoDeEspecieConvencional` (ANEXO II, III…) · `RotuloDeAnexoDeNpa` (ANEXO A, B…) |
 | `LeiauteDoPdf` | a diagramação do PDF (XSL-FO) | `DocumentoFoBuilder` |
 | `LeiauteDoHtml` | a diagramação do HTML | `LeiauteHtmlDeEspecieConvencional` |
 | `RegrasDeRegistroDaPublicacao` | o que se registra (e o que é obrigatório informar) ao publicar ou revogar oficialmente | `PublicacaoDeEspecieConvencional` (portaria + BCA e, na 1ª publicação, a parte preliminar) · NPA: `PublicacaoDeNpa` (Boletim Interno) |
@@ -133,7 +133,7 @@ frontend/src
 └── router/         ← Rotas SPA, com guarda de autenticação e de papel (admin/auditor)
 ```
 
-**Perfis por espécie no frontend.** `perfis/index.js` entrega, para o `tipo_de_especie` de um documento, o perfil com o que a tela precisa decidir: `filhosPermitidos(tipoPai)` (menu "adicionar"), `renumerar(elementos, documento)`, se admite promover/rebaixar, alteração e a ordem livre entre irmãos. `convencional.js` envolve `utils/numbering.js`; `npa.js` espelha `HierarquiaDeNpa`, `NumeracaoDeNpa` e `CabecalhoDaNpa` do backend — com os **mesmos cenários de teste** (`npa.test.js`), como já é a regra da numeração dos atos. Tela nenhuma testa a sigla da espécie.
+**Perfis por espécie no frontend.** `perfis/index.js` entrega, para o `tipo_de_especie` de um documento, o perfil com o que a tela precisa decidir: `filhosPermitidos(tipoPai)` (menu "adicionar"), `rotuloDoAnexo(ordem)` (o rótulo do anexo: ANEXO II… nas convencionais, ANEXO A… na NPA; usado na barra lateral), `renumerar(elementos, documento)`, se admite promover/rebaixar, alteração e a ordem livre entre irmãos. `convencional.js` envolve `utils/numbering.js`; `npa.js` espelha `HierarquiaDeNpa`, `NumeracaoDeNpa` e `CabecalhoDaNpa` do backend — com os **mesmos cenários de teste** (`npa.test.js`), como já é a regra da numeração dos atos. Tela nenhuma testa a sigla da espécie.
 
 **Estado com Pinia — três stores complementares:**
 
