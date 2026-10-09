@@ -225,4 +225,138 @@ class DocumentoAcessoServiceTest {
         assertThat(pode(autor, MINUTA)).isTrue();
         assertThat(pode(estranho, MINUTA)).isFalse();
     }
+
+    // ─── Editar o conteúdo (podeEditar): a etapa manda ─────────────────────────────
+    // Regra (docs/ciclo-de-vida.md): RASCUNHO/MINUTA/EM_ALTERACAO, o autor e os coautores com papel EDIT; EM_REVISAO, só o
+    // revisor atribuído (e só de documento ainda não publicado); de EM_PUBLICACAO em diante, ninguém -- nem o autor.
+
+    private boolean podeEditar(Usuario u) {
+        return service.podeEditar(DOC_ID, como(u));
+    }
+
+    @ParameterizedTest
+    @EnumSource(value = SituacaoLocalEnum.class, names = {"RASCUNHO", "MINUTA", "EM_ALTERACAO"})
+    void nasEtapasDeEscritaEditamAutorECoautorComPapelEdit(SituacaoLocalEnum etapa) {
+        doc.setSituacaoLocal(etapa);
+
+        assertThat(podeEditar(autor)).isTrue();
+        assertThat(podeEditar(coautor)).isTrue();
+        assertThat(podeEditar(estranho)).isFalse();      // tem o papel EDIT, mas não é autor nem coautor
+        assertThat(podeEditar(aprovadorDaOm)).isFalse();
+        assertThat(podeEditar(publicador)).isFalse();
+    }
+
+    @Test
+    void semOPapelEditNemOAutorEdita() {
+        doc.setSituacaoLocal(MINUTA);
+        autor.setPapeis(EnumSet.of(PapelEnum.APROV));
+
+        assertThat(podeEditar(autor)).isFalse();
+    }
+
+    @Test
+    void emRevisaoSoORevisorAtribuidoEdita() {
+        doc.setSituacaoLocal(EM_REVISAO);
+        doc.setRevisorAtribuido(revisor);
+
+        assertThat(podeEditar(revisor)).isTrue();
+        // Nem o autor nem o coautor editam enquanto o documento está sob revisão.
+        assertThat(podeEditar(autor)).isFalse();
+        assertThat(podeEditar(coautor)).isFalse();
+        // Outro aprovador da mesma OM, que não foi o escolhido, também não.
+        assertThat(podeEditar(aprovadorDaOm)).isFalse();
+    }
+
+    @Test
+    void emRevisaoSemRevisorAtribuidoNinguemEdita() {
+        doc.setSituacaoLocal(EM_REVISAO);
+        doc.setRevisorAtribuido(null);
+
+        assertThat(podeEditar(autor)).isFalse();
+        assertThat(podeEditar(revisor)).isFalse();
+    }
+
+    @Test
+    void aRevisaoDeUmaAlteracaoDeAtoPublicadoESomenteLeituraAteParaORevisor() {
+        doc.setSituacaoBca(SituacaoBcaEnum.PUBLICADO);
+        doc.setSituacaoLocal(EM_REVISAO);
+        doc.setRevisorAtribuido(revisor);
+
+        assertThat(podeEditar(revisor)).isFalse();
+        assertThat(podeEditar(autor)).isFalse();
+    }
+
+    // O conteúdo aprovado não muda entre a aprovação e a publicação -- nem pela API, nem pelo autor.
+    @ParameterizedTest
+    @EnumSource(value = SituacaoLocalEnum.class,
+            names = {"EM_PUBLICACAO", "ANALISE_REVOGACAO", "EM_REVOGACAO", "CANCELADO", "SEM_ETAPA"})
+    void nasEtapasCongeladasNinguemEdita(SituacaoLocalEnum etapa) {
+        doc.setSituacaoLocal(etapa);
+        doc.setRevisorAtribuido(revisor);
+        doc.setPublicadorAtribuido(publicador);
+
+        for (var u : new Usuario[]{autor, coautor, estranho, aprovadorDaOm, revisor, publicador}) {
+            assertThat(podeEditar(u)).as("usuário %d em %s", u.getId(), etapa).isFalse();
+        }
+    }
+
+    @ParameterizedTest
+    @EnumSource(value = SituacaoBcaEnum.class, names = {"PUBLICADO", "REVOGADO"})
+    void umDocumentoPublicadoOuRevogadoParadoNaoEditaNemOAutor(SituacaoBcaEnum bca) {
+        doc.setSituacaoBca(bca);
+        doc.setSituacaoLocal(SEM_ETAPA);
+
+        assertThat(podeEditar(autor)).isFalse();
+        assertThat(podeEditar(coautor)).isFalse();
+    }
+
+    @Test
+    void documentoInexistenteNaoPodeSerEditado() {
+        when(documentoRepository.findById(DOC_ID)).thenReturn(Optional.empty());
+
+        assertThat(podeEditar(autor)).isFalse();
+    }
+
+    // Pedir a revogação de um ato publicado (SEM_ETAPA, congelado para edição) continua sendo do autor/coautor:
+    // mudar de etapa depende de posse, não de poder editar o conteúdo agora.
+    @Test
+    void oAutorAindaPedeARevogacaoDeUmAtoPublicadoMesmoSemPoderEditar() {
+        doc.setSituacaoBca(SituacaoBcaEnum.PUBLICADO);
+        doc.setSituacaoLocal(SEM_ETAPA);
+
+        assertThat(podeEditar(autor)).isFalse();
+        assertThat(pode(autor, ANALISE_REVOGACAO)).isTrue();
+    }
+
+    // ─── Enviar o PDF da portaria (podeEnviarPortaria): o publicador atribuído ─────
+
+    @ParameterizedTest
+    @EnumSource(value = SituacaoLocalEnum.class, names = {"EM_PUBLICACAO", "EM_REVOGACAO"})
+    void soOPublicadorAtribuidoEnviaOPdfDaPortaria(SituacaoLocalEnum etapa) {
+        doc.setSituacaoLocal(etapa);
+        doc.setPublicadorAtribuido(publicador);
+
+        assertThat(service.podeEnviarPortaria(DOC_ID, como(publicador))).isTrue();
+        assertThat(service.podeEnviarPortaria(DOC_ID, como(autor))).isFalse();
+        assertThat(service.podeEnviarPortaria(DOC_ID, como(aprovadorDaOm))).isFalse();
+        assertThat(service.podeEnviarPortaria(DOC_ID, como(usuario(8, OM_ID, PapelEnum.PUBLIC)))).isFalse();
+    }
+
+    @ParameterizedTest
+    @EnumSource(value = SituacaoLocalEnum.class, names = {"RASCUNHO", "MINUTA", "EM_REVISAO", "EM_ALTERACAO", "ANALISE_REVOGACAO",
+            "CANCELADO", "SEM_ETAPA"})
+    void foraDaPublicacaoOuDaRevogacaoNinguemEnviaOPdfDaPortaria(SituacaoLocalEnum etapa) {
+        doc.setSituacaoLocal(etapa);
+        doc.setPublicadorAtribuido(publicador);
+
+        assertThat(service.podeEnviarPortaria(DOC_ID, como(publicador))).isFalse();
+    }
+
+    @Test
+    void semPublicadorAtribuidoNinguemEnviaOPdfDaPortaria() {
+        doc.setSituacaoLocal(EM_PUBLICACAO);
+        doc.setPublicadorAtribuido(null);
+
+        assertThat(service.podeEnviarPortaria(DOC_ID, como(publicador))).isFalse();
+    }
 }

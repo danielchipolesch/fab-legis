@@ -243,7 +243,9 @@ public class DocumentoController {
     // HomePage.vue): só sobe o arquivo e devolve a URL, sem mudar status nem
     // gravar nada no documento. A URL só é persistida quando o formulário de
     // publicação é de fato enviado.
-    @PreAuthorize("@documentoAcessoService.podeEditar(#id, authentication)")
+    // Quem sobe o PDF é quem vai registrar a publicação (o publicador atribuído, com o documento em EM_PUBLICACAO/EM_REVOGACAO),
+    // não quem edita o documento -- que nessas etapas está congelado (ver DocumentoAcessoService.podeEnviarPortaria).
+    @PreAuthorize("@documentoAcessoService.podeEnviarPortaria(#id, authentication)")
     @PostMapping(value = "{id}/portaria-pdf", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<PortariaPdfResponseDto> uploadPortariaPdf(
             @PathVariable(value = "id") Long id,

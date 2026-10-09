@@ -36,6 +36,7 @@ Endpoints padrão do Spring Authorization Server (`AuthorizationServerConfig`), 
 | `GET` | `/{id}/pdf` | Gera o PDF oficial do documento sob demanda (Apache FOP) |
 | `GET` | `/{id}/html` | Gera o HTML oficial do documento sob demanda (regras da NSCA 5-3 para a versão eletrônica — ver [Exportação HTML](exportacao-pdf.md#exportacao-html)) |
 | `GET` | `/{id}/portarias` | Lista todas as portarias registradas do documento (edição, alterações numeradas, revogação) |
+| `POST` | `/{id}/portaria-pdf` | Sobe o PDF da portaria (multipart `arquivo`) antes de confirmar a publicação/revogação; só devolve a URL, não grava nada no documento. Só o **publicador atribuído**, com o documento em `EM_PUBLICACAO` ou `EM_REVOGACAO` (`403` nas demais situações) — ver [Autenticação](autenticacao.md) |
 | `DELETE` | `/{id}` | Remove o documento e seus itens em cascata (somente Rascunho/Minuta, autor/coautor) |
 | `GET`/`POST` | `/{id}/compartilhamentos` | Lista ou adiciona um coautor (só o autor) |
 | `DELETE` | `/{id}/compartilhamentos/{usuarioId}` | Remove um coautor (só o autor) |
