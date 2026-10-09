@@ -1,10 +1,10 @@
 package intraer.fablegis.application.controllers;
 
+import lombok.RequiredArgsConstructor;
 import intraer.fablegis.application.dtos.auditoriaDtos.LogAuditoriaResponseDto;
 import intraer.fablegis.domain.entities.auditoria.AcaoAuditoriaEnum;
 import intraer.fablegis.domain.services.LogAuditoriaService;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -29,10 +29,10 @@ import java.time.LocalDateTime;
 @RequestMapping(value = "/v1/auditoria", produces = MediaType.APPLICATION_JSON_VALUE)
 @Tag(name = "Auditoria", description = "Log de acesso/ações a nível de documento")
 @PreAuthorize("hasRole('AUDITOR')")
+@RequiredArgsConstructor
 public class AuditoriaController {
 
-    @Autowired
-    private LogAuditoriaService logAuditoriaService;
+    private final LogAuditoriaService logAuditoriaService;
 
     @GetMapping
     public ResponseEntity<Page<LogAuditoriaResponseDto>> filtrar(

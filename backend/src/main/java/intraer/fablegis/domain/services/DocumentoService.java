@@ -1,5 +1,6 @@
 package intraer.fablegis.domain.services;
 
+import lombok.RequiredArgsConstructor;
 import intraer.fablegis.application.dtos.documentoDtos.DocumentoFilaResponseDto;
 import intraer.fablegis.application.dtos.documentoDtos.DocumentoRequestCreateDto;
 import intraer.fablegis.application.dtos.documentoDtos.DocumentoRequestUpdateDto;
@@ -37,7 +38,6 @@ import intraer.fablegis.infrastructure.repositories.DocumentoHistoricoRepository
 import intraer.fablegis.infrastructure.repositories.ItemParteFinalRepository;
 import intraer.fablegis.infrastructure.repositories.ItemPartePreliminarRepository;
 import intraer.fablegis.infrastructure.repositories.OrganizacaoMilitarRepository;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -51,43 +51,32 @@ import java.util.Map;
 
 
 @Service
+@RequiredArgsConstructor
 public class DocumentoService {
 
-    @Autowired
-    DocumentoRepository documentoRepository;
+    final DocumentoRepository documentoRepository;
 
-    @Autowired
-    DocumentoCompartilhamentoRepository documentoCompartilhamentoRepository;
+    final DocumentoCompartilhamentoRepository documentoCompartilhamentoRepository;
 
-    @Autowired
-    EspecieNormativaRepository especieNormativaRepository;
+    final EspecieNormativaRepository especieNormativaRepository;
 
-    @Autowired
-    AssuntoBasicoRepository assuntoBasicoRepository;
+    final AssuntoBasicoRepository assuntoBasicoRepository;
 
-    @Autowired
-    ItemAnexoParteNormativaRepository itemAnexoParteNormativaRepository;
+    final ItemAnexoParteNormativaRepository itemAnexoParteNormativaRepository;
 
-    @Autowired
-    ItemPartePreliminarRepository itemPartePreliminarRepository;
+    final ItemPartePreliminarRepository itemPartePreliminarRepository;
 
-    @Autowired
-    ItemParteFinalRepository itemParteFinalRepository;
+    final ItemParteFinalRepository itemParteFinalRepository;
 
-    @Autowired
-    DocumentoHistoricoRepository documentoHistoricoRepository;
+    final DocumentoHistoricoRepository documentoHistoricoRepository;
 
-    @Autowired
-    DocumentoHistoricoService documentoHistoricoService;
+    final DocumentoHistoricoService documentoHistoricoService;
 
-    @Autowired
-    RegrasDasEspecies regras;
+    final RegrasDasEspecies regras;
 
-    @Autowired
-    AnexoRepository anexoRepository;
+    final AnexoRepository anexoRepository;
 
-    @Autowired
-    OrganizacaoMilitarRepository organizacaoMilitarRepository;
+    final OrganizacaoMilitarRepository organizacaoMilitarRepository;
 
 
     @Transactional

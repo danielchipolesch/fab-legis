@@ -1,5 +1,6 @@
 package intraer.fablegis.application.controllers;
 
+import lombok.RequiredArgsConstructor;
 import intraer.fablegis.application.dtos.documentoDtos.DocumentoResponseSemAnexoTextualDto;
 import intraer.fablegis.domain.entities.estruturaDocumento.Documento;
 import intraer.fablegis.domain.entities.usuario.Usuario;
@@ -8,7 +9,6 @@ import intraer.fablegis.domain.services.DocumentoCompartilhamentoService;
 import intraer.fablegis.domain.services.DocumentoService;
 import intraer.fablegis.infrastructure.security.AutenticacaoUtil;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -30,13 +30,12 @@ import java.util.Set;
 @RestController
 @RequestMapping(value = "/v1/painel", produces = MediaType.APPLICATION_JSON_VALUE)
 @Tag(name = "Painel", description = "Cards do hub: minhas em tramitação, aguardando ação, em tramitação nas OMs, publicados e revogados")
+@RequiredArgsConstructor
 public class PainelController {
 
-    @Autowired
-    private DocumentoService documentoService;
+    private final DocumentoService documentoService;
 
-    @Autowired
-    private DocumentoCompartilhamentoService compartilhamentoService;
+    private final DocumentoCompartilhamentoService compartilhamentoService;
 
     // Mais recentemente mexidos primeiro.
     private static PageRequest pagina(int page, int size) {

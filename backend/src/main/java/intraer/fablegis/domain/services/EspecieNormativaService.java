@@ -1,5 +1,6 @@
 package intraer.fablegis.domain.services;
 
+import lombok.RequiredArgsConstructor;
 import intraer.fablegis.domain.handlers.exceptions.ResourceAlreadyExistsException;
 import intraer.fablegis.domain.handlers.exceptions.ResourceNotFoundException;
 import intraer.fablegis.domain.handlers.exceptions.enums.EspecieNormativaException;
@@ -8,7 +9,6 @@ import intraer.fablegis.application.dtos.especieNormativaDtos.EspecieNormativaRe
 import intraer.fablegis.application.dtos.especieNormativaDtos.EspecieNormativaRequestUpdateDto;
 import intraer.fablegis.domain.entities.numeracaoDocumento.EspecieNormativa;
 import intraer.fablegis.infrastructure.repositories.EspecieNormativaRepository;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -16,10 +16,10 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 
 @Service
+@RequiredArgsConstructor
 public class EspecieNormativaService {
 
-    @Autowired
-    EspecieNormativaRepository especieNormativaRepository;
+    final EspecieNormativaRepository especieNormativaRepository;
 
     public EspecieNormativaResponseDto create(EspecieNormativaRequestCreateDto request) throws Exception {
 

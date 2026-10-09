@@ -1,9 +1,9 @@
 package intraer.fablegis.infrastructure.configurations;
 
+import lombok.RequiredArgsConstructor;
 import intraer.fablegis.infrastructure.security.JwtToUsuarioAuthenticationConverter;
 import intraer.fablegis.infrastructure.security.SseBearerTokenResolver;
 import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
@@ -37,13 +37,12 @@ import java.util.List;
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
+@RequiredArgsConstructor
 public class SecurityConfig {
 
-    @Autowired
-    private JwtToUsuarioAuthenticationConverter jwtToUsuarioAuthenticationConverter;
+    private final JwtToUsuarioAuthenticationConverter jwtToUsuarioAuthenticationConverter;
 
-    @Autowired
-    private SseBearerTokenResolver sseBearerTokenResolver;
+    private final SseBearerTokenResolver sseBearerTokenResolver;
 
     @Bean
     public PasswordEncoder passwordEncoder() {

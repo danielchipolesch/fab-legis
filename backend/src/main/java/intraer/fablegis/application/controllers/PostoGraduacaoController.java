@@ -1,9 +1,9 @@
 package intraer.fablegis.application.controllers;
 
+import lombok.RequiredArgsConstructor;
 import intraer.fablegis.application.dtos.usuarioDtos.PostoGraduacaoResponseDto;
 import intraer.fablegis.infrastructure.repositories.PostoGraduacaoRepository;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -17,10 +17,10 @@ import java.util.List;
 @RestController
 @RequestMapping(value = "/v1/postos-graduacoes", produces = MediaType.APPLICATION_JSON_VALUE)
 @Tag(name = "Posto/Graduação", description = "Consulta do catálogo de postos e graduações")
+@RequiredArgsConstructor
 public class PostoGraduacaoController {
 
-    @Autowired
-    private PostoGraduacaoRepository postoGraduacaoRepository;
+    private final PostoGraduacaoRepository postoGraduacaoRepository;
 
     @GetMapping
     public ResponseEntity<List<PostoGraduacaoResponseDto>> listar() {

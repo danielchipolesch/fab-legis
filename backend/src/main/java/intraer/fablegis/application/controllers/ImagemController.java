@@ -1,7 +1,7 @@
 package intraer.fablegis.application.controllers;
 
+import lombok.RequiredArgsConstructor;
 import intraer.fablegis.domain.services.ImagemService;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -11,10 +11,10 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/v1/imagens")
+@RequiredArgsConstructor
 public class ImagemController {
 
-    @Autowired
-    private ImagemService imagemService;
+    private final ImagemService imagemService;
 
     // "urlAssinada" evita o round-trip extra a /urls-assinadas logo após o upload --
     // quem exibe a imagem pela primeira vez (ex. FigureView) já recebe uma URL pronta

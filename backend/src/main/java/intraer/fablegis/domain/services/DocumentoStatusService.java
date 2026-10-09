@@ -1,5 +1,6 @@
 package intraer.fablegis.domain.services;
 
+import lombok.RequiredArgsConstructor;
 import intraer.fablegis.application.dtos.documentoDtos.DocumentoResponseSemAnexoTextualDto;
 import intraer.fablegis.application.dtos.documentoDtos.DocumentoStatusRequestDto;
 import intraer.fablegis.domain.entities.estruturaDocumento.Documento;
@@ -20,7 +21,6 @@ import intraer.fablegis.infrastructure.repositories.ItemPartePreliminarRepositor
 import intraer.fablegis.infrastructure.repositories.UsuarioRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Propagation;
@@ -41,25 +41,26 @@ import static intraer.fablegis.domain.entities.estruturaDocumento.SituacaoLocalE
 // etapa interna (revisão, alteração em curso, análise de revogação...) é situação local e
 // nunca tira o documento de PUBLICADO. Ver docs/ciclo-de-vida.md e SituacaoLocalEnum.
 @Service
+@RequiredArgsConstructor
 public class DocumentoStatusService {
 
     private static final Logger log = LoggerFactory.getLogger(DocumentoStatusService.class);
 
-    @Autowired DocumentoRepository documentoRepository;
-    @Autowired DocumentoHistoricoService documentoHistoricoService;
-    @Autowired DocumentoPdfService documentoPdfService;
-    @Autowired DocumentoHtmlService documentoHtmlService;
-    @Autowired ItemAnexoParteNormativaRepository normativaRepository;
-    @Autowired ItemPartePreliminarRepository preliminarRepository;
-    @Autowired ItemParteFinalRepository finalRepository;
-    @Autowired EmendaService emendaService;
-    @Autowired NotificacaoService notificacaoService;
-    @Autowired UsuarioRepository usuarioRepository;
-    @Autowired PlatformTransactionManager transactionManager;
+    final DocumentoRepository documentoRepository;
+    final DocumentoHistoricoService documentoHistoricoService;
+    final DocumentoPdfService documentoPdfService;
+    final DocumentoHtmlService documentoHtmlService;
+    final ItemAnexoParteNormativaRepository normativaRepository;
+    final ItemPartePreliminarRepository preliminarRepository;
+    final ItemParteFinalRepository finalRepository;
+    final EmendaService emendaService;
+    final NotificacaoService notificacaoService;
+    final UsuarioRepository usuarioRepository;
+    final PlatformTransactionManager transactionManager;
 
     // As mudanças de etapa permitidas são regra da espécie do documento: um ato normativo tem o
     // ciclo completo (com alteração); uma NPA só publicação e revogação. Ver RegrasDoCicloDeVidaDoDocumento.
-    @Autowired RegrasDasEspecies regras;
+    final RegrasDasEspecies regras;
 
     // Atômico de propósito: a mudança de etapa envolve várias tabelas (documento,
     // respaçamento de nr_ordem, portaria, histórico) e não pode ficar parcialmente aplicada

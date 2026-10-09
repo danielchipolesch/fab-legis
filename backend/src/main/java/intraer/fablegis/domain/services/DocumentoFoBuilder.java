@@ -1,5 +1,6 @@
 package intraer.fablegis.domain.services;
 
+import lombok.RequiredArgsConstructor;
 import intraer.fablegis.application.dtos.anexoDtos.AnexoResponseDto;
 import intraer.fablegis.application.dtos.itemAnexoParteNormativaDtos.ItemAnexoParteNormativaResponseDto;
 import intraer.fablegis.application.dtos.itemPartePreliminarDtos.ItemPartePreliminarResponseDto;
@@ -10,7 +11,6 @@ import intraer.fablegis.domain.regras.LeiauteDoPdf;
 import intraer.fablegis.domain.regras.RotuloDosAnexos;
 import intraer.fablegis.domain.regras.convencional.RotuloDeAnexoDeEspecieConvencional;
 import jakarta.annotation.PostConstruct;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.io.InputStream;
@@ -28,18 +28,16 @@ import java.util.List;
  * bean singleton).
  */
 @Service
+@RequiredArgsConstructor
 public class DocumentoFoBuilder implements LeiauteDoPdf {
 
     private static final String FO_NS = "http://www.w3.org/1999/XSL/Format";
 
-    @Autowired
-    private ObjectMapper objectMapper;
+    private final ObjectMapper objectMapper;
 
-    @Autowired
-    private ImagemService imagemService;
+    private final ImagemService imagemService;
 
-    @Autowired
-    private NumeracaoService numeracaoService;
+    private final NumeracaoService numeracaoService;
 
     // Rótulo dos anexos deste layout (ANEXO II, III...): é o dos atos normativos.
     private final RotuloDosAnexos rotuloDosAnexos = new RotuloDeAnexoDeEspecieConvencional();

@@ -1,5 +1,6 @@
 package intraer.fablegis.domain.services;
 
+import lombok.RequiredArgsConstructor;
 import intraer.fablegis.domain.entities.estruturaDocumento.Documento;
 import intraer.fablegis.infrastructure.repositories.AnexoRepository;
 import intraer.fablegis.infrastructure.repositories.ItemAnexoParteNormativaRepository;
@@ -18,7 +19,6 @@ import io.minio.messages.Status;
 import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -52,6 +52,7 @@ import java.util.Optional;
 // (loga warning), nunca uma falha da exportação -- o chamador sempre pode cair para a renderização
 // ao vivo que já existia antes deste cache.
 @Service
+@RequiredArgsConstructor
 public class DocumentoRenderCacheService {
 
     private static final Logger log = LoggerFactory.getLogger(DocumentoRenderCacheService.class);
@@ -72,17 +73,13 @@ public class DocumentoRenderCacheService {
         }
     }
 
-    @Autowired
-    private MinioClient minioClient;
+    private final MinioClient minioClient;
 
-    @Autowired
-    private ItemAnexoParteNormativaRepository itemAnexoParteNormativaRepository;
+    private final ItemAnexoParteNormativaRepository itemAnexoParteNormativaRepository;
 
-    @Autowired
-    private ItemPartePreliminarRepository itemPartePreliminarRepository;
+    private final ItemPartePreliminarRepository itemPartePreliminarRepository;
 
-    @Autowired
-    private AnexoRepository anexoRepository;
+    private final AnexoRepository anexoRepository;
 
     @Value("${minio.bucket}")
     private String bucket;

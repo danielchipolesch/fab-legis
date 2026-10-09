@@ -1,9 +1,9 @@
 package intraer.fablegis.application.controllers;
 
+import lombok.RequiredArgsConstructor;
 import intraer.fablegis.application.dtos.anexoDtos.AnexoResponseDto;
 import intraer.fablegis.domain.services.AnexoService;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -16,10 +16,10 @@ import java.util.List;
 @RestController
 @RequestMapping(value = "/v1/documentos/{documentoId}/anexos", produces = MediaType.APPLICATION_JSON_VALUE)
 @Tag(name = "Anexo", description = "Gerenciamento de anexos de documentos")
+@RequiredArgsConstructor
 public class AnexoController {
 
-    @Autowired
-    private AnexoService anexoService;
+    private final AnexoService anexoService;
 
     @GetMapping
     public ResponseEntity<List<AnexoResponseDto>> listar(

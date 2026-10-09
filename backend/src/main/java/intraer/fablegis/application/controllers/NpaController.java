@@ -1,5 +1,6 @@
 package intraer.fablegis.application.controllers;
 
+import lombok.RequiredArgsConstructor;
 import intraer.fablegis.application.dtos.npaDtos.CamposDaNpaDto;
 import intraer.fablegis.domain.entities.auditoria.AcaoAuditoriaEnum;
 import intraer.fablegis.domain.regras.comunicacaooficialpadronizada.CamposDeNpa;
@@ -7,7 +8,6 @@ import intraer.fablegis.domain.services.DocumentoService;
 import intraer.fablegis.domain.services.LogAuditoriaService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -23,16 +23,14 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping(value = "/v1/documentos/{id}/npa", produces = MediaType.APPLICATION_JSON_VALUE)
 @Tag(name = "NPA", description = "Campos específicos da Norma Padrão de Ação")
+@RequiredArgsConstructor
 public class NpaController {
 
-    @Autowired
-    private CamposDeNpa camposDeNpa;
+    private final CamposDeNpa camposDeNpa;
 
-    @Autowired
-    private DocumentoService documentoService;
+    private final DocumentoService documentoService;
 
-    @Autowired
-    private LogAuditoriaService logAuditoriaService;
+    private final LogAuditoriaService logAuditoriaService;
 
     // Sem @PreAuthorize: visualizar é liberado para qualquer usuário autenticado (a distribuição da NPA é ostensiva).
     @GetMapping

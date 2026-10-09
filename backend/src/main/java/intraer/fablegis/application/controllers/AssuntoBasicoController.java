@@ -1,12 +1,12 @@
 package intraer.fablegis.application.controllers;
 
+import lombok.RequiredArgsConstructor;
 import intraer.fablegis.application.dtos.assuntoBasicoDtos.AssuntoBasicoRequestCreateDto;
 import intraer.fablegis.application.dtos.assuntoBasicoDtos.AssuntoBasicoRequestUpdateDto;
 import intraer.fablegis.application.dtos.assuntoBasicoDtos.AssuntoBasicoResponseDto;
 import intraer.fablegis.domain.services.AssuntoBasicoService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -21,10 +21,10 @@ import java.util.List;
 @RestController
 @RequestMapping(value = "/v1/assunto-basico")
 @Tag(name = "Assunto Básico", description = "Colocar descrição")
+@RequiredArgsConstructor
 public class AssuntoBasicoController {
 
-    @Autowired
-    AssuntoBasicoService assuntoBasicoService;
+    final AssuntoBasicoService assuntoBasicoService;
 
     @PostMapping
     public ResponseEntity<AssuntoBasicoResponseDto> post(@RequestBody @Valid AssuntoBasicoRequestCreateDto request) throws Exception {

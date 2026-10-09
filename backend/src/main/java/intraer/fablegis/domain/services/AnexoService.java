@@ -1,5 +1,6 @@
 package intraer.fablegis.domain.services;
 
+import lombok.RequiredArgsConstructor;
 import intraer.fablegis.application.dtos.anexoDtos.AnexoResponseDto;
 import intraer.fablegis.application.dtos.documentoDtos.DocumentoStatusRequestDto;
 import intraer.fablegis.domain.entities.estruturaDocumento.Anexo;
@@ -12,7 +13,6 @@ import intraer.fablegis.domain.handlers.exceptions.StatusCannotBeUpdatedExceptio
 import intraer.fablegis.domain.handlers.exceptions.enums.DocumentoException;
 import intraer.fablegis.infrastructure.repositories.AnexoRepository;
 import intraer.fablegis.infrastructure.repositories.DocumentoRepository;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -25,19 +25,16 @@ import java.util.List;
 import java.util.Locale;
 
 @Service
+@RequiredArgsConstructor
 public class AnexoService {
 
-    @Autowired
-    private AnexoRepository anexoRepository;
+    private final AnexoRepository anexoRepository;
 
-    @Autowired
-    private DocumentoRepository documentoRepository;
+    private final DocumentoRepository documentoRepository;
 
-    @Autowired
-    private ImagemService imagemService;
+    private final ImagemService imagemService;
 
-    @Autowired
-    private DocumentoStatusService documentoStatusService;
+    private final DocumentoStatusService documentoStatusService;
 
     public List<AnexoResponseDto> listar(Long documentoId) {
         documentoRepository.findById(documentoId)

@@ -1,5 +1,6 @@
 package intraer.fablegis.domain.services;
 
+import lombok.RequiredArgsConstructor;
 import intraer.fablegis.application.dtos.usuarioDtos.CompartilharDocumentoRequestDto;
 import intraer.fablegis.application.dtos.usuarioDtos.CompartilhamentoResponseDto;
 import intraer.fablegis.domain.entities.estruturaDocumento.Documento;
@@ -12,7 +13,6 @@ import intraer.fablegis.domain.util.CpfValidator;
 import intraer.fablegis.infrastructure.repositories.DocumentoCompartilhamentoRepository;
 import intraer.fablegis.infrastructure.repositories.DocumentoRepository;
 import intraer.fablegis.infrastructure.repositories.UsuarioRepository;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,12 +21,13 @@ import java.util.List;
 import java.util.Set;
 
 @Service
+@RequiredArgsConstructor
 public class DocumentoCompartilhamentoService {
 
-    @Autowired private DocumentoRepository documentoRepository;
-    @Autowired private UsuarioRepository usuarioRepository;
-    @Autowired private DocumentoCompartilhamentoRepository compartilhamentoRepository;
-    @Autowired private NotificacaoService notificacaoService;
+    private final DocumentoRepository documentoRepository;
+    private final UsuarioRepository usuarioRepository;
+    private final DocumentoCompartilhamentoRepository compartilhamentoRepository;
+    private final NotificacaoService notificacaoService;
 
     public List<CompartilhamentoResponseDto> listar(Long documentoId) {
         return compartilhamentoRepository.findByDocumentoId(documentoId).stream()

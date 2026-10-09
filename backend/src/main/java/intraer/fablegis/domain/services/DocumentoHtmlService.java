@@ -1,5 +1,6 @@
 package intraer.fablegis.domain.services;
 
+import lombok.RequiredArgsConstructor;
 import intraer.fablegis.domain.regras.ElementoNumeracao;
 import intraer.fablegis.application.dtos.anexoDtos.AnexoResponseDto;
 import intraer.fablegis.application.dtos.itemAnexoParteNormativaDtos.ItemAnexoParteNormativaResponseDto;
@@ -18,7 +19,6 @@ import intraer.fablegis.infrastructure.repositories.AnexoRepository;
 import intraer.fablegis.infrastructure.repositories.DocumentoRepository;
 import tools.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -43,26 +43,21 @@ import java.util.Set;
 import java.util.regex.Pattern;
 
 @Service
+@RequiredArgsConstructor
 public class DocumentoHtmlService {
 
-    @Autowired
-    private DocumentoRepository documentoRepository;
+    private final DocumentoRepository documentoRepository;
 
-    @Autowired
-    private DocumentoParteNormativaService documentoParteNormativaService;
+    private final DocumentoParteNormativaService documentoParteNormativaService;
 
-    @Autowired
-    private AnexoRepository anexoRepository;
+    private final AnexoRepository anexoRepository;
 
-    @Autowired
-    private ImagemService imagemService;
+    private final ImagemService imagemService;
 
     // O layout do HTML é regra da espécie do documento (ver RegrasDasEspecies).
-    @Autowired
-    private RegrasDasEspecies regras;
+    private final RegrasDasEspecies regras;
 
-    @Autowired
-    private DocumentoRenderCacheService renderCacheService;
+    private final DocumentoRenderCacheService renderCacheService;
 
     public String gerarHtml(
             Documento doc,

@@ -8,7 +8,6 @@ import intraer.fablegis.domain.entities.numeracaoDocumento.AssuntoBasico;
 import intraer.fablegis.domain.entities.numeracaoDocumento.EspecieNormativa;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.test.util.ReflectionTestUtils;
 import tools.jackson.databind.ObjectMapper;
 
 import java.sql.Timestamp;
@@ -21,12 +20,11 @@ import static org.assertj.core.api.Assertions.within;
 // e docs/exportacao-pdf.md. Sem Spring nem FOP: só a estrutura do XSL-FO gerado.
 class DocumentoFoBuilderTest {
 
-    private final DocumentoFoBuilder builder = new DocumentoFoBuilder();
+    private DocumentoFoBuilder builder;
 
     @BeforeEach
     void setUp() {
-        ReflectionTestUtils.setField(builder, "objectMapper", new ObjectMapper());
-        ReflectionTestUtils.setField(builder, "numeracaoService", new NumeracaoService());
+        builder = new DocumentoFoBuilder(new ObjectMapper(), null, new NumeracaoService());
     }
 
     private static Documento documento(SituacaoBcaEnum bca, SituacaoLocalEnum local) {
@@ -204,7 +202,7 @@ class DocumentoFoBuilderTest {
     private void servirImagem(String dataUri) {
         var imagens = org.mockito.Mockito.mock(ImagemService.class);
         org.mockito.Mockito.when(imagens.getImageAsDataUri(org.mockito.ArgumentMatchers.anyString())).thenReturn(dataUri);
-        ReflectionTestUtils.setField(builder, "imagemService", imagens);
+        builder = new DocumentoFoBuilder(new ObjectMapper(), imagens, new NumeracaoService());
     }
 
     private static intraer.fablegis.application.dtos.anexoDtos.AnexoResponseDto anexoComImagem(

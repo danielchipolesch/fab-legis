@@ -1,5 +1,6 @@
 package intraer.fablegis.domain.regras.convencional;
 
+import lombok.RequiredArgsConstructor;
 import intraer.fablegis.domain.util.ImagemRemota;
 import intraer.fablegis.application.dtos.anexoDtos.AnexoResponseDto;
 import intraer.fablegis.application.dtos.itemAnexoParteNormativaDtos.ItemAnexoParteNormativaResponseDto;
@@ -18,7 +19,6 @@ import intraer.fablegis.domain.util.tiptap.TipTapHtmlSerializer;
 import intraer.fablegis.domain.util.tiptap.TipTapNode;
 import tools.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.io.InputStream;
@@ -37,16 +37,14 @@ import java.util.regex.Pattern;
 // Só a diagramação: escolher a versão, armazenar e servir o arquivo é do DocumentoHtmlService, que pede o
 // layout às regras da espécie do documento (RegrasDasEspecies).
 @Component
+@RequiredArgsConstructor
 public class LeiauteHtmlDeEspecieConvencional implements LeiauteDoHtml {
 
-    @Autowired
-    private ObjectMapper objectMapper;
+    private final ObjectMapper objectMapper;
 
-    @Autowired
-    private ImagemService imagemService;
+    private final ImagemService imagemService;
 
-    @Autowired
-    private NumeracaoService numeracaoService;
+    private final NumeracaoService numeracaoService;
 
     // Rótulo dos anexos deste layout (ANEXO II, III...): é o dos atos normativos.
     private final RotuloDosAnexos rotuloDosAnexos = new RotuloDeAnexoDeEspecieConvencional();

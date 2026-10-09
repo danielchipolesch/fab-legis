@@ -1,5 +1,6 @@
 package intraer.fablegis.domain.services;
 
+import lombok.RequiredArgsConstructor;
 import intraer.fablegis.application.dtos.assuntoBasicoDtos.AssuntoBasicoRequestCreateDto;
 import intraer.fablegis.application.dtos.assuntoBasicoDtos.AssuntoBasicoRequestUpdateDto;
 import intraer.fablegis.application.dtos.assuntoBasicoDtos.AssuntoBasicoResponseDto;
@@ -8,7 +9,6 @@ import intraer.fablegis.domain.handlers.exceptions.ResourceAlreadyExistsExceptio
 import intraer.fablegis.domain.handlers.exceptions.ResourceNotFoundException;
 import intraer.fablegis.domain.handlers.exceptions.enums.AssuntoBasicoException;
 import intraer.fablegis.infrastructure.repositories.AssuntoBasicoRepository;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -16,10 +16,10 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 
 @Service
+@RequiredArgsConstructor
 public class AssuntoBasicoService {
 
-    @Autowired
-    private AssuntoBasicoRepository assuntoBasicoRepository;
+    private final AssuntoBasicoRepository assuntoBasicoRepository;
 
     public AssuntoBasicoResponseDto create(AssuntoBasicoRequestCreateDto request) throws Exception {
         if(assuntoBasicoRepository.existsByCodigo(request.codigo())){

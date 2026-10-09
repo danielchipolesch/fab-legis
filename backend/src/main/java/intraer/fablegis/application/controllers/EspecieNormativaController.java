@@ -1,12 +1,12 @@
 package intraer.fablegis.application.controllers;
 
+import lombok.RequiredArgsConstructor;
 import intraer.fablegis.application.dtos.especieNormativaDtos.EspecieNormativaRequestCreateDto;
 import intraer.fablegis.application.dtos.especieNormativaDtos.EspecieNormativaResponseDto;
 import intraer.fablegis.application.dtos.especieNormativaDtos.EspecieNormativaRequestUpdateDto;
 import intraer.fablegis.domain.services.EspecieNormativaService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -22,10 +22,10 @@ import java.util.List;
 @RequestMapping(value = "/v1/especie-normativa")
 //@CrossOrigin(origins = "*")
 @Tag(name = "Espécie Normativa", description = "Inserir descrição")
+@RequiredArgsConstructor
 public class EspecieNormativaController {
 
-    @Autowired
-    EspecieNormativaService especieNormativaService;
+    final EspecieNormativaService especieNormativaService;
 
     @PostMapping
     public ResponseEntity<EspecieNormativaResponseDto> post(@RequestBody @Valid EspecieNormativaRequestCreateDto request) throws Exception {

@@ -1,5 +1,6 @@
 package intraer.fablegis.domain.services;
 
+import lombok.RequiredArgsConstructor;
 import intraer.fablegis.application.dtos.documentoDtos.DocumentoResponseComAnexoTextualDto;
 import intraer.fablegis.application.dtos.itemAnexoParteNormativaDtos.EventoEstruturaDto;
 import intraer.fablegis.application.dtos.itemAnexoParteNormativaDtos.ItemAnexoParteNormativaRequestDto;
@@ -23,7 +24,6 @@ import intraer.fablegis.infrastructure.repositories.DocumentoRepository;
 import intraer.fablegis.infrastructure.repositories.ItemAnexoParteNormativaRepository;
 import intraer.fablegis.infrastructure.repositories.ItemParteFinalRepository;
 import intraer.fablegis.infrastructure.repositories.ItemPartePreliminarRepository;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -37,35 +37,27 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
+@RequiredArgsConstructor
 public class DocumentoParteNormativaService {
 
-    @Autowired
-    DocumentoRepository documentoRepository;
+    final DocumentoRepository documentoRepository;
 
-    @Autowired
-    ItemAnexoParteNormativaRepository itemAnexoParteNormativaRepository;
+    final ItemAnexoParteNormativaRepository itemAnexoParteNormativaRepository;
 
-    @Autowired
-    ItemPartePreliminarRepository itemPartePreliminarRepository;
+    final ItemPartePreliminarRepository itemPartePreliminarRepository;
 
-    @Autowired
-    ItemParteFinalRepository itemParteFinalRepository;
+    final ItemParteFinalRepository itemParteFinalRepository;
 
-    @Autowired
-    DocumentoHistoricoService documentoHistoricoService;
+    final DocumentoHistoricoService documentoHistoricoService;
 
     // A numeração é regra da espécie do documento (ver RegrasDasEspecies).
-    @Autowired
-    RegrasDasEspecies regras;
+    final RegrasDasEspecies regras;
 
-    @Autowired
-    DocumentoConcorrenciaService concorrenciaService;
+    final DocumentoConcorrenciaService concorrenciaService;
 
-    @Autowired
-    DocumentoPresencaEmitterRegistry presencaEmitterRegistry;
+    final DocumentoPresencaEmitterRegistry presencaEmitterRegistry;
 
-    @Autowired
-    tools.jackson.databind.ObjectMapper objectMapper;
+    final tools.jackson.databind.ObjectMapper objectMapper;
 
     // ─── Carregamento ────────────────────────────────────────────────────────────
 

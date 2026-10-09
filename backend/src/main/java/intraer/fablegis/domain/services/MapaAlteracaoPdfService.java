@@ -1,10 +1,10 @@
 package intraer.fablegis.domain.services;
 
+import lombok.RequiredArgsConstructor;
 import intraer.fablegis.application.dtos.emendaDtos.MapaAlteracaoPdfRequestDto;
 import intraer.fablegis.domain.util.tiptap.TipTapNode;
 import intraer.fablegis.domain.util.tiptap.XslFoContentRenderer;
 import tools.jackson.databind.ObjectMapper;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 
@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 // (DocumentoPdfService), em vez de window.print() sobre a página HTML. A4 paisagem,
 // com as mesmas cores da tabela em ComparisonPage.vue.
 @Service
+@RequiredArgsConstructor
 public class MapaAlteracaoPdfService {
 
     // Equivalentes sólidos das cores usadas em rgba() na tela (FOP não suporta canal
@@ -28,14 +29,11 @@ public class MapaAlteracaoPdfService {
     private static final String COR_REFERENCIA_ATUAL = HEADER_TEXT;
 
 
-    @Autowired
-    private ObjectMapper objectMapper;
+    private final ObjectMapper objectMapper;
 
-    @Autowired
-    private ImagemService imagemService;
+    private final ImagemService imagemService;
 
-    @Autowired
-    private LimitadorGeracaoPdf limitador;
+    private final LimitadorGeracaoPdf limitador;
 
     public byte[] gerarPdf(MapaAlteracaoPdfRequestDto req) {
         // Mesmo limite de renderizações simultâneas do PDF do documento (o FOP é o gargalo).

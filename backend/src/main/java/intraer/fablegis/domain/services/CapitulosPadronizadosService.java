@@ -1,5 +1,6 @@
 package intraer.fablegis.domain.services;
 
+import lombok.RequiredArgsConstructor;
 import intraer.fablegis.domain.entities.estruturaDocumento.Documento;
 import intraer.fablegis.domain.entities.estruturaDocumento.ItemAnexoParteNormativa;
 import intraer.fablegis.domain.entities.estruturaDocumento.ItemAnexoParteNormativaTipoEnum;
@@ -7,7 +8,6 @@ import intraer.fablegis.domain.entities.numeracaoDocumento.EspecieNormativa;
 import intraer.fablegis.domain.regras.EstruturaInicialDeNovoDocumento;
 import intraer.fablegis.domain.util.tiptap.ConteudoTipTapComOrientacao;
 import intraer.fablegis.infrastructure.repositories.ItemAnexoParteNormativaRepository;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -27,13 +27,12 @@ import static intraer.fablegis.domain.entities.estruturaDocumento.ItemAnexoParte
 // capítulos do assunto entre as Disposições Preliminares e as Gerais e tudo se
 // renumera sozinho.
 @Service
+@RequiredArgsConstructor
 public class CapitulosPadronizadosService implements EstruturaInicialDeNovoDocumento {
 
-    @Autowired
-    ItemAnexoParteNormativaRepository itemAnexoParteNormativaRepository;
+    final ItemAnexoParteNormativaRepository itemAnexoParteNormativaRepository;
 
-    @Autowired
-    tools.jackson.databind.ObjectMapper objectMapper;
+    final tools.jackson.databind.ObjectMapper objectMapper;
 
     private record No(ItemAnexoParteNormativaTipoEnum tipo, String titulo, String texto, List<No> filhos) {}
 

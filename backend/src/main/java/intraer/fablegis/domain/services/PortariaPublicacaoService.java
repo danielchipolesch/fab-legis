@@ -1,21 +1,21 @@
 package intraer.fablegis.domain.services;
 
+import lombok.RequiredArgsConstructor;
 import intraer.fablegis.application.dtos.documentoDtos.PortariaPublicacaoResponseDto;
 import intraer.fablegis.domain.entities.estruturaDocumento.Documento;
 import intraer.fablegis.domain.entities.estruturaDocumento.PortariaPublicacao;
 import intraer.fablegis.domain.entities.estruturaDocumento.TipoPortariaPublicacaoEnum;
 import intraer.fablegis.infrastructure.repositories.PortariaPublicacaoRepository;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.util.List;
 
 @Service
+@RequiredArgsConstructor
 public class PortariaPublicacaoService {
 
-    @Autowired
-    private PortariaPublicacaoRepository portariaPublicacaoRepository;
+    private final PortariaPublicacaoRepository portariaPublicacaoRepository;
 
     public List<PortariaPublicacaoResponseDto> listar(Long documentoId) {
         return portariaPublicacaoRepository.findByDocumentoIdOrderByDtCriacaoAsc(documentoId).stream()

@@ -1,5 +1,6 @@
 package intraer.fablegis.domain.services;
 
+import lombok.RequiredArgsConstructor;
 import intraer.fablegis.domain.handlers.exceptions.ResourceNotFoundException;
 import intraer.fablegis.application.dtos.emendaDtos.EmendaAcaoEnum;
 import intraer.fablegis.application.dtos.emendaDtos.EmendaElementoRequestDto;
@@ -7,7 +8,6 @@ import intraer.fablegis.application.dtos.emendaDtos.EmendaIncluirRequestDto;
 import intraer.fablegis.application.dtos.emendaDtos.MapaAlteracaoItemResponseDto;
 import intraer.fablegis.domain.entities.estruturaDocumento.*;
 import intraer.fablegis.infrastructure.repositories.*;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -17,6 +17,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
+@RequiredArgsConstructor
 public class EmendaService {
 
     private static final String DOC_NAO_ENCONTRADO   = "Documento não encontrado";
@@ -30,12 +31,12 @@ public class EmendaService {
     private static final String ELEMENTO_JA_PUBLICADO_PERMANENTE =
             "Elemento já publicado; não é possível desfazer a emenda. Use alterar ou revogar para uma nova emenda.";
 
-    @Autowired private DocumentoRepository documentoRepository;
-    @Autowired private ItemAnexoParteNormativaRepository normativaRepository;
-    @Autowired private ItemPartePreliminarRepository preliminarRepository;
-    @Autowired private ItemParteFinalRepository finalRepository;
-    @Autowired private EmendaHistoricoRepository historicoRepository;
-    @Autowired private DocumentoConcorrenciaService concorrenciaService;
+    private final DocumentoRepository documentoRepository;
+    private final ItemAnexoParteNormativaRepository normativaRepository;
+    private final ItemPartePreliminarRepository preliminarRepository;
+    private final ItemParteFinalRepository finalRepository;
+    private final EmendaHistoricoRepository historicoRepository;
+    private final DocumentoConcorrenciaService concorrenciaService;
 
     // ─── Emendar elemento existente ───────────────────────────────────────────────
 

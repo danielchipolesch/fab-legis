@@ -11,7 +11,6 @@ import intraer.fablegis.domain.entities.numeracaoDocumento.EspecieNormativa;
 import intraer.fablegis.domain.regras.convencional.LeiauteHtmlDeEspecieConvencional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.test.util.ReflectionTestUtils;
 import tools.jackson.databind.ObjectMapper;
 
 import java.sql.Timestamp;
@@ -29,12 +28,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 // a regra de consistência entre formatos no CLAUDE.md. Sem Spring nem banco.
 class LeiauteHtmlDeEspecieConvencionalTest {
 
-    private final LeiauteHtmlDeEspecieConvencional service = new LeiauteHtmlDeEspecieConvencional();
+    private LeiauteHtmlDeEspecieConvencional service;
 
     @BeforeEach
     void setUp() {
-        ReflectionTestUtils.setField(service, "numeracaoService", new NumeracaoService());
-        ReflectionTestUtils.setField(service, "objectMapper", new ObjectMapper());
+        service = new LeiauteHtmlDeEspecieConvencional(new ObjectMapper(), null, new NumeracaoService());
     }
 
     // ─── Fixtures ────────────────────────────────────────────────────────────────

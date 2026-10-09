@@ -1,5 +1,6 @@
 package intraer.fablegis.application.controllers;
 
+import lombok.RequiredArgsConstructor;
 import intraer.fablegis.application.dtos.usuarioDtos.RedefinirSenhaRequestDto;
 import intraer.fablegis.application.dtos.usuarioDtos.UsuarioBuscaResponseDto;
 import intraer.fablegis.application.dtos.usuarioDtos.UsuarioCreateRequestDto;
@@ -12,7 +13,6 @@ import intraer.fablegis.infrastructure.repositories.UsuarioRepository;
 import intraer.fablegis.infrastructure.security.AutenticacaoUtil;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -29,13 +29,12 @@ import java.util.List;
 @RequestMapping(value = "/v1/usuarios", produces = MediaType.APPLICATION_JSON_VALUE)
 @Tag(name = "Usuário", description = "Gestão de usuários (administração)")
 @PreAuthorize("hasRole('ADMIN')")
+@RequiredArgsConstructor
 public class UsuarioController {
 
-    @Autowired
-    private UsuarioService usuarioService;
+    private final UsuarioService usuarioService;
 
-    @Autowired
-    private UsuarioRepository usuarioRepository;
+    private final UsuarioRepository usuarioRepository;
 
     @GetMapping
     public ResponseEntity<List<UsuarioResponseDto>> listar() {

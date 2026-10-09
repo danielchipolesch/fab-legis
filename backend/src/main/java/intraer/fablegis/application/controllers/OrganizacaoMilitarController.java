@@ -1,9 +1,9 @@
 package intraer.fablegis.application.controllers;
 
+import lombok.RequiredArgsConstructor;
 import intraer.fablegis.application.dtos.usuarioDtos.OrganizacaoMilitarResponseDto;
 import intraer.fablegis.infrastructure.repositories.OrganizacaoMilitarRepository;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.CacheControl;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -19,10 +19,10 @@ import java.util.List;
 @RestController
 @RequestMapping(value = "/v1/organizacoes-militares", produces = MediaType.APPLICATION_JSON_VALUE)
 @Tag(name = "Organização Militar", description = "Consulta de organizações militares")
+@RequiredArgsConstructor
 public class OrganizacaoMilitarController {
 
-    @Autowired
-    private OrganizacaoMilitarRepository organizacaoMilitarRepository;
+    private final OrganizacaoMilitarRepository organizacaoMilitarRepository;
 
     // Mesma razão do EspecieNormativaController.getAll: lista de referência que muda raramente
     // (hoje só a OM "SISTEMA" seedada).

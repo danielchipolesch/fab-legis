@@ -1,5 +1,6 @@
 package intraer.fablegis.infrastructure.security;
 
+import lombok.RequiredArgsConstructor;
 import intraer.fablegis.domain.entities.usuario.OrganizacaoMilitar;
 import intraer.fablegis.domain.entities.usuario.PapelEnum;
 import intraer.fablegis.domain.entities.usuario.Usuario;
@@ -8,7 +9,6 @@ import intraer.fablegis.infrastructure.repositories.OrganizacaoMilitarRepository
 import intraer.fablegis.infrastructure.repositories.UsuarioRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
@@ -27,13 +27,14 @@ import java.util.EnumSet;
 // admin -- ele deveria ser reatribuído à OM real assim que a tela de
 // administração de usuários existir (ver fase 02 do design doc).
 @Component
+@RequiredArgsConstructor
 public class DataSeeder implements ApplicationRunner {
 
     private static final Logger log = LoggerFactory.getLogger(DataSeeder.class);
 
-    @Autowired private UsuarioRepository usuarioRepository;
-    @Autowired private OrganizacaoMilitarRepository omRepository;
-    @Autowired private PasswordEncoder passwordEncoder;
+    private final UsuarioRepository usuarioRepository;
+    private final OrganizacaoMilitarRepository omRepository;
+    private final PasswordEncoder passwordEncoder;
 
     @Value("${app.admin.cpf:11144477735}")
     private String adminCpf;

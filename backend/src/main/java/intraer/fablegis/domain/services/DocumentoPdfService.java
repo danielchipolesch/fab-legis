@@ -1,5 +1,6 @@
 package intraer.fablegis.domain.services;
 
+import lombok.RequiredArgsConstructor;
 import intraer.fablegis.application.dtos.anexoDtos.AnexoResponseDto;
 import intraer.fablegis.application.dtos.itemAnexoParteNormativaDtos.ItemAnexoParteNormativaResponseDto;
 import intraer.fablegis.application.dtos.itemPartePreliminarDtos.ItemPartePreliminarResponseDto;
@@ -10,7 +11,6 @@ import intraer.fablegis.domain.regras.RegrasDasEspecies;
 import intraer.fablegis.domain.handlers.exceptions.enums.DocumentoException;
 import intraer.fablegis.infrastructure.repositories.AnexoRepository;
 import intraer.fablegis.infrastructure.repositories.DocumentoRepository;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,29 +24,23 @@ import java.util.List;
 import java.util.Set;
 
 @Service
+@RequiredArgsConstructor
 public class DocumentoPdfService {
 
 
-    @Autowired
-    private DocumentoRepository documentoRepository;
+    private final DocumentoRepository documentoRepository;
 
-    @Autowired
-    private DocumentoParteNormativaService documentoParteNormativaService;
+    private final DocumentoParteNormativaService documentoParteNormativaService;
 
-    @Autowired
-    private RegrasDasEspecies regras;
+    private final RegrasDasEspecies regras;
 
-    @Autowired
-    private ImagemService imagemService;
+    private final ImagemService imagemService;
 
-    @Autowired
-    private AnexoRepository anexoRepository;
+    private final AnexoRepository anexoRepository;
 
-    @Autowired
-    private LimitadorGeracaoPdf limitador;
+    private final LimitadorGeracaoPdf limitador;
 
-    @Autowired
-    private DocumentoRenderCacheService renderCacheService;
+    private final DocumentoRenderCacheService renderCacheService;
 
     // A geração armazenada (depois de aprovar/publicar/revogar) não tem ninguém esperando o
     // resultado: pode aguardar bem mais por uma vaga que um pedido de tela.

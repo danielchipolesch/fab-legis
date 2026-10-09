@@ -1,5 +1,6 @@
 package intraer.fablegis.domain.services;
 
+import lombok.RequiredArgsConstructor;
 import intraer.fablegis.domain.entities.estruturaDocumento.Documento;
 import intraer.fablegis.domain.entities.estruturaDocumento.SituacaoBcaEnum;
 import intraer.fablegis.domain.entities.estruturaDocumento.SituacaoLocalEnum;
@@ -8,7 +9,6 @@ import intraer.fablegis.domain.entities.usuario.Usuario;
 import intraer.fablegis.infrastructure.repositories.DocumentoCompartilhamentoRepository;
 import intraer.fablegis.infrastructure.repositories.DocumentoRepository;
 import intraer.fablegis.infrastructure.security.AutenticacaoUtil;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 
@@ -26,16 +26,15 @@ import java.util.Set;
 // puramente administrativo (usuários/OMs) e não tem poder nenhum sobre o
 // ciclo de vida de um documento -- ver PapelEnum.
 @Service
+@RequiredArgsConstructor
 public class DocumentoAcessoService {
 
     private static final Set<SituacaoLocalEnum> STATUS_EXCLUIVEIS = EnumSet.of(
             SituacaoLocalEnum.RASCUNHO, SituacaoLocalEnum.MINUTA);
 
-    @Autowired
-    private DocumentoRepository documentoRepository;
+    private final DocumentoRepository documentoRepository;
 
-    @Autowired
-    private DocumentoCompartilhamentoRepository compartilhamentoRepository;
+    private final DocumentoCompartilhamentoRepository compartilhamentoRepository;
 
     // Pode editar o que COMPÕE o documento (texto de cada elemento, estrutura, metadados, anexos, cabeçalho da NPA, emendas)
     // AGORA -- a etapa manda, e é aqui, na única fonte de checagem de acesso, que ela é barrada (antes, só alguns serviços

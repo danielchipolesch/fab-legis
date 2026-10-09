@@ -1,5 +1,6 @@
 package intraer.fablegis.infrastructure.configurations;
 
+import lombok.RequiredArgsConstructor;
 import intraer.fablegis.infrastructure.security.UsuarioDetailsService;
 import intraer.fablegis.infrastructure.security.UsuarioPrincipal;
 import com.nimbusds.jose.jwk.JWKSet;
@@ -9,7 +10,6 @@ import com.nimbusds.jose.jwk.source.JWKSource;
 import com.nimbusds.jose.proc.SecurityContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -53,6 +53,7 @@ import java.util.UUID;
 // completo: essa rota deixa uma futura troca pro Keycloak restrita a
 // issuer-uri + re-registro do client, sem tocar frontend/collab de novo.
 @Configuration
+@RequiredArgsConstructor
 public class AuthorizationServerConfig {
 
     private static final Logger log = LoggerFactory.getLogger(AuthorizationServerConfig.class);
@@ -66,14 +67,11 @@ public class AuthorizationServerConfig {
     @Value("${app.frontend.login-url}")
     private String frontendLoginUrl;
 
-    @Autowired
-    private UsuarioDetailsService usuarioDetailsService;
+    private final UsuarioDetailsService usuarioDetailsService;
 
-    @Autowired
-    private PasswordEncoder passwordEncoder;
+    private final PasswordEncoder passwordEncoder;
 
-    @Autowired
-    private CorsConfigurationSource corsConfigurationSource;
+    private final CorsConfigurationSource corsConfigurationSource;
 
     // formLogin (chain 2 abaixo) precisa de um AuthenticationManager próprio --
     // reaproveita o mesmo UsuarioDetailsService/PasswordEncoder que a

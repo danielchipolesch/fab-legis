@@ -1,5 +1,6 @@
 package intraer.fablegis.application.controllers;
 
+import lombok.RequiredArgsConstructor;
 import intraer.fablegis.application.dtos.documentoDtos.DocumentoFilaResponseDto;
 import intraer.fablegis.application.dtos.documentoDtos.DocumentoHistoricoResponseDto;
 import intraer.fablegis.application.dtos.documentoDtos.DocumentoRequestCreateDto;
@@ -45,7 +46,6 @@ import intraer.fablegis.domain.services.PortariaPublicacaoService;
 import intraer.fablegis.infrastructure.security.AutenticacaoUtil;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -69,48 +69,36 @@ import java.util.Set;
 @RestController
 @RequestMapping(value = "/v1/documentos", produces = MediaType.APPLICATION_JSON_VALUE)
 @Tag(name = "Documento", description = "Gerenciamento de documentos normativos")
+@RequiredArgsConstructor
 public class DocumentoController {
 
     private static final String BASE = "/v1/documentos";
 
-    @Autowired
-    private DocumentoService documentoService;
+    private final DocumentoService documentoService;
 
-    @Autowired
-    private DocumentoStatusService documentoStatusService;
+    private final DocumentoStatusService documentoStatusService;
 
-    @Autowired
-    private DocumentoParteNormativaService documentoParteNormativaService;
+    private final DocumentoParteNormativaService documentoParteNormativaService;
 
-    @Autowired
-    private DocumentoHistoricoService documentoHistoricoService;
+    private final DocumentoHistoricoService documentoHistoricoService;
 
-    @Autowired
-    private DocumentoPdfService documentoPdfService;
+    private final DocumentoPdfService documentoPdfService;
 
-    @Autowired
-    private DocumentoHtmlService documentoHtmlService;
+    private final DocumentoHtmlService documentoHtmlService;
 
-    @Autowired
-    private EmendaService emendaService;
+    private final EmendaService emendaService;
 
-    @Autowired
-    private MapaAlteracaoPdfService mapaAlteracaoPdfService;
+    private final MapaAlteracaoPdfService mapaAlteracaoPdfService;
 
-    @Autowired
-    private DocumentoCompartilhamentoService compartilhamentoService;
+    private final DocumentoCompartilhamentoService compartilhamentoService;
 
-    @Autowired
-    private DocumentoPresencaService presencaService;
+    private final DocumentoPresencaService presencaService;
 
-    @Autowired
-    private LogAuditoriaService logAuditoriaService;
+    private final LogAuditoriaService logAuditoriaService;
 
-    @Autowired
-    private ImagemService imagemService;
+    private final ImagemService imagemService;
 
-    @Autowired
-    private PortariaPublicacaoService portariaPublicacaoService;
+    private final PortariaPublicacaoService portariaPublicacaoService;
 
     private EntityModel<DocumentoResponseSemAnexoTextualDto> toModel(DocumentoResponseSemAnexoTextualDto dto) {
         Long id = dto.idDocumento();

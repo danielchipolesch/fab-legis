@@ -1,5 +1,6 @@
 package intraer.fablegis.domain.services;
 
+import lombok.RequiredArgsConstructor;
 import intraer.fablegis.application.dtos.usuarioDtos.RedefinirSenhaRequestDto;
 import intraer.fablegis.application.dtos.usuarioDtos.UsuarioCreateRequestDto;
 import intraer.fablegis.application.dtos.usuarioDtos.UsuarioResponseDto;
@@ -16,7 +17,6 @@ import intraer.fablegis.infrastructure.repositories.OrganizacaoMilitarRepository
 import intraer.fablegis.infrastructure.repositories.PostoGraduacaoRepository;
 import intraer.fablegis.infrastructure.repositories.UsuarioRepository;
 import intraer.fablegis.infrastructure.security.AutenticacaoUtil;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,19 +29,16 @@ import java.util.List;
 // é o único caminho, e já era a intenção original de ter esse campo (ver
 // comentário em Usuario.java).
 @Service
+@RequiredArgsConstructor
 public class UsuarioService {
 
-    @Autowired
-    private UsuarioRepository usuarioRepository;
+    private final UsuarioRepository usuarioRepository;
 
-    @Autowired
-    private OrganizacaoMilitarRepository organizacaoMilitarRepository;
+    private final OrganizacaoMilitarRepository organizacaoMilitarRepository;
 
-    @Autowired
-    private PostoGraduacaoRepository postoGraduacaoRepository;
+    private final PostoGraduacaoRepository postoGraduacaoRepository;
 
-    @Autowired
-    private PasswordEncoder passwordEncoder;
+    private final PasswordEncoder passwordEncoder;
 
     public List<UsuarioResponseDto> listar() {
         return usuarioRepository.findAll().stream()

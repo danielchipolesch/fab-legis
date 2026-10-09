@@ -1,8 +1,8 @@
 package intraer.fablegis.domain.services;
 
+import lombok.RequiredArgsConstructor;
 import io.minio.*;
 import io.minio.http.Method;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -17,6 +17,7 @@ import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 @Service
+@RequiredArgsConstructor
 public class ImagemService {
 
     // Validade da URL assinada devolvida ao navegador -- longa o bastante para não
@@ -25,12 +26,10 @@ public class ImagemService {
     // abaixo).
     private static final int EXPIRY_MINUTES = 60;
 
-    @Autowired
-    private MinioClient minioClient;
+    private final MinioClient minioClient;
 
     // Usado só pra assinar URLs -- ver MinioConfig.minioClientPublico().
-    @Autowired
-    private MinioClient minioClientPublico;
+    private final MinioClient minioClientPublico;
 
     @Value("${minio.bucket}")
     private String bucket;
