@@ -78,7 +78,7 @@ A checagem é centralizada em `DocumentoAcessoService.podeMudarStatus()`; tentat
 
 **Editar durante a revisão:** o Aprovador atribuído pode editar o conteúdo enquanto o documento **ainda não publicado** estiver em `EM_REVISAO`. A revisão de uma alteração de documento `PUBLICADO` é somente leitura: o texto vigente só muda por emenda, na etapa `EM_ALTERACAO`. A partir de `EM_PUBLICACAO` — e em todo o fluxo de revogação — ninguém mais edita o conteúdo, nem o autor original.
 
-**Regra de imutabilidade:** o conteúdo textual só pode ser alterado em `RASCUNHO`, `MINUTA` (edição livre) ou `EM_ALTERACAO` (só por emenda, elemento a elemento). O salvamento em massa é rejeitado para qualquer documento `PUBLICADO`. Para criar uma revisão totalmente nova, use a **clonagem**, que gera um novo documento em `RASCUNHO` com novo número secundário, preservando o original como registro histórico.
+**Regra de imutabilidade:** o conteúdo textual só pode ser alterado em `RASCUNHO`, `MINUTA` (edição livre) ou `EM_ALTERACAO` (só por emenda, elemento a elemento). Os **anexos** de imagem seguem a mesma regra de edição do resto do documento: só adiciona ou remove anexo quem pode editá-lo (`@PreAuthorize` `podeEditar`, o mesmo de `DocumentoController`) e só enquanto o documento está em edição — `RASCUNHO`, `MINUTA`, `EM_ALTERACAO` ou `EM_REVISAO` (revisor atribuído), `SituacaoLocalEnum.aceitaEdicao`; de `EM_PUBLICACAO` em diante o anexo também está congelado (`403`). O salvamento em massa é rejeitado para qualquer documento `PUBLICADO`. Para criar uma revisão totalmente nova, use a **clonagem**, que gera um novo documento em `RASCUNHO` com novo número secundário, preservando o original como registro histórico.
 
 ## Versões do documento: vigente × em tramitação
 

@@ -8,6 +8,7 @@ import intraer.fablegis.domain.entities.estruturaDocumento.OrientacaoDoAnexo;
 import intraer.fablegis.domain.entities.estruturaDocumento.SituacaoLocalEnum;
 import intraer.fablegis.domain.handlers.exceptions.InvalidInputException;
 import intraer.fablegis.domain.handlers.exceptions.ResourceNotFoundException;
+import intraer.fablegis.domain.handlers.exceptions.StatusCannotBeUpdatedException;
 import intraer.fablegis.domain.handlers.exceptions.enums.DocumentoException;
 import intraer.fablegis.infrastructure.repositories.AnexoRepository;
 import intraer.fablegis.infrastructure.repositories.DocumentoRepository;
@@ -51,6 +52,7 @@ public class AnexoService {
         Documento documento = documentoRepository.findById(documentoId)
                 .orElseThrow(() -> new ResourceNotFoundException(DocumentoException.NOT_FOUND.getMessage()));
 
+        exigirDocumentoEmEdicao(documento);
         OrientacaoDoAnexo orientacaoDoAnexo = orientacaoEscolhida(orientacao, arquivo);
 
         String url = imagemService.uploadImagem(arquivo);
@@ -105,8 +107,20 @@ public class AnexoService {
         }
     }
 
+    // Os anexos fazem parte do documento, então seguem a mesma regra de edição do resto dele (metadados e parte normativa):
+    // quem pode pedir é decidido no controller (@PreAuthorize podeEditar); aqui só se barra a etapa -- ver SituacaoLocalEnum.aceitaEdicao.
+    private void exigirDocumentoEmEdicao(Documento documento) {
+        if (!documento.getSituacaoLocal().aceitaEdicao()) {
+            throw new StatusCannotBeUpdatedException(DocumentoException.ANEXOS_CANNOT_BE_UPDATED.getMessage());
+        }
+    }
+
     @Transactional
     public void remover(Long documentoId, Long anexoId) {
+        Documento documento = documentoRepository.findById(documentoId)
+                .orElseThrow(() -> new ResourceNotFoundException(DocumentoException.NOT_FOUND.getMessage()));
+        exigirDocumentoEmEdicao(documento);
+
         Anexo anexo = anexoRepository.findByIdAndDocumentoId(anexoId, documentoId)
                 .orElseThrow(() -> new ResourceNotFoundException("Anexo não encontrado."));
         anexoRepository.delete(anexo);

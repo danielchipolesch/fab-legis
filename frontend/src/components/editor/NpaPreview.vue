@@ -313,5 +313,5 @@ async function resolverImagens() {
 .pdf-page--paisagem .anexo-imagem img { max-height: 560px; }
 .anexo-titulo { text-align: center; font-weight: 700; margin: 0 0 6px; }
 .anexo-imagem { text-align: center; }
-.anexo-imagem img { max-width: 100%; }
+.anexo-imagem img { max-width: 100%; max-height: 850px; }  /* cabe numa folha sem estourar, mantendo as proporções (como no PDF) */
 </style>

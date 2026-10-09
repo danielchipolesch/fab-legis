@@ -364,7 +364,7 @@
                   </q-tooltip>
                 </q-icon>
                 <span class="text-caption col ellipsis">
-                  ANEXO {{ toRoman(anexo.ordem + 1) }} — {{ anexo.titulo }}
+                  {{ perfil.rotuloDoAnexo(anexo.ordem) }} — {{ anexo.titulo }}
                 </span>
                 <q-btn
                   flat round dense size="xs" color="negative"
@@ -939,16 +939,6 @@ async function onAnexoAdicionado(files) {
 // q-uploader não passa pelo client.js (http.js), então não herda a injeção
 // automática do Authorization -- precisa ser passado explicitamente aqui.
 const anexoUploadHeaders = computed(() => [{ name: 'Authorization', value: `Bearer ${authStore.token}` }])
-
-function toRoman(n) {
-  if (n <= 0) return ''
-  const vals = [1000,900,500,400,100,90,50,40,10,9,5,4,1]
-  const syms = ['M','CM','D','CD','C','XC','L','XL','X','IX','V','IV','I']
-  let result = ''
-  for (let i = 0; i < vals.length; i++)
-    while (n >= vals[i]) { result += syms[i]; n -= vals[i] }
-  return result
-}
 
 function abrirDialogAnexo() {
   anexoForm.titulo = ''

@@ -6,11 +6,14 @@ import intraer.fablegis.domain.entities.estruturaDocumento.Documento;
 import intraer.fablegis.domain.entities.estruturaDocumento.OrientacaoDoAnexo;
 import intraer.fablegis.domain.entities.estruturaDocumento.SituacaoLocalEnum;
 import intraer.fablegis.domain.handlers.exceptions.InvalidInputException;
+import intraer.fablegis.domain.handlers.exceptions.StatusCannotBeUpdatedException;
 import intraer.fablegis.infrastructure.repositories.AnexoRepository;
 import intraer.fablegis.infrastructure.repositories.DocumentoRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
@@ -115,6 +118,47 @@ class AnexoServiceTest {
         verify(anexoRepository).save(salvo.capture());
         assertThat(salvo.getValue().getOrdem()).isEqualTo(3);
         assertThat(salvo.getValue().getTitulo()).isEqualTo("Terceiro");
+    }
+
+    // ─── Etapa do documento: mesma regra de edição do resto dele (SituacaoLocalEnum.aceitaEdicao) ───────────────
+
+    @ParameterizedTest
+    @EnumSource(value = SituacaoLocalEnum.class,
+            names = {"EM_PUBLICACAO", "ANALISE_REVOGACAO", "EM_REVOGACAO", "CANCELADO", "SEM_ETAPA"})
+    void naoSeAnexaComODocumentoCongelado(SituacaoLocalEnum etapa) throws Exception {
+        documento.setSituacaoLocal(etapa);
+
+        assertThatThrownBy(() -> service.adicionar(7L, "Anexo", png(100, 100), null))
+                .isInstanceOf(StatusCannotBeUpdatedException.class)
+                .hasMessageContaining("só podem ser alterados enquanto o documento está em edição");
+
+        verify(imagemService, never()).uploadImagem(any());
+        verify(anexoRepository, never()).save(any());
+    }
+
+    @ParameterizedTest
+    @EnumSource(value = SituacaoLocalEnum.class,
+            names = {"EM_PUBLICACAO", "ANALISE_REVOGACAO", "EM_REVOGACAO", "CANCELADO", "SEM_ETAPA"})
+    void naoSeRemoveAnexoComODocumentoCongelado(SituacaoLocalEnum etapa) {
+        documento.setSituacaoLocal(etapa);
+
+        assertThatThrownBy(() -> service.remover(7L, 3L)).isInstanceOf(StatusCannotBeUpdatedException.class);
+
+        verify(anexoRepository, never()).delete(any());
+    }
+
+    @ParameterizedTest
+    @EnumSource(value = SituacaoLocalEnum.class, names = {"RASCUNHO", "MINUTA", "EM_ALTERACAO", "EM_REVISAO"})
+    void nasEtapasDeEdicaoSeAnexaESeRemove(SituacaoLocalEnum etapa) throws Exception {
+        documento.setSituacaoLocal(etapa);
+        var existente = new Anexo();
+        existente.setId(3L);
+        when(anexoRepository.findByIdAndDocumentoId(3L, 7L)).thenReturn(Optional.of(existente));
+
+        assertThat(service.adicionar(7L, "Anexo", png(100, 100), null).titulo()).isEqualTo("Anexo");
+        service.remover(7L, 3L);
+
+        verify(anexoRepository).delete(existente);
     }
 
     @Test

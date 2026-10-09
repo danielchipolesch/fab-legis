@@ -27,7 +27,7 @@ Nenhum poder sobre o ciclo de vida de um documento é implícito — todos os pa
 
 | Papel | Concede |
 |---|---|
-| **Editor** (`EDIT`) | Cria documentos e edita/exclui (em Rascunho/Minuta) os que autorou ou dos quais é coautor; move o documento entre as etapas do fluxo escolhendo, pessoalmente, quem revisa ou quem publica a seguir (ver abaixo) |
+| **Editor** (`EDIT`) | Cria documentos e edita (inclusive os **anexos**, que seguem a mesma regra de edição) / exclui (em Rascunho/Minuta) os que autorou ou dos quais é coautor; move o documento entre as etapas do fluxo escolhendo, pessoalmente, quem revisa ou quem publica a seguir (ver abaixo) |
 | **Aprovador** (`APROV`) | Age só nos documentos que lhe foram atribuídos pessoalmente como revisor (`EM_REVISAO`/`ANALISE_REVOGACAO`): aprova (escolhendo o Publicador) ou devolve. Também pode, livremente, reabrir para alteração qualquer documento publicado da própria OM (`SEM_ETAPA → EM_ALTERACAO`) e cancelar uma alteração em curso sem alterações pendentes (`EM_ALTERACAO → SEM_ETAPA`) |
 | **Publicador** (`PUBLIC`) | Age só nos documentos que lhe foram atribuídos pessoalmente como publicador (`EM_PUBLICACAO`/`EM_REVOGACAO`): publica (podendo devolver) ou revoga (com portaria/BCA e parte preliminar; uma revogação aprovada não é devolvida) |
 | **Admin** | Papel puramente administrativo — gerencia usuários e organizações militares. Não edita, revisa nem publica documento nenhum, mesmo o próprio |

@@ -51,6 +51,7 @@ const PERFIS = {
     filhosPermitidos: convencional.filhosPermitidos,
     tiposDeAgrupamento: convencional.TIPOS_DE_AGRUPAMENTO,
     renumerar: convencional.renumerar,
+    rotuloDoAnexo: convencional.rotuloDoAnexo,
     // Nas espécies convencionais o artigo (não agrupamento) entra antes do primeiro subagrupamento do pai.
     conteudoAntesDosAgrupamentos: true,
     // Promover/rebaixar um elemento (mudar o nível na hierarquia do artigo) só existe nas espécies convencionais.
@@ -65,6 +66,7 @@ const PERFIS = {
     filhosPermitidos: npa.filhosPermitidos,
     tiposDeAgrupamento: npa.TIPOS_DE_AGRUPAMENTO,
     renumerar: npa.renumerar,
+    rotuloDoAnexo: npa.rotuloDoAnexo,
     // Na comunicação oficial padronizada (NPA) seção, subseção e parágrafo do mesmo pai dividem a sequência, em qualquer ordem.
     conteudoAntesDosAgrupamentos: false,
     permitePromoverRebaixar: false,

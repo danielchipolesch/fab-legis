@@ -30,3 +30,17 @@ describe('módulos', () => {
     expect(moduloDe('CONVENCIONAL').colunasOcultas).toEqual([])
   })
 })
+
+// O rótulo do anexo de imagem vem do perfil da espécie -- o mesmo que o PDF (RotuloDosAnexos, backend) -- e é o que a
+// lista de anexos da barra lateral mostra: romano nas convencionais (o ANEXO I é o corpo normativo) e letras na NPA.
+describe('rótulo do anexo por perfil', () => {
+  it('espécie convencional: ANEXO II, III, IV…', () => {
+    const { rotuloDoAnexo } = perfilDe('CONVENCIONAL')
+    expect([1, 2, 3, 8, 13].map(rotuloDoAnexo)).toEqual(['ANEXO II', 'ANEXO III', 'ANEXO IV', 'ANEXO IX', 'ANEXO XIV'])
+  })
+
+  it('NPA: ANEXO A, B, C… e AA depois do Z', () => {
+    const { rotuloDoAnexo } = perfilDe('COMUNICACAO_OFICIAL_PADRONIZADA')
+    expect([1, 2, 3, 26, 27].map(rotuloDoAnexo)).toEqual(['ANEXO A', 'ANEXO B', 'ANEXO C', 'ANEXO Z', 'ANEXO AA'])
+  })
+})

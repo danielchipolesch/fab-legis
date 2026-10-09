@@ -15,6 +15,7 @@ import java.sql.Timestamp;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.within;
 
 // A Portaria (1ª página do PDF) só existe depois da 1ª publicação -- ver VersoesDocumento.exibePortaria
 // e docs/exportacao-pdf.md. Sem Spring nem FOP: só a estrutura do XSL-FO gerado.
@@ -188,6 +189,80 @@ class DocumentoFoBuilderTest {
                 List.of(), List.of(artigo(1)), List.of(anexo(1, "Curto")));
 
         assertThat(textoCorrido(arvoreDeAreas(fo))).doesNotContain("Continuação do");
+    }
+
+    // ─── Imagem de anexo maior que a página: redimensionada para caber, mantendo as proporções ──────────────────
+
+    // PNG sólido (comprime muito pouco espaço, mas tem as dimensões em pixels pedidas) como data URI.
+    private static String pngComoDataUri(int largura, int altura) throws Exception {
+        var imagem = new java.awt.image.BufferedImage(largura, altura, java.awt.image.BufferedImage.TYPE_INT_RGB);
+        var saida = new java.io.ByteArrayOutputStream();
+        javax.imageio.ImageIO.write(imagem, "png", saida);
+        return "data:image/png;base64," + java.util.Base64.getEncoder().encodeToString(saida.toByteArray());
+    }
+
+    private void servirImagem(String dataUri) {
+        var imagens = org.mockito.Mockito.mock(ImagemService.class);
+        org.mockito.Mockito.when(imagens.getImageAsDataUri(org.mockito.ArgumentMatchers.anyString())).thenReturn(dataUri);
+        ReflectionTestUtils.setField(builder, "imagemService", imagens);
+    }
+
+    private static intraer.fablegis.application.dtos.anexoDtos.AnexoResponseDto anexoComImagem(
+            OrientacaoDoAnexo orientacao) {
+        return new intraer.fablegis.application.dtos.anexoDtos.AnexoResponseDto(
+                1L, "Imagem grande", "http://minio/bucket/imagem.png", 1, orientacao);
+    }
+
+    // Tamanho (em milésimos de ponto) que a última imagem da árvore de áreas ocupa: <viewport ... pos="x y largura altura">.
+    private static long[] tamanhoDaUltimaImagem(String arvore) {
+        var m = java.util.regex.Pattern.compile("<viewport[^>]*pos=\"(-?\\d+) (-?\\d+) (\\d+) (\\d+)\"").matcher(arvore);
+        long[] tamanho = null;
+        while (m.find()) tamanho = new long[]{Long.parseLong(m.group(3)), Long.parseLong(m.group(4))};
+        return tamanho;
+    }
+
+    private static long cm(double centimetros) { return Math.round(centimetros * 28346.457); } // em milésimos de ponto
+
+    // Capa + ANEXO I + o anexo: a imagem não pode gerar página extra nem sair cortada, e as proporções se mantêm.
+    @Test
+    void umaImagemAltaEmRetratoEncolheParaCaberEmUmaSoPagina() throws Exception {
+        servirImagem(pngComoDataUri(1500, 4500)); // 1:3 -- a 17 cm de largura teria 51 cm de altura
+        var fo = builder.buildFo(documento(SituacaoBcaEnum.NAO_PUBLICADO, SituacaoLocalEnum.MINUTA),
+                List.of(), List.of(artigo(1)), List.of(anexoComImagem(OrientacaoDoAnexo.RETRATO)));
+        var arvore = arvoreDeAreas(fo);
+
+        assertThat(orientacoesDasPaginas(arvore)).containsExactly("RETRATO", "RETRATO", "RETRATO");
+        var imagem = tamanhoDaUltimaImagem(arvore);
+        assertThat(imagem[1]).isLessThanOrEqualTo(cm(22.5));          // cabe na altura da caixa
+        assertThat(imagem[0]).isLessThanOrEqualTo(cm(17));                         // e na largura
+        assertThat((double) imagem[0] / imagem[1]).isCloseTo(1.0 / 3.0, within(0.01)); // 1:3 mantido
+    }
+
+    @Test
+    void umaImagemAltaEmPaisagemEncolheParaCaberEmUmaSoPagina() throws Exception {
+        servirImagem(pngComoDataUri(1000, 3000));
+        var fo = builder.buildFo(documento(SituacaoBcaEnum.NAO_PUBLICADO, SituacaoLocalEnum.MINUTA),
+                List.of(), List.of(artigo(1)), List.of(anexoComImagem(OrientacaoDoAnexo.PAISAGEM)));
+        var arvore = arvoreDeAreas(fo);
+
+        assertThat(orientacoesDasPaginas(arvore)).containsExactly("RETRATO", "RETRATO", "PAISAGEM");
+        var imagem = tamanhoDaUltimaImagem(arvore);
+        assertThat(imagem[1]).isLessThanOrEqualTo(cm(14));
+        assertThat(imagem[0]).isLessThanOrEqualTo(cm(25.7));
+        assertThat((double) imagem[0] / imagem[1]).isCloseTo(1.0 / 3.0, within(0.01));
+    }
+
+    @Test
+    void umaImagemLargaEmRetratoEncolheParaALarguraDaCaixa() throws Exception {
+        servirImagem(pngComoDataUri(6000, 1000)); // 6:1
+        var fo = builder.buildFo(documento(SituacaoBcaEnum.NAO_PUBLICADO, SituacaoLocalEnum.MINUTA),
+                List.of(), List.of(artigo(1)), List.of(anexoComImagem(OrientacaoDoAnexo.RETRATO)));
+        var arvore = arvoreDeAreas(fo);
+
+        assertThat(orientacoesDasPaginas(arvore)).containsExactly("RETRATO", "RETRATO", "RETRATO");
+        var imagem = tamanhoDaUltimaImagem(arvore);
+        assertThat(imagem[0]).isLessThanOrEqualTo(cm(17));
+        assertThat((double) imagem[0] / imagem[1]).isCloseTo(6.0, within(0.05));
     }
 
     // ─── Orientação do anexo de imagem (OrientacaoDoAnexo) ─────────────────────────

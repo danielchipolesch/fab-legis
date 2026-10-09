@@ -1,6 +1,12 @@
 // Perfil dos atos normativos (DCA, ICA, NSCA...) no frontend: LC 95/1998, Decreto nº 12.002/2024 e NSCA 5-3.
 // Espelha RegrasDeEspecieConvencional (backend). A numeração continua em utils/numbering.js.
-import { renumberElements, renumberElementsEmAlteracao } from '@/utils/numbering.js'
+import { renumberElements, renumberElementsEmAlteracao, toRoman } from '@/utils/numbering.js'
+
+// O rótulo do anexo de imagem (Anexo.ordem 1, 2, 3…): o ANEXO I é o corpo normativo, então o primeiro anexo é o ANEXO II.
+// Espelha RotuloDeAnexoDeEspecieConvencional (backend).
+export function rotuloDoAnexo(ordem) {
+  return 'ANEXO ' + toRoman(ordem + 1)
+}
 
 const FILHOS_PERMITIDOS = {
   raiz:               [{ tipo: 'capitulo', label: 'Capítulo' }, { tipo: 'artigo', label: 'Artigo' }],

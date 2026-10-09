@@ -288,14 +288,14 @@ final class DocumentoFoFrontMatterBuilder {
                 if (dataUri != null && !dataUri.isBlank()) {
                     sb.append("<fo:block text-align=\"center\">");
                     sb.append("<fo:external-graphic src=\"url('").append(dataUri).append("')\"");
-                    if (paisagem) {
-                        // Caixa útil da folha deitada: 25,7 cm de largura (29,7 - 2 - 2) por ~14,5 cm de altura
-                        // (21 - 2 - 2 de margens - ~2,5 do rótulo e título); a imagem cresce até caber, sem distorcer.
-                        sb.append(" content-width=\"scale-to-fit\" content-height=\"scale-to-fit\"")
-                          .append(" width=\"25.7cm\" height=\"14.5cm\" scaling=\"uniform\"/>");
-                    } else {
-                        sb.append(" content-width=\"scale-to-fit\" width=\"17cm\" scaling=\"uniform\"/>");
-                    }
+                    // A imagem sempre cabe numa única página, qualquer que seja a resolução ou a proporção: é
+                    // ajustada à caixa útil da folha (largura E altura, scaling uniform = mantém as proporções, sem
+                    // distorcer nem cortar). Caixa útil = página - margens (2 cm dos lados, 2 cm em cima e 2 cm embaixo)
+                    // - o espaço do rótulo e do título (~1,6 cm com título de uma linha; sobra folga para três).
+                    //   retrato: 17 x 22,5 cm   paisagem: 25,7 x 14 cm
+                    String caixa = paisagem ? " width=\"25.7cm\" height=\"14cm\"" : " width=\"17cm\" height=\"22.5cm\"";
+                    sb.append(" content-width=\"scale-to-fit\" content-height=\"scale-to-fit\"")
+                      .append(caixa).append(" scaling=\"uniform\"/>");
                     sb.append("</fo:block>\n");
                 }
             } catch (Exception ignored) {}

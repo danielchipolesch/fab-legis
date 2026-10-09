@@ -39,5 +39,13 @@ public enum SituacaoLocalEnum {
     // Só para quem nunca foi publicado (RASCUNHO/MINUTA).
     CANCELADO,
     // Nenhuma etapa interna em curso: o documento está parado na sua situação BCA.
-    SEM_ETAPA
+    SEM_ETAPA;
+
+    // Em quais etapas o documento aceita edição do que o compõe -- metadados (DocumentoService.update), estrutura e anexos
+    // (AnexoService). Quem pode pedir a edição é outra pergunta (DocumentoAcessoService.podeEditar); aqui só se barra a etapa.
+    // EM_REVISAO entra porque o revisor atribuído edita nela; de EM_PUBLICACAO em diante (e em todo o fluxo de revogação)
+    // o conteúdo está congelado: ninguém edita, nem o autor.
+    public boolean aceitaEdicao() {
+        return this == RASCUNHO || this == MINUTA || this == EM_ALTERACAO || this == EM_REVISAO;
+    }
 }

@@ -134,6 +134,11 @@ export function letraDoAnexo(ordem) {
   return letra
 }
 
+// O rótulo do anexo de imagem na NPA: "ANEXO A", "ANEXO B"… (não há ANEXO I reservado ao corpo). Espelha RotuloDeAnexoDeNpa (backend).
+export function rotuloDoAnexo(ordem) {
+  return 'ANEXO ' + letraDoAnexo(ordem)
+}
+
 // Uma linha por anexo: "A - X;", "B - Y; e", "C - Z." (um só: "A - X."). Sem anexos: "NÃO HÁ".
 export function listaDeAnexos(anexos) {
   if (!anexos?.length) return [SEM_ANEXOS]

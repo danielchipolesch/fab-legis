@@ -81,6 +81,8 @@ Os quatro cards do hub, de qualquer módulo; qualquer usuário autenticado. Devo
 | `POST` | `/` | Envia uma imagem (multipart: `titulo`, `arquivo` e, opcional, `orientacao` = `RETRATO` ou `PAISAGEM`) como anexo. Sem `orientacao`, o servidor a sugere pela proporção da imagem (mais larga que alta = paisagem); valor inválido responde 400. A resposta (e `GET /`) traz `id`, `titulo`, `urlImagem`, `ordem` e `orientacao` |
 | `DELETE` | `/{anexoId}` | Remove um anexo |
 
+**Acesso:** `GET` é visualização, livre para qualquer usuário autenticado. `POST` e `DELETE` seguem a mesma regra de editar o documento (parte normativa, metadados): só autor ou coautor com papel Editor — ou o revisor atribuído, em `EM_REVISAO` — (`@documentoAcessoService.podeEditar`, `403` caso contrário), e só com o documento em `RASCUNHO`, `MINUTA`, `EM_ALTERACAO` ou `EM_REVISAO` (`403` com "Os anexos só podem ser alterados enquanto o documento está em edição…" nas demais etapas). Ver [Ciclo de Vida](ciclo-de-vida.md).
+
 ## Espécies normativas — `/v1/especie-normativa`
 
 `POST` · `GET /{id}` · `GET /obter-todos` · `PUT /{id}` · `DELETE /{id}`

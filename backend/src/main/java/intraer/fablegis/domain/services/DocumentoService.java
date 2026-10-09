@@ -45,7 +45,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
-import java.util.EnumSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -237,10 +236,7 @@ public class DocumentoService {
         // porque o autosave estrutural (editorStore.save() -> este endpoint, ver
         // stores/documentos.js) roda pra qualquer alteração de árvore -- inclusive
         // as feitas pelo revisor atribuído, que já pode editar essa etapa.
-        var statusPermiteAtualizacao = EnumSet.of(
-                SituacaoLocalEnum.RASCUNHO, SituacaoLocalEnum.MINUTA,
-                SituacaoLocalEnum.EM_ALTERACAO, SituacaoLocalEnum.EM_REVISAO);
-        if (!statusPermiteAtualizacao.contains(documento.getSituacaoLocal())) {
+        if (!documento.getSituacaoLocal().aceitaEdicao()) {
             throw new StatusCannotBeUpdatedException(DocumentoException.CANNOT_BE_UPDATED.getMessage());
         }
 
