@@ -146,7 +146,7 @@ Para expor o sistema a usuários reais. A diferença entre os ambientes está em
 
 **Perfis do Compose.** Cada serviço do `docker-compose.yml` sobe sempre, menos o frontend, que tem versão de desenvolvimento (`dev`: Vite com recarga) e de produção (`production`: arquivos compilados atrás do Nginx). Quem escolhe é o `COMPOSE_PROFILES` do `.env` — em desenvolvimento `dev` (o padrão do `.env.example`), em produção `production`. Assim `docker compose up -d` faz a coisa certa em cada ambiente e o frontend de desenvolvimento nunca sobe em produção. Não há segundo arquivo de Compose.
 
-**Portas.** O Docker publica as portas internas (PostgreSQL, API, `collab`, console do MinIO) **só em `127.0.0.1`**, em qualquer ambiente: servem à depuração na própria máquina e não ficam acessíveis pela rede. Em produção o único acesso é o Nginx (80/443). As exceções são decididas no `.env`: `MINIO_BIND=0.0.0.0` (o navegador baixa as imagens direto do MinIO) e `DOCS_BIND=0.0.0.0` (só se a documentação for pública).
+**Portas — por que só em `127.0.0.1`.** Por padrão, uma porta publicada pelo Docker (`ports: "5432:5432"`) abre para **todas as interfaces da máquina**, ou seja, para qualquer um na rede — e o Docker ainda **contorna o firewall do sistema** (ufw/firewalld) ao fazer isso. Antes, o Compose publicava assim o PostgreSQL (com a senha de desenvolvimento `123456`), o console do MinIO, a API (que permitiria falar com o backend sem passar pelo Nginx) e o `collab`: qualquer pessoa na rede podia tentar entrar neles. Era uma falha real de segurança, e por isso as portas internas agora são publicadas só em `127.0.0.1` (`"127.0.0.1:5432:5432"`): servem à depuração **na própria máquina** e não existem para a rede. **Você não precisa mudar nada** — em desenvolvimento o navegador está na mesma máquina e continua funcionando. Em produção o único caminho de fora para dentro é o Nginx (80/443); os serviços conversam entre si pela rede interna do Docker (`backend:8081`, `minio:9000`...), que não depende dessas portas publicadas. A única exceção possível é `DOCS_BIND=0.0.0.0`, se a documentação (porta 8000) for pública.
 
 ```bash
 cp .env.example .env                          # ajuste: COMPOSE_PROFILES=production e os valores do passo 3
@@ -180,7 +180,24 @@ docker run --rm -v "$(pwd)/nginx/certs:/certs" alpine/openssl req -x509 -newkey 
 
 **Opção B — o TLS termina antes** (um balanceador ou proxy da FAB já faz o HTTPS): use `nginx/nginx.conf.example` (só HTTP) e deixe o balanceador repassar para a porta 80 mandando `X-Forwarded-Proto: https` e **sem reescrever o `Host`**. Os endereços do `.env` continuam `https://`.
 
-**Imagens do MinIO.** O navegador baixa as imagens direto do MinIO (URLs assinadas, `MINIO_PUBLIC_URL`). Numa página HTTPS, essa URL **também precisa ser HTTPS**, senão o navegador bloqueia (conteúdo misto). Duas saídas: (a) dar ao MinIO um nome próprio (ex.: `s3.fab-legis.intraer`) com TLS — um segundo `server` no Nginx que repassa para `minio:9000` **preservando o `Host`** (a assinatura das URLs depende dele) — e usar `MINIO_PUBLIC_URL=https://s3.fab-legis.intraer`; ou (b) colocar o certificado no próprio MinIO (`/root/.minio/certs`). Em qualquer caso `MINIO_BIND=0.0.0.0` no `.env`.
+**Imagens do MinIO (e por que ele precisa de HTTPS também).** O navegador baixa as imagens **direto do MinIO**, por URLs assinadas geradas pelo backend (`MINIO_PUBLIC_URL`). Numa página HTTPS, essa URL **também precisa ser HTTPS**; senão o navegador bloqueia a imagem (conteúdo misto). Existem dois caminhos:
+
+| | (a) TLS no Nginx do sistema, com nome próprio para o MinIO | (b) TLS no próprio MinIO |
+|---|---|---|
+| Como | um segundo `server` no Nginx, com o nome `s3.fab-legis.intraer`, repassa para `minio:9000` | o certificado vai em `/root/.minio/certs` dentro do MinIO |
+| Certificados | **um lugar só** (o `nginx/certs/`), que cobre os dois nomes | um segundo conjunto para o MinIO, com a sua própria renovação |
+| Porta 9000 | **não precisa ser publicada** (só o Nginx fala com o MinIO, na rede interna) | precisa ser publicada para o mundo |
+| Renovação do certificado | uma só, e recarrega o Nginx | outra, e reinicia o MinIO |
+| Complexidade | baixa: já vem pronto no `nginx.https.conf.example` | média: mais um serviço com TLS |
+
+**Recomendação: (a).** O mesmo Nginx que já termina o TLS do sistema termina o do MinIO: um único certificado, uma única renovação, e o MinIO continua em HTTP puro, escondido na rede do Docker (a porta 9000 fica só em `127.0.0.1`). O `nginx/nginx.https.conf.example` já traz o bloco; falta só:
+
+1. **DNS:** peça à rede um segundo nome (ex.: `s3.fab-legis.intraer`) apontando para o mesmo servidor.
+2. **Certificado:** ele precisa **cobrir os dois nomes** — um certificado com os dois no campo SAN, ou um curinga (`*.fab-legis.intraer`).
+3. **Nginx:** em `nginx/nginx.conf`, troque o `server_name s3.exemplo.intraer;` do segundo bloco pelo nome real.
+4. **`.env`:** `MINIO_PUBLIC_URL=https://s3.fab-legis.intraer`.
+
+O bloco **preserva o `Host`** (`proxy_set_header Host $http_host`): a assinatura das URLs inclui o `Host`, e se ele chegasse trocado ao MinIO a imagem daria `403 SignatureDoesNotMatch`. Testei o roteamento (o MinIO responde através do Nginx, em HTTPS, por esse nome); a imagem real de ponta a ponta, com certificado de verdade, fica a validar no ambiente.
 
 ### 2. Mesma origem (proxy reverso) — o `nginx/nginx.conf` de cada ambiente
 
@@ -220,7 +237,9 @@ Todas já são parametrizáveis (ver tabelas acima), só precisam do valor certo
 
 | Variável | Valor em produção |
 |---|---|
-| `COMPOSE_PROFILES` | `production` || `MINIO_BIND` | `0.0.0.0` (o navegador precisa chegar ao MinIO; ver passo 1) |
+| `COMPOSE_PROFILES` | `production` |
+| `APP_OAUTH2_CHAVE_OBRIGATORIA` | `true` — o backend só sobe com `chaves/jwt-rsa.pem` (passo 4) |
+| `MINIO_PUBLIC_URL` | `https://s3.fab-legis.exemplo.mil.br` — o nome próprio do MinIO com TLS (passo 1) |
 | `APP_CORS_ALLOWED_ORIGINS` | *(vazio)* — com tudo na mesma origem pelo Nginx, nenhum site precisa de CORS |
 | `APP_OAUTH2_ISSUER` | `https://fab-legis.exemplo.mil.br` |
 | `APP_OAUTH2_REDIRECT_URI` | `https://fab-legis.exemplo.mil.br/callback` |
@@ -240,11 +259,40 @@ Todas já são parametrizáveis (ver tabelas acima), só precisam do valor certo
 >
 `PROXY_BACKEND_TARGET` não se aplica em produção — é exclusiva do dev server do Vite (ver comentário em `.env.example`); o Nginx de produção usa os endereços do `nginx/nginx.conf`.
 
-### 4. Chave de assinatura RSA — efêmera por padrão
+### 4. Chave de assinatura dos tokens (RSA)
 
-O par de chaves RSA do Authorization Server é gerado em memória a cada boot (`AuthorizationServerConfig.gerarChaveRsa()`) — todo restart do backend invalida instantaneamente todos os tokens/sessões emitidos antes dele, forçando login de novo em todo mundo. Em dev isso é aceitável; em produção, se restarts forem frequentes (deploy, escala automática), vale considerar carregar a chave de um arquivo/variável de ambiente persistente em vez de gerar uma nova a cada vez — **não implementado ainda**.
+Ao entrar, o usuário recebe um *access token* (JWT) **assinado** pelo backend com uma chave RSA; o backend e o `collab` conferem a assinatura com a chave pública (`/oauth2/jwks`). Não é um certificado e não tem a ver com HTTPS — é só o par de chaves das assinaturas.
 
-**Como resolver** (quando os restarts incomodarem): (1) gere uma vez um par RSA de 2048 bits (`openssl genrsa -out chave-jwk.pem 2048`) e guarde o arquivo fora do git, num volume ou *secret* do servidor, com acesso restrito; (2) monte o arquivo no container do backend (`volumes:` no `docker-compose.yml`) e informe o caminho por uma variável de ambiente nova (ex.: `APP_OAUTH2_CHAVE_PRIVADA`); (3) em `AuthorizationServerConfig`, no lugar de `gerarChaveRsa()`, leia essa chave do arquivo (e derive a pública dela) — com um `kid` fixo, para os tokens antigos continuarem válidos depois do restart. É uma mudança pequena de código; o `collab` já busca as chaves pelo JWKS e acompanha sozinho. Guarde a chave com o mesmo cuidado de um certificado: quem a tem emite tokens válidos.
+**Como funciona aqui:**
+
+| Situação | O que acontece |
+|---|---|
+| Existe o arquivo `chaves/jwt-rsa.pem` no servidor | é a chave (**persistente**): reiniciar o backend, atualizar a imagem ou recriar o container **não derruba as sessões** |
+| O arquivo **não** existe (padrão em desenvolvimento) | o backend usa uma chave **efêmera**, criada na memória a cada subida; cada restart invalida os tokens e todos precisam entrar de novo (o token dura 30 minutos, de qualquer jeito) |
+| O arquivo não existe **e** `APP_OAUTH2_CHAVE_OBRIGATORIA=true` | o backend **se recusa a subir**, com a mensagem de como gerar a chave — é o que a produção deve usar, para nunca cair em silêncio na efêmera |
+
+O sistema **nunca grava chave em disco por conta própria**: a chave persistente é um arquivo que o ambiente fornece. Ela também **não vai dentro da imagem do Docker**: quem tivesse a imagem teria a chave, e todas as instalações dividiriam a mesma. A pasta `chaves/` está no `.gitignore` e é montada no container só para leitura (`./chaves:/app/chaves:ro`).
+
+**Passo a passo — chave gerada por você (uma vez, em produção):**
+
+1. Gere a chave (RSA de 2048 bits, já no formato PKCS#8 que o sistema lê):
+   ```bash
+   # Linux / macOS / Windows com Docker (Git Bash: prefixe com MSYS_NO_PATHCONV=1 e use $(pwd -W))
+   docker run --rm -v "$(pwd)/chaves:/c" alpine/openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out /c/jwt-rsa.pem
+   # (ou, com openssl instalado: openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out chaves/jwt-rsa.pem)
+   ```
+2. Restrinja o acesso: `chmod 600 chaves/jwt-rsa.pem` (quem lê esse arquivo emite tokens válidos — trate-o como uma senha).
+3. No `.env` de produção: `APP_OAUTH2_CHAVE_OBRIGATORIA=true`.
+4. `docker compose up -d --build backend` e confira no log: `chave RSA persistente carregada de /app/chaves/jwt-rsa.pem (kid …)`.
+5. **Guarde uma cópia do arquivo** junto com o backup do `.env` (passo 5): se for perdido, o sistema sobe com uma chave nova e todos precisam entrar de novo — não é perda de dados, só um novo login.
+
+**Passo a passo — chave externa (fornecida pela segurança da informação da FAB):** a mesma coisa, a partir do passo 2, com o arquivo da organização salvo como `chaves/jwt-rsa.pem`. Requisitos: **RSA de no mínimo 2048 bits**, em **PEM PKCS#8** (começa com `-----BEGIN PRIVATE KEY-----`). Se a chave vier como `-----BEGIN RSA PRIVATE KEY-----` (PKCS#1), converta: `openssl pkcs8 -topk8 -nocrypt -in chave-original.pem -out chaves/jwt-rsa.pem`. Só a chave **privada** é necessária (a pública é derivada dela). Para usar outra pasta, defina `CHAVES_JWT=/caminho/da/pasta` no `.env`.
+
+**Conferir:** `curl http://127.0.0.1:8081/oauth2/jwks` mostra o `kid` (a impressão digital da chave). Reinicie o backend e consulte de novo: com chave persistente o `kid` **não muda**; com a efêmera, muda.
+
+**Várias réplicas do backend** (Kubernetes): todas **precisam usar a mesma chave**, senão um token emitido por uma réplica seria recusado por outra. Monte o mesmo arquivo em todas (um *Secret* do Kubernetes) — ver [Réplicas e escalabilidade](docs/replicas.md).
+
+**Trocar a chave (rotação):** substitua o arquivo e reinicie o backend; todos os tokens antigos deixam de valer e as pessoas entram de novo. Faça num horário tranquilo.
 
 ### 5. Backup — não existe rotina pronta
 
@@ -308,7 +356,10 @@ Via Docker Compose, todas as variáveis abaixo (exceto `PORT` do collab, que nã
 | `APP_PDF_MAX_CONCORRENTES` / `APP_PDF_ESPERA_MAXIMA_SEGUNDOS` | `2` / `30` | Renderizações de PDF simultâneas por instância e quanto um pedido espera por uma vaga antes do `503` — ver [Limite de gerações simultâneas de PDF](docs/exportacao-pdf.md#limite-de-geracoes-simultaneas-de-pdf) |
 | `APP_PDF_CACHE_TTL_DIAS` | `2` | Dias até o cache de PDF/HTML em tramitação expirar no MinIO — ver [Cache de PDF/HTML em tramitação](docs/exportacao-pdf.md#cache-de-pdfhtml-em-tramitacao) |
 | `COMPOSE_PROFILES` | `dev` | Quais serviços o `docker compose up` sobe: `dev` (frontend Vite) ou `production` (frontend compilado atrás do Nginx). Lida pelo próprio Compose |
-| `MINIO_BIND` / `DOCS_BIND` | `127.0.0.1` | Em que interface o Docker publica as portas do MinIO (9000) e da documentação (8000). Em produção, `0.0.0.0` onde o navegador precisar chegar direto (ver passo 1) |
+| `MINIO_BIND` / `DOCS_BIND` | `127.0.0.1` | Em que interface o Docker publica as portas do MinIO (9000) e da documentação (8000). `127.0.0.1` = só a própria máquina. Com o MinIO atrás do Nginx (passo 1, recomendado), `MINIO_BIND` fica assim também em produção; `0.0.0.0` só se o navegador for chegar ao MinIO direto |
+| `APP_OAUTH2_CHAVE_PRIVADA` | `/app/chaves/jwt-rsa.pem` | Caminho, dentro do container, da chave RSA de assinatura dos tokens; se o arquivo existe é a chave persistente, senão a chave é efêmera (passo 4) |
+| `APP_OAUTH2_CHAVE_OBRIGATORIA` | `false` | `true` faz o backend recusar a subida sem o arquivo da chave (produção) |
+| `CHAVES_JWT` | `./chaves` | Pasta do servidor com o `jwt-rsa.pem`, montada somente para leitura no backend |
 | `APP_OAUTH2_ISSUER` | `http://127.0.0.1:8081` | Endereço que o navegador usa para o Authorization Server (vira o claim `iss` do token — collab e frontend precisam concordar com esse valor). Usa `127.0.0.1`, não `localhost`, de propósito — ver aviso abaixo |
 | `APP_OAUTH2_REDIRECT_URI` | `http://127.0.0.1:5173/callback` | Rota de callback da SPA (troca o `code` por token) |
 | `APP_FRONTEND_LOGIN_URL` | `http://127.0.0.1:5173/login` | Tela de login (Vue) para onde o Authorization Server manda usuários não-autenticados |

@@ -82,3 +82,7 @@ apresentacao/
 nginx/nginx.conf
 nginx/certs/*
 !nginx/certs/.gitkeep
+
+# Chave RSA de assinatura dos tokens (fornecida por cada ambiente; nunca vai para o git)
+chaves/*
+!chaves/.gitkeep

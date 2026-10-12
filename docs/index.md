@@ -35,6 +35,7 @@ Hoje, boa parte disso é feita à mão em editores de texto genéricos — o que
 | Consultar os endpoints da API | [API REST](api-rest.md) |
 | Instalar e rodar o projeto (desenvolvimento e produção) | `README.md` na raiz do repositório |
 | Testar e analisar o código | [Testes e qualidade](testes.md) |
+| Saber o que pode ter réplicas (Kubernetes) | [Réplicas e escalabilidade](replicas.md) |
 | Ver o que está planejado para o futuro | [Roadmap](roadmap.md) |
 
 ## Stack

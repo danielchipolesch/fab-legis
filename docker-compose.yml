@@ -65,6 +65,10 @@ services:
       MINIO_BUCKET: ${MINIO_BUCKET:-fab-legis-imagens}
       MINIO_PUBLIC_URL: http://localhost:9000
       APP_OAUTH2_ISSUER: ${APP_OAUTH2_ISSUER:-http://127.0.0.1:8081}
+      # Chave de assinatura dos tokens: se /app/chaves/jwt-rsa.pem existe (pasta ./chaves do servidor, montada abaixo), é a chave
+      # persistente; senão a chave é efêmera. APP_OAUTH2_CHAVE_OBRIGATORIA=true (produção) faz o boot falhar sem o arquivo.
+      APP_OAUTH2_CHAVE_PRIVADA: ${APP_OAUTH2_CHAVE_PRIVADA:-/app/chaves/jwt-rsa.pem}
+      APP_OAUTH2_CHAVE_OBRIGATORIA: ${APP_OAUTH2_CHAVE_OBRIGATORIA:-false}
       APP_OAUTH2_REDIRECT_URI: ${APP_OAUTH2_REDIRECT_URI:-http://127.0.0.1:5173/callback}
       APP_FRONTEND_LOGIN_URL: ${APP_FRONTEND_LOGIN_URL:-http://127.0.0.1:5173/login}
       APP_ADMIN_CPF: ${APP_ADMIN_CPF:-11144477735}
@@ -73,6 +77,10 @@ services:
       APP_PDF_MAX_CONCORRENTES: ${APP_PDF_MAX_CONCORRENTES:-2}
       APP_PDF_ESPERA_MAXIMA_SEGUNDOS: ${APP_PDF_ESPERA_MAXIMA_SEGUNDOS:-30}
       APP_PDF_CACHE_TTL_DIAS: ${APP_PDF_CACHE_TTL_DIAS:-2}
+    volumes:
+      # A chave RSA de assinatura dos tokens (jwt-rsa.pem), fornecida pelo ambiente: pasta ./chaves do servidor (fora do git).
+      # Em desenvolvimento fica vazia e a chave é efêmera. Somente leitura: o sistema nunca grava chave nenhuma.
+      - ${CHAVES_JWT:-./chaves}:/app/chaves:ro
     depends_on:
       postgres:
         condition: service_healthy

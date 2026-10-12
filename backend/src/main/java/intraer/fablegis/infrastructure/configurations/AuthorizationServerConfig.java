@@ -8,6 +8,7 @@ import com.nimbusds.jose.jwk.RSAKey;
 import com.nimbusds.jose.jwk.source.ImmutableJWKSet;
 import com.nimbusds.jose.jwk.source.JWKSource;
 import com.nimbusds.jose.proc.SecurityContext;
+import intraer.fablegis.infrastructure.security.ChaveRsaPersistente;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -37,13 +38,9 @@ import org.springframework.security.oauth2.server.authorization.settings.TokenSe
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.web.cors.CorsConfigurationSource;
 
-import java.security.KeyPair;
-import java.security.KeyPairGenerator;
-import java.security.interfaces.RSAPrivateKey;
-import java.security.interfaces.RSAPublicKey;
 import java.time.Duration;
-import java.util.List;
 import java.util.UUID;
+import java.util.List;
 
 // Authorization Server embutido no próprio backend (sem novo serviço no
 // docker-compose) -- emite tokens RSA assinados, validados via JWKS
@@ -57,6 +54,15 @@ import java.util.UUID;
 public class AuthorizationServerConfig {
 
     private static final Logger log = LoggerFactory.getLogger(AuthorizationServerConfig.class);
+
+    // Arquivo (PEM PKCS#8) da chave privada de assinatura dos tokens: existindo, é usada; senão a chave é efêmera.
+    // Vazio = chave efêmera em memória (ver ChaveRsaPersistente).
+    @Value("${app.oauth2.chave-privada:}")
+    private String caminhoDaChavePrivada;
+
+    // Produção: exige a chave persistente (o boot falha se o arquivo não existir) em vez de cair em silêncio na efêmera.
+    @Value("${app.oauth2.chave-privada-obrigatoria:false}")
+    private boolean chavePrivadaObrigatoria;
 
     @Value("${app.oauth2.issuer}")
     private String issuer;
@@ -239,32 +245,12 @@ public class AuthorizationServerConfig {
 
     @Bean
     public JWKSource<SecurityContext> jwkSource() {
-        RSAKey rsaKey = gerarChaveRsa();
+        // Persistente se app.oauth2.chave-privada aponta para um arquivo que existe; senão efêmera (ou falha, se obrigatória).
+        RSAKey rsaKey = ChaveRsaPersistente.carregarOuGerar(caminhoDaChavePrivada, chavePrivadaObrigatoria);
         JWKSet jwkSet = new JWKSet(rsaKey);
         return new ImmutableJWKSet<>(jwkSet);
     }
 
-    // Em produção, uma chave gerada a cada boot invalida todos os tokens
-    // emitidos anteriormente a cada deploy/restart -- aceitável por ora
-    // (mesmo comportamento efetivo do jwt.secret caseiro, que também não
-    // sobrevivia a troca manual), mas fica registrado aqui como o próximo
-    // passo óbvio (carregar de arquivo/variável de ambiente) se isso incomodar
-    // em produção real.
-    private RSAKey gerarChaveRsa() {
-        try {
-            KeyPairGenerator generator = KeyPairGenerator.getInstance("RSA");
-            generator.initialize(2048);
-            KeyPair keyPair = generator.generateKeyPair();
-            log.warn("Authorization Server: par de chaves RSA gerado em memória (efêmero) -- " +
-                    "tokens emitidos antes de um restart deixam de ser válidos depois dele.");
-            return new RSAKey.Builder((RSAPublicKey) keyPair.getPublic())
-                    .privateKey((RSAPrivateKey) keyPair.getPrivate())
-                    .keyID(UUID.randomUUID().toString())
-                    .build();
-        } catch (Exception e) {
-            throw new IllegalStateException("Falha ao gerar par de chaves RSA para o Authorization Server.", e);
-        }
-    }
 
     @Bean
     public JwtDecoder jwtDecoder(JWKSource<SecurityContext> jwkSource) {

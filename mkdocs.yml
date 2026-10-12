@@ -62,6 +62,7 @@ nav:
       - Arquitetura: arquitetura.md
       - Modelo de Domínio: dominio.md
       - Autenticação e Colaboração: autenticacao.md
+      - Réplicas e escalabilidade: replicas.md
       - Ciclo de Vida do Documento: ciclo-de-vida.md
       - Geração de PDF e Portarias: exportacao-pdf.md
       - API REST: api-rest.md

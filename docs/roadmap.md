@@ -26,6 +26,7 @@ A NPA já funciona de ponta a ponta — criação, edição, PDF/HTML/prévia, p
 - **Consolidação automática** — geração da versão vigente de um ato a partir da aplicação sucessiva de todas as suas alterações.
 - **API pública e interoperabilidade** — adoção do padrão **LexML/Akoma Ntoso** para intercâmbio de atos normativos com outros órgãos da Administração.
 - **Assistente de escrita por IA, on-premise** — modelo de linguagem hospedado na própria infraestrutura do COMAER (sem enviar texto normativo a serviços externos), integrado ao editor para sugestão de redação conforme a técnica legislativa, detecção de ambiguidades e contradições, verificação de conformidade com a LC 95/1998 e o Decreto 12.002/2024, e resumo automático de ementas.
+- **Backend com várias réplicas** — o login em andamento (Authorization Server) e as conexões em tempo real vivem na memória de uma instância, e a numeração dos documentos tem uma corrida; ver o roteiro em [Réplicas e escalabilidade](replicas.md).
 - **Painel analítico** — indicadores de tempo médio de tramitação, gargalos por setor, volume por espécie e assunto, apoiando a gestão da atividade normativa.
 
 ## Contingência — se o MinIO deixar de servir
