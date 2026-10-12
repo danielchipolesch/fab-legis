@@ -248,7 +248,7 @@ export const useEditorStore = defineStore('editor', {
     },
 
     moveUp(id) {
-      const trocaLivre = !perfilDoDocumento(this.documento).conteudoAntesDosAgrupamentos
+      const trocaLivre = trocaLivreDoDocumento(this.documento)
       for (const secao of this.documento.secoes) {
         if (moveInTree(secao.elementos, id, -1, trocaLivre)) {
           this.renumberNormativa()
@@ -260,7 +260,7 @@ export const useEditorStore = defineStore('editor', {
     },
 
     moveDown(id) {
-      const trocaLivre = !perfilDoDocumento(this.documento).conteudoAntesDosAgrupamentos
+      const trocaLivre = trocaLivreDoDocumento(this.documento)
       for (const secao of this.documento.secoes) {
         if (moveInTree(secao.elementos, id, 1, trocaLivre)) {
           this.renumberNormativa()
@@ -402,7 +402,7 @@ export const useEditorStore = defineStore('editor', {
       if (!siblings) return false
       const idx = siblings.findIndex(el => el.id === id)
       if (idx <= 0) return false
-      return canSwapSiblings(siblings, idx, idx - 1)
+      return trocaLivreDoDocumento(this.documento) || canSwapSiblings(siblings, idx, idx - 1)
     },
 
     canMoveDown(id) {
@@ -410,7 +410,7 @@ export const useEditorStore = defineStore('editor', {
       if (!siblings) return false
       const idx = siblings.findIndex(el => el.id === id)
       if (idx === -1 || idx >= siblings.length - 1) return false
-      return canSwapSiblings(siblings, idx, idx + 1)
+      return trocaLivreDoDocumento(this.documento) || canSwapSiblings(siblings, idx, idx + 1)
     },
 
     // Reordenação de artigos INCLUIDO por emenda (ainda não aprovados) entre si —
@@ -468,6 +468,12 @@ const VALID_MOVE_PARENT_TYPES_NPA = {
 
 function regrasDeMoverPara(documento) {
   return perfilDoDocumento(documento).ehNpa ? VALID_MOVE_PARENT_TYPES_NPA : VALID_MOVE_PARENT_TYPES
+}
+
+// Na NPA seção, subseção e parágrafo dividem a mesma sequência e trocam de lugar livremente; nos atos normativos o conteúdo
+// vem antes dos agrupamentos. É a regra que moveUp/moveDown aplicam e que canMoveUp/canMoveDown (os botões) refletem.
+function trocaLivreDoDocumento(documento) {
+  return !perfilDoDocumento(documento).conteudoAntesDosAgrupamentos
 }
 
 function isSameOrDescendant(el, id) {

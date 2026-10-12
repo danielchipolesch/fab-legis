@@ -352,7 +352,6 @@ public class EmendaService {
     // permitido trocar de posição com um artigo original (INALTERADO/ALTERADO/
     // REVOGADO), pois isso equivaleria a renumerá-lo.
 
-    @Transactional
     // A seção vem do caminho da requisição (texto livre): um valor que não é seção é erro de quem chamou (400), não do servidor.
     private static SecaoDocumentoEnum secaoDe(String secao) {
         try {
@@ -362,6 +361,7 @@ public class EmendaService {
         }
     }
 
+    @Transactional
     public void reordenarIncluido(Long docId, String secao, Long elementoId, String direcao) {
         carregarEmAlteracao(docId);
         SecaoDocumentoEnum secaoEnum = secaoDe(secao);
