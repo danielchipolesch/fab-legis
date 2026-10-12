@@ -26,8 +26,8 @@ FROM nginx:1.28-alpine AS production
 COPY --from=build /app/dist /usr/share/nginx/html
 # O nginx da imagem substitui as variáveis do template (BACKEND_UPSTREAM, COLLAB_UPSTREAM) ao subir e grava em conf.d --
 # o mesmo arquivo em desenvolvimento e em produção; só os valores (docker-compose.yml / .env) mudam.
-COPY frontend/nginx.conf.template /etc/nginx/templates/default.conf.template
-COPY frontend/nginx-proxy-comum.conf /etc/nginx/proxy_comum.conf
+COPY nginx/nginx.conf.template /etc/nginx/templates/default.conf.template
+COPY nginx/proxy-comum.conf /etc/nginx/proxy_comum.conf
 ENV BACKEND_UPSTREAM=backend:8081 COLLAB_UPSTREAM=collab:1234
 EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=5s --retries=3 \

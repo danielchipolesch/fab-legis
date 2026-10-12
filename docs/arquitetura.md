@@ -154,6 +154,9 @@ fab-legis/
 ├── docs/                       # Fonte da documentação técnica (MkDocs Material)
 │   ├── Dockerfile              # Multi-stage: mkdocs build → Nginx Alpine
 │   └── nginx.conf              # (Nginx da própria documentação)
+├── nginx/                      # Borda do sistema em produção: SPA + proxy reverso (mesma origem)
+│   ├── nginx.conf.template     # BACKEND_UPSTREAM / COLLAB_UPSTREAM preenchidos ao subir o container
+│   └── proxy-comum.conf        # Cabeçalhos comuns do proxy (Host, X-Forwarded-*)
 ├── collab/                     # Servidor de colaboração em tempo real (Node.js + Hocuspocus/Yjs)
 │   ├── Dockerfile              # node:20-alpine, npm ci --omit=dev
 │   ├── server.js               # Hooks onAuthenticate/onLoadDocument/onStoreDocument
@@ -172,7 +175,6 @@ fab-legis/
 │           └── db/migration/   # Scripts SQL do esquema (Flyway)
 └── frontend/
     ├── Dockerfile              # Multi-stage: base → development | build → Nginx
-    ├── nginx.conf.template     # Nginx de produção: SPA + proxy reverso (BACKEND_UPSTREAM, COLLAB_UPSTREAM)
     ├── vite.config.js
     ├── package.json
     ├── public/                 # Brasões, favicon

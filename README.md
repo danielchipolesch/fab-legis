@@ -157,9 +157,9 @@ Em desenvolvimento, o proxy do Vite (`server.proxy` em `frontend/vite.config.js`
 
 | Arquivo | Papel |
 |---|---|
-| `frontend/nginx.conf.template` | Configuração do Nginx: serve a SPA e faz o proxy reverso. O container substitui `BACKEND_UPSTREAM` e `COLLAB_UPSTREAM` ao subir |
-| `frontend/nginx-proxy-comum.conf` | Cabeçalhos comuns do proxy (`Host`, `X-Forwarded-*`) |
-| `frontend/Dockerfile` (estágio `production`) | Copia os dois arquivos para a imagem |
+| `nginx/nginx.conf.template` | Configuração do Nginx (borda do sistema, na raiz do repositório): serve a SPA e faz o proxy reverso para o backend e o `collab`. O container substitui `BACKEND_UPSTREAM` e `COLLAB_UPSTREAM` ao subir |
+| `nginx/proxy-comum.conf` | Cabeçalhos comuns do proxy (`Host`, `X-Forwarded-*`) |
+| `frontend/Dockerfile` (estágio `production`) | Compila a SPA e copia os dois arquivos acima para a imagem do Nginx |
 
 O que o Nginx roteia (tudo atrás de **um único host público**):
 
@@ -230,7 +230,7 @@ O backend expõe **Spring Boot Actuator** com **Micrometer** (`spring-boot-start
 ### Checklist antes de expor ao público
 
 1. HTTPS ativo no domínio de produção (certificado interno serve).
-2. Proxy reverso do Nginx funcionando (já vem em `frontend/nginx.conf.template`; confira que `GET /login` abre a SPA, `POST /login` chega ao backend e `/collab` aceita WebSocket) e, se houver outro proxy/balanceador na frente (TLS), sem reescrever o `Host`.
+2. Proxy reverso do Nginx funcionando (já vem em `nginx/nginx.conf.template`; confira que `GET /login` abre a SPA, `POST /login` chega ao backend e `/collab` aceita WebSocket) e, se houver outro proxy/balanceador na frente (TLS), sem reescrever o `Host`.
 3. Todas as variáveis da tabela acima (inclusive `APP_CORS_ALLOWED_ORIGINS` vazio) apontando para o domínio público com `https://`/`wss://`.
 4. Frontend reconstruído (não só reiniciado) depois de qualquer mudança em `VITE_*`.
 5. Testar o fluxo de login completo (não só que a tela carrega) — é o único jeito de pegar um `Host` sobrescrito ou uma rota de proxy faltando antes que um usuário real esbarre nisso.
