@@ -49,7 +49,7 @@ Hoje, boa parte disso é feita à mão em editores de texto genéricos — o que
     | Spring HATEOAS | — | Links de navegação nos recursos |
     | Spring Security | 7.1.1 | Resource server (JWT/JWKS), autorização por método (`@PreAuthorize`) |
     | Spring Authorization Server | 7.1.1 | Emissão de token via OAuth2 Authorization Code + PKCE (embutido no backend) |
-    | PostgreSQL | 16 | Banco de dados relacional |
+    | PostgreSQL | 18 | Banco de dados relacional |
     | MinIO SDK | 8.5.12 | Armazenamento de objetos (imagens e PDFs) on-premise |
     | Apache FOP | 2.10 | Geração de PDF server-side via XSL-FO |
     | Apache PDFBox | 3.x | Utilitário de manipulação de PDF (dependência disponível para usos futuros) |
