@@ -77,3 +77,6 @@ backend/.nb-gradle/
 
 # Material de apresentação (apenas local)
 apresentacao/
+
+# Configuração real do Nginx de cada ambiente (copiada de nginx/nginx.conf.example)
+nginx/nginx.conf

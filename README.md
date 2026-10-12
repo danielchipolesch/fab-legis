@@ -55,8 +55,8 @@ Ambiente de quem vai **desenvolver ou avaliar** o sistema, na própria máquina.
 git clone https://github.com/danielchipolesch/fab-legis.git
 cd fab-legis
 
-# Opcional: personaliza credenciais/portas sem tocar no docker-compose.yml --
-# sem este arquivo, o compose usa os mesmos valores de dev documentados abaixo
+# O .env deste ambiente (fora do git; o modelo versionado é o .env.example). O compose lê os valores dele; para
+# desenvolvimento os padrões servem, e é aqui que se ajusta credenciais e portas sem tocar no docker-compose.yml
 cp .env.example .env
 
 # Sobe PostgreSQL, MinIO, backend, collab (colaboração em tempo real), frontend
@@ -139,7 +139,8 @@ Scripts disponíveis:
 Para expor o sistema a usuários reais. O perfil `production` do Compose sobe o `frontend-prod` (frontend compilado e servido por Nginx na porta 80) no lugar do `frontend` de desenvolvimento:
 
 ```bash
-cp .env.example .env     # preencha com os valores de produção (passo 3) e segredos próprios
+cp .env.example .env                         # valores de produção (passo 3) e segredos próprios
+cp nginx/nginx.conf.example nginx/nginx.conf   # a configuração do Nginx deste ambiente (passo 2)
 docker compose --profile production up -d --build
 ```
 
@@ -151,31 +152,31 @@ O fluxo de login (OAuth2 Authorization Code + PKCE, ver [Autenticação e Colabo
 
 `crypto.subtle` (usado por `frontend/src/utils/pkce.js` para gerar o `code_challenge`) só existe em **contextos seguros**: HTTPS, ou HTTP em `localhost`/`127.0.0.1`. Um domínio de produção acessado por `http://` puro (comum em intranets internas) **não é** um contexto seguro — `crypto.subtle` fica `undefined` e o login falha para todo mundo, sem alternativa de configuração. Se o ambiente de destino é uma intranet sem TLS hoje, isso precisa ser resolvido primeiro (certificado interno/CA próprio da organização serve — não precisa ser público) antes de qualquer outro passo abaixo fazer diferença.
 
-### 2. Mesma origem (proxy reverso) — já vem pronto, igual em desenvolvimento e em produção
+### 2. Mesma origem (proxy reverso) — o `nginx/nginx.conf` de cada ambiente
 
-Em desenvolvimento, o proxy do Vite (`server.proxy` em `frontend/vite.config.js`) faz `/oauth2/**`, `/login`, `/logout` e `/.well-known/**` parecerem, para o navegador, a mesma origem do frontend — é isso que faz o cookie de sessão sobreviver ao login. O frontend de produção tem o **equivalente no próprio Nginx, versionado no repositório**: não há arquivo para criar nem editar no deploy. O que muda de um ambiente para outro é só o `.env`.
+Em desenvolvimento, o proxy do Vite (`server.proxy` em `frontend/vite.config.js`) faz `/oauth2/**`, `/login`, `/logout` e `/.well-known/**` parecerem, para o navegador, a mesma origem do frontend — é isso que faz o cookie de sessão sobreviver ao login. O frontend de produção tem o **equivalente no próprio Nginx, versionado no repositório**: não há arquivo para criar nem editar no deploy. O que muda de um ambiente para outro é só o `.env`. Assim como o `.env`, o Nginx tem um **arquivo real por ambiente, fora do git** (`nginx/nginx.conf`), criado a partir de um modelo versionado (`nginx/nginx.conf.example`) — o mesmo padrão de `.env.example` → `.env`. Já vem com o proxy pronto: nada a escrever, só copiar e, se o ambiente exigir (hosts diferentes, TLS), ajustar.
 
 | Arquivo | Papel |
 |---|---|
-| `nginx/nginx.conf.template` | Configuração do Nginx (borda do sistema, na raiz do repositório): serve a SPA e faz o proxy reverso para o backend e o `collab`. O container substitui `BACKEND_UPSTREAM` e `COLLAB_UPSTREAM` ao subir |
-| `nginx/proxy-comum.conf` | Cabeçalhos comuns do proxy (`Host`, `X-Forwarded-*`) |
-| `frontend/Dockerfile` (estágio `production`) | Compila a SPA e copia os dois arquivos acima para a imagem do Nginx |
+| `nginx/nginx.conf.example` | **Modelo** versionado da configuração do Nginx (borda do sistema): serve a SPA e faz o proxy reverso para o backend e o `collab`, com `backend:8081` e `collab:1234` (rede do Compose) |
+| `nginx/nginx.conf` | A configuração **real** do ambiente — `cp nginx/nginx.conf.example nginx/nginx.conf`; está no `.gitignore`. O Compose a monta em `/etc/nginx/conf.d/default.conf` (precisa existir antes do `up`) |
+| `frontend/Dockerfile` (estágio `production`) | Compila a SPA e a documentação (`/docs/`) para a imagem do Nginx; a configuração vem do `nginx/nginx.conf` montado |
 
 O que o Nginx roteia (tudo atrás de **um único host público**):
 
 | Caminho | Destino |
 |---|---|
-| `/oauth2/**`, `/logout`, `/.well-known/**` | backend (`BACKEND_UPSTREAM`, padrão `backend:8081`) |
+| `/oauth2/**`, `/logout`, `/.well-known/**` | backend (`backend:8081`) |
 | `POST /login` | backend |
 | `GET /login` | a SPA (a tela de login do Vue Router) |
 | `/v1/**` | backend (a API e o JSON do OpenAPI) |
 | `/swagger-ui.html`, `/swagger-ui/**` | backend (Swagger UI) |
-| `/collab/**` | `collab` (`COLLAB_UPSTREAM`, padrão `collab:1234`), com *upgrade* de WebSocket |
+| `/collab/**` | `collab` (`collab:1234`), com *upgrade* de WebSocket |
 | `/docs/` | documentação técnica (o site do MkDocs, compilado na própria imagem do Nginx) |
 | `/health` | resposta do próprio Nginx (`ok`) |
 | o resto | arquivos estáticos da SPA (`index.html` para rotas do Vue) |
 
-O contrato da API (Swagger UI em `/swagger-ui.html` e o JSON em `/v1/fab-legis-api`) também sai por esse Nginx, para quem for consumir a API: ele só **descreve** os endpoints — todos continuam exigindo o access token (o botão *Authorize* da Swagger UI aceita o Bearer). `APP_SWAGGER_ENABLED=false` no `.env` desliga a UI e o JSON, se um ambiente preferir não publicar o contrato. O Actuator **não** é exposto pelo Nginx (só o healthcheck interno). O `Host` não é reescrito: o Spring Security o usa para montar URLs de redirect, e sobrescrevê-lo vazaria o hostname interno ao navegador. Só mude `BACKEND_UPSTREAM`/`COLLAB_UPSTREAM` (no `.env`) se o backend ou o `collab` não estiverem na rede do Compose.
+O contrato da API (Swagger UI em `/swagger-ui.html` e o JSON em `/v1/fab-legis-api`) também sai por esse Nginx, para quem for consumir a API: ele só **descreve** os endpoints — todos continuam exigindo o access token (o botão *Authorize* da Swagger UI aceita o Bearer). `APP_SWAGGER_ENABLED=false` no `.env` desliga a UI e o JSON, se um ambiente preferir não publicar o contrato. O Actuator **não** é exposto pelo Nginx (só o healthcheck interno). O `Host` não é reescrito: o Spring Security o usa para montar URLs de redirect, e sobrescrevê-lo vazaria o hostname interno ao navegador. Só edite os endereços `backend:8081`/`collab:1234` no `nginx/nginx.conf` se o backend ou o `collab` não estiverem na rede do Compose.
 
 Para **exercitar localmente o mesmo caminho de produção**, suba o perfil `production` (Nginx na porta 80) com o `.env` apontando para `http://127.0.0.1` em vez de `:8081`/`:5173` (bloco comentado no `.env.example`).
 
@@ -183,7 +184,7 @@ Para **exercitar localmente o mesmo caminho de produção**, suba o perfil `prod
 
 > **Lugar único: o `.env` da raiz do repositório**
 >
-> **`.env`** (raiz do repositório, fora do git — `cp .env.example .env`) é o único arquivo que a equipe DevSecOps precisa editar para trocar `127.0.0.1`/`localhost` pelo hostname real de produção em **todos** os serviços de uma vez — backend, `collab` e frontend (dev e produção). `docker-compose.yml` interpola cada `${VAR:-padrão}` a partir dele; nenhuma variável de host fica hardcoded em outro lugar. As únicas duas exceções, e nenhuma delas é hostname: `PROXY_BACKEND_TARGET` (só existe pro proxy do Vite em dev, sem efeito em produção — ver nota no fim desta seção) e `BACKEND_UPSTREAM`/`COLLAB_UPSTREAM` (para onde o Nginx do passo 2 repassa as chamadas na rede do Compose — não são hostname público e só mudam se o backend ou o `collab` estiverem fora dela).
+> **`.env`** (raiz do repositório, fora do git — `cp .env.example .env`) é o único arquivo que a equipe DevSecOps precisa editar para trocar `127.0.0.1`/`localhost` pelo hostname real de produção em **todos** os serviços de uma vez — backend, `collab` e frontend (dev e produção). `docker-compose.yml` interpola cada `${VAR:-padrão}` a partir dele; nenhuma variável de host fica hardcoded em outro lugar. As únicas duas exceções, e nenhuma delas é hostname: `PROXY_BACKEND_TARGET` (só existe pro proxy do Vite em dev, sem efeito em produção — ver nota no fim desta seção) e o `nginx/nginx.conf` do passo 2 (os endereços internos `backend:8081`/`collab:1234`, que não são hostname público).
 >
 Todas já são parametrizáveis (ver tabelas acima), só precisam do valor certo. Supondo `https://fab-legis.exemplo.mil.br` como o único host público (backend e frontend atrás do mesmo proxy do passo 2):
 
@@ -205,7 +206,7 @@ Todas já são parametrizáveis (ver tabelas acima), só precisam do valor certo
 > docker compose --profile production up -d --build frontend-prod
 > ```
 >
-`PROXY_BACKEND_TARGET` não se aplica em produção — é exclusiva do dev server do Vite (ver comentário em `.env.example`); o Nginx de produção usa `BACKEND_UPSTREAM`/`COLLAB_UPSTREAM`, que só precisam mudar se o backend e o `collab` não estiverem na rede do Compose.
+`PROXY_BACKEND_TARGET` não se aplica em produção — é exclusiva do dev server do Vite (ver comentário em `.env.example`); o Nginx de produção usa os endereços do `nginx/nginx.conf`.
 
 ### 4. Chave de assinatura RSA — efêmera por padrão
 
@@ -231,7 +232,7 @@ O backend expõe **Spring Boot Actuator** com **Micrometer** (`spring-boot-start
 ### Checklist antes de expor ao público
 
 1. HTTPS ativo no domínio de produção (certificado interno serve).
-2. Proxy reverso do Nginx funcionando (já vem em `nginx/nginx.conf.template`; confira que `GET /login` abre a SPA, `POST /login` chega ao backend e `/collab` aceita WebSocket) e, se houver outro proxy/balanceador na frente (TLS), sem reescrever o `Host`.
+2. Proxy reverso do Nginx funcionando (vem de `nginx/nginx.conf.example`, copiado para `nginx/nginx.conf`; confira que `GET /login` abre a SPA, `POST /login` chega ao backend e `/collab` aceita WebSocket) e, se houver outro proxy/balanceador na frente (TLS), sem reescrever o `Host`.
 3. Todas as variáveis da tabela acima (inclusive `APP_CORS_ALLOWED_ORIGINS` vazio) apontando para o domínio público com `https://`/`wss://`.
 4. Frontend reconstruído (não só reiniciado) depois de qualquer mudança em `VITE_*`.
 5. Testar o fluxo de login completo (não só que a tela carrega) — é o único jeito de pegar um `Host` sobrescrito ou uma rota de proxy faltando antes que um usuário real esbarre nisso.

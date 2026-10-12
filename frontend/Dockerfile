@@ -32,11 +32,8 @@ RUN mkdocs build --strict
 FROM nginx:1.28-alpine AS production
 COPY --from=build /app/dist /usr/share/nginx/html
 COPY --from=docs-build /docs/site /usr/share/nginx/html/docs
-# O nginx da imagem substitui as variáveis do template (BACKEND_UPSTREAM, COLLAB_UPSTREAM) ao subir e grava em conf.d --
-# o mesmo arquivo em desenvolvimento e em produção; só os valores (docker-compose.yml / .env) mudam.
-COPY nginx/nginx.conf.template /etc/nginx/templates/default.conf.template
-COPY nginx/proxy-comum.conf /etc/nginx/proxy_comum.conf
-ENV BACKEND_UPSTREAM=backend:8081 COLLAB_UPSTREAM=collab:1234
+# A configuração do Nginx (nginx/nginx.conf, por ambiente e fora do git) NÃO vai na imagem: o docker-compose.yml a monta em
+# /etc/nginx/conf.d/default.conf. Copie de nginx/nginx.conf.example antes de subir o perfil production.
 EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
   CMD wget -qO- http://127.0.0.1:8080/health || exit 1

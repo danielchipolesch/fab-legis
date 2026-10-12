@@ -19,7 +19,7 @@ Este projeto mantém a documentação técnica em `docs/` (MkDocs Material, serv
 | `docs/testes.md` | Como testar (unitários, integração, frontend), análise estática, CI e como servir a documentação |
 | `docs/roadmap.md` | Perspectivas futuras — mova um item para cá quando virar decisão adiada, ou remova-o quando for implementado |
 
-**Instalação, configuração e variáveis de ambiente ficam no `README.md`** (seções "Instalação em desenvolvimento", "Instalação em produção" e "Variáveis de ambiente"), não em `docs/` — quem precisa instalar o sistema ainda não tem a documentação no ar. Mudou uma variável de ambiente, uma porta, um serviço do Compose ou um passo de deploy? Atualize o README na mesma tarefa.
+**Arquivos de configuração por ambiente (`.env`, `nginx/nginx.conf`) ficam fora do git**; o que se versiona são os modelos (`.env.example`, `nginx/nginx.conf.example`) — mudou um, atualize o outro. **Instalação, configuração e variáveis de ambiente ficam no `README.md`** (seções "Instalação em desenvolvimento", "Instalação em produção" e "Variáveis de ambiente"), não em `docs/` — quem precisa instalar o sistema ainda não tem a documentação no ar. Mudou uma variável de ambiente, uma porta, um serviço do Compose ou um passo de deploy? Atualize o README na mesma tarefa.
 
 Se a mudança não se encaixa em nenhuma página existente, prefira estender a mais próxima a criar uma nova; só crie página nova para um assunto genuinamente novo, e nesse caso adicione a entrada em `mkdocs.yml` (`nav:`).
 
