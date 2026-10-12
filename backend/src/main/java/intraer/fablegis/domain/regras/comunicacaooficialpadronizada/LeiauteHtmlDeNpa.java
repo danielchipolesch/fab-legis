@@ -109,7 +109,7 @@ public class LeiauteHtmlDeNpa implements LeiauteDoHtml {
             .anexo-titulo { text-align: center; font-weight: bold; margin: 0 0 6px; }
             .anexo-imagem { text-align: center; }
             .anexo-imagem img { max-width: 100%; }
-            """;
+            """ + intraer.fablegis.domain.util.tiptap.CssDoConteudo.TABELAS_E_FIGURAS;
     }
 
     // ─── Cabeçalho ────────────────────────────────────────────────────────────

@@ -1,6 +1,7 @@
 package intraer.fablegis.domain.util.tiptap;
 
 import java.util.List;
+import java.util.Locale;
 
 /**
  * Converts a TipTap JSON document node to an HTML string.
@@ -75,25 +76,44 @@ public final class TipTapHtmlSerializer {
     }
 
     private static void renderTable(TipTapNode table, StringBuilder sb) {
+        var grade = GradeDeTabela.de(table);
         sb.append("<table>");
-        if (table.getContent() == null) { sb.append("</table>"); return; }
-        for (var row : table.getContent()) {
-            if (!"tableRow".equals(row.getType())) continue;
-            sb.append("<tr>");
-            if (row.getContent() != null) {
-                for (var cell : row.getContent()) {
-                    boolean isHeader = "tableHeader".equals(cell.getType());
-                    String tag = isHeader ? "th" : "td";
-                    String attrs = spanAttrs(cell);
-                    sb.append("<").append(tag).append(attrs).append(">");
-                    if (cell.getContent() != null)
-                        for (var c : cell.getContent()) renderBlock(c, sb);
-                    sb.append("</").append(tag).append(">");
-                }
+        if (grade.linhas().isEmpty()) { sb.append("</table>"); return; }
+        // Larguras que o usuário arrastou no editor, em porcentagem da tabela (só quando houve ajuste).
+        if (grade.temLarguras()) {
+            double[] larguras = grade.largurasRelativas();
+            double total = 0;
+            for (double l : larguras) total += l;
+            sb.append("<colgroup>");
+            for (double l : larguras) {
+                sb.append("<col style=\"width:").append(String.format(Locale.ROOT, "%.2f", l * 100 / total)).append("%\" />");
             }
-            sb.append("</tr>");
+            sb.append("</colgroup>");
         }
-        sb.append("</table>");
+        int cabecalho = grade.linhasDeCabecalho();
+        if (cabecalho > 0) {
+            sb.append("<thead>");
+            for (int r = 0; r < cabecalho; r++) renderLinhaDaTabela(grade, r, sb, "col");
+            sb.append("</thead>");
+        }
+        sb.append("<tbody>");
+        for (int r = cabecalho; r < grade.linhas().size(); r++) renderLinhaDaTabela(grade, r, sb, "row");
+        sb.append("</tbody></table>");
+    }
+
+    // escopoDoTh: "col" para o cabeçalho de coluna (thead), "row" para uma célula de cabeçalho no corpo (cabeçalho de linha).
+    private static void renderLinhaDaTabela(GradeDeTabela grade, int indice, StringBuilder sb, String escopoDoTh) {
+        sb.append("<tr>");
+        for (var celula : grade.linhas().get(indice)) {
+            String tag = celula.cabecalho() ? "th" : "td";
+            sb.append("<").append(tag).append(spanAttrs(celula.no()));
+            if (celula.cabecalho()) sb.append(" scope=\"").append(escopoDoTh).append("\"");
+            sb.append(">");
+            if (celula.no().getContent() != null)
+                for (var c : celula.no().getContent()) renderBlock(c, sb);
+            sb.append("</").append(tag).append(">");
+        }
+        sb.append("</tr>");
     }
 
     private static String spanAttrs(TipTapNode cell) {
