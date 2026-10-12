@@ -99,7 +99,7 @@ cd backend
 mvnw.cmd spring-boot:run        # Windows
 ```
 
-A API sobe em `http://127.0.0.1:8081` com o perfil `dev` ativo.
+A API sobe em `http://127.0.0.1:8081`, com os valores padrão de desenvolvimento (não há perfis `dev`/`prod`: a configuração é uma só, em `application.properties`, e tudo que varia vem de variáveis de ambiente).
 
 **Frontend**
 
@@ -143,7 +143,7 @@ cp .env.example .env     # preencha com os valores de produção (passo 3) e seg
 docker compose --profile production up -d --build
 ```
 
-**Subir com esse perfil sozinho não basta** para funcionar fora de `localhost`/`127.0.0.1`: os seis passos abaixo são obrigatórios, não opcionais, e o [checklist](#checklist-antes-de-expor-ao-público) no fim confere tudo.
+**Subir com esse perfil sozinho não basta** para funcionar fora de `localhost`/`127.0.0.1`: os passos 1 a 4 abaixo são obrigatórios (o 5 trata de monitoramento), e o [checklist](#checklist-antes-de-expor-ao-público) no fim confere tudo.
 
 O fluxo de login (OAuth2 Authorization Code + PKCE, ver [Autenticação e Colaboração](docs/autenticacao.md)) foi validado em desenvolvimento usando `127.0.0.1`, nunca `localhost` — não por preferência estética, mas porque o cookie de sessão do Spring Security (`SameSite=Lax`) e a API `crypto.subtle` (usada pelo PKCE) só se comportam de forma confiável quando tudo está na mesma origem. Isso tem implicações diretas pra produção: **não é só trocar `127.0.0.1` por um hostname público** — alguns pré-requisitos são obrigatórios, não configuráveis.
 
@@ -168,12 +168,13 @@ O que o Nginx roteia (tudo atrás de **um único host público**):
 | `/oauth2/**`, `/logout`, `/.well-known/**` | backend (`BACKEND_UPSTREAM`, padrão `backend:8081`) |
 | `POST /login` | backend |
 | `GET /login` | a SPA (a tela de login do Vue Router) |
-| `/v1/**` | backend (a API) |
+| `/v1/**` | backend (a API e o JSON do OpenAPI) |
+| `/swagger-ui.html`, `/swagger-ui/**` | backend (Swagger UI) |
 | `/collab/**` | `collab` (`COLLAB_UPSTREAM`, padrão `collab:1234`), com *upgrade* de WebSocket |
 | `/health` | resposta do próprio Nginx (`ok`) |
 | o resto | arquivos estáticos da SPA (`index.html` para rotas do Vue) |
 
-O Swagger (`/swagger-ui.html`) e o Actuator **não** são expostos pelo Nginx de propósito. O `Host` não é reescrito: o Spring Security o usa para montar URLs de redirect, e sobrescrevê-lo vazaria o hostname interno ao navegador. Só mude `BACKEND_UPSTREAM`/`COLLAB_UPSTREAM` (no `.env`) se o backend ou o `collab` não estiverem na rede do Compose.
+O contrato da API (Swagger UI em `/swagger-ui.html` e o JSON em `/v1/fab-legis-api`) também sai por esse Nginx, para quem for consumir a API: ele só **descreve** os endpoints — todos continuam exigindo o access token (o botão *Authorize* da Swagger UI aceita o Bearer). `APP_SWAGGER_ENABLED=false` no `.env` desliga a UI e o JSON, se um ambiente preferir não publicar o contrato. O Actuator **não** é exposto pelo Nginx (só o healthcheck interno). O `Host` não é reescrito: o Spring Security o usa para montar URLs de redirect, e sobrescrevê-lo vazaria o hostname interno ao navegador. Só mude `BACKEND_UPSTREAM`/`COLLAB_UPSTREAM` (no `.env`) se o backend ou o `collab` não estiverem na rede do Compose.
 
 Para **exercitar localmente o mesmo caminho de produção**, suba o perfil `production` (Nginx na porta 80) com o `.env` apontando para `http://127.0.0.1` em vez de `:8081`/`:5173` (bloco comentado no `.env.example`).
 
@@ -204,15 +205,11 @@ Todas já são parametrizáveis (ver tabelas acima), só precisam do valor certo
 >
 `PROXY_BACKEND_TARGET` não se aplica em produção — é exclusiva do dev server do Vite (ver comentário em `.env.example`); o Nginx de produção usa `BACKEND_UPSTREAM`/`COLLAB_UPSTREAM`, que só precisam mudar se o backend e o `collab` não estiverem na rede do Compose.
 
-### 4. `application-prod.properties` ainda é um rascunho
-
-`backend/src/main/resources/application-prod.properties` tem placeholders (origens de CORS genéricas tipo `localhost:4200`, sem `app.oauth2.*`, sem conexão de banco real) — **precisa ser preenchido** antes de rodar com `SPRING_PROFILES_ACTIVE=prod`, com o equivalente de produção do que `application-dev.properties` já tem hoje (`app.oauth2.issuer`, `app.oauth2.redirect-uri`, `app.frontend.login-url`, conexão real do PostgreSQL).
-
-### 5. Chave de assinatura RSA — efêmera por padrão
+### 4. Chave de assinatura RSA — efêmera por padrão
 
 O par de chaves RSA do Authorization Server é gerado em memória a cada boot (`AuthorizationServerConfig.gerarChaveRsa()`) — todo restart do backend invalida instantaneamente todos os tokens/sessões emitidos antes dele, forçando login de novo em todo mundo. Em dev isso é aceitável; em produção, se restarts forem frequentes (deploy, escala automática), vale considerar carregar a chave de um arquivo/variável de ambiente persistente em vez de gerar uma nova a cada vez — não implementado ainda, fica registrado aqui como próximo passo caso incomode.
 
-### 6. Observabilidade — Actuator/Micrometer, sem coletor incluso
+### 5. Observabilidade — Actuator/Micrometer, sem coletor incluso
 
 O backend expõe **Spring Boot Actuator** com **Micrometer** (`spring-boot-starter-actuator` + `micrometer-registry-prometheus`), mas só quatro endpoints ficam acessíveis via HTTP (`management.endpoints.web.exposure.include=health,info,metrics,prometheus` em `application.properties`) — nunca `*`: `/actuator/env`, `/actuator/beans`, `/actuator/heapdump` etc. vazam detalhe interno demais pra ficar expostos, mesmo atrás de autenticação, e não são necessários pra observabilidade externa.
 
@@ -235,9 +232,8 @@ O backend expõe **Spring Boot Actuator** com **Micrometer** (`spring-boot-start
 2. Proxy reverso do Nginx funcionando (já vem em `frontend/nginx.conf.template`; confira que `GET /login` abre a SPA, `POST /login` chega ao backend e `/collab` aceita WebSocket) e, se houver outro proxy/balanceador na frente (TLS), sem reescrever o `Host`.
 3. Todas as variáveis da tabela acima apontando para o domínio público com `https://`/`wss://`.
 4. Frontend reconstruído (não só reiniciado) depois de qualquer mudança em `VITE_*`.
-5. `application-prod.properties` preenchido com configuração real.
-6. Testar o fluxo de login completo (não só que a tela carrega) — é o único jeito de pegar um `Host` sobrescrito ou uma rota de proxy faltando antes que um usuário real esbarre nisso.
-7. Se for conectar um coletor de métricas externo, decidir como ele vai autenticar contra `/actuator/prometheus` (ver seção 6) — não deixar a decisão pra depois do deploy.
+5. Testar o fluxo de login completo (não só que a tela carrega) — é o único jeito de pegar um `Host` sobrescrito ou uma rota de proxy faltando antes que um usuário real esbarre nisso.
+6. Se for conectar um coletor de métricas externo, decidir como ele vai autenticar contra `/actuator/prometheus` (ver passo 5) — não deixar a decisão pra depois do deploy.
 
 ---
 
@@ -260,6 +256,7 @@ Via Docker Compose, todas as variáveis abaixo (exceto `PORT` do collab, que nã
 | `APP_OAUTH2_ISSUER` | `http://127.0.0.1:8081` | Endereço que o navegador usa para o Authorization Server (vira o claim `iss` do token — collab e frontend precisam concordar com esse valor). Usa `127.0.0.1`, não `localhost`, de propósito — ver aviso abaixo |
 | `APP_OAUTH2_REDIRECT_URI` | `http://127.0.0.1:5173/callback` | Rota de callback da SPA (troca o `code` por token) |
 | `APP_FRONTEND_LOGIN_URL` | `http://127.0.0.1:5173/login` | Tela de login (Vue) para onde o Authorization Server manda usuários não-autenticados |
+| `APP_SWAGGER_ENABLED` | `true` | Publica a Swagger UI e o JSON do OpenAPI; `false` desliga os dois |
 | `APP_ADMIN_CPF` / `APP_ADMIN_SENHA` / `APP_ADMIN_NOME` | ver acima | Usuário administrador padrão, criado só no primeiro boot |
 
 **Collab** (serviço de colaboração em tempo real, ver [Arquitetura](docs/arquitetura.md))

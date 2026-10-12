@@ -73,6 +73,19 @@ server {
         include /etc/nginx/proxy_comum.conf;
     }
 
+    # Swagger UI: o contrato da API para quem vai consumi-la. Os endpoints seguem exigindo token (o Swagger só descreve);
+    # APP_SWAGGER_ENABLED=false no backend desliga a UI e o JSON (o /v1/fab-legis-api do bloco acima). `^~` e `=` para não
+    # caírem no bloco de cache de .js/.css, que serviria 404 para os assets do Swagger.
+    location ^~ /swagger-ui/ {
+        proxy_pass http://${BACKEND_UPSTREAM};
+        include /etc/nginx/proxy_comum.conf;
+    }
+
+    location = /swagger-ui.html {
+        proxy_pass http://${BACKEND_UPSTREAM};
+        include /etc/nginx/proxy_comum.conf;
+    }
+
     # GET /login é a tela de login da SPA (Vue Router); só o POST é do backend. O 418 é o truque usual do nginx para
     # decidir por método: o POST cai no @backend, o resto serve a SPA.
     location = /login {

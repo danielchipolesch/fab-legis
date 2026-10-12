@@ -186,4 +186,15 @@ class ControllersIntegracaoTest extends IntegracaoComPostgresBase {
         org.assertj.core.api.Assertions.assertThatThrownBy(() -> usuarioRepository.saveAndFlush(duplicado))
                 .isInstanceOf(org.springframework.dao.DataIntegrityViolationException.class);
     }
+
+    // ─── Contrato da API (Swagger/OpenAPI) ────────────────────────────────────
+
+    @Test
+    void oContratoDaApiEPublicoMasDeclaraQueTodoEndpointExigeToken() throws Exception {
+        mvc.perform(get("/v1/fab-legis-api"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.components.securitySchemes['bearer-jwt'].scheme").value("bearer"))
+                .andExpect(jsonPath("$.security[0]['bearer-jwt']").exists());
+        mvc.perform(get("/v1/documentos/resumo")).andExpect(status().isUnauthorized());   // descrever não abre a API
+    }
 }
