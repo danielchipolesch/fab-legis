@@ -57,7 +57,7 @@ nav:
   - Início: index.md
   - Guia de Uso:
       - Funcionalidades: funcionalidades.md
-      - Instalação e Configuração: instalacao.md
+      - Testes e qualidade: testes.md
   - Referência Técnica:
       - Arquitetura: arquitetura.md
       - Modelo de Domínio: dominio.md

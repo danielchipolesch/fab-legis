@@ -16,8 +16,10 @@ Este projeto mantém a documentação técnica em `docs/` (MkDocs Material, serv
 | `docs/ciclo-de-vida.md` | Status do documento, portarias/BCA, ciclo de emenda |
 | `docs/exportacao-pdf.md` | Geração de PDF (Apache FOP) e HTML, fontes, texto sugerido de portaria, regra de consistência entre PDF e HTML |
 | `docs/api-rest.md` | Endpoints |
-| `docs/instalacao.md` | Como rodar local/Docker, variáveis de ambiente |
+| `docs/testes.md` | Como testar (unitários, integração, frontend), análise estática, CI e como servir a documentação |
 | `docs/roadmap.md` | Perspectivas futuras — mova um item para cá quando virar decisão adiada, ou remova-o quando for implementado |
+
+**Instalação, configuração e variáveis de ambiente ficam no `README.md`** (seções "Instalação em desenvolvimento", "Instalação em produção" e "Variáveis de ambiente"), não em `docs/` — quem precisa instalar o sistema ainda não tem a documentação no ar. Mudou uma variável de ambiente, uma porta, um serviço do Compose ou um passo de deploy? Atualize o README na mesma tarefa.
 
 Se a mudança não se encaixa em nenhuma página existente, prefira estender a mais próxima a criar uma nova; só crie página nova para um assunto genuinamente novo, e nesse caso adicione a entrada em `mkdocs.yml` (`nav:`).
 
@@ -29,8 +31,8 @@ Se a mudança não se encaixa em nenhuma página existente, prefira estender a m
 - **Sem infraestrutura:** teste unitário não sobe Spring nem banco — instancia a classe direto ou usa Mockito para os colaboradores. Um teste que precise de contexto ou de banco é de integração e leva `@Tag("integration")` (fica fora do `mvn test` padrão).
 - **O teste descreve a regra documentada, não o que o código faz hoje.** A fonte da regra é `docs/` (e a norma: LC 95/1998, Decreto 12.002/2024, NSCA 5-3). Se o teste falhar porque o código diverge da regra documentada, isso é um **bug a reportar ao usuário** — não ajuste o teste para "passar". Se a correção não puder ser feita na tarefa, deixe o teste com `@Disabled("motivo")`, descrevendo o comportamento correto, para o alvo não se perder.
 - **Regra excluída, teste excluído:** ao remover uma regra, remova (ou reescreva) o teste dela em vez de deixá-lo quebrado ou `@Disabled` sem motivo.
-- **Rode antes de concluir a tarefa** (não há JDK/Maven exigido na máquina; usa-se um container): comando em [`docs/instalacao.md`](docs/instalacao.md#testes).
-- **Frontend:** Vitest (`npm test`), com os testes ao lado do código, no formato `<arquivo>.test.js` (ex.: `frontend/src/utils/numbering.test.js`). Vale a mesma regra do backend: lógica de negócio no frontend (hoje, a numeração em `numbering.js` e as regras do fluxo em `fluxoDocumento.js`) muda junto com o teste. `numbering.js` espelha `NumeracaoService.java` (ver `docs/dominio.md`): ao mudar a regra de numeração, altere as duas implementações e os dois testes (`NumeracaoServiceTest` e `numbering.test.js`) — os cenários de emenda são os mesmos de propósito. Comando em [`docs/instalacao.md`](docs/instalacao.md#testes).
+- **Rode antes de concluir a tarefa** (não há JDK/Maven exigido na máquina; usa-se um container): comando em [`docs/testes.md`](docs/testes.md#backend).
+- **Frontend:** Vitest (`npm test`), com os testes ao lado do código, no formato `<arquivo>.test.js` (ex.: `frontend/src/utils/numbering.test.js`). Vale a mesma regra do backend: lógica de negócio no frontend (hoje, a numeração em `numbering.js` e as regras do fluxo em `fluxoDocumento.js`) muda junto com o teste. `numbering.js` espelha `NumeracaoService.java` (ver `docs/dominio.md`): ao mudar a regra de numeração, altere as duas implementações e os dois testes (`NumeracaoServiceTest` e `numbering.test.js`) — os cenários de emenda são os mesmos de propósito. Comando em [`docs/testes.md`](docs/testes.md#backend).
 
 ## Consistência entre formatos de exportação (PDF e HTML) e a prévia
 
@@ -59,9 +61,9 @@ O que **não dá para descobrir lendo o código** e já custou tempo. O "como fu
 
 - **Acesse o frontend por `http://127.0.0.1:5173`, nunca por `localhost`.** O issuer e o redirect do OAuth2 são `127.0.0.1`; por `localhost` o login trava em `{"message":"Não autenticado."}`.
 - **Depois de um `git pull` que mexa em `backend/src/main/resources/db/migration`, recrie o volume do Postgres** — o sistema ainda não está em produção, então as migrations são *reescritas* (números reaproveitados), e um banco criado antes acusa `checksum mismatch` e o backend não sobe. Só o Postgres: `docker compose rm -sf postgres && docker volume rm fab-legis_postgres_18_data` (`docker compose down -v` apaga também o MinIO). Faça backup antes se houver dado que importe (`pg_dump` via `docker exec`).
-- **A chave RSA do Authorization Server é efêmera** (gerada a cada boot): reiniciar o backend invalida todos os tokens — é preciso logar de novo. Ver `docs/instalacao.md` (chave de assinatura) antes de ir para produção.
+- **A chave RSA do Authorization Server é efêmera** (gerada a cada boot): reiniciar o backend invalida todos os tokens — é preciso logar de novo. Ver o passo 5 de "Instalação em produção" no `README.md` antes de ir para produção.
 - **Git Bash no Windows:** `docker exec` com caminho absoluto precisa de `MSYS_NO_PATHCONV=1`. O `curl` do host não alcança `127.0.0.1` nesta máquina — para chamar a API à mão, use `docker exec fab-legis-backend wget ... http://localhost:8081/...`.
-- **Testes:** backend em container descartável e frontend com `docker exec fab-legis-frontend npx vitest run` — comandos em [`docs/instalacao.md`](docs/instalacao.md#testes). Um `ERROR` no log de `DocumentoStatusServiceTest` é o teste de falha simulada de PDF, não uma falha real; vale o resumo `BUILD SUCCESS`.
+- **Testes:** backend em container descartável e frontend com `docker exec fab-legis-frontend npx vitest run` — comandos em [`docs/testes.md`](docs/testes.md#backend). Um `ERROR` no log de `DocumentoStatusServiceTest` é o teste de falha simulada de PDF, não uma falha real; vale o resumo `BUILD SUCCESS`.
 
 ### Editor e prévia (TipTap)
 

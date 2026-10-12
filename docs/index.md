@@ -33,7 +33,8 @@ Hoje, boa parte disso é feita à mão em editores de texto genéricos — o que
 | Entender os status de um documento e o ciclo de emenda | [Ciclo de Vida do Documento](ciclo-de-vida.md) |
 | Entender como o PDF/portaria são gerados | [Geração de PDF e Portarias](exportacao-pdf.md) |
 | Consultar os endpoints da API | [API REST](api-rest.md) |
-| Rodar o projeto localmente | [Instalação e Configuração](instalacao.md) |
+| Instalar e rodar o projeto (desenvolvimento e produção) | [README](https://github.com/danielchipolesch/fab-legis#instalação-em-desenvolvimento) |
+| Testar e analisar o código | [Testes e qualidade](testes.md) |
 | Ver o que está planejado para o futuro | [Roadmap](roadmap.md) |
 
 ## Stack
@@ -53,7 +54,7 @@ Hoje, boa parte disso é feita à mão em editores de texto genéricos — o que
     | Apache FOP | 2.10 | Geração de PDF server-side via XSL-FO |
     | Apache PDFBox | 3.x | Utilitário de manipulação de PDF (dependência disponível para usos futuros) |
     | Flyway | — | Criação e evolução do esquema do banco por scripts SQL |
-    | Spring Boot Actuator / Micrometer | — | Healthcheck (`/actuator/health`) e métricas prontas pra coleta externa (`/actuator/prometheus`) — ver [Instalação e Configuração](instalacao.md#6-observabilidade-actuatormicrometer-sem-coletor-incluso) |
+    | Spring Boot Actuator / Micrometer | — | Healthcheck (`/actuator/health`) e métricas prontas pra coleta externa (`/actuator/prometheus`) — ver [Instalação em produção (README)](https://github.com/danielchipolesch/fab-legis#6-observabilidade--actuatormicrometer-sem-coletor-incluso) |
     | Lombok | 1.18.38 | Redução de boilerplate nas *entities* (os DTOs de `application/dtos/**` são **records** Java, imutáveis, sem Lombok) |
     | SpringDoc OpenAPI | 3.1.1 | Documentação Swagger |
     | Maven | Wrapper | Build |
