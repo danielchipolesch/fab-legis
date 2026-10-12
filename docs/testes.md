@@ -72,23 +72,20 @@ Achados que são **ruído deste projeto**, não defeito: `java:S1135` ("TODO") d
 
 ## Integração contínua (GitHub Actions)
 
-`.github/workflows/ci.yml` roda a cada `push` (qualquer branch) e a cada `pull_request` para `master` — quatro jobs independentes (backend, integração, frontend e docs), cada um repetindo exatamente o que este documento já manda rodar manualmente: `mvn test` + SpotBugs (backend), `npm run lint` + `npm test` + `npm run build` (frontend) e `docker compose build docs` (o build estrito do MkDocs). Nenhum deploy — o workflow existe só para pegar cedo o que apareceu nesta mesma sessão (um commit com erro de compilação passando batido por a suíte não ter rodado até o fim).
+`.github/workflows/ci.yml` roda a cada `push` (qualquer branch) e a cada `pull_request` para `master` — quatro jobs independentes (backend, integração, frontend e docs), cada um repetindo exatamente o que este documento já manda rodar manualmente: `mvn test` + SpotBugs (backend), `npm run lint` + `npm test` + `npm run build` (frontend) e o build estrito do MkDocs (`mkdocs build --strict`, num container). Nenhum deploy — o workflow existe só para pegar cedo o que apareceu nesta mesma sessão (um commit com erro de compilação passando batido por a suíte não ter rodado até o fim).
 
 ## Servindo esta documentação técnica
 
 A documentação (MkDocs Material) fica em **`/docs/`** do próprio sistema, no mesmo host — por exemplo `fab-legis.intraer/docs/`:
 
 - **Produção:** o site é compilado dentro da imagem do Nginx da borda (`frontend/Dockerfile`, estágio `docs-build`, com `mkdocs build --strict`) e servido por ele em `/docs/`; não existe um segundo servidor para a documentação.
-- **Desenvolvimento:** o serviço `docs` do `docker-compose.yml` (`docs/Dockerfile`, com o `docs/nginx.conf` usado só por ele) serve o site, e o proxy do Vite o expõe em `http://127.0.0.1:5173/docs/` — o mesmo caminho de produção. A porta `8000` continua abrindo-o direto.
+- **Desenvolvimento:** o serviço `docs` do `docker-compose.yml` roda `mkdocs serve` (imagem `squidfunk/mkdocs-material`) com `mkdocs.yml` e `docs/` **montados como volume**: editou uma página, o site atualiza sozinho, sem rebuild. O proxy do Vite o expõe em `http://127.0.0.1:5173/docs/`, o mesmo caminho de produção; a porta `8000` (`http://localhost:8000`) abre o servidor direto e recarrega o navegador a cada edição.
 
-!!! note "Alterou algo em `docs/`?"
-    Como o conteúdo é compilado em build time (não montado como volume), rode `docker compose up -d --build docs` para reconstruir o site em desenvolvimento (em produção ele é recompilado a cada build da imagem do Nginx).
-
-Para editar com recarregamento automático (sem rebuildar a imagem a cada alteração), rode o MkDocs diretamente via Python:
+Para checar o que o CI checa (links e âncoras quebrados viram erro), rode o build estrito:
 
 ```bash
-pip install -r requirements-docs.txt
-mkdocs serve
+docker run --rm -v "$(pwd):/docs" squidfunk/mkdocs-material:9.5.44 build --strict --site-dir /tmp/site
+# Windows (Git Bash): MSYS_NO_PATHCONV=1 e $(pwd -W) no lugar de $(pwd)
 ```
 
-Abre em `http://localhost:8000` (pare o container `docs` antes, para não conflitar na porta). `mkdocs build` sozinho gera o site estático na pasta `site/`, útil para publicar em outro hosting (ex.: GitHub Pages).
+Sem Docker, `pip install -r requirements-docs.txt` e `mkdocs serve` (abre em `http://127.0.0.1:8000`; pare antes o container `docs` para não conflitar na porta) ou `mkdocs build`, que gera o site estático em `site/` — útil para publicar em outro hosting (ex.: GitHub Pages).

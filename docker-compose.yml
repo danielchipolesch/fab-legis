@@ -178,14 +178,20 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
-  # ── Documentação técnica (MkDocs Material, build estático servido por Nginx) ─
+  # ── Documentação técnica — desenvolvimento (mkdocs serve, com recarga automática) ─
+  # Os arquivos são montados, então editar docs/ ou mkdocs.yml atualiza o site na hora, sem rebuild. É a mesma imagem do
+  # estágio docs-build do frontend/Dockerfile, que em produção compila o site (mkdocs build --strict) dentro do Nginx da raiz,
+  # em /docs/. Em desenvolvimento o proxy do Vite o expõe em http://127.0.0.1:5173/docs/ (a porta 8000 abre direto, com a
+  # recarga automática do navegador).
   docs:
-    build:
-      context: .
-      dockerfile: docs/Dockerfile
+    image: squidfunk/mkdocs-material:9.5.44
     container_name: fab-legis-docs
+    command: serve --dev-addr=0.0.0.0:8080
     ports:
       - "8000:8080"
+    volumes:
+      - ./mkdocs.yml:/docs/mkdocs.yml:ro
+      - ./docs:/docs/docs:ro
     restart: unless-stopped
 
 volumes:
