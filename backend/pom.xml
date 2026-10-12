@@ -85,7 +85,7 @@
             <scope>test</scope>
         </dependency>
         <!-- Testes de integração (@Tag("integration"), fora do `mvn test` padrão): PostgreSQL real num container
-             (Testcontainers) e MockMvc com a segurança do Spring. Precisam de Docker (ver docs/instalacao.md#testes). -->
+             (Testcontainers) e MockMvc com a segurança do Spring. Precisam de Docker (ver docs/testes.md). -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-webmvc-test</artifactId>
@@ -133,7 +133,7 @@
         <!-- Observabilidade: /actuator/health corrige o healthcheck que faltava
              pro backend no docker-compose.yml; /actuator/prometheus deixa métricas
              prontas pra qualquer coletor externo Prometheus-compatible, sem acoplar
-             o projeto a um fornecedor (ver docs/instalacao.md, seção "Deploy em
+             o projeto a um fornecedor (ver README.md, seção "Instalação em
              produção"). Nenhum coletor/visualizador (Prometheus/Grafana) sobe como
              parte deste repositório: decisão de infraestrutura de quem hospeda. -->
         <dependency>
@@ -187,7 +187,7 @@
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
             </plugin>
-            <!-- Análise estática (achar bug, não estilo; ver CLAUDE.md/docs/instalacao.md). Sem <executions>: não roda
+            <!-- Análise estática (achar bug, não estilo; ver CLAUDE.md/docs/testes.md). Sem <executions>: não roda
                  dentro de `mvn test`, só quando chamado explicitamente (`mvn spotbugs:spotbugs`) ou pelo CI. Sempre
                  gera o relatório, nunca falha o build: é o passo "reporta, não bloqueia" combinado com o usuário. -->
             <plugin>

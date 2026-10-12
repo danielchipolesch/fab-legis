@@ -90,7 +90,7 @@ public class SecurityConfig {
                 // .anyRequest().authenticated() abaixo -- exigem login igual a
                 // qualquer outro endpoint da API, não há coletor externo hospedado
                 // como parte deste projeto hoje que precise entrar sem isso (ver
-                // docs/instalacao.md, seção "Deploy em produção").
+                // README.md, seção "Instalação em produção").
                 .requestMatchers(HttpMethod.GET, "/actuator/health", "/actuator/health/**").permitAll()
                 // Raiz do backend não é rota de API nenhuma -- só existe pra
                 // dar um destino gracioso (ver RootRedirectController) quando

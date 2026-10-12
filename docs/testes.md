@@ -1,6 +1,6 @@
 # Testes e qualidade
 
-Como testar e analisar o sistema. A instalação (desenvolvimento e produção) e as variáveis de ambiente estão no [README](https://github.com/danielchipolesch/fab-legis#instalação-em-desenvolvimento).
+Como testar e analisar o sistema. A instalação (desenvolvimento e produção) e as variáveis de ambiente ficam no `README.md` da raiz do repositório.
 
 
 ## Backend

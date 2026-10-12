@@ -5,7 +5,7 @@ import globals from 'globals'
 // ESLint com o preset "essential" do Vue 3 (eslint-plugin-vue) -- a camada que evita erro real (v-for sem :key, mutar
 // prop direto, chave duplicada...), não estilo (indentação de atributo, quebra de linha etc., que é o papel do
 // Checkstyle no backend -- combinado com o usuário não instalar por enquanto). Sem regra customizada: primeiro passo
-// deliberadamente mínimo (ver CLAUDE.md/docs/instalacao.md).
+// deliberadamente mínimo (ver CLAUDE.md/docs/testes.md).
 export default [
   { ignores: ['dist/**', 'node_modules/**'] },
 

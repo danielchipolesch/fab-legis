@@ -17,7 +17,7 @@ import java.net.URI;
 // {"message":"Não autenticado."} cru do resource server, sem explicação nenhuma.
 // Redireciona pra tela de login da SPA em vez disso -- degradação graciosa, não
 // um comportamento esperado do fluxo normal (se isso disparar com frequência, é
-// sinal de host mismatch na configuração, ver docs/instalacao.md).
+// sinal de host mismatch na configuração, ver README.md).
 @Controller
 public class RootRedirectController {
 

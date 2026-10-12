@@ -1,6 +1,6 @@
 name: CI
 
-# Passo mínimo combinado com o usuário (ver docs/instalacao.md#testes): só o que já rodamos manualmente antes de cada
+# Passo mínimo combinado com o usuário (ver docs/testes.md): só o que já rodamos manualmente antes de cada
 # tarefa -- testes do backend e do frontend, build do frontend, build estrito dos docs -- mais o lint do frontend
 # (eslint-plugin-vue, preset "essential": acha erro real, não estilo) e o SpotBugs no backend (achar bug, não estilo;
 # por isso sem Checkstyle). Nada de deploy, matriz de SO/versão ou cobertura ainda -- ver CLAUDE.md.
