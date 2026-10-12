@@ -197,4 +197,25 @@ class ControllersIntegracaoTest extends IntegracaoComPostgresBase {
                 .andExpect(jsonPath("$.security[0]['bearer-jwt']").exists());
         mvc.perform(get("/v1/documentos/resumo")).andExpect(status().isUnauthorized());   // descrever não abre a API
     }
+
+    // ─── CORS: só as origens configuradas (APP_CORS_ALLOWED_ORIGINS) ──────────
+
+    @Test
+    void oFrontendDeDesenvolvimentoPodeChamarAApiPeloNavegador() throws Exception {
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options("/v1/documentos/resumo")
+                        .header("Origin", "http://127.0.0.1:5173")
+                        .header("Access-Control-Request-Method", "GET")
+                        .header("Access-Control-Request-Headers", "authorization"))
+                .andExpect(status().isOk())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.header()
+                        .string("Access-Control-Allow-Origin", "http://127.0.0.1:5173"));
+    }
+
+    @Test
+    void umaOrigemQueNaoEstaNaListaNaoPodeChamarAApiPeloNavegador() throws Exception {
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options("/v1/documentos/resumo")
+                        .header("Origin", "https://site-qualquer.example")
+                        .header("Access-Control-Request-Method", "GET"))
+                .andExpect(status().isForbidden());
+    }
 }

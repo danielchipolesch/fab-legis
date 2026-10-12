@@ -10,7 +10,8 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 @EnableWebMvc
 public class CorsConfig implements WebMvcConfigurer{
 
-    @Value("*")
+    // Mesma lista de SecurityConfig.corsConfigurationSource (que o Spring Security aplica primeiro): APP_CORS_ALLOWED_ORIGINS.
+    @Value("${app.cors.allowed-origins:}")
     private String[] allowedOrigins;
 
     @Override
@@ -18,7 +19,7 @@ public class CorsConfig implements WebMvcConfigurer{
 
         registry
                 .addMapping("/**")
-                .allowedOrigins(allowedOrigins)
+                .allowedOriginPatterns(allowedOrigins)
                 .allowedMethods("POST", "PUT", "PATCH", "DELETE", "GET", "OPTIONS")
                 .allowedHeaders("*")
                 .exposedHeaders("ETag");

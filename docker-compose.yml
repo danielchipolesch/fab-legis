@@ -51,6 +51,8 @@ services:
     environment:
       # Publica a Swagger UI e o JSON do OpenAPI (os endpoints exigem token de qualquer jeito).
       APP_SWAGGER_ENABLED: ${APP_SWAGGER_ENABLED:-true}
+      # Origens autorizadas a chamar a API pelo navegador (CORS). Em produção, mesma origem via Nginx: vazio.
+      APP_CORS_ALLOWED_ORIGINS: ${APP_CORS_ALLOWED_ORIGINS-http://127.0.0.1:5173,http://localhost:5173}
       DB_HOST: postgres
       DB_PORT: "5432"
       DB_NAME: ${POSTGRES_DB:-fab-legis-dev}

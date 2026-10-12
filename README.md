@@ -188,6 +188,7 @@ Todas já são parametrizáveis (ver tabelas acima), só precisam do valor certo
 
 | Variável | Valor em produção |
 |---|---|
+| `APP_CORS_ALLOWED_ORIGINS` | *(vazio)* — com tudo na mesma origem pelo Nginx, nenhum site precisa de CORS |
 | `APP_OAUTH2_ISSUER` | `https://fab-legis.exemplo.mil.br` |
 | `APP_OAUTH2_REDIRECT_URI` | `https://fab-legis.exemplo.mil.br/callback` |
 | `APP_FRONTEND_LOGIN_URL` | `https://fab-legis.exemplo.mil.br/login` |
@@ -230,7 +231,7 @@ O backend expõe **Spring Boot Actuator** com **Micrometer** (`spring-boot-start
 
 1. HTTPS ativo no domínio de produção (certificado interno serve).
 2. Proxy reverso do Nginx funcionando (já vem em `frontend/nginx.conf.template`; confira que `GET /login` abre a SPA, `POST /login` chega ao backend e `/collab` aceita WebSocket) e, se houver outro proxy/balanceador na frente (TLS), sem reescrever o `Host`.
-3. Todas as variáveis da tabela acima apontando para o domínio público com `https://`/`wss://`.
+3. Todas as variáveis da tabela acima (inclusive `APP_CORS_ALLOWED_ORIGINS` vazio) apontando para o domínio público com `https://`/`wss://`.
 4. Frontend reconstruído (não só reiniciado) depois de qualquer mudança em `VITE_*`.
 5. Testar o fluxo de login completo (não só que a tela carrega) — é o único jeito de pegar um `Host` sobrescrito ou uma rota de proxy faltando antes que um usuário real esbarre nisso.
 6. Se for conectar um coletor de métricas externo, decidir como ele vai autenticar contra `/actuator/prometheus` (ver passo 5) — não deixar a decisão pra depois do deploy.
@@ -256,6 +257,7 @@ Via Docker Compose, todas as variáveis abaixo (exceto `PORT` do collab, que nã
 | `APP_OAUTH2_ISSUER` | `http://127.0.0.1:8081` | Endereço que o navegador usa para o Authorization Server (vira o claim `iss` do token — collab e frontend precisam concordar com esse valor). Usa `127.0.0.1`, não `localhost`, de propósito — ver aviso abaixo |
 | `APP_OAUTH2_REDIRECT_URI` | `http://127.0.0.1:5173/callback` | Rota de callback da SPA (troca o `code` por token) |
 | `APP_FRONTEND_LOGIN_URL` | `http://127.0.0.1:5173/login` | Tela de login (Vue) para onde o Authorization Server manda usuários não-autenticados |
+| `APP_CORS_ALLOWED_ORIGINS` | `http://127.0.0.1:5173,http://localhost:5173` | Origens do navegador autorizadas a chamar a API (CORS), separadas por vírgula; aceita padrões como `https://*.exemplo.mil.br`. **Em produção, com tudo atrás do Nginx na mesma origem, deixe vazio** (`APP_CORS_ALLOWED_ORIGINS=` no `.env`): não há chamada cross-origin. `*` libera qualquer site — evite |
 | `APP_SWAGGER_ENABLED` | `true` | Publica a Swagger UI e o JSON do OpenAPI; `false` desliga os dois |
 | `APP_ADMIN_CPF` / `APP_ADMIN_SENHA` / `APP_ADMIN_NOME` | ver acima | Usuário administrador padrão, criado só no primeiro boot |
 

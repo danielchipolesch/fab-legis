@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import intraer.fablegis.infrastructure.security.JwtToUsuarioAuthenticationConverter;
 import intraer.fablegis.infrastructure.security.SseBearerTokenResolver;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
@@ -55,9 +56,12 @@ public class SecurityConfig {
     }
 
     @Bean
-    public CorsConfigurationSource corsConfigurationSource() {
+    // Origens do navegador autorizadas a chamar a API (APP_CORS_ALLOWED_ORIGINS, separadas por vírgula). Em produção, com tudo
+    // atrás do Nginx na mesma origem, não há chamada cross-origin: deixe vazio. Em desenvolvimento o frontend (:5173) fala com a
+    // API (:8081), outra origem, e o padrão cobre isso. Aceita padrões (ex.: https://*.exemplo.mil.br); "*" libera tudo -- evite.
+    public CorsConfigurationSource corsConfigurationSource(@Value("${app.cors.allowed-origins:}") List<String> origensPermitidas) {
         var config = new CorsConfiguration();
-        config.setAllowedOriginPatterns(List.of("*"));
+        config.setAllowedOriginPatterns(origensPermitidas);
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setExposedHeaders(List.of("ETag"));
