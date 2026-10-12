@@ -9,7 +9,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-123456}
       POSTGRES_DB: ${POSTGRES_DB:-fab-legis-dev}
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"   # só a própria máquina (depuração); nunca exposto à rede
     volumes:
       # PostgreSQL 18+: o volume vai em /var/lib/postgresql (o PGDATA da imagem é /var/lib/postgresql/18/docker), não mais em .../data.
       - postgres_18_data:/var/lib/postgresql
@@ -26,8 +26,9 @@ services:
     container_name: fab-legis-minio
     command: server /data --console-address ":9001"
     ports:
-      - "9000:9000"   # API S3
-      - "9001:9001"   # Console web
+      # O navegador baixa as imagens direto daqui (URLs assinadas, MINIO_PUBLIC_URL): em produção MINIO_BIND=0.0.0.0 (ver README).
+      - "${MINIO_BIND:-127.0.0.1}:9000:9000"   # API S3
+      - "127.0.0.1:9001:9001"   # Console web (só a própria máquina)
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin123}
@@ -47,7 +48,7 @@ services:
       dockerfile: Dockerfile
     container_name: fab-legis-backend
     ports:
-      - "8081:8081"
+      - "127.0.0.1:8081:8081"   # em produção o navegador chega ao backend pelo Nginx (/v1), não por aqui
     environment:
       # Publica a Swagger UI e o JSON do OpenAPI (os endpoints exigem token de qualquer jeito).
       APP_SWAGGER_ENABLED: ${APP_SWAGGER_ENABLED:-true}
@@ -97,9 +98,12 @@ services:
       context: .
       dockerfile: frontend/Dockerfile
       target: development
+    # Só em desenvolvimento (Vite com HMR). O .env de cada ambiente escolhe os perfis: COMPOSE_PROFILES=dev ou production.
+    profiles:
+      - dev
     container_name: fab-legis-frontend
     ports:
-      - "5173:5173"
+      - "127.0.0.1:5173:5173"
     volumes:
       - ./frontend/src:/app/src
       - ./frontend/public:/app/public
@@ -147,12 +151,15 @@ services:
     container_name: fab-legis-frontend-prod
     ports:
       - "80:8080"
+      - "443:8443"   # só responde se o nginx.conf for o de HTTPS (nginx.https.conf.example)
     environment:
       NODE_ENV: production
     volumes:
       # Configuração do Nginx deste ambiente (nginx/nginx.conf, fora do git; copie de nginx/nginx.conf.example). Precisa existir
       # antes do `up`: se não existir, o Docker cria uma PASTA com esse nome e o Nginx não sobe.
       - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./nginx/comum.conf:/etc/nginx/comum.conf:ro
+      - ./nginx/certs:/etc/nginx/certs:ro   # fullchain.pem e privkey.pem (HTTPS); fora do git
     profiles:
       - production
     depends_on:
@@ -167,7 +174,7 @@ services:
       dockerfile: Dockerfile
     container_name: fab-legis-collab
     ports:
-      - "1234:1234"
+      - "127.0.0.1:1234:1234"   # em produção o navegador chega ao collab pelo Nginx (/collab)
     environment:
       # ISSUER precisa bater com o claim "iss" do token (o que o NAVEGADOR usa,
       # ver APP_OAUTH2_ISSUER no backend) -- JWKS_URL é só o endereço INTERNO
@@ -187,7 +194,7 @@ services:
       dockerfile: docs/Dockerfile
     container_name: fab-legis-docs
     ports:
-      - "8000:8080"
+      - "${DOCS_BIND:-127.0.0.1}:8000:8080"   # em produção, DOCS_BIND=0.0.0.0 se a documentação for pública
     restart: unless-stopped
 
 volumes:

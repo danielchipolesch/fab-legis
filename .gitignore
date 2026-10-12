@@ -80,3 +80,5 @@ apresentacao/
 
 # Configuração real do Nginx de cada ambiente (copiada de nginx/nginx.conf.example)
 nginx/nginx.conf
+nginx/certs/*
+!nginx/certs/.gitkeep

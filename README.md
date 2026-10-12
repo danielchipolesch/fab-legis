@@ -136,21 +136,51 @@ Scripts disponíveis:
 
 ## Instalação em produção
 
-Para expor o sistema a usuários reais. O perfil `production` do Compose sobe o `frontend-prod` (frontend compilado e servido por Nginx na porta 80) no lugar do `frontend` de desenvolvimento:
+Para expor o sistema a usuários reais. A diferença entre os ambientes está em **dois arquivos de configuração por ambiente, fora do git**, escritos a partir de modelos versionados — o resto (código, imagens, `docker-compose.yml`) é o mesmo:
+
+| Arquivo (fora do git) | Modelo (versionado) | O que decide |
+|---|---|---|
+| `.env` | `.env.example` | endereços, credenciais, opções, e **quais serviços sobem** (`COMPOSE_PROFILES`) |
+| `nginx/nginx.conf` | `nginx/nginx.conf.example` (HTTP) ou `nginx/nginx.https.conf.example` (HTTPS) | a porta de entrada: TLS, hosts |
+| `nginx/certs/` | — | certificado e chave privada do HTTPS (só em produção) |
+
+**Perfis do Compose.** Cada serviço do `docker-compose.yml` sobe sempre, menos o frontend, que tem versão de desenvolvimento (`dev`: Vite com recarga) e de produção (`production`: arquivos compilados atrás do Nginx). Quem escolhe é o `COMPOSE_PROFILES` do `.env` — em desenvolvimento `dev` (o padrão do `.env.example`), em produção `production`. Assim `docker compose up -d` faz a coisa certa em cada ambiente e o frontend de desenvolvimento nunca sobe em produção. Não há segundo arquivo de Compose.
+
+**Portas.** O Docker publica as portas internas (PostgreSQL, API, `collab`, console do MinIO) **só em `127.0.0.1`**, em qualquer ambiente: servem à depuração na própria máquina e não ficam acessíveis pela rede. Em produção o único acesso é o Nginx (80/443). As exceções são decididas no `.env`: `MINIO_BIND=0.0.0.0` (o navegador baixa as imagens direto do MinIO) e `DOCS_BIND=0.0.0.0` (só se a documentação for pública).
 
 ```bash
-cp .env.example .env                         # valores de produção (passo 3) e segredos próprios
-cp nginx/nginx.conf.example nginx/nginx.conf   # a configuração do Nginx deste ambiente (passo 2)
-docker compose --profile production up -d --build
+cp .env.example .env                          # ajuste: COMPOSE_PROFILES=production e os valores do passo 3
+cp nginx/nginx.https.conf.example nginx/nginx.conf   # (ou nginx.conf.example, se o TLS terminar fora, num balanceador)
+# coloque o certificado em nginx/certs/ (passo 1) e então:
+docker compose up -d --build
 ```
 
-**Subir com esse perfil sozinho não basta** para funcionar fora de `localhost`/`127.0.0.1`: os passos 1 a 4 abaixo são obrigatórios (o 5 trata de monitoramento), e o [checklist](#checklist-antes-de-expor-ao-público) no fim confere tudo.
+**Subir assim sozinho não basta** para funcionar fora de `localhost`/`127.0.0.1`: os passos 1 a 5 abaixo são obrigatórios (o 6 trata de monitoramento), e o [checklist](#checklist-antes-de-expor-ao-público) no fim confere tudo.
 
 O fluxo de login (OAuth2 Authorization Code + PKCE, ver [Autenticação e Colaboração](docs/autenticacao.md)) foi validado em desenvolvimento usando `127.0.0.1`, nunca `localhost` — não por preferência estética, mas porque o cookie de sessão do Spring Security (`SameSite=Lax`) e a API `crypto.subtle` (usada pelo PKCE) só se comportam de forma confiável quando tudo está na mesma origem. Isso tem implicações diretas pra produção: **não é só trocar `127.0.0.1` por um hostname público** — alguns pré-requisitos são obrigatórios, não configuráveis.
 
-### 1. HTTPS é obrigatório — não um "nice to have"
+### 1. HTTPS é obrigatório — e como configurar
 
-`crypto.subtle` (usado por `frontend/src/utils/pkce.js` para gerar o `code_challenge`) só existe em **contextos seguros**: HTTPS, ou HTTP em `localhost`/`127.0.0.1`. Um domínio de produção acessado por `http://` puro (comum em intranets internas) **não é** um contexto seguro — `crypto.subtle` fica `undefined` e o login falha para todo mundo, sem alternativa de configuração. Se o ambiente de destino é uma intranet sem TLS hoje, isso precisa ser resolvido primeiro (certificado interno/CA próprio da organização serve — não precisa ser público) antes de qualquer outro passo abaixo fazer diferença.
+`crypto.subtle` (usado por `frontend/src/utils/pkce.js` para gerar o `code_challenge`) só existe em **contextos seguros**: HTTPS, ou HTTP em `localhost`/`127.0.0.1`. Um domínio acessado por `http://` puro (comum em intranets) **não é** contexto seguro: `crypto.subtle` fica `undefined` e o login falha para todo mundo, sem configuração que contorne. Numa intranet sem TLS, resolva isso primeiro — um certificado interno/CA da organização serve; não precisa ser público.
+
+**Opção A — o Nginx do sistema termina o TLS** (a mais simples; o que o repositório já traz pronto):
+
+1. **Nome do host:** peça à rede o nome (ex.: `fab-legis.intraer`) apontando para o servidor, e um certificado para esse nome — da CA interna da FAB (ou Let's Encrypt, se o servidor for público).
+2. **Certificado:** coloque em `nginx/certs/` o `fullchain.pem` (certificado + intermediárias, nessa ordem) e o `privkey.pem` (chave privada). A pasta está no `.gitignore`: a chave **nunca** vai para o git.
+3. **Configuração:** `cp nginx/nginx.https.conf.example nginx/nginx.conf` e troque `server_name _;` pelo nome do host. Ela escuta em 8443 (publicada como 443), redireciona o HTTP (80) para HTTPS e manda o cabeçalho HSTS.
+4. **Endereços no `.env`:** todos com `https://` e `wss://` (passo 3).
+5. `docker compose up -d --build` e teste `https://fab-legis.intraer/login`.
+
+Para **experimentar** sem certificado de verdade, gere um autoassinado (o navegador vai reclamar; serve para testar o fluxo):
+
+```bash
+docker run --rm -v "$(pwd)/nginx/certs:/certs" alpine/openssl req -x509 -newkey rsa:2048 -nodes -days 30 \
+  -keyout /certs/privkey.pem -out /certs/fullchain.pem -subj "/CN=fab-legis.intraer"
+```
+
+**Opção B — o TLS termina antes** (um balanceador ou proxy da FAB já faz o HTTPS): use `nginx/nginx.conf.example` (só HTTP) e deixe o balanceador repassar para a porta 80 mandando `X-Forwarded-Proto: https` e **sem reescrever o `Host`**. Os endereços do `.env` continuam `https://`.
+
+**Imagens do MinIO.** O navegador baixa as imagens direto do MinIO (URLs assinadas, `MINIO_PUBLIC_URL`). Numa página HTTPS, essa URL **também precisa ser HTTPS**, senão o navegador bloqueia (conteúdo misto). Duas saídas: (a) dar ao MinIO um nome próprio (ex.: `s3.fab-legis.intraer`) com TLS — um segundo `server` no Nginx que repassa para `minio:9000` **preservando o `Host`** (a assinatura das URLs depende dele) — e usar `MINIO_PUBLIC_URL=https://s3.fab-legis.intraer`; ou (b) colocar o certificado no próprio MinIO (`/root/.minio/certs`). Em qualquer caso `MINIO_BIND=0.0.0.0` no `.env`.
 
 ### 2. Mesma origem (proxy reverso) — o `nginx/nginx.conf` de cada ambiente
 
@@ -158,8 +188,9 @@ Em desenvolvimento, o proxy do Vite (`server.proxy` em `frontend/vite.config.js`
 
 | Arquivo | Papel |
 |---|---|
-| `nginx/nginx.conf.example` | **Modelo** versionado da configuração do Nginx (borda do sistema): serve a SPA e faz o proxy reverso para o backend e o `collab`, com `backend:8081` e `collab:1234` (rede do Compose) |
-| `nginx/nginx.conf` | A configuração **real** do ambiente — `cp nginx/nginx.conf.example nginx/nginx.conf`; está no `.gitignore`. O Compose a monta em `/etc/nginx/conf.d/default.conf` (precisa existir antes do `up`) |
+| `nginx/comum.conf` | O que é comum a qualquer ambiente (versionado): serve a SPA e faz o proxy reverso para o backend (`backend:8081`) e o `collab` (`collab:1234`), na rede do Compose |
+| `nginx/nginx.conf.example` / `nginx/nginx.https.conf.example` | **Modelos** da configuração do ambiente: só HTTP (TLS terminado fora) ou com HTTPS direto no Nginx. Ambos incluem o `comum.conf` |
+| `nginx/nginx.conf` | A configuração **real** do ambiente — copiada de um dos modelos; está no `.gitignore`. O Compose a monta em `/etc/nginx/conf.d/default.conf` (precisa existir antes do `up`) |
 | `frontend/Dockerfile` (estágio `production`) | Compila a SPA para a imagem do Nginx; a configuração vem do `nginx/nginx.conf` montado |
 
 O que o Nginx roteia (tudo atrás de **um único host público**):
@@ -189,6 +220,7 @@ Todas já são parametrizáveis (ver tabelas acima), só precisam do valor certo
 
 | Variável | Valor em produção |
 |---|---|
+| `COMPOSE_PROFILES` | `production` || `MINIO_BIND` | `0.0.0.0` (o navegador precisa chegar ao MinIO; ver passo 1) |
 | `APP_CORS_ALLOWED_ORIGINS` | *(vazio)* — com tudo na mesma origem pelo Nginx, nenhum site precisa de CORS |
 | `APP_OAUTH2_ISSUER` | `https://fab-legis.exemplo.mil.br` |
 | `APP_OAUTH2_REDIRECT_URI` | `https://fab-legis.exemplo.mil.br/callback` |
@@ -210,9 +242,28 @@ Todas já são parametrizáveis (ver tabelas acima), só precisam do valor certo
 
 ### 4. Chave de assinatura RSA — efêmera por padrão
 
-O par de chaves RSA do Authorization Server é gerado em memória a cada boot (`AuthorizationServerConfig.gerarChaveRsa()`) — todo restart do backend invalida instantaneamente todos os tokens/sessões emitidos antes dele, forçando login de novo em todo mundo. Em dev isso é aceitável; em produção, se restarts forem frequentes (deploy, escala automática), vale considerar carregar a chave de um arquivo/variável de ambiente persistente em vez de gerar uma nova a cada vez — não implementado ainda, fica registrado aqui como próximo passo caso incomode.
+O par de chaves RSA do Authorization Server é gerado em memória a cada boot (`AuthorizationServerConfig.gerarChaveRsa()`) — todo restart do backend invalida instantaneamente todos os tokens/sessões emitidos antes dele, forçando login de novo em todo mundo. Em dev isso é aceitável; em produção, se restarts forem frequentes (deploy, escala automática), vale considerar carregar a chave de um arquivo/variável de ambiente persistente em vez de gerar uma nova a cada vez — **não implementado ainda**.
 
-### 5. Observabilidade — Actuator/Micrometer, sem coletor incluso
+**Como resolver** (quando os restarts incomodarem): (1) gere uma vez um par RSA de 2048 bits (`openssl genrsa -out chave-jwk.pem 2048`) e guarde o arquivo fora do git, num volume ou *secret* do servidor, com acesso restrito; (2) monte o arquivo no container do backend (`volumes:` no `docker-compose.yml`) e informe o caminho por uma variável de ambiente nova (ex.: `APP_OAUTH2_CHAVE_PRIVADA`); (3) em `AuthorizationServerConfig`, no lugar de `gerarChaveRsa()`, leia essa chave do arquivo (e derive a pública dela) — com um `kid` fixo, para os tokens antigos continuarem válidos depois do restart. É uma mudança pequena de código; o `collab` já busca as chaves pelo JWKS e acompanha sozinho. Guarde a chave com o mesmo cuidado de um certificado: quem a tem emite tokens válidos.
+
+### 5. Backup — não existe rotina pronta
+
+Os dados de verdade estão em dois lugares: o **PostgreSQL** (documentos, usuários, tudo) e o **MinIO** (imagens, PDFs armazenados, portarias). Perder qualquer um é perder dados; **nada disto é feito automaticamente** — configure antes de entrar em produção.
+
+```bash
+# PostgreSQL: um dump completo (rode do servidor; agende no cron, ex.: toda noite)
+docker exec fab-legis-postgres pg_dump -U postgres -Fc fab-legis-dev > backup-$(date +%F).dump
+# restaurar num banco vazio:
+docker exec -i fab-legis-postgres pg_restore -U postgres -d fab-legis-dev --clean --if-exists < backup-2026-10-12.dump
+
+# MinIO: copiar o bucket para outro lugar (cliente mc, ou rclone/rsync sobre o volume)
+docker run --rm --network fab-legis_default -v "$(pwd)/backup-minio:/dados" minio/mc sh -c \
+  "mc alias set origem http://minio:9000 USUARIO_DO_MINIO SENHA_DO_MINIO && mc mirror origem/fab-legis-imagens /dados"   # valores do .env (MINIO_ROOT_USER/PASSWORD)
+```
+
+Guarde os arquivos **fora do servidor** (outra máquina ou storage da FAB), mantenha várias gerações (diário por uma semana, semanal por um mês) e, principalmente, **teste a restauração** de tempos em tempos: backup que nunca foi restaurado não é garantia. Os volumes do Docker (`postgres_18_data`, `minio_data`) também podem ser copiados com o container parado, mas o `pg_dump` é o caminho mais seguro para o banco.
+
+### 6. Observabilidade — Actuator/Micrometer, sem coletor incluso
 
 O backend expõe **Spring Boot Actuator** com **Micrometer** (`spring-boot-starter-actuator` + `micrometer-registry-prometheus`), mas só quatro endpoints ficam acessíveis via HTTP (`management.endpoints.web.exposure.include=health,info,metrics,prometheus` em `application.properties`) — nunca `*`: `/actuator/env`, `/actuator/beans`, `/actuator/heapdump` etc. vazam detalhe interno demais pra ficar expostos, mesmo atrás de autenticação, e não são necessários pra observabilidade externa.
 
@@ -231,8 +282,8 @@ O backend expõe **Spring Boot Actuator** com **Micrometer** (`spring-boot-start
 >
 ### Checklist antes de expor ao público
 
-1. HTTPS ativo no domínio de produção (certificado interno serve).
-2. Proxy reverso do Nginx funcionando (vem de `nginx/nginx.conf.example`, copiado para `nginx/nginx.conf`; confira que `GET /login` abre a SPA, `POST /login` chega ao backend e `/collab` aceita WebSocket) e, se houver outro proxy/balanceador na frente (TLS), sem reescrever o `Host`.
+1. HTTPS ativo no domínio de produção (certificado interno serve; `nginx/nginx.https.conf.example` + `nginx/certs/`), inclusive para as imagens do MinIO.
+2. `.env` com `COMPOSE_PROFILES=production` e Nginx funcionando (`nginx/nginx.conf`, copiado de um dos modelos; confira que `GET /login` abre a SPA, `POST /login` chega ao backend e `/collab` aceita WebSocket) e, se houver outro proxy/balanceador na frente (TLS), sem reescrever o `Host`.
 3. Todas as variáveis da tabela acima (inclusive `APP_CORS_ALLOWED_ORIGINS` vazio) apontando para o domínio público com `https://`/`wss://`.
 4. Frontend reconstruído (não só reiniciado) depois de qualquer mudança em `VITE_*`.
 5. Testar o fluxo de login completo (não só que a tela carrega) — é o único jeito de pegar um `Host` sobrescrito ou uma rota de proxy faltando antes que um usuário real esbarre nisso.
@@ -253,9 +304,11 @@ Via Docker Compose, todas as variáveis abaixo (exceto `PORT` do collab, que nã
 | `MINIO_ENDPOINT` | `http://localhost:9000` | Endpoint S3 do MinIO |
 | `MINIO_ACCESS_KEY` / `MINIO_SECRET_KEY` | `minioadmin` / `minioadmin123` | Credenciais do MinIO |
 | `MINIO_BUCKET` | `fab-legis-imagens` | Bucket das imagens |
-| `MINIO_PUBLIC_URL` | `http://localhost:9000` | URL pública para servir as imagens |
+| `MINIO_PUBLIC_URL` | `http://localhost:9000` | URL pública para servir as imagens (em produção, `https://`) |
 | `APP_PDF_MAX_CONCORRENTES` / `APP_PDF_ESPERA_MAXIMA_SEGUNDOS` | `2` / `30` | Renderizações de PDF simultâneas por instância e quanto um pedido espera por uma vaga antes do `503` — ver [Limite de gerações simultâneas de PDF](docs/exportacao-pdf.md#limite-de-geracoes-simultaneas-de-pdf) |
 | `APP_PDF_CACHE_TTL_DIAS` | `2` | Dias até o cache de PDF/HTML em tramitação expirar no MinIO — ver [Cache de PDF/HTML em tramitação](docs/exportacao-pdf.md#cache-de-pdfhtml-em-tramitacao) |
+| `COMPOSE_PROFILES` | `dev` | Quais serviços o `docker compose up` sobe: `dev` (frontend Vite) ou `production` (frontend compilado atrás do Nginx). Lida pelo próprio Compose |
+| `MINIO_BIND` / `DOCS_BIND` | `127.0.0.1` | Em que interface o Docker publica as portas do MinIO (9000) e da documentação (8000). Em produção, `0.0.0.0` onde o navegador precisar chegar direto (ver passo 1) |
 | `APP_OAUTH2_ISSUER` | `http://127.0.0.1:8081` | Endereço que o navegador usa para o Authorization Server (vira o claim `iss` do token — collab e frontend precisam concordar com esse valor). Usa `127.0.0.1`, não `localhost`, de propósito — ver aviso abaixo |
 | `APP_OAUTH2_REDIRECT_URI` | `http://127.0.0.1:5173/callback` | Rota de callback da SPA (troca o `code` por token) |
 | `APP_FRONTEND_LOGIN_URL` | `http://127.0.0.1:5173/login` | Tela de login (Vue) para onde o Authorization Server manda usuários não-autenticados |
