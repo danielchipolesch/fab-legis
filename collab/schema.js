@@ -5,10 +5,8 @@ import TextAlign from '@tiptap/extension-text-align'
 import TextStyle from '@tiptap/extension-text-style'
 import Color from '@tiptap/extension-color'
 import Highlight from '@tiptap/extension-highlight'
-import Table from '@tiptap/extension-table'
 import TableRow from '@tiptap/extension-table-row'
-import TableCell from '@tiptap/extension-table-cell'
-import TableHeader from '@tiptap/extension-table-header'
+import { Tabela, CelulaDeTabela, CabecalhoDeTabela } from './tabelaNode.js'
 import { Figure } from './figureNode.js'
 
 // Precisa ficar em sincronia com frontend/src/editor/extensions.js -- mesma
@@ -26,10 +24,10 @@ export const editorExtensions = [
   TextStyle,
   Color,
   Highlight.configure({ multicolor: true }),
-  Table.configure({ resizable: true }),
+  Tabela,
   TableRow,
-  TableHeader,
-  TableCell,
+  CabecalhoDeTabela,
+  CelulaDeTabela,
   Figure,
 ]
 

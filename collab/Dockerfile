@@ -5,7 +5,7 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev
 
-COPY server.js schema.js figureNode.js ./
+COPY server.js schema.js figureNode.js tabelaNode.js ./
 
 EXPOSE 1234
 

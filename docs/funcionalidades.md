@@ -22,6 +22,23 @@ Regras de numeração automática aplicadas pelo editor estão detalhadas em [Mo
 
 Extensão TipTap customizada (`extensions/figure.js`) com *NodeView* em Vue: upload da imagem para o MinIO, título, legenda e linha "Fonte:" embutida no HTML para garantir portabilidade na exportação. A numeração ("Figura 1", "Figura 2"…) usa CSS counters no preview web e é resolvida literalmente na exportação, de modo que o PDF e o HTML exportados saem com a numeração correta. O sumário inclui automaticamente a **Lista de Figuras**.
 
+## Tabelas
+
+O botão **Tabela** da barra do editor abre um **diálogo de inserção** (linhas de 1 a 30, colunas de 1 a 10 e se a primeira linha é cabeçalho). Com o cursor dentro da tabela aparece um **menu flutuante** acima dela, com:
+
+- **linhas e colunas**: inserir antes/depois e excluir;
+- **mesclar e dividir células**: selecione várias células arrastando o mouse e use *Mesclar*; numa célula mesclada, *Dividir* a desfaz;
+- **cabeçalho por linha, coluna ou célula**: liga/desliga a primeira linha, a primeira coluna ou a célula selecionada como cabeçalho (`tableHeader`; no HTML, `scope="col"`/`"row"`);
+- **estilo e cor da tabela**: *Padrão* (grade completa), *Zebrado* (linhas pares do corpo mais claras), *Compacto* (letra e margens menores) ou *Aberto* (só linhas horizontais); cor do cabeçalho e das linhas — azul (padrão), cinza, verde, vinho ou sem cor;
+- **cor de fundo da célula** (vence a cor do cabeçalho e o zebrado) e **alinhamento vertical** (em cima, no meio, embaixo);
+- **excluir a tabela**.
+
+A largura de cada coluna pode ser arrastada na borda; ela vale também no PDF e no HTML exportados.
+
+**Título e fonte numerados como as figuras:** acima da tabela, o campo de título gera a legenda **"Tabela N — título"** e abaixo, o campo "Fonte:" gera **"Fonte: …"**. Só a tabela com título é numerada (a sequência é por documento, independente da das figuras); uma tabela sem título sai sem legenda, e a fonte sozinha aparece sem número. A numeração é feita por contador CSS na prévia e no HTML exportado e por contador no PDF (`XslFoContentRenderer`) — os quatro lugares (editor, prévia, PDF e HTML) mostram a mesma legenda. Diferente das figuras, **não existe "Lista de Tabelas"** no sumário.
+
+No PDF, o cabeçalho (as linhas `tableHeader` do início) **repete no topo de cada página** quando a tabela atravessa uma quebra, e uma linha nunca se parte entre páginas ([Exportação](exportacao-pdf.md)). O HTML exportado também numera as **figuras** ("Figura N — título"), como o PDF e a prévia.
+
 ## Exportação de documentos
 
 Geração de PDF **server-side** via **Apache FOP 2.10 / XSL-FO**, e de HTML **server-side** (`DocumentoHtmlService`) seguindo as regras específicas que a NSCA 5-3 dá para a versão eletrônica (capa dispensada, corpo alinhado à esquerda, cabeçalho com Brasão da República alinhado à esquerda). Botão **Exportar HTML** ao lado do botão de PDF em toda tela de edição/visualização de um documento. Detalhamento completo dos dois pipelines, das regras da NSCA 5-3 e da configuração de fontes em [Geração de PDF e Portarias](exportacao-pdf.md).

@@ -14,6 +14,7 @@ import intraer.fablegis.domain.util.tiptap.TipTapNode;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.ObjectMapper;
 
+import intraer.fablegis.domain.util.tiptap.CssDoConteudo;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
@@ -109,7 +110,7 @@ public class LeiauteHtmlDeNpa implements LeiauteDoHtml {
             .anexo-titulo { text-align: center; font-weight: bold; margin: 0 0 6px; }
             .anexo-imagem { text-align: center; }
             .anexo-imagem img { max-width: 100%; }
-            """ + intraer.fablegis.domain.util.tiptap.CssDoConteudo.TABELAS_E_FIGURAS;
+            """ + CssDoConteudo.TABELAS_E_FIGURAS + CssDoConteudo.NUMERACAO_E_ESTILO_DAS_TABELAS;
     }
 
     // ─── Cabeçalho ────────────────────────────────────────────────────────────

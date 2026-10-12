@@ -1088,7 +1088,7 @@ const anexosDocumento = computed(() =>
 /* Contador reseta uma vez por documento (todas as figuras
    normativas ficam na mesma região do pages-wrap) */
 .pages-wrap {
-  counter-reset: figura;
+  counter-reset: figura tabela;
 }
 
 .norm-content-block :deep(figure.doc-figure) {

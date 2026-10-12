@@ -15,6 +15,7 @@ import intraer.fablegis.domain.regras.RotuloDosAnexos;
 import intraer.fablegis.domain.services.ImagemService;
 import intraer.fablegis.domain.services.NumeracaoService;
 import intraer.fablegis.domain.services.VersoesDocumento;
+import intraer.fablegis.domain.util.tiptap.CssDoConteudo;
 import intraer.fablegis.domain.util.tiptap.TipTapHtmlSerializer;
 import intraer.fablegis.domain.util.tiptap.TipTapNode;
 import tools.jackson.databind.ObjectMapper;
@@ -267,7 +268,7 @@ public class LeiauteHtmlDeEspecieConvencional implements LeiauteDoHtml {
                 .anexo-titulo { text-align: center; font-weight: bold; margin: 0 0 12pt; }
                 .anexo-imagem { text-align: center; }
                 .anexo-imagem img { max-width: 100%; height: auto; }
-                """;
+                """ + CssDoConteudo.NUMERACAO_E_ESTILO_DAS_TABELAS;
         }
 
         // ─── Page 1: Portaria de Aprovação ───────────────────────────────────────

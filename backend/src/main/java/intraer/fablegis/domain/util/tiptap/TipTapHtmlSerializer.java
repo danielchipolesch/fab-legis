@@ -77,8 +77,14 @@ public final class TipTapHtmlSerializer {
 
     private static void renderTable(TipTapNode table, StringBuilder sb) {
         var grade = GradeDeTabela.de(table);
-        sb.append("<table>");
-        if (grade.linhas().isEmpty()) { sb.append("</table>"); return; }
+        if (grade.linhas().isEmpty()) return;
+        String titulo = table.getAttrStr("titulo");
+        String fonte = table.getAttrStr("fonte");
+        // Mesma legenda do PDF: "Tabela N — título" (o número vem do contador CSS, só nas tabelas com título) e "Fonte: …".
+        sb.append("<div class=\"doc-tabela\">");
+        if (EstiloDeTabela.temTitulo(titulo)) sb.append("<p class=\"tabela-titulo\">").append(esc(titulo.trim())).append("</p>");
+        sb.append("<table data-estilo=\"").append(EstiloDeTabela.estilo(table.getAttrStr("estilo")))
+          .append("\" data-cor=\"").append(EstiloDeTabela.nomeDaCor(table.getAttrStr("cor"))).append("\">");
         // Larguras que o usuário arrastou no editor, em porcentagem da tabela (só quando houve ajuste).
         if (grade.temLarguras()) {
             double[] larguras = grade.largurasRelativas();
@@ -99,6 +105,8 @@ public final class TipTapHtmlSerializer {
         sb.append("<tbody>");
         for (int r = cabecalho; r < grade.linhas().size(); r++) renderLinhaDaTabela(grade, r, sb, "row");
         sb.append("</tbody></table>");
+        if (fonte != null && !fonte.isBlank()) sb.append("<p class=\"tabela-fonte\">Fonte: ").append(esc(fonte.trim())).append("</p>");
+        sb.append("</div>");
     }
 
     // escopoDoTh: "col" para o cabeçalho de coluna (thead), "row" para uma célula de cabeçalho no corpo (cabeçalho de linha).
@@ -122,6 +130,13 @@ public final class TipTapHtmlSerializer {
         int rs = cell.getAttrInt("rowspan", 1);
         if (cs > 1) sb.append(" colspan=\"").append(cs).append("\"");
         if (rs > 1) sb.append(" rowspan=\"").append(rs).append("\"");
+        // Cor própria da célula e alinhamento vertical (valores validados: #RRGGBB / top|middle|bottom).
+        String fundo = EstiloDeTabela.fundo(cell.getAttrStr("fundo"));
+        String vertical = EstiloDeTabela.alinhamentoVertical(cell.getAttrStr("alinhamentoVertical"));
+        var estilo = new StringBuilder();
+        if (fundo != null) estilo.append("background-color:").append(fundo).append(";");
+        if (!"top".equals(vertical)) estilo.append("vertical-align:").append(vertical).append(";");
+        if (estilo.length() > 0) sb.append(" style=\"").append(estilo).append("\"");
         return sb.toString();
     }
 
