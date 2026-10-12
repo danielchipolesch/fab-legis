@@ -57,6 +57,46 @@ server {
         return 200 "ok";
     }
 
+    # ── Proxy reverso — mesma origem para o navegador ─────────
+    # É o equivalente de produção do `server.proxy` do Vite (vite.config.js): /oauth2/**, /login (POST), /logout,
+    # /.well-known/** e /v1/** parecem, para o navegador, a mesma origem do frontend -- o que faz o cookie de sessão
+    # (SameSite=Lax) sobreviver ao login OAuth2. Os destinos vêm de variáveis (BACKEND_UPSTREAM e COLLAB_UPSTREAM, preenchidas pelo nginx ao subir o
+    # container), então trocar de ambiente é só mudar o .env -- este arquivo é o mesmo
+    # em desenvolvimento e em produção. O Host NÃO é reescrito: o Spring Security o usa para montar URLs de redirect.
+    location ~ ^/(oauth2|logout|\.well-known)(/|$) {
+        proxy_pass http://${BACKEND_UPSTREAM};
+        include /etc/nginx/proxy_comum.conf;
+    }
+
+    location ^~ /v1/ {
+        proxy_pass http://${BACKEND_UPSTREAM};
+        include /etc/nginx/proxy_comum.conf;
+    }
+
+    # GET /login é a tela de login da SPA (Vue Router); só o POST é do backend. O 418 é o truque usual do nginx para
+    # decidir por método: o POST cai no @backend, o resto serve a SPA.
+    location = /login {
+        error_page 418 = @backend;
+        if ($request_method = POST) { return 418; }
+        try_files /index.html =404;
+    }
+
+    location @backend {
+        proxy_pass http://${BACKEND_UPSTREAM};
+        include /etc/nginx/proxy_comum.conf;
+    }
+
+    # Colaboração em tempo real (Hocuspocus/Yjs): WebSocket em /collab. A barra final tira o prefixo antes de repassar.
+    location ^~ /collab/ {
+        proxy_pass http://${COLLAB_UPSTREAM}/;
+        include /etc/nginx/proxy_comum.conf;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade    $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_read_timeout 3600s;
+        proxy_send_timeout 3600s;
+    }
+
     # ── SPA — redireciona tudo para index.html ────────────────
     location / {
         try_files $uri $uri/ /index.html;

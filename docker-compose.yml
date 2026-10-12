@@ -143,6 +143,9 @@ services:
       - "80:8080"
     environment:
       NODE_ENV: production
+      # Onde o nginx (proxy reverso do passo 2 da instalação em produção) encontra o backend e o collab na rede do Compose.
+      BACKEND_UPSTREAM: ${BACKEND_UPSTREAM:-backend:8081}
+      COLLAB_UPSTREAM: ${COLLAB_UPSTREAM:-collab:1234}
     profiles:
       - production
     depends_on:
