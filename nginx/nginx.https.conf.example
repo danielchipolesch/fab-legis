@@ -1,5 +1,5 @@
 # Nginx da borda do sistema -- versão HTTPS (produção com TLS terminado aqui). Copie para nginx/nginx.conf (fora do git) e coloque
-# o certificado em nginx/certs/ (fora do git): fullchain.pem (certificado + intermediárias) e privkey.pem (chave privada).
+# o certificado em segredos/tls/ (fora do git): fullchain.pem (certificado + intermediárias) e privkey.pem (chave privada).
 # O docker-compose.yml publica 80 -> 8080 e 443 -> 8443. Tudo que é comum está em comum.conf.
 
 # HTTP: só redireciona para HTTPS (e responde o /health que o healthcheck do container usa).
@@ -24,8 +24,8 @@ server {
     http2 on;
     server_name _;     # troque pelo nome do host, ex.: fab-legis.intraer
 
-    ssl_certificate     /etc/nginx/certs/fullchain.pem;
-    ssl_certificate_key /etc/nginx/certs/privkey.pem;
+    ssl_certificate     /etc/segredos/tls/fullchain.pem;
+    ssl_certificate_key /etc/segredos/tls/privkey.pem;
     ssl_protocols       TLSv1.2 TLSv1.3;
     ssl_session_cache   shared:SSL:10m;
     ssl_session_timeout 1d;
@@ -46,8 +46,8 @@ server {
     http2 on;
     server_name s3.exemplo.intraer;
 
-    ssl_certificate     /etc/nginx/certs/fullchain.pem;
-    ssl_certificate_key /etc/nginx/certs/privkey.pem;
+    ssl_certificate     /etc/segredos/tls/fullchain.pem;
+    ssl_certificate_key /etc/segredos/tls/privkey.pem;
     ssl_protocols       TLSv1.2 TLSv1.3;
 
     client_max_body_size 0;

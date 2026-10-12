@@ -31,7 +31,7 @@ O servidor de autorização embutido (Spring Authorization Server) guarda **na m
 
 ### 2. Chave de assinatura dos tokens (resolvido, mas obrigatório)
 
-Todas as réplicas **precisam usar a mesma chave RSA**; senão um token emitido por uma réplica seria recusado por outra. O sistema já suporta isso: a chave é um arquivo (`chaves/jwt-rsa.pem`). No Kubernetes, monte o **mesmo** *Secret* em todas as réplicas e ligue `APP_OAUTH2_CHAVE_OBRIGATORIA=true`. Sem essa chave persistente, cada réplica geraria a sua chave efêmera. Ver [README, passo 4 da instalação em produção](https://github.com/danielchipolesch/fab-legis#4-chave-de-assinatura-dos-tokens-rsa).
+Todas as réplicas **precisam usar a mesma chave RSA**; senão um token emitido por uma réplica seria recusado por outra. O sistema já suporta isso: a chave é um arquivo (`segredos/jwt/jwt-rsa.pem`). No Kubernetes, monte o **mesmo** *Secret* em todas as réplicas e ligue `APP_OAUTH2_CHAVE_OBRIGATORIA=true`. Sem essa chave persistente, cada réplica geraria a sua chave efêmera. Ver [README, passo 4 da instalação em produção](https://github.com/danielchipolesch/fab-legis#4-chave-de-assinatura-dos-tokens-rsa).
 
 ### 3. Conexões em tempo real (SSE): presença, notificações e estrutura (bloqueia o tempo real entre réplicas)
 

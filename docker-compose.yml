@@ -65,7 +65,7 @@ services:
       MINIO_BUCKET: ${MINIO_BUCKET:-fab-legis-imagens}
       MINIO_PUBLIC_URL: http://localhost:9000
       APP_OAUTH2_ISSUER: ${APP_OAUTH2_ISSUER:-http://127.0.0.1:8081}
-      # Chave de assinatura dos tokens: se /app/chaves/jwt-rsa.pem existe (pasta ./chaves do servidor, montada abaixo), é a chave
+      # Chave de assinatura dos tokens: se /app/chaves/jwt-rsa.pem existe (pasta ./segredos/jwt do servidor, montada abaixo), é a chave
       # persistente; senão a chave é efêmera. APP_OAUTH2_CHAVE_OBRIGATORIA=true (produção) faz o boot falhar sem o arquivo.
       APP_OAUTH2_CHAVE_PRIVADA: ${APP_OAUTH2_CHAVE_PRIVADA:-/app/chaves/jwt-rsa.pem}
       APP_OAUTH2_CHAVE_OBRIGATORIA: ${APP_OAUTH2_CHAVE_OBRIGATORIA:-false}
@@ -78,9 +78,9 @@ services:
       APP_PDF_ESPERA_MAXIMA_SEGUNDOS: ${APP_PDF_ESPERA_MAXIMA_SEGUNDOS:-30}
       APP_PDF_CACHE_TTL_DIAS: ${APP_PDF_CACHE_TTL_DIAS:-2}
     volumes:
-      # A chave RSA de assinatura dos tokens (jwt-rsa.pem), fornecida pelo ambiente: pasta ./chaves do servidor (fora do git).
+      # A chave RSA de assinatura dos tokens (jwt-rsa.pem), fornecida pelo ambiente: pasta ./segredos/jwt do servidor (fora do git).
       # Em desenvolvimento fica vazia e a chave é efêmera. Somente leitura: o sistema nunca grava chave nenhuma.
-      - ${CHAVES_JWT:-./chaves}:/app/chaves:ro
+      - ${CHAVES_JWT:-./segredos/jwt}:/app/chaves:ro
     depends_on:
       postgres:
         condition: service_healthy
@@ -167,7 +167,7 @@ services:
       # antes do `up`: se não existir, o Docker cria uma PASTA com esse nome e o Nginx não sobe.
       - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
       - ./nginx/comum.conf:/etc/nginx/comum.conf:ro
-      - ./nginx/certs:/etc/nginx/certs:ro   # fullchain.pem e privkey.pem (HTTPS); fora do git
+      - ./segredos/tls:/etc/nginx/certs:ro   # fullchain.pem e privkey.pem (HTTPS); fora do git
     profiles:
       - production
     depends_on:
