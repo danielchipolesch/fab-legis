@@ -34,7 +34,7 @@ O FAB Legis trata o ato normativo (ICA, NSCA, MCA, RCA, DCA, PCA, OCA, RICA, ROC
 - **busca textual** no conteúdo de todos os documentos;
 - **autenticação OAuth2** (Authorization Code + PKCE) com login por CPF, emitida pelo próprio backend.
 
-Para o detalhamento de funcionalidades, arquitetura, modelo de domínio, autenticação, ciclo de vida do documento e API, veja a **[documentação técnica](docs/index.md)** — sobe junto com `docker compose up -d` (ver abaixo), disponível em `http://localhost:8000`. A instalação (desenvolvimento e produção) e a configuração ficam **aqui, neste README**; a documentação técnica trata do sistema em si e de como testá-lo.
+Para o detalhamento de funcionalidades, arquitetura, modelo de domínio, autenticação, ciclo de vida do documento e API, veja a **[documentação técnica](docs/index.md)** — sobe junto com `docker compose up -d` (ver abaixo) e fica em **`/docs/`** do próprio sistema (`http://127.0.0.1:5173/docs/` em desenvolvimento; `https://seu-host/docs/` em produção, pelo mesmo Nginx). A instalação (desenvolvimento e produção) e a configuração ficam **aqui, neste README**; a documentação técnica trata do sistema em si e de como testá-lo.
 
 ## Instalação em desenvolvimento
 
@@ -78,7 +78,7 @@ O `.env` na raiz (fora do git, só o `.env.example` é versionado) é lido autom
 | Swagger UI | http://localhost:8081/swagger-ui.html | — |
 | Collab (colaboração em tempo real) | ws://localhost:1234 | — |
 | OpenAPI JSON | http://localhost:8081/v1/fab-legis-api | — |
-| Documentação técnica | http://localhost:8000 | — |
+| Documentação técnica | http://127.0.0.1:5173/docs/ (também em http://localhost:8000) | — |
 | PostgreSQL | `localhost:5432` | `postgres` / `123456` |
 | MinIO (console) | http://localhost:9001 | `minioadmin` / `minioadmin123` |
 
@@ -171,6 +171,7 @@ O que o Nginx roteia (tudo atrás de **um único host público**):
 | `/v1/**` | backend (a API e o JSON do OpenAPI) |
 | `/swagger-ui.html`, `/swagger-ui/**` | backend (Swagger UI) |
 | `/collab/**` | `collab` (`COLLAB_UPSTREAM`, padrão `collab:1234`), com *upgrade* de WebSocket |
+| `/docs/` | documentação técnica (o site do MkDocs, compilado na própria imagem do Nginx) |
 | `/health` | resposta do próprio Nginx (`ok`) |
 | o resto | arquivos estáticos da SPA (`index.html` para rotas do Vue) |
 

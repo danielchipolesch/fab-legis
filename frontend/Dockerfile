@@ -21,9 +21,17 @@ ENV VITE_COLLAB_URL=$VITE_COLLAB_URL
 COPY frontend/ .
 RUN npm run build
 
+# ── Documentação técnica (mkdocs build) -- servida pelo mesmo Nginx em /docs ─────
+FROM squidfunk/mkdocs-material:9.5.44 AS docs-build
+WORKDIR /docs
+COPY mkdocs.yml .
+COPY docs/ ./docs
+RUN mkdocs build --strict
+
 # ── Estágio de produção (Nginx) ────────────────────────────────────────────────
 FROM nginx:1.28-alpine AS production
 COPY --from=build /app/dist /usr/share/nginx/html
+COPY --from=docs-build /docs/site /usr/share/nginx/html/docs
 # O nginx da imagem substitui as variáveis do template (BACKEND_UPSTREAM, COLLAB_UPSTREAM) ao subir e grava em conf.d --
 # o mesmo arquivo em desenvolvimento e em produção; só os valores (docker-compose.yml / .env) mudam.
 COPY nginx/nginx.conf.template /etc/nginx/templates/default.conf.template

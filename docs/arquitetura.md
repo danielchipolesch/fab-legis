@@ -152,11 +152,11 @@ fab-legis/
 ├── docker-compose.yml          # Orquestração: postgres, minio, backend, collab, frontend, docs
 ├── mkdocs.yml                  # Configuração da documentação técnica (este site)
 ├── docs/                       # Fonte da documentação técnica (MkDocs Material)
-│   ├── Dockerfile              # Multi-stage: mkdocs build → Nginx Alpine
-│   └── nginx.conf              # (Nginx da própria documentação)
+│   ├── Dockerfile              # Serviço docs de desenvolvimento: mkdocs build → Nginx Alpine
+│   └── nginx.conf              # (Nginx só do serviço docs de desenvolvimento; em produção a documentação sai em /docs/ pelo Nginx da raiz)
 ├── nginx/                      # Borda do sistema em produção: SPA + proxy reverso (mesma origem)
 │   ├── nginx.conf.template     # BACKEND_UPSTREAM / COLLAB_UPSTREAM preenchidos ao subir o container
-│   └── proxy-comum.conf        # Cabeçalhos comuns do proxy (Host, X-Forwarded-*)
+│   └── proxy-comum.conf        # Cabeçalhos comuns do proxy (Host, X-Forwarded-*); também serve a documentação em /docs/
 ├── collab/                     # Servidor de colaboração em tempo real (Node.js + Hocuspocus/Yjs)
 │   ├── Dockerfile              # node:20-alpine, npm ci --omit=dev
 │   ├── server.js               # Hooks onAuthenticate/onLoadDocument/onStoreDocument

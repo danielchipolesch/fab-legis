@@ -115,6 +115,8 @@ services:
       # http://backend:8081 (nome do serviço Docker) porque quem faz essa
       # chamada é o container do frontend, não o navegador do usuário.
       PROXY_BACKEND_TARGET: http://backend:8081
+      # Serviço da documentação (rede do Compose): o Vite o expõe em /docs/, como o Nginx de produção.
+      PROXY_DOCS_TARGET: http://docs:8080
     depends_on:
       backend:
         condition: service_healthy

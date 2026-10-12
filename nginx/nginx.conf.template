@@ -57,6 +57,18 @@ server {
         return 200 "ok";
     }
 
+    # ── Documentação técnica em /docs/ (mesmo host do sistema: fab-legis.intraer/docs) ──
+    # O site do MkDocs é compilado na própria imagem (estágio docs-build do frontend/Dockerfile) e fica em /docs. `^~` para não
+    # cair no bloco de cache imutável de .js/.css acima (os assets do MkDocs não têm hash no nome).
+    location = /docs {
+        return 301 /docs/;
+    }
+
+    location ^~ /docs/ {
+        expires 1h;
+        try_files $uri $uri/ =404;
+    }
+
     # ── Proxy reverso — mesma origem para o navegador ─────────
     # É o equivalente de produção do `server.proxy` do Vite (vite.config.js): /oauth2/**, /login (POST), /logout,
     # /.well-known/** e /v1/** parecem, para o navegador, a mesma origem do frontend -- o que faz o cookie de sessão
