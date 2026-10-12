@@ -3,7 +3,10 @@
 ## Pré-requisitos
 
 - **Docker** e **Docker Compose** (caminho recomendado), ou
-- **JDK 25** + **Node.js 22** + **PostgreSQL 16** para execução local.
+- **JDK 25** + **Node.js 22** + **PostgreSQL 18** para execução local.
+
+!!! note "Vindo do PostgreSQL 16?"
+    O Compose usa `postgres:18-alpine` com o volume `postgres_18_data`, montado em `/var/lib/postgresql` (a partir da versão 18 o `PGDATA` da imagem é `/var/lib/postgresql/18/docker`). Um volume criado pela versão 16 (`postgres_data`) **não é compatível** com a 18 e fica intocado: para levar os dados, faça `pg_dump` do banco antigo (`docker exec fab-legis-postgres pg_dump -U postgres --no-owner fab-legis-dev > backup.sql`, com o container antigo ainda no ar), suba o novo e restaure com `psql -U postgres -d fab-legis-dev < backup.sql`. Depois de conferir, remova o volume antigo (`docker volume rm fab-legis_postgres_data`).
 
 ## Opção 1 — Docker Compose (recomendado)
 

@@ -57,7 +57,7 @@ docker compose up -d
 
 > **Acesse o frontend por `127.0.0.1`, não por `localhost`.** O login OAuth2 (redirect e cookie de sessão) é configurado para `127.0.0.1`; por `localhost` o fluxo trava em `{"message":"Não autenticado."}`.
 
-Um usuário administrador (papéis **Admin + Editor**) é criado automaticamente no primeiro boot — em desenvolvimento, CPF `111.444.777-35` e senha `Admin@123`; troque-os em qualquer ambiente que não seja local. Como o `DataSeeder` só age quando ainda não existe nenhum usuário com login, mudanças nas migrations (`backend/src/main/resources/db/migration`) exigem recriar o volume do Postgres em bancos de dev já existentes (`docker compose down -v` apaga também o volume do MinIO; para só o Postgres: `docker compose rm -sf postgres && docker volume rm fab-legis_postgres_data`). Detalhes de variáveis de ambiente, deploy e execução local (sem Docker) estão na **[documentação técnica → Instalação e Configuração](docs/instalacao.md)**.
+Um usuário administrador (papéis **Admin + Editor**) é criado automaticamente no primeiro boot — em desenvolvimento, CPF `111.444.777-35` e senha `Admin@123`; troque-os em qualquer ambiente que não seja local. Como o `DataSeeder` só age quando ainda não existe nenhum usuário com login, mudanças nas migrations (`backend/src/main/resources/db/migration`) exigem recriar o volume do Postgres em bancos de dev já existentes (`docker compose down -v` apaga também o volume do MinIO; para só o Postgres: `docker compose rm -sf postgres && docker volume rm fab-legis_postgres_18_data`). Detalhes de variáveis de ambiente, deploy e execução local (sem Docker) estão na **[documentação técnica → Instalação e Configuração](docs/instalacao.md)**.
 
 ## Testes
 

@@ -2,7 +2,7 @@ services:
 
   # ── Banco de dados ──────────────────────────────────────────────────────────
   postgres:
-    image: postgres:16-alpine
+    image: postgres:18-alpine
     container_name: fab-legis-postgres
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
@@ -11,7 +11,8 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      # PostgreSQL 18+: o volume vai em /var/lib/postgresql (o PGDATA da imagem é /var/lib/postgresql/18/docker), não mais em .../data.
+      - postgres_18_data:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
@@ -180,5 +181,5 @@ services:
     restart: unless-stopped
 
 volumes:
-  postgres_data:
+  postgres_18_data:
   minio_data:

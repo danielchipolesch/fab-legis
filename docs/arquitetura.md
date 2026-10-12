@@ -12,7 +12,7 @@ graph TB
         F["Frontend<br/>Vue 3 + Quasar<br/>:5173 dev · :80 prod"]
         A["Backend<br/>Spring Boot<br/>:8081"]
         C["collab<br/>Node.js + Hocuspocus (Yjs)<br/>:1234"]
-        P[("PostgreSQL 16<br/>:5432")]
+        P[("PostgreSQL 18<br/>:5432")]
         M[("MinIO<br/>:9000 API · :9001 console")]
     end
 
