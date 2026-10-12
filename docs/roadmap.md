@@ -5,7 +5,6 @@ O FAB Legis foi desenhado para crescer. As linhas de evolução abaixo estão or
 ## Curto prazo — consolidar o núcleo
 
 - **Migração para Keycloak/SSO** — o Authorization Server embutido (Spring Authorization Server, OAuth2 + PKCE, ver [Autenticação e Colaboração](autenticacao.md)) foi desenhado para essa troca ser só de emissor de token: as *claims* já espelham as do Keycloak, e `DocumentoAcessoService` não referencia nada do mecanismo de autenticação em si.
-- **Cobertura de testes** — faltam os demais métodos do ciclo de emenda (`emendar`, `incluir`, `reordenarIncluido`, mapa de alteração), o restante da lógica do frontend (ex.: `stores/editor.js`) e testes de integração dos controllers com Testcontainers — estes dependem de o ambiente de CI/CD ter Docker disponível.
 
 ## Médio prazo — fluxo de trabalho completo
 
@@ -31,4 +30,4 @@ A NPA já funciona de ponta a ponta — criação, edição, PDF/HTML/prévia, p
 
 ## Contingência — se o MinIO deixar de servir
 
-- **Substituto do MinIO (object storage S3-compatível)** — não é uma funcionalidade planejada, só o plano B caso a perda do suporte open-source do MinIO passe a afetar o projeto. As opções são **Ceph com RADOS Gateway** (mantido pela Red Hat/IBM, licença LGPL v2.1, sem restrições de uso corporativo e comum em ambientes governamentais e de defesa, mas exige capacidade operacional para um cluster dedicado) ou um **MinIO distribuído** (modo erasure-coded, mais simples de operar). Ambos expõem a mesma API S3 que o sistema já usa, então a troca é predominantemente de infraestrutura, sem alteração de código: atualizar as variáveis de ambiente `MINIO_ENDPOINT`, `MINIO_PUBLIC_URL`, `MINIO_ACCESS_KEY` e `MINIO_SECRET_KEY`, sincronizar os objetos existentes (ex.: `rclone sync`) e aplicar uma migration Flyway que atualize as URLs armazenadas em `url_pdf`, `url_html` e `tx_url_portaria_pdf` da tabela `t_documento` (e nas demais colunas de URL de objeto, como as da cópia em tramitação).
+- **Substituto do MinIO** — não é uma funcionalidade planejada, só o plano B caso a perda do suporte open-source do MinIO passe a afetar o projeto: outro object storage S3-compatível de código aberto, como **Garage**, **RustFS** ou **SeaweedFS**. Como a API S3 é a mesma, a troca é de infraestrutura, sem alterar código: atualizar as variáveis `MINIO_*`, sincronizar os objetos existentes (ex.: `rclone sync`) e migrar as URLs armazenadas.

@@ -230,7 +230,7 @@ O backend expõe **Spring Boot Actuator** com **Micrometer** (`spring-boot-start
 
 ### Backend
 
-Os testes unitários do backend (JUnit 5 + Mockito, sem Spring e sem banco) cobrem as regras de negócio — hoje a **numeração** (`NumeracaoServiceTest`) e as **transições de situação** (`DocumentoStatusServiceTest`, que segue o diagrama de [Ciclo de Vida](ciclo-de-vida.md)). Ficam em `backend/src/test/java`, no mesmo pacote da classe testada. Regra do projeto: mudou uma regra de negócio, o teste muda junto (ver `CLAUDE.md`).
+Os testes unitários do backend (JUnit 5 + Mockito, sem Spring e sem banco) cobrem as regras de negócio — a **numeração** (`NumeracaoServiceTest`), as **transições de situação** (`DocumentoStatusServiceTest`, que segue o diagrama de [Ciclo de Vida](ciclo-de-vida.md)), as **regras de acesso**, o **ciclo de emenda** (`EmendaServiceCicloTest`, `EmendaServiceConsolidacaoTest`, `EmendaServicePendentesTest`), a renderização de tabelas, o cache de PDF/HTML e as regras da NPA. Ficam em `backend/src/test/java`, no mesmo pacote da classe testada. Regra do projeto: mudou uma regra de negócio, o teste muda junto (ver `CLAUDE.md`).
 
 Não é preciso ter JDK nem Maven instalados — o comando abaixo roda tudo num container descartável (a primeira execução baixa as dependências para o volume `fab-legis-m2-cache`; as seguintes são rápidas):
 
@@ -246,11 +246,21 @@ MSYS_NO_PATHCONV=1 docker run --rm -v "$(pwd -W)/backend:/app" -v fab-legis-m2-c
 
 Com JDK e Maven locais, basta `mvn test` dentro de `backend/`. Para rodar só uma classe: `mvn test -Dtest=NumeracaoServiceTest`.
 
-`mvn test` roda **apenas os testes unitários**. Testes de integração (que sobem o contexto do Spring e precisam de PostgreSQL) levam `@Tag("integration")` e ficam de fora; para incluí-los, com o banco no ar: `mvn test -DexcludedGroups=nenhum`. Hoje o único é `FabLegisApplicationTests` (verifica que o contexto sobe).
+`mvn test` roda **apenas os testes unitários**. Os **testes de integração** (`@Tag("integration")`) sobem o contexto inteiro do Spring sobre um **PostgreSQL de verdade num container (Testcontainers)** — migrations do Flyway, segurança por papel, validação e JPA, com MockMvc — e por isso **precisam de Docker**; ficam de fora do `mvn test` padrão. Para incluí-los: `mvn test -DexcludedGroups=nenhum`. Rodando o Maven num container (como acima), o container precisa falar com o Docker do host:
+
+```bash
+# Linux / macOS / CI (o socket do Docker; sem Ryuk, que não funciona de dentro de um container)
+docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -e TESTCONTAINERS_RYUK_DISABLED=true \
+  --add-host=host.docker.internal:host-gateway -e TESTCONTAINERS_HOST_OVERRIDE=host.docker.internal \
+  -v "$(pwd)/backend:/app" -v fab-legis-m2-cache:/root/.m2 -w /app \
+  eclipse-temurin:25-jdk-alpine sh -c "apk add --no-cache maven >/dev/null && mvn -B test -DexcludedGroups=nenhum"
+```
+
+No Windows (Git Bash) é o mesmo comando com `MSYS_NO_PATHCONV=1` e `$(pwd -W)`. Com JDK e Maven locais e o Docker em execução, basta `mvn test -DexcludedGroups=nenhum`. Hoje: `FabLegisApplicationTests` (o contexto sobe) e `ControllersIntegracaoTest` (migrations, dados de referência, 401/403/404/400 e criar/ler um documento). O MinIO é trocado por mocks nesses testes (`IntegracaoComPostgresBase`).
 
 ### Frontend
 
-Os testes do frontend usam **Vitest** (o runner de testes do ecossistema Vite/Vue — reaproveita a mesma configuração e o mesmo `@` de importação do app). Ficam ao lado do código (`frontend/src/utils/numbering.test.js`) e cobrem hoje a numeração (`numbering.js`, que espelha o `NumeracaoService` do backend) e as regras do fluxo de situações que as telas decidem (`fluxoDocumento.js`: destinos de aprovar/devolver/publicar, versões, selo de revogado). Com o Docker:
+Os testes do frontend usam **Vitest** (o runner de testes do ecossistema Vite/Vue — reaproveita a mesma configuração e o mesmo `@` de importação do app). Ficam ao lado do código (`frontend/src/utils/numbering.test.js`) e cobrem a numeração (`numbering.js`, que espelha o `NumeracaoService` do backend) e as regras do fluxo de situações que as telas decidem (`fluxoDocumento.js`: destinos de aprovar/devolver/publicar, versões, selo de revogado) e a árvore da parte normativa em edição (`stores/editor.test.js`: acrescentar, mover, promover/rebaixar, mover para outro agrupamento, reordenar incluídos e os eventos em tempo real). Com o Docker:
 
 ```bash
 docker compose run --rm --build --no-deps frontend npm test
@@ -287,7 +297,7 @@ Achados que são **ruído deste projeto**, não defeito: `java:S1135` ("TODO") d
 
 ## Integração contínua (GitHub Actions)
 
-`.github/workflows/ci.yml` roda a cada `push` (qualquer branch) e a cada `pull_request` para `master` — três jobs independentes, cada um repetindo exatamente o que este documento já manda rodar manualmente: `mvn test` + SpotBugs (backend), `npm run lint` + `npm test` + `npm run build` (frontend) e `docker compose build docs` (o build estrito do MkDocs). Nenhum deploy — o workflow existe só para pegar cedo o que apareceu nesta mesma sessão (um commit com erro de compilação passando batido por a suíte não ter rodado até o fim).
+`.github/workflows/ci.yml` roda a cada `push` (qualquer branch) e a cada `pull_request` para `master` — quatro jobs independentes (backend, integração, frontend e docs), cada um repetindo exatamente o que este documento já manda rodar manualmente: `mvn test` + SpotBugs (backend), `npm run lint` + `npm test` + `npm run build` (frontend) e `docker compose build docs` (o build estrito do MkDocs). Nenhum deploy — o workflow existe só para pegar cedo o que apareceu nesta mesma sessão (um commit com erro de compilação passando batido por a suíte não ter rodado até o fim).
 
 ## Servindo esta documentação técnica
 

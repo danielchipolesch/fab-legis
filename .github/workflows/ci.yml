@@ -55,6 +55,21 @@ jobs:
       - name: Build
         run: npm run build
 
+  integracao:
+    # Testes de integração (Testcontainers: PostgreSQL de verdade num container) -- o runner do GitHub já traz Docker.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "25"
+          cache: maven
+          cache-dependency-path: backend/pom.xml
+      - name: Testes de integração (mvn test -DexcludedGroups=nenhum)
+        working-directory: backend
+        run: mvn -B test -DexcludedGroups=nenhum
+
   docs:
     runs-on: ubuntu-latest
     steps:
