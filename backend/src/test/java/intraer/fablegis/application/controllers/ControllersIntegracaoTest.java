@@ -153,4 +153,37 @@ class ControllersIntegracaoTest extends IntegracaoComPostgresBase {
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.status").value(404));
     }
+
+    // ─── CPF único ────────────────────────────────────────────────────────────
+
+    private String corpoDeNovoUsuario(String cpf) {
+        return "{\"nome\": \"Fulana\", \"cpf\": \"" + cpf + "\", \"senha\": \"senha-forte-1\", \"omId\": "
+                + administradorPadrao().getOm().getId() + "}";
+    }
+
+    @Test
+    void doisUsuariosNaoPodemTerOMesmoCpf_comOuSemMascara() throws Exception {
+        mvc.perform(post("/v1/usuarios").with(comoEditor()).contentType(MediaType.APPLICATION_JSON)
+                        .content(corpoDeNovoUsuario("39053344705")))
+                .andExpect(status().isCreated());
+
+        mvc.perform(post("/v1/usuarios").with(comoEditor()).contentType(MediaType.APPLICATION_JSON)
+                        .content(corpoDeNovoUsuario("390.533.447-05")))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.containsString("CPF")));
+    }
+
+    @Test
+    void oBancoTambemBarraOCpfDuplicadoMesmoSemPassarPeloServico() {
+        var existente = administradorPadrao();
+        var duplicado = new Usuario();
+        duplicado.setNome("Outro");
+        duplicado.setCpf(existente.getCpf());
+        duplicado.setSenhaHash("{noop}x");
+        duplicado.setOm(existente.getOm());
+        duplicado.setPapeis(new HashSet<>());
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> usuarioRepository.saveAndFlush(duplicado))
+                .isInstanceOf(org.springframework.dao.DataIntegrityViolationException.class);
+    }
 }
