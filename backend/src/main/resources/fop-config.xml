@@ -6,21 +6,24 @@
   configuração, o Apache FOP não reconhece "Calibri" e cai silenciosamente
   num dos 14 fontes-base padrão (nunca Calibri), mesmo com font-family
   declarado no FO.
+  advanced="no": sem ligaduras/substituições OpenType (GSUB/GPOS). Com elas, a fonte Carlito de alguns ambientes troca pares como "ti"
+  por um glifo único que some do texto do PDF (copiar, pesquisar e os testes que leem o texto passam a ver "Constuem"). O
+  kerning por par (kerning="yes") continua.
 -->
 <fop version="1.0">
   <renderers>
     <renderer mime="application/pdf">
       <fonts>
-        <font kerning="yes" embed-url="file:/usr/share/fonts/carlito/Carlito-Regular.ttf">
+        <font kerning="yes" advanced="no" embed-url="file:/usr/share/fonts/carlito/Carlito-Regular.ttf">
           <font-triplet name="Calibri" style="normal" weight="normal"/>
         </font>
-        <font kerning="yes" embed-url="file:/usr/share/fonts/carlito/Carlito-Bold.ttf">
+        <font kerning="yes" advanced="no" embed-url="file:/usr/share/fonts/carlito/Carlito-Bold.ttf">
           <font-triplet name="Calibri" style="normal" weight="bold"/>
         </font>
-        <font kerning="yes" embed-url="file:/usr/share/fonts/carlito/Carlito-Italic.ttf">
+        <font kerning="yes" advanced="no" embed-url="file:/usr/share/fonts/carlito/Carlito-Italic.ttf">
           <font-triplet name="Calibri" style="italic" weight="normal"/>
         </font>
-        <font kerning="yes" embed-url="file:/usr/share/fonts/carlito/Carlito-BoldItalic.ttf">
+        <font kerning="yes" advanced="no" embed-url="file:/usr/share/fonts/carlito/Carlito-BoldItalic.ttf">
           <font-triplet name="Calibri" style="italic" weight="bold"/>
         </font>
       </fonts>
