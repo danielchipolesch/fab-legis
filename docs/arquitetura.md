@@ -149,9 +149,11 @@ frontend/src
 
 ```
 fab-legis/
-├── docker-compose.yml          # Orquestração: postgres, minio, backend, collab, frontend, docs (mkdocs serve)
+├── docker-compose.yml          # Orquestração: postgres, minio, backend, collab, frontend, docs
 ├── mkdocs.yml                  # Configuração da documentação técnica (este site)
-├── docs/                       # Fonte da documentação técnica (MkDocs Material); em produção sai em /docs/ pelo Nginx da raiz
+├── docs/                       # Fonte da documentação técnica (MkDocs Material)
+│   ├── Dockerfile              # Multi-stage: mkdocs build → Nginx Alpine
+│   └── nginx.conf              # Nginx só da documentação (serviço independente, porta 8000)
 ├── nginx/                      # Borda do sistema em produção: SPA + proxy reverso (mesma origem)
 │   ├── nginx.conf.template     # BACKEND_UPSTREAM / COLLAB_UPSTREAM preenchidos ao subir o container
 │   └── proxy-comum.conf        # Cabeçalhos comuns do proxy (Host, X-Forwarded-*); também serve a documentação em /docs/

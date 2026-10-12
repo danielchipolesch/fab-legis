@@ -34,7 +34,7 @@ O FAB Legis trata o ato normativo (ICA, NSCA, MCA, RCA, DCA, PCA, OCA, RICA, ROC
 - **busca textual** no conteúdo de todos os documentos;
 - **autenticação OAuth2** (Authorization Code + PKCE) com login por CPF, emitida pelo próprio backend.
 
-Para o detalhamento de funcionalidades, arquitetura, modelo de domínio, autenticação, ciclo de vida do documento e API, veja a **[documentação técnica](docs/index.md)** — sobe junto com `docker compose up -d` (ver abaixo) e fica em **`/docs/`** do próprio sistema (`http://127.0.0.1:5173/docs/` em desenvolvimento; `https://seu-host/docs/` em produção, pelo mesmo Nginx). A instalação (desenvolvimento e produção) e a configuração ficam **aqui, neste README**; a documentação técnica trata do sistema em si e de como testá-lo.
+Para o detalhamento de funcionalidades, arquitetura, modelo de domínio, autenticação, ciclo de vida do documento e API, veja a **[documentação técnica](docs/index.md)** — sobe junto com `docker compose up -d` (ver abaixo) e fica em `http://localhost:8000` (serviço próprio, com o seu Nginx; a tela de login tem um link para ela — ver `VITE_DOCS_URL`). A instalação (desenvolvimento e produção) e a configuração ficam **aqui, neste README**; a documentação técnica trata do sistema em si e de como testá-lo.
 
 ## Instalação em desenvolvimento
 
@@ -78,7 +78,7 @@ O `.env` na raiz (fora do git, só o `.env.example` é versionado) é lido autom
 | Swagger UI | http://localhost:8081/swagger-ui.html | — |
 | Collab (colaboração em tempo real) | ws://localhost:1234 | — |
 | OpenAPI JSON | http://localhost:8081/v1/fab-legis-api | — |
-| Documentação técnica | http://127.0.0.1:5173/docs/ (também em http://localhost:8000) | — |
+| Documentação técnica | http://localhost:8000 | — |
 | PostgreSQL | `localhost:5432` | `postgres` / `123456` |
 | MinIO (console) | http://localhost:9001 | `minioadmin` / `minioadmin123` |
 
@@ -160,7 +160,7 @@ Em desenvolvimento, o proxy do Vite (`server.proxy` em `frontend/vite.config.js`
 |---|---|
 | `nginx/nginx.conf.example` | **Modelo** versionado da configuração do Nginx (borda do sistema): serve a SPA e faz o proxy reverso para o backend e o `collab`, com `backend:8081` e `collab:1234` (rede do Compose) |
 | `nginx/nginx.conf` | A configuração **real** do ambiente — `cp nginx/nginx.conf.example nginx/nginx.conf`; está no `.gitignore`. O Compose a monta em `/etc/nginx/conf.d/default.conf` (precisa existir antes do `up`) |
-| `frontend/Dockerfile` (estágio `production`) | Compila a SPA e a documentação (`/docs/`) para a imagem do Nginx; a configuração vem do `nginx/nginx.conf` montado |
+| `frontend/Dockerfile` (estágio `production`) | Compila a SPA para a imagem do Nginx; a configuração vem do `nginx/nginx.conf` montado |
 
 O que o Nginx roteia (tudo atrás de **um único host público**):
 
@@ -172,7 +172,6 @@ O que o Nginx roteia (tudo atrás de **um único host público**):
 | `/v1/**` | backend (a API e o JSON do OpenAPI) |
 | `/swagger-ui.html`, `/swagger-ui/**` | backend (Swagger UI) |
 | `/collab/**` | `collab` (`collab:1234`), com *upgrade* de WebSocket |
-| `/docs/` | documentação técnica (o site do MkDocs, compilado na própria imagem do Nginx) |
 | `/health` | resposta do próprio Nginx (`ok`) |
 | o resto | arquivos estáticos da SPA (`index.html` para rotas do Vue) |
 
@@ -197,6 +196,7 @@ Todas já são parametrizáveis (ver tabelas acima), só precisam do valor certo
 | `OAUTH2_ISSUER` (collab) | `https://fab-legis.exemplo.mil.br` — precisa bater com `APP_OAUTH2_ISSUER` (comparado contra o claim `iss` do token) |
 | `OAUTH2_JWKS_URL` (collab) | pode continuar interno (`http://backend:8081/oauth2/jwks`) — é só de onde o `collab` busca as chaves, nunca é exposto ao navegador |
 | `VITE_API_BASE_URL` | `https://fab-legis.exemplo.mil.br/v1` |
+| `VITE_DOCS_URL` | onde a documentação estiver publicada (ex.: `https://docs.fab-legis.exemplo.mil.br`) ou vazio para não mostrar o link |
 | `VITE_COLLAB_URL` | `wss://fab-legis.exemplo.mil.br/collab` (ou outro caminho/porta, dependendo de como o `collab` for exposto — ele também precisa estar atrás de TLS, já que a página é servida por HTTPS e não pode abrir um WebSocket `ws://` sem criptografia a partir dela) |
 
 > **`VITE_*` é build-time, não runtime — sempre reconstrua depois de mudar o `.env`**
@@ -279,6 +279,7 @@ Via Docker Compose, todas as variáveis abaixo (exceto `PORT` do collab, que nã
 | `VITE_API_BASE_URL` | `http://127.0.0.1:8081/v1` | URL base da API |
 | `PROXY_BACKEND_TARGET` | `http://127.0.0.1:8081` | **Não** é `VITE_*` de propósito — só o processo Node do Vite (lado servidor) usa isto para saber para onde proxiar `/oauth2/**`, `/login`, `/logout` (ver `server.proxy` em `vite.config.js`); nunca chega ao bundle do navegador. No Docker vale `http://backend:8081` (nome do serviço, só resolvível dentro da rede Docker) |
 | `VITE_COLLAB_URL` | `ws://127.0.0.1:1234` | URL do serviço de colaboração em tempo real (WebSocket) |
+| `VITE_DOCS_URL` | `http://localhost:8000` | Endereço da documentação técnica, para o link da tela de login (build-time); vazio esconde o link |
 | `VITE_USE_MOCK_API` | `false` | Usa API mockada em vez do backend real |
 | `VITE_APP_ENV` | `development` | Ambiente (`development` \| `staging` \| `production`) — só afeta o build local (sourcemap em `staging`, ver `vite.config.js`); o build via Docker sempre roda como `development` |
 | `VITE_APP_VERSION` | `1.0.0` | Versão exibida em logs/telas de diagnóstico |

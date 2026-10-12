@@ -109,14 +109,14 @@ services:
       VITE_USE_MOCK_API: ${VITE_USE_MOCK_API:-false}
       VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://127.0.0.1:8081/v1}
       VITE_COLLAB_URL: ${VITE_COLLAB_URL:-ws://127.0.0.1:1234}
+      # Endereço da documentação técnica, para o link da tela de login (vazio = sem link).
+      VITE_DOCS_URL: ${VITE_DOCS_URL-http://localhost:8000}
       # NÃO é VITE_* de propósito -- só o próprio processo do Vite (node, lado
       # servidor) usa isto pra saber pra onde proxiar /oauth2/**, /login,
       # /logout (ver vite.config.js); nunca vai pro bundle do navegador.
       # http://backend:8081 (nome do serviço Docker) porque quem faz essa
       # chamada é o container do frontend, não o navegador do usuário.
       PROXY_BACKEND_TARGET: http://backend:8081
-      # Serviço da documentação (rede do Compose): o Vite o expõe em /docs/, como o Nginx de produção.
-      PROXY_DOCS_TARGET: http://docs:8080
     depends_on:
       backend:
         condition: service_healthy
@@ -142,6 +142,7 @@ services:
       args:
         VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://127.0.0.1:8081/v1}
         VITE_COLLAB_URL: ${VITE_COLLAB_URL:-ws://127.0.0.1:1234}
+        VITE_DOCS_URL: ${VITE_DOCS_URL-http://localhost:8000}
         VITE_USE_MOCK_API: ${VITE_USE_MOCK_API:-false}
     container_name: fab-legis-frontend-prod
     ports:
@@ -179,20 +180,14 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
-  # ── Documentação técnica — desenvolvimento (mkdocs serve, com recarga automática) ─
-  # Os arquivos são montados, então editar docs/ ou mkdocs.yml atualiza o site na hora, sem rebuild. É a mesma imagem do
-  # estágio docs-build do frontend/Dockerfile, que em produção compila o site (mkdocs build --strict) dentro do Nginx da raiz,
-  # em /docs/. Em desenvolvimento o proxy do Vite o expõe em http://127.0.0.1:5173/docs/ (a porta 8000 abre direto, com a
-  # recarga automática do navegador).
+  # ── Documentação técnica (MkDocs Material, build estático servido por Nginx) ─
   docs:
-    image: squidfunk/mkdocs-material:9.5.44
+    build:
+      context: .
+      dockerfile: docs/Dockerfile
     container_name: fab-legis-docs
-    command: serve --dev-addr=0.0.0.0:8080
     ports:
       - "8000:8080"
-    volumes:
-      - ./mkdocs.yml:/docs/mkdocs.yml:ro
-      - ./docs:/docs/docs:ro
     restart: unless-stopped
 
 volumes:

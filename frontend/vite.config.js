@@ -13,15 +13,6 @@ export default defineConfig({
   envDir: fileURLToPath(new URL('..', import.meta.url)),
 
   plugins: [
-    // /docs sem a barra final -> /docs/ (os links relativos do site do MkDocs dependem da barra; o Nginx de produção faz o mesmo).
-    {
-      name: 'redireciona-docs',
-      configureServer(server) {
-        server.middlewares.use((req, res, next) => {
-          if (req.url === '/docs') { res.writeHead(301, { Location: '/docs/' }); res.end() } else next()
-        })
-      },
-    },
     vue({ template: { transformAssetUrls } }),
     quasar({
       sassVariables: fileURLToPath(new URL('./src/css/quasar-variables.sass', import.meta.url)),
@@ -143,11 +134,6 @@ export default defineConfig({
         },
       },
       '/logout': { target: process.env.PROXY_BACKEND_TARGET ?? 'http://127.0.0.1:8081' },
-      // Documentação técnica em /docs/ (mesmo caminho do Nginx de produção): repassa ao serviço `docs` tirando o prefixo.
-      '/docs': {
-        target: process.env.PROXY_DOCS_TARGET ?? 'http://127.0.0.1:8000',
-        rewrite: (path) => path.replace(/^\/docs/, ''),
-      },
     },
   },
 

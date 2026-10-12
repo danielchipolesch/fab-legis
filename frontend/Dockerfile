@@ -15,23 +15,17 @@ FROM base AS build
 ARG VITE_API_BASE_URL=http://localhost:8081/v1
 ARG VITE_USE_MOCK_API=false
 ARG VITE_COLLAB_URL=ws://localhost:1234
+ARG VITE_DOCS_URL=http://localhost:8000
 ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
 ENV VITE_USE_MOCK_API=$VITE_USE_MOCK_API
 ENV VITE_COLLAB_URL=$VITE_COLLAB_URL
+ENV VITE_DOCS_URL=$VITE_DOCS_URL
 COPY frontend/ .
 RUN npm run build
-
-# ── Documentação técnica (mkdocs build) -- servida pelo mesmo Nginx em /docs ─────
-FROM squidfunk/mkdocs-material:9.5.44 AS docs-build
-WORKDIR /docs
-COPY mkdocs.yml .
-COPY docs/ ./docs
-RUN mkdocs build --strict
 
 # ── Estágio de produção (Nginx) ────────────────────────────────────────────────
 FROM nginx:1.28-alpine AS production
 COPY --from=build /app/dist /usr/share/nginx/html
-COPY --from=docs-build /docs/site /usr/share/nginx/html/docs
 # A configuração do Nginx (nginx/nginx.conf, por ambiente e fora do git) NÃO vai na imagem: o docker-compose.yml a monta em
 # /etc/nginx/conf.d/default.conf. Copie de nginx/nginx.conf.example antes de subir o perfil production.
 EXPOSE 8080
