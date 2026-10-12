@@ -127,7 +127,10 @@ class DocumentoFoBuilderTest {
     // sem extrair texto de um PDF.
     private static String arvoreDeAreas(String fo) throws Exception {
         var saida = new java.io.ByteArrayOutputStream();
-        var fopFactory = FopFactoryProvider.get();
+        // Fábrica PADRÃO (sem a configuração das fontes Carlito): a árvore de áreas só serve para ler o TEXTO, e assim ele não
+        // depende de fonte nenhuma instalada. Com a fábrica compartilhada, o texto variava conforme a ordem dos testes: se um
+        // teste de PDF já tivesse registrado a Carlito, o par "ti" virava um glifo de ligadura (U+E000) e sumia do texto.
+        var fopFactory = org.apache.fop.apps.FopFactory.newInstance(new java.io.File(".").toURI());
         var fop = fopFactory.newFop(org.apache.fop.apps.MimeConstants.MIME_FOP_AREA_TREE, fopFactory.newFOUserAgent(), saida);
         var spf = javax.xml.parsers.SAXParserFactory.newInstance();
         spf.setNamespaceAware(true);

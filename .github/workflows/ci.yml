@@ -20,16 +20,6 @@ jobs:
           java-version: '25'
           cache: maven
           cache-dependency-path: backend/pom.xml
-      # O PDF é renderizado com a fonte Carlito (fop-config.xml aponta /usr/share/fonts/carlito/...). No Docker ela vem do apk
-      # (backend/Dockerfile); o runner do GitHub não a traz, e os testes que geram PDF falhavam com "Failed to read font file".
-      - name: Fonte Carlito (usada na geração de PDF)
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq fonts-crosextra-carlito
-          sudo ln -sfn /usr/share/fonts/truetype/crosextra /usr/share/fonts/carlito
-          ls -l /usr/share/fonts/carlito/
-          md5sum /usr/share/fonts/carlito/Carlito-Regular.ttf
-          dpkg -l | grep -i -E "carlito|crosextra"
       - name: Testes unitários (mvn test)
         working-directory: backend
         run: mvn -B test
@@ -76,16 +66,6 @@ jobs:
           java-version: "25"
           cache: maven
           cache-dependency-path: backend/pom.xml
-      # O PDF é renderizado com a fonte Carlito (fop-config.xml aponta /usr/share/fonts/carlito/...). No Docker ela vem do apk
-      # (backend/Dockerfile); o runner do GitHub não a traz, e os testes que geram PDF falhavam com "Failed to read font file".
-      - name: Fonte Carlito (usada na geração de PDF)
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq fonts-crosextra-carlito
-          sudo ln -sfn /usr/share/fonts/truetype/crosextra /usr/share/fonts/carlito
-          ls -l /usr/share/fonts/carlito/
-          md5sum /usr/share/fonts/carlito/Carlito-Regular.ttf
-          dpkg -l | grep -i -E "carlito|crosextra"
       - name: Testes de integração (mvn test -DexcludedGroups=nenhum)
         working-directory: backend
         run: mvn -B test -DexcludedGroups=nenhum
