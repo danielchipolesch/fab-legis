@@ -1,0 +1,21 @@
+name: Release
+
+# Mantém um PR de release aberto na master: lê os Conventional Commits desde a última tag, propõe a próxima versão
+# (enquanto 0.x, "feat" e mudança incompatível sobem o MINOR; "fix" sobe o PATCH), atualiza CHANGELOG.md, backend/pom.xml
+# e frontend/package.json. Aprovar (mergear) o PR cria a tag vX.Y.Z e a release no GitHub. Ver docs/testes.md#versionamento.
+on:
+  push:
+    branches: [master]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: googleapis/release-please-action@v4
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json

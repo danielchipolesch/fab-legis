@@ -96,6 +96,7 @@ public class SecurityConfig {
                 // como parte deste projeto hoje que precise entrar sem isso (ver
                 // README.md, seção "Instalação em produção").
                 .requestMatchers(HttpMethod.GET, "/actuator/health", "/actuator/health/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/v1/versao").permitAll()
                 // Raiz do backend não é rota de API nenhuma -- só existe pra
                 // dar um destino gracioso (ver RootRedirectController) quando
                 // alguém cai aqui por engano (ex.: um mismatch de host entre

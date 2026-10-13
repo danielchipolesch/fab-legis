@@ -89,3 +89,11 @@ mkdocs serve
 ```
 
 Abre em `http://localhost:8000` (pare o container `docs` antes, para não conflitar na porta). `mkdocs build` sozinho gera o site estático na pasta `site/`, útil para publicar em outro hosting (ex.: GitHub Pages).
+
+## Versionamento
+
+O sistema segue [SemVer](https://semver.org/lang/pt-BR/) com [Conventional Commits](https://www.conventionalcommits.org/pt-br/) (`feat:`, `fix:`, `feat!:`…). Enquanto não entra em produção a versão é `0.x.y`: `feat` e mudança incompatível sobem o MINOR, `fix` sobe o PATCH; o `1.0.0` é a primeira versão em produção (commit com `Release-As: 1.0.0` no rodapé) e, a partir dela, mudança incompatível sobe o MAJOR e migrations já publicadas não são mais reescritas.
+
+- **Fonte única:** `<version>` do `backend/pom.xml`. O `frontend/package.json` acompanha.
+- **Automação:** o workflow `release.yml` (release-please, configurado em `release-please-config.json`) mantém na `master` um PR de release com a próxima versão e o `CHANGELOG.md`; mergeá-lo cria a tag `vX.Y.Z` e a release no GitHub.
+- **Versão visível:** `GET /v1/versao` (público; `VersaoController`, lê o `build-info` gravado no empacotamento) e o rodapé da tela de login ("v0.1.0").

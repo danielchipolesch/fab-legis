@@ -74,6 +74,7 @@
       </q-card-section>
 <!-- Link para a documentação técnica (serviço próprio; endereço em VITE_DOCS_URL, vazio = sem link). -->      <q-separator v-if="DOCS_URL" />      <q-card-section v-if="DOCS_URL" class="text-center q-py-sm">        <a :href="DOCS_URL" target="_blank" rel="noopener" class="link-docs" data-testid="link-documentacao">          <q-icon name="mdi-book-open-page-variant-outline" size="16px" class="q-mr-xs" />Documentação técnica        </a>      </q-card-section>
     </q-card>
+    <div v-if="versao" class="text-caption text-grey-6 q-mt-sm" data-testid="versao-do-sistema">v{{ versao }}</div>
   </q-page>
 </template>
 
@@ -82,6 +83,7 @@ import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore, OAUTH2_BASE_URL } from '@/stores/auth.js'
 import { validarCpf, mascaraCpf, onlyDigits } from '@/utils/cpf.js'
+import { getVersao } from '@/api/versao.js'
 
 // Endereço da documentação técnica (build-time, como as demais VITE_*); vazio esconde o link.
 const DOCS_URL = import.meta.env.VITE_DOCS_URL ?? ''
@@ -111,7 +113,10 @@ const erro = ref(route.query.erro ? 'CPF ou senha inválidos.' : null)
 // "code" nenhum (bug real, já observado em produção local).
 const redirecionando = ref(!route.query.erro && route.query.continuar !== '1')
 
+const versao = ref(null)
+
 onMounted(async () => {
+  getVersao().then(v => { versao.value = v })
   if (!redirecionando.value) return
   // Falsete de segurança: se a navegação de verdade (window.location.href,
   // dentro de iniciarLogin) travar por algum motivo que não lança exceção

@@ -10,7 +10,7 @@
     </parent>
     <groupId>intraer.fablegis</groupId>
     <artifactId>fab-legis</artifactId>
-    <version>0.0.1-SNAPSHOT</version>
+    <version>0.1.0</version> <!-- x-release-please-version -->
     <name>FAB Legis</name>
     <description>Spring Boot project to generate standard documents in HTML and PDF</description>
     <licenses>
@@ -186,6 +186,11 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <goals><goal>build-info</goal></goals>
+                    </execution>
+                </executions>
             </plugin>
             <!-- Análise estática (achar bug, não estilo; ver CLAUDE.md/docs/testes.md). Sem <executions>: não roda
                  dentro de `mvn test`, só quando chamado explicitamente (`mvn spotbugs:spotbugs`) ou pelo CI. Sempre
