@@ -12,4 +12,8 @@ public interface RegrasDoCicloDeVidaDoDocumento {
 
     // Vazio quando a transição não é permitida nessas regras para a situação atual.
     Optional<AcaoDeEtapa> acaoPara(SituacaoLocalEnum atual, SituacaoLocalEnum destino, SituacaoBcaEnum bca);
+
+    // "Substituir": o documento publicado pode ser substituído por outro, ligado a ele? Só a NPA (que não passa por
+    // alteração: para mudá-la cria-se outra e revoga-se a anterior). Convencional: nunca -- ela tem o ciclo de emenda.
+    boolean podeSerSubstituido(SituacaoLocalEnum atual, SituacaoBcaEnum bca);
 }

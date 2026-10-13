@@ -58,6 +58,8 @@ const PERFIS = {
     permitePromoverRebaixar: true,
     // Um ato de espécie convencional publicado pode ser alterado (ciclo de emenda).
     permiteAlteracao: true,
+    // Um ato convencional publicado se muda pelo ciclo de emenda, nunca por "Substituir".
+    permiteSubstituicao: false,
   },
   [COMUNICACAO_OFICIAL_PADRONIZADA]: {
     tipo: COMUNICACAO_OFICIAL_PADRONIZADA,
@@ -72,6 +74,8 @@ const PERFIS = {
     permitePromoverRebaixar: false,
     // A NPA só é publicada e revogada, nunca alterada (docs/ciclo-de-vida.md).
     permiteAlteracao: false,
+    // Para mudar uma NPA publicada, "Substituir" cria a NPA nova já ligada a ela (espelha RegrasDoCicloDeVidaDoDocumento.podeSerSubstituido).
+    permiteSubstituicao: true,
   },
 }
 

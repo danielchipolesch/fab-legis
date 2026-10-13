@@ -9,7 +9,7 @@
         </td>
       </tr>
       <tr style="height:28px">
-        <td rowspan="3" class="e" />
+        <td rowspan="3" class="e"><img v-if="distintivoSrc" :src="distintivoSrc" class="distintivo" alt="Distintivo da OM" data-testid="distintivo-da-om" /></td>
         <td colspan="2" class="e">DATAS</td>
         <td rowspan="2">DISTRIBUIÇÃO</td>
       </tr>
@@ -38,8 +38,22 @@
 </template>
 
 <script setup>
-// c: o resultado de cabecalho() de perfis/npa.js.
-defineProps({ c: { type: Object, required: true } })
+import { ref, watch } from 'vue'
+import { resolveMinioUrls } from '@/utils/minioUrls.js'
+
+// c: o resultado de cabecalho() de perfis/npa.js. O DOM (c.distintivoUrl) vem do MinIO: precisa de URL assinada.
+const props = defineProps({ c: { type: Object, required: true } })
+
+const distintivoSrc = ref(null)
+watch(() => props.c.distintivoUrl, async (url) => {
+  distintivoSrc.value = null
+  if (!url) return
+  try {
+    distintivoSrc.value = (await resolveMinioUrls([url])).get(url) ?? null
+  } catch {
+    distintivoSrc.value = null
+  }
+}, { immediate: true })
 </script>
 
 <style scoped>
@@ -49,4 +63,5 @@ table.cabecalho td.e { border-right: 1px solid #000; }
 table.cabecalho td.j { text-align: justify; }
 table.cabecalho td.topo { vertical-align: bottom; }
 .rotulo { font-weight: 700; }
+.distintivo { display: block; margin: 0 auto; max-width: 90px; max-height: 56px; object-fit: contain; }
 </style>

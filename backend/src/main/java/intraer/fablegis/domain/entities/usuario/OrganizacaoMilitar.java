@@ -26,6 +26,9 @@ public class OrganizacaoMilitar {
     @Column(name = "sg_organizacao_militar", nullable = false, unique = true)
     private String sigla;
 
+    @Column(name = "tx_url_distintivo")
+    private String urlDistintivo;
+
     @Column(name = "dt_criacao", updatable = false)
     @CreationTimestamp
     private Timestamp dtCriacao;

@@ -1,6 +1,7 @@
 package intraer.fablegis.application.controllers;
 
 import lombok.RequiredArgsConstructor;
+import intraer.fablegis.application.dtos.documentoDtos.SubstituicaoDeDocumentoDto;
 import intraer.fablegis.application.dtos.documentoDtos.DocumentoFilaResponseDto;
 import intraer.fablegis.application.dtos.documentoDtos.DocumentoHistoricoResponseDto;
 import intraer.fablegis.application.dtos.documentoDtos.DocumentoRequestCreateDto;
@@ -128,6 +129,23 @@ public class DocumentoController {
         DocumentoResponseSemAnexoTextualDto dto = documentoService.clone(id);
         logAuditoriaService.registrar(dto.idDocumento(), dto.codigoDocumento(), AcaoAuditoriaEnum.CLONOU, "Clonado do documento " + id);
         return ResponseEntity.status(HttpStatus.CREATED).body(toModel(dto));
+    }
+
+    // "Substituir" (NPA publicada): cria a NPA nova, ligada à substituída. Criar um documento exige o papel EDIT (e a OM
+    // habilitada, se a espécie pedir), como clonar.
+    @PreAuthorize("hasRole('EDIT')")
+    @PostMapping("{id}/substituir")
+    public ResponseEntity<EntityModel<DocumentoResponseSemAnexoTextualDto>> substituir(
+            @PathVariable(value = "id") Long id) {
+        DocumentoResponseSemAnexoTextualDto dto = documentoService.substituir(id);
+        logAuditoriaService.registrar(dto.idDocumento(), dto.codigoDocumento(), AcaoAuditoriaEnum.SUBSTITUIU, "Substitui o documento " + id);
+        return ResponseEntity.status(HttpStatus.CREATED).body(toModel(dto));
+    }
+
+    // Os dois lados da ligação "Substituir" -- leitura livre, como a visualização do documento.
+    @GetMapping("{id}/substituicao")
+    public ResponseEntity<SubstituicaoDeDocumentoDto> substituicao(@PathVariable(value = "id") Long id) {
+        return ResponseEntity.ok(documentoService.substituicaoDe(id));
     }
 
     @GetMapping("{id}")

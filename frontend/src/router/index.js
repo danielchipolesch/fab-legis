@@ -85,6 +85,12 @@ const routes = [
     meta: { title: 'Habilitação de Documentos', requiresAdmin: true },
   },
   {
+    path: '/distintivos-das-oms',
+    name: 'distintivos-das-oms',
+    component: () => import('@/pages/DistintivosDasOmsPage.vue'),
+    meta: { title: 'Distintivos das OMs', requiresAdmin: true },
+  },
+  {
     path: '/auditoria',
     name: 'auditoria',
     component: () => import('@/pages/AuditoriaPage.vue'),

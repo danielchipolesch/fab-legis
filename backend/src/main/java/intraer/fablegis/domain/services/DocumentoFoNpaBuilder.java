@@ -153,7 +153,7 @@ public class DocumentoFoNpaBuilder implements LeiauteDoPdf {
 
         // Um bloco só guarda o cabeçalho e o texto; o bloco de id, no fim, marca o fim do documento para o "n/total".
         sb.append("<fo:block>\n");
-        sb.append(tabelaDoCabecalho(cabecalho));
+        sb.append(tabelaDoCabecalho(cabecalho, distintivoEmDataUri(cabecalho)));
         // O texto fica um pouco recuado da moldura; o cabeçalho, não (suas bordas são as da moldura).
         sb.append("<fo:block start-indent=\"6pt\" end-indent=\"6pt\" space-before=\"8pt\">\n");
         for (var item : normativos) renderizar(ctx, item, numeros, sb);
@@ -194,6 +194,21 @@ public class DocumentoFoNpaBuilder implements LeiauteDoPdf {
         return "<fo:table-row height=\"" + alturaDoConteudoEmPt + "pt\">\n" + String.join("", celulas) + "</fo:table-row>\n";
     }
 
+    // O DOM (distintivo da OM) como data URI, para embutir no PDF sem acesso HTTP ao MinIO; null se a OM não tem distintivo
+    // (ou o arquivo sumiu do armazenamento) -- o espaço fica em branco, como no modelo sem imagem.
+    private String distintivoEmDataUri(CabecalhoDaNpa c) {
+        if (imagemService == null || c.distintivoUrl() == null || c.distintivoUrl().isBlank()) return null;
+        return imagemService.getImageAsDataUri(c.distintivoUrl());
+    }
+
+    // A imagem cabe numa caixa de 90 x 56 pt no alto da célula do DOM (sem distorcer), centralizada, acima da identificação.
+    private static String blocoDoDistintivo(String dataUri) {
+        if (dataUri == null) return "";
+        return "<fo:block text-align=\"center\" space-after=\"2pt\"><fo:external-graphic src=\"" + foEsc(dataUri) + "\""
+                + " width=\"90pt\" height=\"56pt\" content-width=\"scale-to-fit\" content-height=\"scale-to-fit\""
+                + " scaling=\"uniform\"/></fo:block>";
+    }
+
     // Reproduz o modelo do Anexo XII: quatro colunas (A = DOM, identificação e rótulos; B e C = datas; D = distribuição).
     //   linha 1  Comando, OM e setor emissor, nas quatro colunas
     //   linha 2  [A: DOM ......] [B-C: DATAS .........] [D: DISTRIBUIÇÃO ]
@@ -203,7 +218,7 @@ public class DocumentoFoNpaBuilder implements LeiauteDoPdf {
     //   linha 6  [A: ANEXOS] [B-D: um anexo por linha, justificado]
     // O DOM ocupa as linhas 2 a 4 da coluna A e a identificação fica numa célula própria, embaixo dele, separada por uma
     // linha -- é um bloco com borda no pé da célula do DOM, porque no modelo a divisória cai no meio da linha 4.
-    private static String tabelaDoCabecalho(CabecalhoDaNpa c) {
+    private static String tabelaDoCabecalho(CabecalhoDaNpa c, String distintivo) {
         var sb = new StringBuilder();
         sb.append("<fo:table table-layout=\"fixed\" width=\"100%\" border-collapse=\"separate\" font-size=\"12pt\">\n");
         sb.append("<fo:table-column column-width=\"proportional-column-width(24.5)\"/>\n");
@@ -218,7 +233,7 @@ public class DocumentoFoNpaBuilder implements LeiauteDoPdf {
         }
         sb.append(linha(48, celula(linhasDeCima.toString(), 4, 1, false, "after")));
 
-        var domEIdentificacao = "<fo:block-container height=\"27.5pt\" border-top=\"" + LINHA + "\" display-align=\"center\">"
+        var domEIdentificacao = blocoDoDistintivo(distintivo) + "<fo:block-container height=\"27.5pt\" border-top=\"" + LINHA + "\" display-align=\"center\">"
                 + centralizado(c.identificacao()) + "</fo:block-container>";
         sb.append(linha(15,
                 celula(domEIdentificacao, 1, 3, true, "after", "0pt"),               // linhas 2 a 4

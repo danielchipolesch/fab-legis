@@ -10,6 +10,7 @@ import org.springframework.stereotype.Repository;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 
 // JpaSpecificationExecutor -- mesmo padrão de LogAuditoriaRepository: filtros dinâmicos
 // (aba/busca/espécie/situação, ver DocumentoSpecifications) montados só para o que foi
@@ -20,6 +21,9 @@ import java.util.List;
 public interface DocumentoRepository extends JpaRepository<Documento, Long>, JpaSpecificationExecutor<Documento> {
 
     List<Documento> findByEspecieNormativaAndAssuntoBasico(EspecieNormativa especieNormativa, AssuntoBasico assuntoBasico);
+
+    // "Substituir" (NPA): a NPA que substitui esta -- a mais recente que não foi cancelada; vazio se ninguém a substitui.
+    Optional<Documento> findFirstByDocumentoSubstituidoIdAndSituacaoLocalNotOrderByIdDesc(Long id, SituacaoLocalEnum situacao);
 
     // Fila pessoal das telas de Revisão/Publicação (ver RevisaoPage.vue/
     // PublicacaoPage.vue) -- sem paginação de propósito: é o que está atribuído a UMA

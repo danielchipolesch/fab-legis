@@ -49,7 +49,7 @@ A [NPA](dominio.md#npa-norma-padrao-de-acao) tem layout próprio (Anexo XII da N
     | Linha | Coluna A | Colunas B–C | Coluna D |
     |---|---|---|---|
     | 1 | Comando, OM e setor emissor (três linhas centralizadas, em negrito) — as quatro colunas | | |
-    | 2 | **DOM** (linhas 2 a 4) | **DATAS** (mescla B e C) | **DISTRIBUIÇÃO** (linhas 2 e 3) |
+    | 2 | **DOM** (linhas 2 a 4: o distintivo da OM do documento, em caixa de 90 × 56 pt acima da identificação; em branco se a OM não tem) | **DATAS** (mescla B e C) | **DISTRIBUIÇÃO** (linhas 2 e 3) |
     | 3 | ↑ | **EMISSÃO** · **EFETIVAÇÃO** (lado a lado, só rótulos) | ↑ |
     | 4 | ↑ | valores: `08 NOV 2026` · `BIO 20` / `11 NOV 2026` (duas linhas) | `OSTENSIVA` |
     | (pé da A) | **identificação**, em célula própria abaixo do DOM, separada por uma linha | | |

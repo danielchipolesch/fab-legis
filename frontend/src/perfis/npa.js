@@ -204,5 +204,6 @@ export function cabecalho(documento, campos, anexos) {
     assinaturas: assinaturas(campos),
     publicadaNo: publicada ? `(Publicada no ${referencia})` : null,
     revogadaNo: revogacao ? `(Revogada pelo ${revogacao})` : null,
+    distintivoUrl: documento.om_url_distintivo ?? null,
   }
 }

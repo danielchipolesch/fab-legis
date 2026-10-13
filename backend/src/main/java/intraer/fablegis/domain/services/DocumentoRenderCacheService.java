@@ -156,6 +156,8 @@ public class DocumentoRenderCacheService {
     private String fingerprint(Documento documento) {
         StringBuilder base = new StringBuilder();
         base.append(documento.getId()).append(':').append(documento.getVersao()).append(':');
+        // O DOM (distintivo) da OM entra no PDF/HTML da NPA: trocar a imagem da OM tem de invalidar o cache.
+        if (documento.getOm() != null) base.append(documento.getOm().getUrlDistintivo()).append(':');
         base.append(documento.getDtAlteracao() == null ? 0 : documento.getDtAlteracao().getTime());
 
         itemPartePreliminarRepository.findIdsEDataAtualizacaoByDocumentoId(documento.getId())

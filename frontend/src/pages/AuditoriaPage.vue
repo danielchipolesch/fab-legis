@@ -124,6 +124,7 @@ const ACAO_CFG = {
   EDITOU:                  { label: 'Editou',               color: 'primary' },
   EXCLUIU:                 { label: 'Excluiu',              color: 'negative' },
   CLONOU:                  { label: 'Clonou',               color: 'indigo-8' },
+  SUBSTITUIU:              { label: 'Substituiu',           color: 'deep-purple-7' },
   MUDOU_STATUS:            { label: 'Mudou situação',       color: 'deep-orange-8' },
   COMPARTILHOU:            { label: 'Compartilhou',         color: 'teal-8' },
   REMOVEU_COMPARTILHAMENTO:{ label: 'Removeu compart.',     color: 'brown-6' },

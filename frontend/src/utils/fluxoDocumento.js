@@ -149,3 +149,9 @@ export function etapasDoCiclo(doc) {
   const chave = temEtapaEmCurso(local) ? local : (bca === 'REVOGADO' ? 'REVOGADO' : 'PUBLICADO')
   return { ciclo, etapas, atual: etapas.findIndex(e => e.chave === chave) }
 }
+
+// "Substituir" (NPA): só uma NPA publicada e parada (sem etapa em curso: nem pedido de revogação, nem revogação) pode ser
+// substituída. Espelha CicloDeVidaDeNpa.podeSerSubstituido (backend); `perfil.permiteSubstituicao` diz se a espécie tem a ação.
+export function podeSubstituir(doc, perfil) {
+  return !!perfil?.permiteSubstituicao && doc?.situacao_local === 'SEM_ETAPA' && doc?.situacao_bca === 'PUBLICADO'
+}

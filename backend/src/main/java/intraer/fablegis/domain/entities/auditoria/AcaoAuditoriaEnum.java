@@ -6,6 +6,7 @@ public enum AcaoAuditoriaEnum {
     EDITOU,
     EXCLUIU,
     CLONOU,
+    SUBSTITUIU,
     MUDOU_STATUS,
     COMPARTILHOU,
     REMOVEU_COMPARTILHAMENTO

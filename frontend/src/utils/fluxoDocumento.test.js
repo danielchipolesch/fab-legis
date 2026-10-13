@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   destinoDeAprovacao, destinoDeDevolucao, DESTINO_DE_CONCLUSAO, ehRevogacao, ehPrimeiraPublicacao,
   ehAlteracaoPublicada, podeDevolverPublicacao, temVersaoVigente, temVersaoEmTramitacao, versaoPadrao,
-  eventoDoHistorico, exibeSeloRevogado, exibePortaria, etapasDoCiclo,
+  eventoDoHistorico, exibeSeloRevogado, exibePortaria, etapasDoCiclo, podeSubstituir,
 } from './fluxoDocumento.js'
 import {
   temEtapaEmCurso, situacaoBcaMeta, situacaoLocalMeta, SITUACAO_BCA_META, SITUACAO_LOCAL_META,
@@ -194,5 +194,24 @@ describe('etapasDoCiclo', () => {
 
   it('cancelado não está em etapa nenhuma', () => {
     expect(etapasDoCiclo(doc('NAO_PUBLICADO', 'CANCELADO')).atual).toBe(-1)
+  })
+})
+
+describe('podeSubstituir (NPA publicada)', () => {
+  const npa = { permiteSubstituicao: true }
+  const convencional = { permiteSubstituicao: false }
+
+  it('só a NPA publicada e sem etapa em curso', () => {
+    expect(podeSubstituir({ situacao_local: 'SEM_ETAPA', situacao_bca: 'PUBLICADO' }, npa)).toBe(true)
+  })
+  it('nem rascunho, nem em revogação, nem revogada', () => {
+    expect(podeSubstituir({ situacao_local: 'RASCUNHO', situacao_bca: 'NAO_PUBLICADO' }, npa)).toBe(false)
+    expect(podeSubstituir({ situacao_local: 'SEM_ETAPA', situacao_bca: 'NAO_PUBLICADO' }, npa)).toBe(false)
+    expect(podeSubstituir({ situacao_local: 'ANALISE_REVOGACAO', situacao_bca: 'PUBLICADO' }, npa)).toBe(false)
+    expect(podeSubstituir({ situacao_local: 'EM_REVOGACAO', situacao_bca: 'PUBLICADO' }, npa)).toBe(false)
+    expect(podeSubstituir({ situacao_local: 'SEM_ETAPA', situacao_bca: 'REVOGADO' }, npa)).toBe(false)
+  })
+  it('espécie convencional nunca (ela tem o ciclo de emenda)', () => {
+    expect(podeSubstituir({ situacao_local: 'SEM_ETAPA', situacao_bca: 'PUBLICADO' }, convencional)).toBe(false)
   })
 })

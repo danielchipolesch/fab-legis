@@ -23,6 +23,7 @@ import intraer.fablegis.domain.handlers.exceptions.ResourceNotFoundException;
 import intraer.fablegis.domain.handlers.exceptions.enums.AssuntoBasicoException;
 import intraer.fablegis.domain.handlers.exceptions.enums.DocumentoException;
 import intraer.fablegis.domain.handlers.exceptions.StatusCannotBeUpdatedException;
+import intraer.fablegis.application.dtos.documentoDtos.SubstituicaoDeDocumentoDto;
 import intraer.fablegis.domain.handlers.exceptions.enums.EspecieNormativaException;
 import intraer.fablegis.domain.mappers.DocumentoMapper;
 import intraer.fablegis.domain.regras.RegrasDasEspecies;
@@ -314,6 +315,54 @@ public class DocumentoService {
 
     @Transactional
     public DocumentoResponseSemAnexoTextualDto clone(Long id) {
+        Documento clonado = copiarParaNovoDocumento(id);
+        documentoHistoricoService.registrar(clonado, TipoAlteracaoEnum.CLONAGEM,
+                "Clonado do documento #" + id, null, SituacaoLocalEnum.RASCUNHO);
+        return DocumentoMapper.documentoToDocumentoSemAnexoTextualResponseDto(clonado);
+    }
+
+    // "Substituir" (NPA): para mudar uma NPA publicada cria-se outra e revoga-se a anterior. Esta ação faz a primeira metade
+    // de forma explícita: cria a NPA nova (cópia em RASCUNHO, da OM de quem substitui) já ligada à substituída. A revogação
+    // da antiga continua sendo o pedido de revogação de sempre, feito depois (a nova ainda nem foi publicada).
+    @Transactional
+    public DocumentoResponseSemAnexoTextualDto substituir(Long id) {
+        Documento substituido = documentoRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException(DocumentoException.NOT_FOUND.getMessage()));
+
+        var ciclo = regras.para(substituido.getEspecieNormativa()).cicloDeVida();
+        if (!ciclo.podeSerSubstituido(substituido.getSituacaoLocal(), substituido.getSituacaoBca())) {
+            throw new StatusCannotBeUpdatedException(DocumentoException.CANNOT_BE_REPLACED.getMessage());
+        }
+        documentoRepository.findFirstByDocumentoSubstituidoIdAndSituacaoLocalNotOrderByIdDesc(id, SituacaoLocalEnum.CANCELADO)
+                .ifPresent(existente -> {
+                    throw new StatusCannotBeUpdatedException(
+                            "Esta NPA já está sendo substituída pelo documento " + existente.getIdentificacao() + ".");
+                });
+
+        Documento nova = copiarParaNovoDocumento(id);
+        nova.setDocumentoSubstituido(substituido);
+        documentoRepository.save(nova);
+        documentoHistoricoService.registrar(nova, TipoAlteracaoEnum.SUBSTITUICAO,
+                "Substitui o documento #" + id + " (" + substituido.getIdentificacao() + ")", null, SituacaoLocalEnum.RASCUNHO);
+        return DocumentoMapper.documentoToDocumentoSemAnexoTextualResponseDto(nova);
+    }
+
+    // Os dois lados da ligação "Substituir" (a NPA que este documento substitui e a que o substitui), para a tela mostrar.
+    @Transactional(readOnly = true)
+    public SubstituicaoDeDocumentoDto substituicaoDe(Long id) {
+        Documento documento = documentoRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException(DocumentoException.NOT_FOUND.getMessage()));
+        var substituidoPor = documentoRepository
+                .findFirstByDocumentoSubstituidoIdAndSituacaoLocalNotOrderByIdDesc(id, SituacaoLocalEnum.CANCELADO)
+                .orElse(null);
+        return new SubstituicaoDeDocumentoDto(
+                SubstituicaoDeDocumentoDto.Ponta.de(documento.getDocumentoSubstituido()),
+                SubstituicaoDeDocumentoDto.Ponta.de(substituidoPor));
+    }
+
+    // A cópia em si, comum a clonar e substituir: documento novo em RASCUNHO, de quem copia (autor e OM), com a mesma
+    // habilitação de criação exigida para a espécie.
+    private Documento copiarParaNovoDocumento(Long id) {
 
         Documento documentoAntigo = documentoRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException(DocumentoException.NOT_FOUND.getMessage()));
@@ -369,9 +418,7 @@ public class DocumentoService {
             anexoRepository.save(copia);
         }
 
-        documentoHistoricoService.registrar(clonado, TipoAlteracaoEnum.CLONAGEM,
-                "Clonado do documento #" + id, null, SituacaoLocalEnum.RASCUNHO);
-        return DocumentoMapper.documentoToDocumentoSemAnexoTextualResponseDto(clonado);
+        return clonado;
     }
 
     // O clone é um documento novo, sem histórico de emenda: carrega só a redação

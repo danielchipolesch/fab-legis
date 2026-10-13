@@ -9,16 +9,9 @@ O FAB Legis foi desenhado para crescer. As linhas de evolução abaixo estão or
 ## Médio prazo — fluxo de trabalho completo
 
 - **Assinatura digital** — a assinatura digital dos documentos será implementada no prazo que lhe é devido.
+- **Versão nas imagens Docker** — hoje as imagens do backend e do frontend são construídas sem tag de versão. A versão do sistema já é automatizada (SemVer + release-please, ver [Testes](testes.md#versionamento)); falta publicar as imagens com a tag da versão (`fab-legis-backend:0.3.0`) e uma tag de pré-versão (`0.3.0-dev.N`) a cada merge na `desenvolvimento`, para que a produção aponte só para uma tag estável (nunca `latest`) e dê para voltar a uma versão anterior.
 - **Anexos com parte textual** — hoje os anexos além do ANEXO I (sumário + corpo normativo) são só de imagem, e já têm a regra "**Continuação do ANEXO X**" da segunda página em diante (`DocumentoFoFrontMatterBuilder.buildContinuacaoAnexo`, master `a4-anexo` — ver [Exportação](exportacao-pdf.md)). Quando houver anexos com texto, bastará usar o mesmo layout de página na sequência de páginas de cada anexo de texto, com o próprio rótulo. O ANEXO I continua sem esse cabeçalho, por decisão explícita.
 - **Grafo de referências normativas** — mapear quais atos alteram, revogam ou citam quais outros, e alertar automaticamente quando um ato referenciado for revogado.
-
-## NPA (Norma Padrão de Ação) — o que falta
-
-A NPA já funciona de ponta a ponta — criação, edição, PDF/HTML/prévia, publicação e revogação no Boletim Interno; as regras estão em [Modelo de Domínio](dominio.md#npa-norma-padrao-de-acao). Ficaram de fora, por dependerem de decisão ou de escopo maior:
-
-- **DOM (distintivo da OM):** hoje o cabeçalho reserva o espaço e mostra a identificação abaixo dele. Falta decidir o formato (imagem por OM, tamanho e posição) e o cadastro dessa imagem por OM. **Critério de aceite:** ao clonar uma NPA, o DOM do clone tem de ser o da OM de quem clona, nunca o da OM do documento original — mesma regra que `Documento.om` já segue hoje (`CriacaoDeNpa.novo`, `.om(autor.getOm())`, coberta por `CriacaoDeNpaTest`); se a imagem do DOM vier de uma consulta separada (não diretamente de `Documento.om`), essa consulta precisa usar a OM do documento, não uma referência fixada no momento da clonagem.
-- **"Substituir":** para mudar uma NPA publicada cria-se outra e revoga-se a anterior. Hoje isso é feito à mão (clonar e, depois, pedir a revogação da antiga); a ação "Substituir" faria as duas coisas ligadas, registrando qual NPA substitui qual.
-- **Glossário:** confirmar os termos oficiais da NPA para `docs/dominio.md`.
 
 ## Longo prazo — plataforma normativa
 

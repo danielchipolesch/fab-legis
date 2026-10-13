@@ -146,6 +146,17 @@ public class ImagemService {
         return resultado;
     }
 
+    /** Apaga um objeto armazenado (ex.: o distintivo antigo de uma OM). Falha em silêncio: um objeto órfão no bucket é inofensivo. */
+    public void remover(String urlArmazenada) {
+        String objectKey = extrairObjectKey(urlArmazenada);
+        if (objectKey == null) return;
+        try {
+            minioClient.removeObject(RemoveObjectArgs.builder().bucket(bucket).object(objectKey).build());
+        } catch (Exception e) {
+            // nada a fazer
+        }
+    }
+
     private String extrairObjectKey(String urlArmazenada) {
         if (urlArmazenada == null || urlArmazenada.isBlank()) return null;
         String prefix = publicUrl + "/" + bucket + "/";

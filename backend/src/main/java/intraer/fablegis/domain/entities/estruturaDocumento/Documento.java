@@ -8,6 +8,7 @@ import jakarta.persistence.*;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
+import lombok.ToString;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.springframework.hateoas.RepresentationModel;
@@ -136,6 +137,13 @@ public class Documento extends RepresentationModel<Documento> {
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "om_id", nullable = false)
     private OrganizacaoMilitar om;
+
+    // Só numa NPA: a NPA publicada que este documento substitui (ação "Substituir"; ver DocumentoService.substituir).
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "substitui_documento_id")
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
+    private Documento documentoSubstituido;
 
     // Pessoa específica (papel APROV) escolhida por quem enviou para revisão -- só ela
     // pode agir no documento enquanto ele estiver em EM_REVISAO/ANALISE_REVOGACAO (ver

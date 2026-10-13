@@ -26,6 +26,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import static intraer.fablegis.domain.entities.estruturaDocumento.ItemAnexoParteNormativaTipoEnum.*;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -459,5 +460,43 @@ class DocumentoFoNpaBuilderTest {
         // 1 página da NPA + 1 do anexo: nenhuma tem "n/total" (a NPA cabe numa página).
         assertThat(paginas).isEqualTo(2);
         assertThat(textoCorrido(arvore)).doesNotContain("2/2").doesNotContain("1/1");
+    }
+
+    // ─── DOM (distintivo da OM) ─────────────────────────────────────────────────
+
+    private static final String PNG_1X1 = "data:image/png;base64,"
+            + "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
+
+    private DocumentoFoNpaBuilder construtorComImagens(String dataUri) {
+        var campos = mock(CamposDeNpa.class);
+        when(campos.camposParaLeiaute(anyLong())).thenReturn(new CamposDaNpaDto(
+                "DIVISÃO DE SUPORTE OPERACIONAL", "Brasília", List.of(), null, List.of("FULANO"), List.of("BELTRANO")));
+        var imagens = mock(intraer.fablegis.domain.services.ImagemService.class);
+        when(imagens.getImageAsDataUri(anyString())).thenReturn(dataUri);
+        return new DocumentoFoNpaBuilder(new ObjectMapper(), imagens, new NumeracaoDeNpa(), campos);
+    }
+
+    @Test
+    void oDistintivoDaOmEntraNaCelulaDoDomEOPdfRenderiza() throws Exception {
+        var doc = rascunho();
+        doc.getOm().setUrlDistintivo("http://minio/bucket/grupo.png");
+
+        var fo = construtorComImagens(PNG_1X1).gerarFo(doc, List.of(), estruturaPequena(), List.of());
+
+        assertThat(fo).contains("<fo:external-graphic src=\"" + PNG_1X1 + "\"");
+        // O FOP aceita o FO (a imagem é desenhada dentro da célula, sem estourar a página).
+        assertThat(arvoreDeAreas(fo)).isNotEmpty();
+    }
+
+    @Test
+    void semDistintivoACelulaDoDomFicaEmBranco() {
+        var doc = rascunho();
+
+        assertThat(construtorComImagens(PNG_1X1).gerarFo(doc, List.of(), estruturaPequena(), List.of()))
+                .doesNotContain("fo:external-graphic");
+        // Distintivo cadastrado, mas arquivo ausente do armazenamento: também fica em branco, sem quebrar o PDF.
+        doc.getOm().setUrlDistintivo("http://minio/bucket/sumiu.png");
+        assertThat(construtorComImagens(null).gerarFo(doc, List.of(), estruturaPequena(), List.of()))
+                .doesNotContain("fo:external-graphic");
     }
 }

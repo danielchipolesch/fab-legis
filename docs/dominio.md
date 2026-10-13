@@ -96,6 +96,18 @@ Inciso, alínea e subalínea são numerados por contadores posicionais simples e
 
 A **NPA** é uma espécie de **uso interno da OM**, para disciplinar rotinas internas (modelo: Anexo XII da NSCA 5-3). Ao contrário das Espécies Convencionais — produzidas pelas OM, mas de âmbito que extrapola a OM —, ela tem elementos, numeração, layout e ciclo de vida **próprios**; por isso, como a NSCA 5-3 a enquadra entre as **Espécies de Comunicações Oficiais Padronizadas** (Capítulo VIII, Seção VIII) — e não entre as Espécies Convencionais (MCA, NSCA, ICA, ROCA…) —, segue o tipo de espécie `COMUNICACAO_OFICIAL_PADRONIZADA` (`RegrasDeComunicacaoOficialPadronizada`, ver [Arquitetura](arquitetura.md#regras-por-especie-normativa-atras-de-interfaces)). A **distribuição é sempre ostensiva**: toda NPA é visível para todas as OM.
 
+### DOM (distintivo da OM)
+
+O cabeçalho da NPA tem, no alto da primeira coluna, o **DOM**: o distintivo da organização militar (imagem **PNG ou JPEG de até 1 MB**, `DistintivoDaOm`). O administrador cadastra uma imagem **por OM** na tela *Distintivos das OMs* (menu do usuário, só `ADMIN`); a OM sem distintivo fica com o espaço em branco, como no modelo. A imagem fica no armazenamento de objetos (MinIO) e a OM guarda só a URL (`tx_url_distintivo`).
+
+**Regra de aceite — o DOM é sempre o da OM do documento.** `CabecalhoDaNpa` lê o distintivo de `Documento.om` **a cada geração** (PDF, HTML e prévia), nunca o copia: ao **clonar ou substituir** uma NPA, o clone nasce da OM de quem clona (`CriacaoDeNpa`, `autor.getOm()`), então mostra o distintivo da **OM de quem clonou**, nunca o da OM do documento original; e trocar o distintivo da OM vale para as próximas gerações (a URL entra no *fingerprint* do cache de PDF/HTML). Cobertura: `CabecalhoDaNpaTest`, `DocumentoFoNpaBuilderTest`, `LeiauteHtmlDeNpaTest`, `DistintivoDaOmTest` e `npa.test.js`.
+
+### Substituir
+
+Uma NPA publicada não é alterada: para mudá-la cria-se outra e revoga-se a anterior. A ação **Substituir** (botão ao lado de *Clonar*, na visualização de uma NPA **publicada e sem etapa em curso**) faz a primeira metade de forma explícita: cria a NPA nova — cópia em `RASCUNHO`, da OM de quem substitui — **já ligada** à substituída (`t_documento.substitui_documento_id`). *Clonar* continua existindo e faz só a cópia, sem ligação. A regra é da espécie (`RegrasDoCicloDeVidaDoDocumento.podeSerSubstituido`; frontend: `podeSubstituir` e `perfil.permiteSubstituicao`): só a NPA, e só `PUBLICADO` com `SEM_ETAPA` — nem em pedido de revogação, nem revogada; uma NPA que já tem substituta não cancelada não pode ser substituída de novo. A espécie convencional nunca (tem o ciclo de emenda).
+
+A ligação aparece nos dois documentos (faixa na visualização): a nova mostra "Esta NPA substitui X" e a antiga "Está sendo substituída por Y", avisando, quando a substituta já foi publicada, que é hora de pedir a revogação. **A revogação da antiga não é automática**: continua sendo o pedido de revogação de sempre (com aprovador, publicador e Boletim Interno), porque a NPA nova leva todo o seu ciclo antes de valer.
+
 ### Identificação
 
 Texto livre informado na criação (`NPA-AGO-01`, `NPA 44-__/2026`… — cada setor tem o seu padrão), de até 120 caracteres, **corrigível nos metadados do editor até a Minuta**. **Não há assunto básico nem sequencial gerado**; o "assunto" do cabeçalho é o título do documento (`CriacaoDeNpa`).

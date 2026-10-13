@@ -227,6 +227,7 @@ export function backendParaFrontend(doc) {
     autor_nome: doc.autorNome ?? null,
     om_id: doc.omId != null ? String(doc.omId) : null,
     om_nome: doc.omNome ?? null,
+    om_url_distintivo: doc.omUrlDistintivo ?? null,
     om_sigla: doc.omSigla ?? null,
     // Só vem preenchido (true/false) na listagem paginada (obter-todos) --
     // ver DocumentoResponseSemAnexoTextualDto.ehAutorOuCoautor. null nos
@@ -489,4 +490,15 @@ export async function listPortarias(documentoId) {
 
 export async function deleteAnexo(documentoId, anexoId) {
   return http.del(`/documentos/${documentoId}/anexos/${anexoId}`)
+}
+
+// "Substituir" (NPA publicada): cria a NPA nova, em RASCUNHO, ligada à substituída.
+export async function substituirDocumento(id) {
+  const data = await http.post(`/documentos/${id}/substituir`)
+  return backendParaFrontend(data)
+}
+
+// Os dois lados da ligação "Substituir": { substitui, substituidoPor } (cada um { id, identificacao, titulo, situacaoLocal, situacaoBca } ou null).
+export async function getSubstituicao(id) {
+  return http.get(`/documentos/${id}/substituicao`)
 }

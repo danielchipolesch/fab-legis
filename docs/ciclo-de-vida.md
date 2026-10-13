@@ -131,7 +131,7 @@ Passo a passo, com o que muda no cabeçalho do documento (prévia, PDF e HTML �
 | **7. Aprovar a revogação** (`EM_REVOGACAO`) | Aprovador atribuído | Escolhe o Publicador. Se **devolver**, o pedido é recusado e a NPA segue `PUBLICADO` |
 | **8. Revogar** (`REVOGADO`) | Publicador atribuído | Informa o Boletim Interno da revogação, cuja data **não pode ser anterior** à da publicação. Não há devolução. A NPA revogada mantém a referência da publicação, ganha "(Revogada pelo …)" e o selo `REVOGADO` |
 
-**Para mudar uma NPA publicada:** não existe "Iniciar Alteração", `EM_ALTERACAO`, ciclo de emenda nem comparação de versões. Cria-se outra NPA (clonando, se quiser partir da anterior — o clone é da OM de quem clona) e, depois, pede-se a revogação da antiga; uma ação "Substituir" que ligue as duas está no [roadmap](roadmap.md).
+**Para mudar uma NPA publicada:** não existe "Iniciar Alteração", `EM_ALTERACAO`, ciclo de emenda nem comparação de versões. Cria-se outra NPA (clonando, se quiser partir da anterior — o clone é da OM de quem clona) e, depois, pede-se a revogação da antiga; a ação **Substituir** faz a cópia já ligada à NPA publicada (ver [Substituir](dominio.md#substituir)), e a revogação da antiga segue o pedido de sempre.
 
 ## Portaria, BCA e registro de publicações
 

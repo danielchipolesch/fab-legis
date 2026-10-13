@@ -84,4 +84,27 @@ class CicloDeVidaDeNpaTest {
             }
         }
     }
+
+    // "Substituir": só uma NPA publicada e parada (sem etapa em curso) pode ser substituída.
+    @Test
+    void soUmaNpaPublicadaESemEtapaEmCursoPodeSerSubstituida() {
+        assertThat(ciclo.podeSerSubstituido(SEM_ETAPA, PUBLICADO)).isTrue();
+    }
+
+    @Test
+    void quemAindaNaoFoiPublicadoNaoSeSubstitui() {
+        assertThat(ciclo.podeSerSubstituido(RASCUNHO, NAO_PUBLICADO)).isFalse();
+        assertThat(ciclo.podeSerSubstituido(MINUTA, NAO_PUBLICADO)).isFalse();
+        assertThat(ciclo.podeSerSubstituido(EM_REVISAO, NAO_PUBLICADO)).isFalse();
+        assertThat(ciclo.podeSerSubstituido(EM_PUBLICACAO, NAO_PUBLICADO)).isFalse();
+        assertThat(ciclo.podeSerSubstituido(SEM_ETAPA, NAO_PUBLICADO)).isFalse();
+    }
+
+    @Test
+    void comRevogacaoEmCursoOuJaRevogadaNaoSeSubstitui() {
+        assertThat(ciclo.podeSerSubstituido(ANALISE_REVOGACAO, PUBLICADO)).isFalse();
+        assertThat(ciclo.podeSerSubstituido(EM_REVOGACAO, PUBLICADO)).isFalse();
+        assertThat(ciclo.podeSerSubstituido(SEM_ETAPA, REVOGADO)).isFalse();
+        assertThat(ciclo.podeSerSubstituido(CANCELADO, NAO_PUBLICADO)).isFalse();
+    }
 }

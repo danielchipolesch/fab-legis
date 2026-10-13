@@ -219,6 +219,14 @@ export const useDocumentosStore = defineStore('documents', {
       return await this.fetchDocumento(clone.id)
     },
 
+    // "Substituir": como clonar (abre a cópia para edição), mas a NPA nova já nasce ligada à substituída.
+    async substituirDocumento(id) {
+      const nova = await api.substituirDocumento(id)
+      if (!nova) return nova
+      this.documentos.unshift(nova)
+      return await this.fetchDocumento(nova.id)
+    },
+
     // Sequencial de propósito, não Promise.all: saveSecoes checa
     // versaoEsperada contra o banco (DocumentoConcorrenciaService) e bumpa a
     // versão; se updateDocumento rodasse em paralelo, os dois partiriam da

@@ -205,6 +205,11 @@ describe('cabeçalho e fecho', () => {
     expect(cabecalho(doc({ data_aprovacao: '2026-12-01T10:00:00' }), campos, []).localEData).toBe('Brasília, 1 de dezembro de 2026')
   })
 
+  it('o distintivo é o da OM do documento (espelha CabecalhoDaNpaTest): sem distintivo, nulo', () => {
+    expect(cabecalho(doc(), campos, []).distintivoUrl).toBeNull()
+    expect(cabecalho(doc({ om_url_distintivo: 'http://minio/b/grupo.png' }), campos, []).distintivoUrl).toBe('http://minio/b/grupo.png')
+  })
+
   it('a efetivação e a linha da publicação só existem depois de publicada', () => {
     const antes = cabecalho(doc(), campos, [])
     expect(antes.efetivacao).toEqual(['BIO __', '__ ___ ____'])
