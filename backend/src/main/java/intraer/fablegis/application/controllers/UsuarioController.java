@@ -80,6 +80,14 @@ public class UsuarioController {
         return ResponseEntity.ok(candidatos);
     }
 
+    // Dados de quem está logado (posto, nome de guerra, OM): o token não os carrega, e a barra superior mostra "posto + nome de
+    // guerra". Qualquer autenticado pode chamar -- só devolve o próprio cadastro, nunca o de outra pessoa.
+    @GetMapping("/eu")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<UsuarioResponseDto> eu(Authentication authentication) {
+        return ResponseEntity.ok(usuarioService.obter(AutenticacaoUtil.usuarioDe(authentication).getId()));
+    }
+
     @GetMapping("{id}")
     public ResponseEntity<UsuarioResponseDto> obter(@PathVariable Long id) {
         return ResponseEntity.ok(usuarioService.obter(id));

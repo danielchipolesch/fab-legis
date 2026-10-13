@@ -1,11 +1,13 @@
 package intraer.fablegis.infrastructure.security;
 
 import lombok.RequiredArgsConstructor;
+import intraer.fablegis.application.validation.EmailInstitucionalValidator;
 import intraer.fablegis.domain.entities.usuario.OrganizacaoMilitar;
 import intraer.fablegis.domain.entities.usuario.PapelEnum;
 import intraer.fablegis.domain.entities.usuario.Usuario;
 import intraer.fablegis.domain.util.CpfValidator;
 import intraer.fablegis.infrastructure.repositories.OrganizacaoMilitarRepository;
+import intraer.fablegis.infrastructure.repositories.PostoGraduacaoRepository;
 import intraer.fablegis.infrastructure.repositories.UsuarioRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -24,15 +26,19 @@ import java.util.EnumSet;
 // pré-existentes) já é criado pela própria migração inicial, não aqui.
 //
 // O administrador padrão nasce na OM do CENDOC (o administrador do sistema, que também cria todas as espécies convencionais,
-// ver HabilitacaoPadraoRunner); se ela não existir, cai na OM "SISTEMA" criada pela migração como OM provisória.
+// ver HabilitacaoPadraoRunner), com posto, nome completo, nome de guerra e e-mail institucional configuráveis (app.admin.*);
+// os padrões são os dados do administrador atual do sistema.
 @Component
 @RequiredArgsConstructor
 public class DataSeeder implements ApplicationRunner {
 
     private static final Logger log = LoggerFactory.getLogger(DataSeeder.class);
 
+    static final String SIGLA_DA_OM_PADRAO = "CENDOC";
+
     private final UsuarioRepository usuarioRepository;
     private final OrganizacaoMilitarRepository omRepository;
+    private final PostoGraduacaoRepository postoGraduacaoRepository;
     private final PasswordEncoder passwordEncoder;
 
     @Value("${app.admin.cpf:11144477735}")
@@ -41,8 +47,18 @@ public class DataSeeder implements ApplicationRunner {
     @Value("${app.admin.senha:Admin@123}")
     private String adminSenha;
 
-    @Value("${app.admin.nome:Administrador}")
+    @Value("${app.admin.nome:DANIEL ANGELO CHIPOLESCH DE ALMEIDA}")
     private String adminNome;
+
+    @Value("${app.admin.nome-guerra:CHIPOLESCH}")
+    private String adminNomeGuerra;
+
+    @Value("${app.admin.email:chipoleschdaca@fab.mil.br}")
+    private String adminEmail;
+
+    // Bigrama do posto/graduação (CP = Capitão); vazio = sem posto.
+    @Value("${app.admin.posto:CP}")
+    private String adminPosto;
 
     @Override
     @Transactional
@@ -56,17 +72,32 @@ public class DataSeeder implements ApplicationRunner {
             return;
         }
 
-        OrganizacaoMilitar omSistema = omRepository.findBySigla("CENDOC").or(() -> omRepository.findBySigla("SISTEMA"))
+        OrganizacaoMilitar om = omRepository.findBySigla(SIGLA_DA_OM_PADRAO)
                 .orElseThrow(() -> new IllegalStateException(
-                        "Nem a OM CENDOC nem a OM SISTEMA foram encontradas -- migração V1__initial.sql não foi aplicada?"));
+                        "OM " + SIGLA_DA_OM_PADRAO + " não encontrada -- migração V1__initial.sql não foi aplicada?"));
 
         Usuario admin = new Usuario();
         admin.setNome(adminNome);
+        admin.setNomeGuerra(vazioComoNulo(adminNomeGuerra));
         admin.setCpf(cpf);
         admin.setSenhaHash(passwordEncoder.encode(adminSenha));
-        admin.setOm(omSistema);
+        admin.setOm(om);
         admin.setAtivo(true);
         admin.setSistema(false);
+        // O e-mail do sistema é sempre institucional (@fab.mil.br): um valor fora do domínio é ignorado, com aviso.
+        if (EmailInstitucionalValidator.isValid(adminEmail)) {
+            admin.setEmail(adminEmail.trim());
+        } else if (!vazio(adminEmail)) {
+            log.warn("app.admin.email ({}) não é do domínio @{} -- o administrador padrão foi criado sem e-mail.",
+                    adminEmail, EmailInstitucionalValidator.DOMINIO);
+        }
+        if (!vazio(adminPosto)) {
+            postoGraduacaoRepository.findAll().stream()
+                    .filter(p -> adminPosto.trim().equalsIgnoreCase(p.getBigrama()))
+                    .findFirst()
+                    .ifPresentOrElse(admin::setPostoGraduacao,
+                            () -> log.warn("app.admin.posto ({}) não existe -- o administrador padrão foi criado sem posto.", adminPosto));
+        }
         // ADMIN sozinho não basta pra criar documento (ver isEditor em
         // stores/auth.js e o comentário de PapelEnum.ADMIN -- é papel puramente
         // administrativo, sem poder nenhum sobre documentos, de propósito).
@@ -78,5 +109,13 @@ public class DataSeeder implements ApplicationRunner {
         usuarioRepository.save(admin);
 
         log.warn("Usuário administrador padrão criado (CPF {}). Troque a senha padrão assim que possível.", cpf);
+    }
+
+    private static boolean vazio(String s) {
+        return s == null || s.isBlank();
+    }
+
+    private static String vazioComoNulo(String s) {
+        return vazio(s) ? null : s.trim();
     }
 }

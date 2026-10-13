@@ -154,7 +154,7 @@
               label="E-mail"
               type="email"
               outlined dense
-              :rules="[emailValidoRule]"
+              :rules="[emailValidoRule, emailInstitucionalRule]"
               :disable="salvando"
             />
 
@@ -278,6 +278,7 @@ import * as usuariosApi from '@/api/usuarios.js'
 import { validarCpf, mascaraCpf, ocultarCpf, onlyDigits } from '@/utils/cpf.js'
 import { caixaAlta, normalizarBusca } from '@/utils/texto.js'
 import { useAuthStore } from '@/stores/auth.js'
+import { emailInstitucional } from '@/utils/email.js'
 
 const $q = useQuasar()
 const auth = useAuthStore()
@@ -351,6 +352,7 @@ const senhaMinLen = (v) => (String(v ?? '').length >= 8) || 'Mínimo de 8 caract
 const cpfValidoRule = (v) => validarCpf(v) || 'CPF inválido'
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const emailValidoRule = (v) => !v || EMAIL_RE.test(v) || 'E-mail inválido'
+const emailInstitucionalRule = (v) => emailInstitucional(v) || 'Use um e-mail institucional (@fab.mil.br)'
 
 // ── Criar / Editar ───────────────────────────────────────────────────────
 

@@ -15,7 +15,7 @@ import java.time.Duration;
 import java.util.List;
 
 // Listagem simples para popular o seletor de OM na tela de usuários -- sem
-// CRUD de OM nesta fase (só existe a OM "SISTEMA" seedada na migração inicial).
+// CRUD de OM nesta fase (as OMs vêm seedadas nas migrações).
 @RestController
 @RequestMapping(value = "/v1/organizacoes-militares", produces = MediaType.APPLICATION_JSON_VALUE)
 @Tag(name = "Organização Militar", description = "Consulta de organizações militares")
@@ -25,7 +25,7 @@ public class OrganizacaoMilitarController {
     private final OrganizacaoMilitarRepository organizacaoMilitarRepository;
 
     // Mesma razão do EspecieNormativaController.getAll: lista de referência que muda raramente
-    // (hoje só a OM "SISTEMA" seedada).
+    // (as OMs vêm seedadas nas migrações).
     @GetMapping
     public ResponseEntity<List<OrganizacaoMilitarResponseDto>> listar() {
         var lista = organizacaoMilitarRepository.findAll().stream()

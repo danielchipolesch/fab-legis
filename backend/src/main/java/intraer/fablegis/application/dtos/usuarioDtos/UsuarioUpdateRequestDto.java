@@ -1,6 +1,7 @@
 package intraer.fablegis.application.dtos.usuarioDtos;
 
 import intraer.fablegis.domain.entities.usuario.PapelEnum;
+import intraer.fablegis.application.validation.EmailInstitucional;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -15,6 +16,7 @@ public record UsuarioUpdateRequestDto(
         String nomeGuerra,
 
         @Email(message = "E-mail inválido")
+        @EmailInstitucional
         String email,
 
         Long postoGraduacaoId,

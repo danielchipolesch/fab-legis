@@ -84,9 +84,9 @@ O `.env` na raiz (fora do git, só o `.env.example` é versionado) é lido autom
 
 > **Acesse o frontend por `127.0.0.1`, nunca por `localhost`.** O login OAuth2 (`redirect_uri`, cookie de sessão e `sessionStorage`) é configurado para `127.0.0.1`; por `localhost` o fluxo trava em `{"message":"Não autenticado."}`. Ver o aviso completo em [Variáveis de ambiente](#variáveis-de-ambiente).
 
-**Habilitação de documentos:** só o GABAER e o CENDOC criam as espécies convencionais no primeiro boot (a NPA, qualquer OM); o administrador habilita as demais OMs na tela *Habilitação de Documentos*. O administrador padrão nasce na OM do CENDOC, por isso já cria documentos — num banco antigo ele continua na OM SISTEMA e precisa ser habilitado (ou movido de OM em *Manter Usuários*).
+**Habilitação de documentos:** só o GABAER e o CENDOC criam as espécies convencionais no primeiro boot (a NPA, qualquer OM); o administrador habilita as demais OMs na tela *Habilitação de Documentos*. O administrador padrão nasce na OM do CENDOC, por isso já cria documentos. A antiga OM provisória "SISTEMA" deixou de existir (migração `V15`: quem estava nela foi para o CENDOC).
 
-**Usuário administrador padrão** — criado automaticamente pelo `DataSeeder` no primeiro boot, só se nenhum usuário real ainda existir. CPF `111.444.777-35` (dígitos: `11144477735`), senha `Admin@123`, papéis **Admin + Editor** (o suficiente para gerenciar usuários e já criar o primeiro documento, sem precisar se auto-conceder um papel antes de usar o sistema — ver [Autenticação e Colaboração](docs/autenticacao.md#papeis-e-posse-de-documento) sobre por que Admin sozinho não bastaria). Troque a senha (ou os valores de `APP_ADMIN_CPF`/`APP_ADMIN_SENHA` antes do primeiro boot) assim que possível em qualquer ambiente que não seja local.
+**Usuário administrador padrão** — criado automaticamente pelo `DataSeeder` no primeiro boot, só se nenhum usuário real ainda existir. CPF `111.444.777-35` (dígitos: `11144477735`), senha `Admin@123`, posto CP, nome de guerra CHIPOLESCH, e-mail `chipoleschdaca@fab.mil.br`, na OM CENDOC, papéis **Admin + Editor** (o suficiente para gerenciar usuários e já criar o primeiro documento, sem precisar se auto-conceder um papel antes de usar o sistema — ver [Autenticação e Colaboração](docs/autenticacao.md#papeis-e-posse-de-documento) sobre por que Admin sozinho não bastaria). Troque a senha (ou os valores de `APP_ADMIN_CPF`/`APP_ADMIN_SENHA` antes do primeiro boot) assim que possível em qualquer ambiente que não seja local.
 
 ### Caminho B — backend e frontend fora do Docker
 
@@ -369,7 +369,7 @@ Via Docker Compose, todas as variáveis abaixo (exceto `PORT` do collab, que nã
 | `APP_FRONTEND_LOGIN_URL` | `http://127.0.0.1:5173/login` | Tela de login (Vue) para onde o Authorization Server manda usuários não-autenticados |
 | `APP_CORS_ALLOWED_ORIGINS` | `http://127.0.0.1:5173,http://localhost:5173` | Origens do navegador autorizadas a chamar a API (CORS), separadas por vírgula; aceita padrões como `https://*.exemplo.mil.br`. **Em produção, com tudo atrás do Nginx na mesma origem, deixe vazio** (`APP_CORS_ALLOWED_ORIGINS=` no `.env`): não há chamada cross-origin. `*` libera qualquer site — evite |
 | `APP_SWAGGER_ENABLED` | `true` | Publica a Swagger UI e o JSON do OpenAPI; `false` desliga os dois |
-| `APP_ADMIN_CPF` / `APP_ADMIN_SENHA` / `APP_ADMIN_NOME` | ver acima | Usuário administrador padrão, criado só no primeiro boot |
+| `APP_ADMIN_CPF` / `APP_ADMIN_SENHA` / `APP_ADMIN_NOME` / `APP_ADMIN_NOME_GUERRA` / `APP_ADMIN_EMAIL` / `APP_ADMIN_POSTO` | ver acima | Usuário administrador padrão, criado só no primeiro boot |
 
 **Collab** (serviço de colaboração em tempo real, ver [Arquitetura](docs/arquitetura.md))
 

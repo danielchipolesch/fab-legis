@@ -62,3 +62,8 @@ export async function listOrganizacoesMilitares() {
 export async function listPostosGraduacoes() {
   return http.get('/postos-graduacoes')
 }
+
+// Cadastro de quem está logado (qualquer papel) -- posto e nome de guerra para a barra superior.
+export async function getMeuUsuario() {
+  return http.get('/usuarios/eu')
+}

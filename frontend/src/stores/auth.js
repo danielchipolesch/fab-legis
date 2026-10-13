@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { podeCriarNoModulo, podeCriarEspecie } from '@/utils/habilitacao.js'
 import { listMinhasEspeciesCriaveis } from '@/api/habilitacao.js'
+import { getMeuUsuario } from '@/api/usuarios.js'
 import { setAuthTokenGetter, setUnauthorizedHandler, setRefreshHandler } from '@/api/client.js'
 import { gerarCodeVerifier, gerarCodeChallenge, gerarState } from '@/utils/pkce.js'
 
@@ -110,7 +111,7 @@ export const useAuthStore = defineStore('auth', {
     // Chamado uma vez no boot do app (main.js) -- plugueia o client HTTP no
     // token/estado deste store sem criar dependência circular entre módulos.
     inicializar() {
-      if (this.token) this.carregarEspeciesCriaveis()
+      if (this.token) { this.carregarEspeciesCriaveis(); this.carregarMeuPerfil() }
       setAuthTokenGetter(() => this.token)
       setUnauthorizedHandler(() => this.logout())
       setRefreshHandler(() => this.refresh())
@@ -122,6 +123,17 @@ export const useAuthStore = defineStore('auth', {
         this.especiesCriaveis = await listMinhasEspeciesCriaveis()
       } catch {
         this.especiesCriaveis = []
+      }
+    },
+
+    // Busca posto, nome de guerra e OM de quem está logado (não vão no token) e atualiza a barra superior. Falha em silêncio:
+    // sem isso a barra mostra o nome completo.
+    async carregarMeuPerfil() {
+      try {
+        const eu = await getMeuUsuario()
+        this.atualizarPerfil({ ...eu, papeis: this.usuario?.papeis })
+      } catch {
+        // mantém o que já havia
       }
     },
 
@@ -154,6 +166,7 @@ export const useAuthStore = defineStore('auth', {
         papeis: this.usuario.papeis,
       }))
       this.carregarEspeciesCriaveis()
+      this.carregarMeuPerfil()
     },
 
     // Início do fluxo Authorization Code + PKCE: gera verifier/state, guarda
