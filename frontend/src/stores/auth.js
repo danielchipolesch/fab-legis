@@ -1,4 +1,5 @@
-import { defineStore } from 'pinia'
+import { defineStore, getActivePinia } from 'pinia'
+import { limparCachesDaSessao } from '@/utils/limparSessao.js'
 import { podeCriarNoModulo, podeCriarEspecie } from '@/utils/habilitacao.js'
 import { listMinhasEspeciesCriaveis } from '@/api/habilitacao.js'
 import { setAuthTokenGetter, setUnauthorizedHandler, setRefreshHandler } from '@/api/client.js'
@@ -298,11 +299,14 @@ export const useAuthStore = defineStore('auth', {
     // silêncio com a sessão antiga ainda viva. logoutSuccessUrl já aponta de
     // volta pro /login (ver AuthorizationServerConfig), então isso já
     // termina no lugar certo sozinho -- quem chama não precisa navegar depois.
+    // Também apaga tudo o que a sessão deixou no navegador (limparCachesDaSessao): estado de todas as stores e URLs assinadas em
+    // cache -- a próxima pessoa que entrar neste navegador não herda nada de quem saiu.
     logout() {
       this.token = null
       this.usuario = null
       this.especiesCriaveis = []
       localStorage.removeItem(STORAGE_KEY)
+      limparCachesDaSessao(getActivePinia())
       window.location.href = `${OAUTH2_BASE_URL}/logout`
     },
   },
