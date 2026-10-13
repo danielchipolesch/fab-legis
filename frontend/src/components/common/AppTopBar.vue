@@ -75,7 +75,7 @@
               <q-item-section>
                 <q-item-label class="text-weight-bold text-white">{{ nomeExibicao }}</q-item-label>
                 <q-item-label caption class="text-white" style="opacity:.85">{{ ocultarCpf(auth.usuario.cpf) }}</q-item-label>
-                <q-item-label caption class="text-white" style="opacity:.85">{{ auth.usuario.omNome }}</q-item-label>
+                <q-item-label caption class="text-white" style="opacity:.85">{{ auth.usuario.omSigla || auth.usuario.omNome }}</q-item-label>
               </q-item-section>
             </q-item>
 

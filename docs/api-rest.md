@@ -123,7 +123,7 @@ Duas rotas sob `/v1/usuarios` sobrescrevem a restrição de Admin da classe (`is
 
 ## Organizações militares — `/v1/organizacoes-militares`
 
-`GET /` — lista simples, usada para popular o seletor de OM na tela de usuários e na de distintivos (inclui `urlDistintivo`).
+`GET /` — lista simples, usada para popular o seletor de OM nas telas de usuários e de distintivos (inclui `urlDistintivo`).
 
 | Método | Rota | Papel | Descrição |
 |---|---|---|---|
@@ -138,6 +138,7 @@ Quais espécies convencionais cada OM pode **criar** ([regra](autenticacao.md#ha
 |---|---|---|---|
 | `GET` | `/` | Admin | Cada OM com os ids das espécies habilitadas |
 | `PUT` | `/{omId}` | Admin | Substitui as habilitações da OM pela lista `{ "especieIds": [...] }` (vazia = nenhuma). Espécie que não depende de habilitação (NPA) → 406; OM ou espécie inexistente → 404 |
+| `PUT` | `/por-especie/{especieId}` | Admin | A visão por espécie (a da tela): substitui as OMs habilitadas a criar a espécie pela lista `{ "omIds": [...] }` (vazia = nenhuma). Mesmos erros do `PUT /{omId}` |
 | `GET` | `/minhas` | autenticado | As espécies que a OM de quem pergunta pode criar (as que não dependem de habilitação, mais as habilitadas) |
 
 Criar (`POST /v1/documentos`) ou clonar (`POST /v1/documentos/{id}/clonar`) sem habilitação responde **403**.

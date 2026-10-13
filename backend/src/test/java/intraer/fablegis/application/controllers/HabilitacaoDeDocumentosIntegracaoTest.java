@@ -186,4 +186,45 @@ class HabilitacaoDeDocumentosIntegracaoTest extends IntegracaoComPostgresBase {
                         .content("{\"especieIds\": [" + idDaEspecie("NPA") + "]}"))
                 .andExpect(status().isNotAcceptable());   // InvalidInputException = 406 na API
     }
+
+    // ─── Visão por espécie ───────────────────────────────────────────────────
+
+    @Test
+    void oAdministradorDefineAsOmsDeUmaEspecieEElasPassamACriar() throws Exception {
+        var editor = editorDaOm("EMAER", "12345678909");
+        Long emaer = omRepository.findBySigla("EMAER").orElseThrow().getId();
+        Long cendoc = omRepository.findBySigla("CENDOC").orElseThrow().getId();
+        Long gabaer = omRepository.findBySigla("GABAER").orElseThrow().getId();
+        long dca = idDaEspecie("DCA");
+
+        mvc.perform(put("/v1/habilitacao-de-documentos/por-especie/" + dca).with(como(administrador())).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"omIds\": [" + emaer + "," + cendoc + "]}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.sigla").value("DCA"))
+                .andExpect(jsonPath("$.omIds.length()").value(2));
+        mvc.perform(post("/v1/documentos").with(como(editor)).contentType(MediaType.APPLICATION_JSON).content(novoDocumentoDca()))
+                .andExpect(status().isCreated());
+
+        // lista vazia: ninguém mais cria DCA (nem a OM do administrador)
+        mvc.perform(put("/v1/habilitacao-de-documentos/por-especie/" + dca).with(como(administrador())).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"omIds\": []}"))
+                .andExpect(status().isOk());
+        mvc.perform(post("/v1/documentos").with(como(editor)).contentType(MediaType.APPLICATION_JSON).content(novoDocumentoDca()))
+                .andExpect(status().isForbidden());
+
+        // devolve o padrão do primeiro boot (GABAER e CENDOC) para os outros testes
+        mvc.perform(put("/v1/habilitacao-de-documentos/por-especie/" + dca).with(como(administrador())).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"omIds\": [" + gabaer + "," + cendoc + "]}"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void aVisaoPorEspecieSoParaAdminENaoAceitaNpa() throws Exception {
+        mvc.perform(put("/v1/habilitacao-de-documentos/por-especie/" + idDaEspecie("DCA")).with(como(editorDaOm("EMAER", "12345678909")))
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"omIds\": []}"))
+                .andExpect(status().isForbidden());
+        mvc.perform(put("/v1/habilitacao-de-documentos/por-especie/" + idDaEspecie("NPA")).with(como(administrador()))
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"omIds\": []}"))
+                .andExpect(status().is4xxClientError());
+    }
 }

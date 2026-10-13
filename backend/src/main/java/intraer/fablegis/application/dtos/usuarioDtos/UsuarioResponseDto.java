@@ -18,6 +18,7 @@ public record UsuarioResponseDto(
         String postoGraduacaoBigrama,
         Long omId,
         String omNome,
+        String omSigla,
         boolean ativo,
         List<String> papeis,
 
@@ -37,6 +38,7 @@ public record UsuarioResponseDto(
                 posto != null ? posto.getBigrama() : null,
                 usuario.getOm().getId(),
                 usuario.getOm().getNome(),
+                usuario.getOm().getSigla(),
                 usuario.isAtivo(),
                 usuario.getPapeis().stream().map(Enum::name).toList(),
                 usuario.getDtCriacao()

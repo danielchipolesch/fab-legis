@@ -78,6 +78,7 @@ export const useAuthStore = defineStore('auth', {
         cpf: salvo.cpf,
         omId: salvo.omId,
         omNome: salvo.omNome,
+        omSigla: salvo.omSigla,
         nomeGuerra: salvo.nomeGuerra,
         postoGraduacaoBigrama: salvo.postoGraduacaoBigrama,
         papeis: salvo.papeis ?? [],
@@ -134,6 +135,7 @@ export const useAuthStore = defineStore('auth', {
         cpf: claims.preferred_username,
         omId: claims.om_id != null ? Number(claims.om_id) : null,
         omNome: claims.om_nome ?? null,
+        omSigla: claims.om_sigla ?? null,
         nomeGuerra: claims.nome_guerra ?? null,
         postoGraduacaoBigrama: claims.posto_bigrama ?? null,
         papeis: claims.realm_access?.roles ?? [],
@@ -145,6 +147,7 @@ export const useAuthStore = defineStore('auth', {
         cpf: this.usuario.cpf,
         omId: this.usuario.omId,
         omNome: this.usuario.omNome,
+        omSigla: this.usuario.omSigla,
         nomeGuerra: this.usuario.nomeGuerra,
         postoGraduacaoBigrama: this.usuario.postoGraduacaoBigrama,
         papeis: this.usuario.papeis,
@@ -269,6 +272,7 @@ export const useAuthStore = defineStore('auth', {
         postoGraduacaoBigrama: dados.postoGraduacaoBigrama ?? null,
         omId: dados.omId ?? this.usuario.omId,
         omNome: dados.omNome ?? this.usuario.omNome,
+        omSigla: dados.omSigla ?? this.usuario.omSigla,
         papeis: dados.papeis ?? this.usuario.papeis,
       }
       const salvo = lerArmazenado()
@@ -280,6 +284,7 @@ export const useAuthStore = defineStore('auth', {
           postoGraduacaoBigrama: this.usuario.postoGraduacaoBigrama,
           omId: this.usuario.omId,
           omNome: this.usuario.omNome,
+          omSigla: this.usuario.omSigla,
           papeis: this.usuario.papeis,
         }))
       }

@@ -16,3 +16,8 @@ export async function listHabilitacoes() {
 export async function definirHabilitacao(omId, especieIds) {
   return http.put(`/habilitacao-de-documentos/${omId}`, { especieIds })
 }
+
+// Administrador: substitui as OMs habilitadas a criar a espécie pela lista pedida (vazia = nenhuma). Visão por espécie.
+export async function definirHabilitacaoDaEspecie(especieId, omIds) {
+  return http.put(`/habilitacao-de-documentos/por-especie/${especieId}`, { omIds })
+}

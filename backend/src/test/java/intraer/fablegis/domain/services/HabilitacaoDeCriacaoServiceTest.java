@@ -192,6 +192,51 @@ class HabilitacaoDeCriacaoServiceTest {
         assertThatThrownBy(() -> service.definir(OM_COMUM, List.of(404L))).isInstanceOf(ResourceNotFoundException.class);
     }
 
+    // ─── Visão por espécie ───────────────────────────────────────────────────
+
+    @Test
+    void definirPorEspecieSubstituiAsOmsHabilitadasDaEspecie() {
+        when(especieRepository.findById(10L)).thenReturn(Optional.of(dca));
+        when(omRepository.findById(OM_COMUM)).thenReturn(Optional.of(om(OM_COMUM, "EMAER")));
+        when(omRepository.findById(OM_HABILITADA)).thenReturn(Optional.of(om(OM_HABILITADA, "CENDOC")));
+
+        var resposta = service.definirPorEspecie(10L, List.of(OM_COMUM, OM_HABILITADA, OM_COMUM));
+
+        verify(habilitacaoRepository).deleteByEspecieId(10L);
+        var salvas = ArgumentCaptor.forClass(HabilitacaoDaOm.class);
+        verify(habilitacaoRepository, org.mockito.Mockito.times(2)).save(salvas.capture());
+        assertThat(salvas.getAllValues()).extracting(HabilitacaoDaOm::getOrganizacaoMilitarId).containsExactlyInAnyOrder(OM_COMUM, OM_HABILITADA);
+        assertThat(salvas.getAllValues()).extracting(HabilitacaoDaOm::getEspecieNormativaId).containsOnly(10L);
+        assertThat(resposta.omIds()).containsExactly(OM_HABILITADA, OM_COMUM);
+        assertThat(resposta.sigla()).isEqualTo("DCA");
+    }
+
+    @Test
+    void definirPorEspecieListaVaziaTiraTodasAsOmsDaEspecie() {
+        when(especieRepository.findById(10L)).thenReturn(Optional.of(dca));
+
+        var resposta = service.definirPorEspecie(10L, List.of());
+
+        verify(habilitacaoRepository).deleteByEspecieId(10L);
+        verify(habilitacaoRepository, never()).save(any());
+        assertThat(resposta.omIds()).isEmpty();
+    }
+
+    @Test
+    void definirPorEspecieRecusaEspecieSemHabilitacaoEOmOuEspecieInexistente() {
+        when(especieRepository.findById(20L)).thenReturn(Optional.of(npa));
+        assertThatThrownBy(() -> service.definirPorEspecie(20L, List.of(OM_COMUM)))
+                .isInstanceOf(InvalidInputException.class).hasMessageContaining("NPA");
+
+        when(especieRepository.findById(404L)).thenReturn(Optional.empty());
+        assertThatThrownBy(() -> service.definirPorEspecie(404L, List.of())).isInstanceOf(ResourceNotFoundException.class);
+
+        when(especieRepository.findById(10L)).thenReturn(Optional.of(dca));
+        when(omRepository.findById(99L)).thenReturn(Optional.empty());
+        assertThatThrownBy(() -> service.definirPorEspecie(10L, List.of(99L))).isInstanceOf(ResourceNotFoundException.class);
+        verify(habilitacaoRepository, never()).deleteByEspecieId(any());
+    }
+
     @Test
     void listarMostraCadaOmComAsSuasEspecies() {
         when(omRepository.findAll()).thenReturn(List.of(om(OM_COMUM, "EMAER"), om(OM_HABILITADA, "CENDOC")));

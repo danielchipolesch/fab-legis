@@ -1,6 +1,7 @@
 package intraer.fablegis.domain.services;
 
 import intraer.fablegis.application.dtos.especieNormativaDtos.EspecieNormativaResponseDto;
+import intraer.fablegis.application.dtos.habilitacaoDtos.HabilitacaoDaEspecieResponseDto;
 import intraer.fablegis.application.dtos.habilitacaoDtos.HabilitacaoDaOmResponseDto;
 import intraer.fablegis.domain.entities.numeracaoDocumento.EspecieNormativa;
 import intraer.fablegis.domain.entities.usuario.HabilitacaoDaOm;
@@ -88,6 +89,27 @@ public class HabilitacaoDeCriacaoService {
         habilitacaoRepository.flush();
         pedidas.forEach(id -> habilitacaoRepository.save(new HabilitacaoDaOm(omId, id)));
         return new HabilitacaoDaOmResponseDto(om.getId(), om.getSigla(), om.getNome(), pedidas.stream().sorted().toList());
+    }
+
+    // A visão por espécie da tela de administração: substitui as OMs habilitadas a criar a espécie pela lista pedida (vazia =
+    // nenhuma OM). É a mesma tabela de definir(), vista do outro lado.
+    @Transactional
+    public HabilitacaoDaEspecieResponseDto definirPorEspecie(Long especieId, List<Long> omIds) {
+        EspecieNormativa especie = especieRepository.findById(especieId)
+                .orElseThrow(() -> new ResourceNotFoundException("Espécie normativa não encontrada."));
+        if (!exigeHabilitacao(especie)) {
+            throw new InvalidInputException("A espécie " + especie.getSigla() + " não depende de habilitação: toda OM a cria.");
+        }
+        Set<Long> pedidas = new HashSet<>(omIds);
+        for (Long id : pedidas) {
+            if (organizacaoMilitarRepository.findById(id).isEmpty()) {
+                throw new ResourceNotFoundException("Organização militar não encontrada (id " + id + ").");
+            }
+        }
+        habilitacaoRepository.deleteByEspecieId(especieId);
+        habilitacaoRepository.flush();
+        pedidas.forEach(id -> habilitacaoRepository.save(new HabilitacaoDaOm(id, especieId)));
+        return new HabilitacaoDaEspecieResponseDto(especie.getId(), especie.getSigla(), pedidas.stream().sorted().toList());
     }
 
     private Set<Long> habilitadasDa(Long omId) {

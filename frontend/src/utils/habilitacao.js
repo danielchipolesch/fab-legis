@@ -19,13 +19,24 @@ export function apenasCriaveis(especiesDoSistema, especiesCriaveis) {
   return (especiesDoSistema ?? []).filter(e => siglas.has(e.sigla))
 }
 
-// Tela de administração: as OMs que combinam com a busca (sigla ou nome, sem acento nem caixa) e, se pedido, só as que têm
-// alguma espécie habilitada. `oms`: [{ omId, sigla, nome, especieIds }].
-export function filtrarOms(oms, busca, soHabilitadas) {
+// Tela de administração, visão por espécie: de "cada OM com as suas espécies" (o que o backend lista) para "cada espécie com as
+// suas OMs" -- { [especieId]: [omId, ...] }. `habilitacoes`: [{ omId, especieIds }].
+export function omIdsPorEspecie(habilitacoes) {
+  const porEspecie = {}
+  for (const h of habilitacoes ?? []) {
+    for (const especieId of h.especieIds ?? []) (porEspecie[especieId] ??= []).push(h.omId)
+  }
+  return porEspecie
+}
+
+// O seletor de OMs de uma espécie busca pela sigla ou pelo nome (sem acento nem caixa), mas mostra só a sigla.
+export function filtrarOpcoesDeOm(oms, termo) {
   const normalizar = s => (s ?? '').toString().normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim()
-  const termo = normalizar(busca)
-  return (oms ?? []).filter(om => {
-    if (soHabilitadas && !om.especieIds.length) return false
-    return !termo || normalizar(om.sigla).includes(termo) || normalizar(om.nome).includes(termo)
-  })
+  const t = normalizar(termo)
+  return (oms ?? []).filter(om => !t || normalizar(om.sigla).includes(t) || normalizar(om.nome).includes(t))
+}
+
+// Quantas das espécies a OM pode criar (resumo do filtro por OM): [{ id }] e { [especieId]: [omId] }.
+export function especiesDaOm(especies, omIdsPorEspecieMapa, omId) {
+  return (especies ?? []).filter(e => (omIdsPorEspecieMapa?.[e.id] ?? []).includes(omId))
 }

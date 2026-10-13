@@ -1,6 +1,8 @@
 package intraer.fablegis.application.controllers;
 
 import intraer.fablegis.application.dtos.especieNormativaDtos.EspecieNormativaResponseDto;
+import intraer.fablegis.application.dtos.habilitacaoDtos.HabilitacaoDaEspecieRequestDto;
+import intraer.fablegis.application.dtos.habilitacaoDtos.HabilitacaoDaEspecieResponseDto;
 import intraer.fablegis.application.dtos.habilitacaoDtos.HabilitacaoDaOmRequestDto;
 import intraer.fablegis.application.dtos.habilitacaoDtos.HabilitacaoDaOmResponseDto;
 import intraer.fablegis.domain.services.HabilitacaoDeCriacaoService;
@@ -41,6 +43,14 @@ public class HabilitacaoDeDocumentosController {
     public ResponseEntity<HabilitacaoDaOmResponseDto> definir(@PathVariable Long omId,
                                                               @RequestBody @Valid HabilitacaoDaOmRequestDto pedido) {
         return ResponseEntity.ok(habilitacaoService.definir(omId, pedido.especieIds()));
+    }
+
+    // A visão por espécie (a tela de administração): as OMs habilitadas a criar uma espécie convencional.
+    @PreAuthorize("hasRole('ADMIN')")
+    @PutMapping("/por-especie/{especieId}")
+    public ResponseEntity<HabilitacaoDaEspecieResponseDto> definirPorEspecie(@PathVariable Long especieId,
+                                                                             @RequestBody @Valid HabilitacaoDaEspecieRequestDto pedido) {
+        return ResponseEntity.ok(habilitacaoService.definirPorEspecie(especieId, pedido.omIds()));
     }
 
     // As espécies que a OM de quem pergunta pode criar (as que não dependem de habilitação, como a NPA, mais as habilitadas).

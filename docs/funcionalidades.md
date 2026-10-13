@@ -92,7 +92,7 @@ O sistema é dividido em **módulos**, um por tipo de espécie (`TipoDeEspecie`,
 
 **Quem pode criar espécies convencionais** é decidido por OM: só as OMs que o administrador (CENDOC) habilitou criam MCA, NSCA, ICA, ROCA, DCA e as demais; o GABAER e o CENDOC vêm habilitados para todas, e a NPA é criada por qualquer OM. Quem é de uma OM sem habilitação **consulta normalmente** (hub e módulo) e pode ser **coautor**, mas **não vê o botão de criar** (nem o de clonar) — o **Criar** do hub só lista os módulos em que a OM cria.
 
-O administrador gerencia na tela **Habilitação de Documentos** (menu do usuário, só `ADMIN`): a lista das OMs, com busca e o filtro "só as habilitadas", e para cada OM uma lista de escolha das espécies que ela pode criar, gravada a cada mudança. Detalhes e regras em [Autenticação — Habilitação de documentos](autenticacao.md#habilitacao-de-documentos).
+O administrador gerencia na tela **Habilitação de Documentos** (menu do usuário, só `ADMIN`): uma linha por espécie convencional, com as OMs habilitadas (só as siglas) e um seletor para adicionar ou remover, gravado a cada mudança; o filtro no topo mostra o que uma OM específica pode criar. Detalhes e regras em [Autenticação — Habilitação de documentos](autenticacao.md#habilitacao-de-documentos).
 
 ## Gestão do acervo
 

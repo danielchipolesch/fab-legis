@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { podeCriarNoModulo, podeCriarEspecie, apenasCriaveis, filtrarOms } from './habilitacao.js'
+import { podeCriarNoModulo, podeCriarEspecie, apenasCriaveis, omIdsPorEspecie, filtrarOpcoesDeOm, especiesDaOm } from './habilitacao.js'
 
 const CONV = 'CONVENCIONAL'
 const COP = 'COMUNICACAO_OFICIAL_PADRONIZADA'
@@ -40,18 +40,35 @@ describe('habilitacao', () => {
     expect(apenasCriaveis(doSistema, semHabilitacao).map(e => e.sigla)).toEqual(['NPA'])
     expect(apenasCriaveis(doSistema, [])).toEqual([])
   })
+})
 
-  it('a tela de administração busca a OM por sigla ou nome, sem acento nem caixa, e filtra as habilitadas', () => {
+describe('habilitação — visão por espécie (tela de administração)', () => {
+  const habilitacoes = [
+    { omId: 1, especieIds: [10, 11] },
+    { omId: 2, especieIds: [] },
+    { omId: 3, especieIds: [10] },
+  ]
+
+  it('vira "cada espécie com as suas OMs"; espécie sem OM não aparece no mapa', () => {
+    expect(omIdsPorEspecie(habilitacoes)).toEqual({ 10: [1, 3], 11: [1] })
+    expect(omIdsPorEspecie(undefined)).toEqual({})
+  })
+
+  it('o seletor busca a OM por sigla ou nome, sem acento nem caixa', () => {
     const oms = [
-      { omId: 1, sigla: 'CENDOC', nome: 'Centro de Documentação Aeronáutica', especieIds: [1, 2] },
-      { omId: 2, sigla: 'EMAER', nome: 'Estado-Maior da Aeronáutica', especieIds: [] },
-      { omId: 3, sigla: 'GABAER', nome: 'Gabinete do Comandante da Aeronáutica', especieIds: [1] },
+      { id: 1, sigla: 'CENDOC', nome: 'Centro de Documentação Aeronáutica' },
+      { id: 2, sigla: 'EMAER', nome: 'Estado-Maior da Aeronáutica' },
     ]
-    expect(filtrarOms(oms, 'documentacao', false).map(o => o.sigla)).toEqual(['CENDOC'])
-    expect(filtrarOms(oms, 'GAB', false).map(o => o.sigla)).toEqual(['GABAER'])
-    expect(filtrarOms(oms, 'aeronautica', false)).toHaveLength(3)
-    expect(filtrarOms(oms, '', true).map(o => o.sigla)).toEqual(['CENDOC', 'GABAER'])
-    expect(filtrarOms(oms, 'emaer', true)).toEqual([])
-    expect(filtrarOms(undefined, 'x', false)).toEqual([])
+    expect(filtrarOpcoesDeOm(oms, 'documentacao').map(o => o.sigla)).toEqual(['CENDOC'])
+    expect(filtrarOpcoesDeOm(oms, 'EMA').map(o => o.sigla)).toEqual(['EMAER'])
+    expect(filtrarOpcoesDeOm(oms, '')).toHaveLength(2)
+    expect(filtrarOpcoesDeOm(undefined, 'x')).toEqual([])
+  })
+
+  it('as espécies que uma OM pode criar', () => {
+    const mapa = omIdsPorEspecie(habilitacoes)
+    expect(especiesDaOm([{ id: 10 }, { id: 11 }, { id: 12 }], mapa, 1).map(e => e.id)).toEqual([10, 11])
+    expect(especiesDaOm([{ id: 10 }, { id: 11 }], mapa, 3).map(e => e.id)).toEqual([10])
+    expect(especiesDaOm([{ id: 10 }], mapa, 2)).toEqual([])
   })
 })

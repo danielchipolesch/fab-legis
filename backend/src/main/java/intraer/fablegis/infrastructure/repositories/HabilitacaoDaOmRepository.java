@@ -22,4 +22,8 @@ public interface HabilitacaoDaOmRepository extends JpaRepository<HabilitacaoDaOm
     @Modifying
     @Query("delete from HabilitacaoDaOm h where h.id.organizacaoMilitarId = :omId")
     void deleteByOmId(@Param("omId") Long omId);
+
+    @Modifying
+    @Query("delete from HabilitacaoDaOm h where h.id.especieNormativaId = :especieId")
+    void deleteByEspecieId(@Param("especieId") Long especieId);
 }

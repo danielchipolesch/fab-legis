@@ -291,6 +291,7 @@ public class AuthorizationServerConfig {
                 if (usuario.getNomeGuerra() != null) context.getClaims().claim("nome_guerra", usuario.getNomeGuerra());
                 if (usuario.getPostoGraduacao() != null) context.getClaims().claim("posto_bigrama", usuario.getPostoGraduacao().getBigrama());
                 context.getClaims().claim("om_nome", usuario.getOm().getNome());
+                context.getClaims().claim("om_sigla", usuario.getOm().getSigla());
             }
         };
     }
