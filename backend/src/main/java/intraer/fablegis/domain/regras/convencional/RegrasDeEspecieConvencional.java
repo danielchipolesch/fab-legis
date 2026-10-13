@@ -1,6 +1,7 @@
 package intraer.fablegis.domain.regras.convencional;
 
 import intraer.fablegis.domain.regras.CalculadoraDeNumeracaoDosElementos;
+import intraer.fablegis.domain.regras.RegraDeHabilitacaoDaOm;
 import intraer.fablegis.domain.regras.CamposEspecificosDaEspecie;
 import intraer.fablegis.domain.regras.EstruturaInicialDeNovoDocumento;
 import intraer.fablegis.domain.regras.LeiauteDoHtml;
@@ -67,4 +68,6 @@ public class RegrasDeEspecieConvencional implements RegrasDaEspecieNormativa {
     @Override public LeiauteDoPdf leiauteDoPdf() { return leiauteDoPdf; }
     @Override public LeiauteDoHtml leiauteDoHtml() { return leiauteDoHtml; }
     @Override public RegrasDoCicloDeVidaDoDocumento cicloDeVida() { return cicloDeVida; }
+    // As Espécies Convencionais só são criadas pelas OMs habilitadas (ver RegraDeHabilitacaoDaOm).
+    @Override public RegraDeHabilitacaoDaOm habilitacao() { return () -> true; }
 }

@@ -80,6 +80,7 @@ class GlobalExceptionHandlerTest {
                 case "negado" -> throw new AccessDeniedException("negado");
                 case "conflito" -> throw new ConflitoEdicaoException("alterado por outro usuário");
                 case "ocupado" -> throw new SistemaOcupadoException("ocupado", 5);
+                case "habilitacao" -> throw new OperacaoNaoAutorizadaException("A sua OM não está habilitada a criar DCA.");
                 case "renderizacao" -> throw new FalhaNaRenderizacaoException("Erro ao renderizar PDF: x", new RuntimeException());
                 default -> throw new UnsupportedOperationException(tipo);
             }
@@ -247,5 +248,7 @@ class GlobalExceptionHandlerTest {
         lanca("negado").andExpect(status().isForbidden()).andExpect(jsonPath("$.message").value("Acesso negado."));
         lanca("conflito").andExpect(status().isConflict());
         lanca("ocupado").andExpect(status().isServiceUnavailable()).andExpect(header().string("Retry-After", "5"));
+        lanca("habilitacao").andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value("A sua OM não está habilitada a criar DCA."));
     }
 }

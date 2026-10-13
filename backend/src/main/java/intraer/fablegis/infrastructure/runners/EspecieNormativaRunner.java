@@ -5,10 +5,12 @@ import intraer.fablegis.domain.entities.numeracaoDocumento.EspecieNormativa;
 import intraer.fablegis.infrastructure.enums.EspecieNormativaEnum;
 import intraer.fablegis.infrastructure.repositories.EspecieNormativaRepository;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
 @Component
 @RequiredArgsConstructor
+@Order(10)   // antes de HabilitacaoPadraoRunner (que precisa das espécies já semeadas)
 public class EspecieNormativaRunner implements CommandLineRunner {
 
     final EspecieNormativaRepository especieNormativaRepository;

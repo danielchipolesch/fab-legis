@@ -225,6 +225,11 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return responder(HttpStatus.FORBIDDEN, body);
     }
 
+    @ExceptionHandler(OperacaoNaoAutorizadaException.class)
+    public ResponseEntity<Map<String, Object>> handleOperacaoNaoAutorizada(OperacaoNaoAutorizadaException e, WebRequest request) {
+        return responder(HttpStatus.FORBIDDEN, ExceptionResponseUtil.buildErrorResponse(HttpStatus.FORBIDDEN, e.getMessage(), request));
+    }
+
     @ExceptionHandler(StatusCannotBeUpdatedException.class)
     public ResponseEntity<Map<String, Object>> handleStatusCannotBeUpdatedException(StatusCannotBeUpdatedException e, WebRequest request){
         Map<String, Object> body = ExceptionResponseUtil.buildErrorResponse(HttpStatus.FORBIDDEN, e.getMessage(), request);

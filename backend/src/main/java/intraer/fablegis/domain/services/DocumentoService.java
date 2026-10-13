@@ -78,11 +78,20 @@ public class DocumentoService {
 
     final OrganizacaoMilitarRepository organizacaoMilitarRepository;
 
+    final HabilitacaoDeCriacaoService habilitacaoDeCriacaoService;
+
+    private static Long omDoUsuarioAtual() {
+        var om = AutenticacaoUtil.usuarioAtual().getOm();
+        return om == null ? null : om.getId();
+    }
 
     @Transactional
     public DocumentoResponseSemAnexoTextualDto create(DocumentoRequestCreateDto request) {
 
         EspecieNormativa especieNormativa = especieNormativaRepository.findById(request.idEspecieNormativa()).orElseThrow(() -> new ResourceNotFoundException(EspecieNormativaException.NOT_FOUND.getMessage()));
+
+        // Só a OM habilitada cria espécie convencional (a NPA, qualquer OM): ver HabilitacaoDeCriacaoService.
+        habilitacaoDeCriacaoService.exigirPodeCriar(omDoUsuarioAtual(), especieNormativa);
 
         // O que a espécie exige para criar (assunto básico, identificação...) e como o documento se identifica
         // é regra da espécie.
@@ -308,6 +317,9 @@ public class DocumentoService {
 
         Documento documentoAntigo = documentoRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException(DocumentoException.NOT_FOUND.getMessage()));
+
+        // Clonar cria um documento novo: vale a mesma habilitação da OM de quem clona, para a espécie do original.
+        habilitacaoDeCriacaoService.exigirPodeCriar(omDoUsuarioAtual(), documentoAntigo.getEspecieNormativa());
 
         // O clone é um documento novo (ver clonarNormItem): quem clona vira o
         // autor, não quem criou o original -- mesma regra de "criar" no resto

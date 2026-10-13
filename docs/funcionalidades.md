@@ -88,6 +88,12 @@ A tela inicial (`/`, `HubPage`) é o **ponto único de acesso** aos módulos e a
 
 O sistema é dividido em **módulos**, um por tipo de espécie (`TipoDeEspecie`, com os nomes da NSCA 5-3): **Espécies Convencionais** (`/convencionais` — MCA, NSCA, ICA, ROCA, DCA…) e **NPA** (`/npa` — Norma Padrão de Ação, das Comunicações Oficiais Padronizadas). Os documentos de um módulo **nunca aparecem no outro**: cada um tem a sua tela inicial (`ModuloPage`, a mesma tela configurada pelo perfil do módulo em `perfis/index.js`), que lista só os documentos do tipo dele — a listagem e o resumo do backend recebem `tipoDeEspecie`. O botão de criar de cada módulo cria só espécies dele (na NPA, a espécie já vem escolhida). O que muda entre os módulos: na NPA a tabela não tem as colunas *Espécie* e *Assunto Básico*, o número chama-se *Identificação* e a situação real chama-se *Boletim Interno* (nas convencionais, *Situação BCA*); o filtro de espécie só aparece quando o módulo tem mais de uma. Um tipo de espécie novo ganha o seu módulo acrescentando um perfil.
 
+## Habilitação de documentos
+
+**Quem pode criar espécies convencionais** é decidido por OM: só as OMs que o administrador (CENDOC) habilitou criam MCA, NSCA, ICA, ROCA, DCA e as demais; o GABAER e o CENDOC vêm habilitados para todas, e a NPA é criada por qualquer OM. Quem é de uma OM sem habilitação **consulta normalmente** (hub e módulo) e pode ser **coautor**, mas **não vê o botão de criar** (nem o de clonar) — o **Criar** do hub só lista os módulos em que a OM cria.
+
+O administrador gerencia na tela **Habilitação de Documentos** (menu do usuário, só `ADMIN`): a lista das OMs, com busca e o filtro "só as habilitadas", e para cada OM uma lista de escolha das espécies que ela pode criar, gravada a cada mudança. Detalhes e regras em [Autenticação — Habilitação de documentos](autenticacao.md#habilitacao-de-documentos).
+
 ## Gestão do acervo
 
 A tela inicial de cada módulo (`ModuloPage`) organiza o acervo do módulo em quatro abas — **Meus Documentos**, **Documentos da Minha OM**, **Documentos de Outras OMs** e **Documentos Revogados** — cada uma com paginação e busca próprias e um contador de quantos documentos do módulo ela contém; a visualização em si é universal (qualquer usuário autenticado vê e baixa qualquer documento, independente de autoria, OM ou situação — ver [Autenticação e Colaboração](autenticacao.md)), as abas são só uma forma de navegar esse mesmo conjunto.

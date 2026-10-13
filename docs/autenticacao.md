@@ -39,6 +39,30 @@ Nenhum poder sobre o ciclo de vida de um documento é implícito — todos os pa
 
 **Coautoria:** o autor de um documento pode adicionar outros usuários como coautores (`DocumentoCompartilhamentoService`) — um coautor ganha os mesmos direitos de edição/exclusão do autor sobre aquele documento específico, mas só o autor pode gerenciar a lista de coautores. A busca no `CompartilharDialog.vue` é por **nome de guerra ou nome completo** (`GET /usuarios/buscar?q=`), nunca por CPF digitado — CPF é dado pessoal que o autor raramente sabe de cor; o CPF do usuário escolhido é resolvido internamente a partir do resultado da busca e só então enviado ao backend (`compartilhar`, que continua identificando o coautor por CPF). Diferente do seletor de revisor/publicador (escopado à OM de quem escolhe), essa busca é **sem filtro de OM**, coerente com a coautoria em si não ser restrita a isso (ver abaixo). A OM nunca é barreira pra coautoria: o documento aparece em "Meus Documentos" pro autor e pra todo coautor, **qualquer que seja a OM de cada um** (`DocumentoSpecifications.aba`), refletido ali em tempo real assim que o compartilhamento acontece, via a mesma notificação SSE `DOCUMENTO_COMPARTILHADO` do sino de notificações. Já "Documentos da Minha OM"/"Documentos de Outras OMs" continuam decididos só pela OM do documento em si (a OM do autor no momento da criação), sem olhar autoria/coautoria — por isso essas abas propositalmente **se sobrepõem** a "Meus Documentos" em vez de excluí-la: um documento da OM A com um coautor da OM B aparece em "Meus Documentos" **e** "Documentos da Minha OM" pra quem é da OM A, mas em "Meus Documentos" **e** "Documentos de Outras OMs" pro coautor da OM B.
 
+## Habilitação de documentos
+
+**Nem toda OM pode criar documentos de espécies normativas convencionais.** Só criam (MCA, NSCA, ICA, ROCA, DCA, FCA, OCA, PCA, RCA, RICA, TCA…) as organizações militares que o administrador do sistema (o **CENDOC**, perfil `ADMIN`) **habilitou** para a espécie. A **NPA** (Comunicações Oficiais Padronizadas) é criada por **qualquer** OM.
+
+**O que a habilitação controla — só a criação.**
+
+| Quem | Consulta (hub e módulo) | Cria | Clona | Coautor (edita o que lhe foi compartilhado) |
+|---|---|---|---|---|
+| Pessoa de **OM habilitada** na espécie | sim | sim | sim | sim |
+| Pessoa de **OM sem habilitação** | **sim, normalmente** | não — o botão **não aparece** | não — o botão não aparece | **sim**: pode ser coautora de documento de OM habilitada |
+| NPA, qualquer OM | sim | sim | sim | sim |
+
+Ou seja, as espécies convencionais continuam aparecendo no hub e no módulo para todos; o que some, para quem não é de OM habilitada, é o botão de **criar** (o **Criar** do hub só lista os módulos em que a OM cria, e o botão **Novo Documento** do módulo) e o de **clonar**, que também cria um documento. O papel `EDIT` continua necessário para criar; a habilitação é uma segunda condição.
+
+**Padrão do primeiro boot:** apenas o **GABAER** e o **CENDOC** podem criar **todas** as espécies convencionais (`HabilitacaoPadraoRunner`, que só age enquanto não existe nenhuma habilitação gravada: depois disso a tabela é do administrador, e uma habilitação removida por ele não volta). O administrador padrão nasce na OM do CENDOC. Uma espécie convencional nova não é habilitada sozinha para ninguém: o administrador a habilita.
+
+**Gestão — tela *Habilitação de Documentos*** (menu do usuário → *Habilitação de Documentos*, só `ADMIN`; `HabilitacaoDeDocumentosPage.vue`): lista as OMs, com busca por sigla ou nome e o filtro "só as OMs habilitadas"; para **cada OM, uma lista de escolha** com as espécies convencionais que ela pode criar. Cada mudança é gravada na hora (e desfeita com aviso se o servidor recusar); há atalhos *Habilitar todas* e *Remover todas*. A NPA não aparece na lista, porque não depende de habilitação. Ficou como tela separada de *Manter Usuários*: não existe um cadastro de OMs ("Manter OMs") onde ela coubesse.
+
+**Como é aplicada.**
+- A espécie diz se exige habilitação: `RegraDeHabilitacaoDaOm.exigeHabilitacaoDaOm()`, uma das interfaces de regra por espécie (convencional: sim; NPA: não) — nunca um `if` na sigla.
+- O backend barra: `DocumentoService.create` e `clone` chamam `HabilitacaoDeCriacaoService.exigirPodeCriar`, e uma OM sem habilitação recebe **403** com a mensagem "A sua organização militar não está habilitada a criar documentos da espécie X. Peça a habilitação ao administrador do sistema (CENDOC)." (`OperacaoNaoAutorizadaException`).
+- O frontend esconde o botão: `GET /v1/habilitacao-de-documentos/minhas` devolve as espécies que a OM de quem pergunta cria, e a store de autenticação (`especiesCriaveis`) decide onde aparecem o **Criar** do hub, o **Novo Documento** do módulo e o **Clonar**, e quais espécies o seletor do diálogo de novo documento oferece. Enquanto a lista não carrega, nenhum botão de criar aparece.
+- Os dados ficam em `t_om_especie_habilitada` (OM × espécie; migration `V14`).
+
 ## Edição concorrente
 
 Em RASCUNHO/MINUTA, duas peças complementares — uma para o *conteúdo* de cada elemento, outra para a *estrutura* da árvore:

@@ -23,7 +23,7 @@
         </div>
       </div>
       <q-btn
-        v-if="auth.isEditor"
+        v-if="auth.isEditor && auth.podeCriarNoModulo(tipoDeEspecie)"
         class="col-auto"
         color="primary"
         unelevated
@@ -312,6 +312,7 @@
 
                 <!-- Clonar -->
                 <q-btn
+                  v-if="auth.isEditor && auth.podeCriarEspecie(props.row.especie)"
                   icon="mdi-content-copy"
                   size="sm"
                   flat
@@ -445,7 +446,7 @@
                 Visualizar
               </q-btn>
               <q-space />
-              <q-btn size="sm" icon="mdi-content-copy" flat round dense color="primary" @click="confirmarClone(doc)">
+              <q-btn v-if="auth.isEditor && auth.podeCriarEspecie(doc.especie)" size="sm" icon="mdi-content-copy" flat round dense color="primary" @click="confirmarClone(doc)">
                 <q-tooltip anchor="top middle" self="bottom middle">Clonar</q-tooltip>
                 <q-badge v-if="doc.qtd_replicas > 0" floating color="indigo" :label="doc.qtd_replicas" />
               </q-btn>

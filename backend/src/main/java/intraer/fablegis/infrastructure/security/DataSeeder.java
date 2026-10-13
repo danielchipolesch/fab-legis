@@ -23,9 +23,8 @@ import java.util.EnumSet;
 // só no primeiro deploy. O usuário "sistema" (dono dos documentos
 // pré-existentes) já é criado pela própria migração inicial, não aqui.
 //
-// Reaproveita a OM "SISTEMA" criada pela migração como OM provisória do
-// admin -- ele deveria ser reatribuído à OM real assim que a tela de
-// administração de usuários existir (ver fase 02 do design doc).
+// O administrador padrão nasce na OM do CENDOC (o administrador do sistema, que também cria todas as espécies convencionais,
+// ver HabilitacaoPadraoRunner); se ela não existir, cai na OM "SISTEMA" criada pela migração como OM provisória.
 @Component
 @RequiredArgsConstructor
 public class DataSeeder implements ApplicationRunner {
@@ -57,9 +56,9 @@ public class DataSeeder implements ApplicationRunner {
             return;
         }
 
-        OrganizacaoMilitar omSistema = omRepository.findBySigla("SISTEMA")
+        OrganizacaoMilitar omSistema = omRepository.findBySigla("CENDOC").or(() -> omRepository.findBySigla("SISTEMA"))
                 .orElseThrow(() -> new IllegalStateException(
-                        "OM 'SISTEMA' não encontrada -- migração V1__initial.sql não foi aplicada?"));
+                        "Nem a OM CENDOC nem a OM SISTEMA foram encontradas -- migração V1__initial.sql não foi aplicada?"));
 
         Usuario admin = new Usuario();
         admin.setNome(adminNome);

@@ -150,6 +150,8 @@ import { useDocumentosStore } from '@/stores/documentos.js'
 import { useRouter } from 'vue-router'
 import { perfilDe } from '@/perfis/index.js'
 import { listEspeciesNormativas, listAssuntosBasicos, normalizeEspecie, normalizeAssunto } from '@/api/referencias.js'
+import { useAuthStore } from '@/stores/auth.js'
+import { apenasCriaveis } from '@/utils/habilitacao.js'
 
 // tipoDeEspecie: o módulo de onde o diálogo foi aberto -- só as espécies dele podem ser criadas ali. Se o módulo tem uma
 // única espécie (a NPA), ela já vem escolhida.
@@ -180,7 +182,12 @@ async function carregarReferencias() {
       listEspeciesNormativas(),
       listAssuntosBasicos(),
     ])
-    especies.value = esp.map(normalizeEspecie).filter(e => !props.tipoDeEspecie || e.tipoDeEspecie === props.tipoDeEspecie)
+    // Só as espécies que a OM da pessoa pode criar (habilitação de documentos; a NPA, toda OM): o backend também barra, mas o
+    // seletor não oferece o que seria negado.
+    especies.value = apenasCriaveis(
+      esp.map(normalizeEspecie).filter(e => !props.tipoDeEspecie || e.tipoDeEspecie === props.tipoDeEspecie),
+      useAuthStore().especiesCriaveis,
+    )
     assuntos.value = ass.map(normalizeAssunto)
     especiesFiltradas.value = especies.value
     assuntosFiltrados.value = assuntos.value

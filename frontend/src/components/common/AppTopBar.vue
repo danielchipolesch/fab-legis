@@ -111,6 +111,12 @@
               </q-item-section>
               <q-item-section>Manter Usuários</q-item-section>
             </q-item>
+            <q-item v-if="auth.isAdmin" clickable v-close-popup :to="{ name: 'habilitacao-de-documentos' }" data-testid="menu-habilitacao">
+              <q-item-section avatar>
+                <q-icon name="mdi-file-check-outline" color="primary" />
+              </q-item-section>
+              <q-item-section>Habilitação de Documentos</q-item-section>
+            </q-item>
             <q-item v-if="auth.isAuditor" clickable v-close-popup :to="{ name: 'auditoria' }">
               <q-item-section avatar>
                 <q-icon name="mdi-text-box-search-outline" color="primary" />

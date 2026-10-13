@@ -123,6 +123,20 @@ Duas rotas sob `/v1/usuarios` sobrescrevem a restrição de Admin da classe (`is
 
 `GET /` — lista simples, usada para popular o seletor de OM na tela de usuários.
 
+## Habilitação de documentos — `/v1/habilitacao-de-documentos`
+
+Quais espécies convencionais cada OM pode **criar** ([regra](autenticacao.md#habilitacao-de-documentos)).
+
+| Método | Caminho | Quem | O que faz |
+|---|---|---|---|
+| `GET` | `/` | Admin | Cada OM com os ids das espécies habilitadas |
+| `PUT` | `/{omId}` | Admin | Substitui as habilitações da OM pela lista `{ "especieIds": [...] }` (vazia = nenhuma). Espécie que não depende de habilitação (NPA) → 406; OM ou espécie inexistente → 404 |
+| `GET` | `/minhas` | autenticado | As espécies que a OM de quem pergunta pode criar (as que não dependem de habilitação, mais as habilitadas) |
+
+Criar (`POST /v1/documentos`) ou clonar (`POST /v1/documentos/{id}/clonar`) sem habilitação responde **403**.
+
+
+
 ## Auditoria — `/v1/auditoria` *(Auditor)*
 
 `GET /` — trilha paginada e filtrável por documento, usuário, ação e período. Requer o papel Auditor especificamente (Admin não tem acesso automático — ver [Autenticação e Colaboração](autenticacao.md)).

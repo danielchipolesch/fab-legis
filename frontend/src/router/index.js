@@ -79,6 +79,12 @@ const routes = [
     meta: { title: 'Gestão de Usuários', requiresAdmin: true },
   },
   {
+    path: '/habilitacao-de-documentos',
+    name: 'habilitacao-de-documentos',
+    component: () => import('@/pages/HabilitacaoDeDocumentosPage.vue'),
+    meta: { title: 'Habilitação de Documentos', requiresAdmin: true },
+  },
+  {
     path: '/auditoria',
     name: 'auditoria',
     component: () => import('@/pages/AuditoriaPage.vue'),

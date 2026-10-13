@@ -32,10 +32,12 @@
         </div>
       </div>
 
-      <!-- Criar só leva ao módulo: quem cria de fato é o botão de criar da tela inicial dele. -->
-      <q-btn-dropdown v-if="auth.isEditor" class="col-auto" color="primary" unelevated size="lg" icon="mdi-plus" label="Criar" data-testid="criar">
+      <!-- Criar só leva ao módulo: quem cria de fato é o botão de criar da tela inicial dele. Só aparecem os módulos em que a OM
+           da pessoa pode criar (habilitação de documentos): a espécie convencional só para OM habilitada, a NPA para todas. Os
+           cartões dos módulos, abaixo, continuam todos, para consultar. -->
+      <q-btn-dropdown v-if="auth.isEditor && modulosQueCria.length" class="col-auto" color="primary" unelevated size="lg" icon="mdi-plus" label="Criar" data-testid="criar">
         <q-list style="min-width:240px">
-          <q-item v-for="m in MODULOS" :key="m.rota" clickable v-close-popup :to="{ name: m.rota }" :data-testid="`criar-${m.rota}`">
+          <q-item v-for="m in modulosQueCria" :key="m.rota" clickable v-close-popup :to="{ name: m.rota }" :data-testid="`criar-${m.rota}`">
             <q-item-section avatar><q-icon :name="m.icone" color="primary" /></q-item-section>
             <q-item-section>
               <q-item-label>{{ m.rotuloDoCriar }}</q-item-label>
@@ -115,7 +117,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useAuthStore } from '@/stores/auth.js'
 import PainelCard from '@/components/hub/PainelCard.vue'
 import DetalhesDoDocumentoDialog from '@/components/hub/DetalhesDoDocumentoDialog.vue'
@@ -124,6 +126,9 @@ import { MODULOS } from '@/perfis/index.js'
 // O hub, a tela inicial do sistema: três cards do trabalho da pessoa (de qualquer módulo) e, embaixo, o acesso a cada
 // módulo. Nada aqui altera um documento -- as ações acontecem nos módulos, nas telas de Revisão/Publicação ou no editor.
 const auth = useAuthStore()
+
+// Os módulos em que a OM da pessoa pode criar documentos (o botão Criar do hub lista só estes).
+const modulosQueCria = computed(() => MODULOS.filter(m => auth.podeCriarNoModulo(m.tipoDeEspecie)))
 
 const detalhesAberto = ref(false)
 const detalhesDoc = ref(null)

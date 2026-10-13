@@ -1,4 +1,6 @@
 import { defineStore } from 'pinia'
+import { podeCriarNoModulo, podeCriarEspecie } from '@/utils/habilitacao.js'
+import { listMinhasEspeciesCriaveis } from '@/api/habilitacao.js'
 import { setAuthTokenGetter, setUnauthorizedHandler, setRefreshHandler } from '@/api/client.js'
 import { gerarCodeVerifier, gerarCodeChallenge, gerarState } from '@/utils/pkce.js'
 
@@ -81,6 +83,9 @@ export const useAuthStore = defineStore('auth', {
         papeis: salvo.papeis ?? [],
       } : null,
       loading: false,
+      // Espécies que a OM da pessoa pode criar (habilitação de documentos): decide onde aparecem os botões de criar. Vazia até
+      // carregar -- e enquanto vazia nenhum botão de criar aparece, nunca o contrário.
+      especiesCriaveis: [],
       erro: null,
     }
   },
@@ -96,15 +101,28 @@ export const useAuthStore = defineStore('auth', {
     // Espelha o backend (hasRole('AUDITOR') -- ver AuditoriaController): papel
     // independente de ADMIN, precisa estar marcado no próprio cadastro.
     isAuditor: (state) => state.usuario?.papeis?.includes('AUDITOR') ?? false,
+    // Criar documento = ter o papel EDIT E a OM habilitada para a espécie (a NPA, toda OM). Consultar e ser coautor independem disso.
+    podeCriarNoModulo: (state) => (tipoDeEspecie) => podeCriarNoModulo(state.especiesCriaveis, tipoDeEspecie),
+    podeCriarEspecie: (state) => (sigla) => podeCriarEspecie(state.especiesCriaveis, sigla),
   },
 
   actions: {
     // Chamado uma vez no boot do app (main.js) -- plugueia o client HTTP no
     // token/estado deste store sem criar dependência circular entre módulos.
     inicializar() {
+      if (this.token) this.carregarEspeciesCriaveis()
       setAuthTokenGetter(() => this.token)
       setUnauthorizedHandler(() => this.logout())
       setRefreshHandler(() => this.refresh())
+    },
+
+    // Busca no backend as espécies que a OM da pessoa pode criar. Falha em silêncio (lista vazia = sem botão de criar).
+    async carregarEspeciesCriaveis() {
+      try {
+        this.especiesCriaveis = await listMinhasEspeciesCriaveis()
+      } catch {
+        this.especiesCriaveis = []
+      }
     },
 
     _aplicarTokens(tokenResp) {
@@ -135,6 +153,7 @@ export const useAuthStore = defineStore('auth', {
         postoGraduacaoBigrama: this.usuario.postoGraduacaoBigrama,
         papeis: this.usuario.papeis,
       }))
+      this.carregarEspeciesCriaveis()
     },
 
     // Início do fluxo Authorization Code + PKCE: gera verifier/state, guarda
@@ -281,6 +300,7 @@ export const useAuthStore = defineStore('auth', {
     logout() {
       this.token = null
       this.usuario = null
+      this.especiesCriaveis = []
       localStorage.removeItem(STORAGE_KEY)
       window.location.href = `${OAUTH2_BASE_URL}/logout`
     },
