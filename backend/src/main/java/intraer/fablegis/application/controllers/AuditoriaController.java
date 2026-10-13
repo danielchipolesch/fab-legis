@@ -3,6 +3,9 @@ package intraer.fablegis.application.controllers;
 import lombok.RequiredArgsConstructor;
 import intraer.fablegis.application.dtos.auditoriaDtos.LogAuditoriaResponseDto;
 import intraer.fablegis.domain.entities.auditoria.AcaoAuditoriaEnum;
+import intraer.fablegis.domain.entities.auditoria.AcaoDeAcessoEnum;
+import intraer.fablegis.application.dtos.auditoriaDtos.LogDeAcessoResponseDto;
+import intraer.fablegis.domain.services.AuditoriaDeAcessoService;
 import intraer.fablegis.domain.services.LogAuditoriaService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.data.domain.Page;
@@ -33,6 +36,7 @@ import java.time.LocalDateTime;
 public class AuditoriaController {
 
     private final LogAuditoriaService logAuditoriaService;
+    private final AuditoriaDeAcessoService auditoriaDeAcessoService;
 
     @GetMapping
     public ResponseEntity<Page<LogAuditoriaResponseDto>> filtrar(
@@ -47,5 +51,20 @@ public class AuditoriaController {
         Timestamp inicio = dataInicio != null ? Timestamp.valueOf(dataInicio) : null;
         Timestamp fim = dataFim != null ? Timestamp.valueOf(dataFim) : null;
         return ResponseEntity.ok(logAuditoriaService.filtrar(documentoId, usuarioId, acao, inicio, fim, pageable));
+    }
+
+    // Trilha dos acessos: quem criou usuário, concedeu ou retirou papel, ativou/desativou, trocou de OM ou redefiniu senha.
+    @GetMapping("/acessos")
+    public ResponseEntity<Page<LogDeAcessoResponseDto>> acessos(
+            @RequestParam(required = false) String cpf,
+            @RequestParam(required = false) AcaoDeAcessoEnum acao,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime dataInicio,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime dataFim,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "25") int size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by("dtOcorrencia").descending());
+        Timestamp inicio = dataInicio != null ? Timestamp.valueOf(dataInicio) : null;
+        Timestamp fim = dataFim != null ? Timestamp.valueOf(dataFim) : null;
+        return ResponseEntity.ok(auditoriaDeAcessoService.filtrar(cpf, acao, inicio, fim, pageable));
     }
 }

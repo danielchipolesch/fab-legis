@@ -26,12 +26,13 @@ class DataSeederTest {
     private final OrganizacaoMilitarRepository oms = mock(OrganizacaoMilitarRepository.class);
     private final PostoGraduacaoRepository postos = mock(PostoGraduacaoRepository.class);
     private final PasswordEncoder encoder = mock(PasswordEncoder.class);
+    private final intraer.fablegis.domain.services.AuditoriaDeAcessoService auditoria = mock(intraer.fablegis.domain.services.AuditoriaDeAcessoService.class);
     private DataSeeder seeder;
     private OrganizacaoMilitar cendoc;
 
     @BeforeEach
     void preparar() {
-        seeder = new DataSeeder(usuarios, oms, postos, encoder);
+        seeder = new DataSeeder(usuarios, oms, postos, encoder, auditoria);
         ReflectionTestUtils.setField(seeder, "adminCpf", "11144477735");
         ReflectionTestUtils.setField(seeder, "adminSenha", "Admin@123");
         ReflectionTestUtils.setField(seeder, "adminNome", "DANIEL ANGELO CHIPOLESCH DE ALMEIDA");

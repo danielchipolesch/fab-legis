@@ -6,6 +6,7 @@ import intraer.fablegis.application.dtos.usuarioDtos.UsuarioCreateRequestDto;
 import intraer.fablegis.application.dtos.usuarioDtos.UsuarioResponseDto;
 import intraer.fablegis.application.dtos.usuarioDtos.UsuarioUpdateRequestDto;
 import intraer.fablegis.domain.entities.usuario.OrganizacaoMilitar;
+import intraer.fablegis.domain.regras.DiferencaDeAcesso;
 import intraer.fablegis.domain.entities.usuario.PapelEnum;
 import intraer.fablegis.domain.entities.usuario.PostoGraduacao;
 import intraer.fablegis.domain.entities.usuario.Usuario;
@@ -40,6 +41,8 @@ public class UsuarioService {
 
     private final PasswordEncoder passwordEncoder;
 
+    private final AuditoriaDeAcessoService auditoriaDeAcesso;
+
     public List<UsuarioResponseDto> listar() {
         return usuarioRepository.findAll().stream()
                 .filter(u -> !u.isSistema())
@@ -71,7 +74,9 @@ public class UsuarioService {
         usuario.setAtivo(true);
         usuario.setPapeis(papeisComo(request.papeis()));
 
-        return UsuarioResponseDto.from(usuarioRepository.save(usuario));
+        var salvo = usuarioRepository.save(usuario);
+        auditoriaDeAcesso.registrarCriacao(salvo);
+        return UsuarioResponseDto.from(salvo);
     }
 
     @Transactional
@@ -89,6 +94,9 @@ public class UsuarioService {
 
         OrganizacaoMilitar om = buscarOm(request.omId());
 
+        // O estado de acesso ANTES da mudança, para a auditoria registrar só o que de fato mudou (papéis, situação, OM).
+        var antes = new DiferencaDeAcesso.Estado(EnumSet.copyOf(papeisOuVazio(usuario.getPapeis())), usuario.isAtivo(), siglaDa(usuario.getOm()));
+
         usuario.setNome(request.nome());
         usuario.setNomeGuerra(vazioComoNulo(request.nomeGuerra()));
         usuario.setEmail(vazioComoNulo(request.email()));
@@ -97,7 +105,10 @@ public class UsuarioService {
         usuario.setAtivo(request.ativo());
         usuario.setPapeis(papeisComo(request.papeis()));
 
-        return UsuarioResponseDto.from(usuarioRepository.save(usuario));
+        var salvo = usuarioRepository.save(usuario);
+        var depois = new DiferencaDeAcesso.Estado(EnumSet.copyOf(papeisOuVazio(salvo.getPapeis())), salvo.isAtivo(), siglaDa(salvo.getOm()));
+        auditoriaDeAcesso.registrarMudancas(salvo, DiferencaDeAcesso.entre(antes, depois));
+        return UsuarioResponseDto.from(salvo);
     }
 
     @Transactional
@@ -105,6 +116,15 @@ public class UsuarioService {
         Usuario usuario = buscarUsuarioReal(id);
         usuario.setSenhaHash(passwordEncoder.encode(request.novaSenha()));
         usuarioRepository.save(usuario);
+        auditoriaDeAcesso.registrarRedefinicaoDeSenha(usuario);
+    }
+
+    private static java.util.Set<PapelEnum> papeisOuVazio(java.util.Set<PapelEnum> papeis) {
+        return papeis == null || papeis.isEmpty() ? EnumSet.noneOf(PapelEnum.class) : papeis;
+    }
+
+    private static String siglaDa(OrganizacaoMilitar om) {
+        return om != null ? om.getSigla() : null;
     }
 
     private Usuario buscarUsuarioReal(Long id) {

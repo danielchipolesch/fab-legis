@@ -5,6 +5,7 @@ import intraer.fablegis.application.validation.EmailInstitucionalValidator;
 import intraer.fablegis.domain.entities.usuario.OrganizacaoMilitar;
 import intraer.fablegis.domain.entities.usuario.PapelEnum;
 import intraer.fablegis.domain.entities.usuario.Usuario;
+import intraer.fablegis.domain.services.AuditoriaDeAcessoService;
 import intraer.fablegis.domain.util.CpfValidator;
 import intraer.fablegis.infrastructure.repositories.OrganizacaoMilitarRepository;
 import intraer.fablegis.infrastructure.repositories.PostoGraduacaoRepository;
@@ -40,6 +41,7 @@ public class DataSeeder implements ApplicationRunner {
     private final OrganizacaoMilitarRepository omRepository;
     private final PostoGraduacaoRepository postoGraduacaoRepository;
     private final PasswordEncoder passwordEncoder;
+    private final AuditoriaDeAcessoService auditoriaDeAcesso;
 
     @Value("${app.admin.cpf:11144477735}")
     private String adminCpf;
@@ -107,6 +109,7 @@ public class DataSeeder implements ApplicationRunner {
         // outro ADMIN criado depois continua sem EDIT implícito nenhum.
         admin.setPapeis(EnumSet.of(PapelEnum.ADMIN, PapelEnum.EDIT));
         usuarioRepository.save(admin);
+        auditoriaDeAcesso.registrarCriacao(admin);
 
         log.warn("Usuário administrador padrão criado (CPF {}). Troque a senha padrão assim que possível.", cpf);
     }
