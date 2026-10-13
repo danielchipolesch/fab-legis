@@ -148,6 +148,7 @@ Criar (`POST /v1/documentos`) ou clonar (`POST /v1/documentos/{id}/clonar`) sem 
 ## Auditoria — `/v1/auditoria` *(Auditor)*
 
 `GET /` — trilha paginada e filtrável por documento, usuário, ação e período. Requer o papel Auditor especificamente (Admin não tem acesso automático — ver [Autenticação e Colaboração](autenticacao.md)).
+n`GET /acessos` — a trilha dos **acessos** (criação de usuário, concessão/retirada de papel, ativação, troca de OM, redefinição de senha — [Auditoria de acessos](autenticacao.md#auditoria-de-acessos)), filtrável por `cpf` do usuário afetado, `acao` e período; mesmo papel Auditor.
 
 ## Notificações — `/v1/notificacoes`
 
