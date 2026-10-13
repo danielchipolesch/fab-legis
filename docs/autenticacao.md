@@ -13,7 +13,7 @@ Autenticação via **Spring Authorization Server embutido no próprio backend** 
 - Usuário administrador padrão criado automaticamente no primeiro boot (`DataSeeder`) — ver credenciais em `README.md` da raiz do repositório (seção "Instalação em desenvolvimento").
   O administrador padrão é o **CP CHIPOLESCH** (DANIEL ANGELO CHIPOLESCH DE ALMEIDA, `chipoleschdaca@fab.mil.br`, CPF `11144477735`), da OM **CENDOC** — configurável por `APP_ADMIN_NOME`, `APP_ADMIN_NOME_GUERRA`, `APP_ADMIN_EMAIL` e `APP_ADMIN_POSTO`. A OM provisória "SISTEMA" foi extinta (migração `V15`).
 - **E-mail institucional:** o e-mail de um usuário, quando informado, precisa ser do domínio `@fab.mil.br` (`@EmailInstitucional`, espelhado no formulário de *Manter Usuários*); outro domínio é recusado com 400.
-- A barra superior mostra o **posto e o nome de guerra** de quem está logado (cai para o nome completo se faltarem), carregados de `GET /v1/usuarios/eu` após o login.
+- A barra superior mostra o **posto e o nome de guerra** de quem está logado (cai para o nome completo se faltarem), vindos de claims do token (`nome_guerra`, `posto_bigrama`, `om_nome`) — uma mudança de posto só aparece no próximo login.
 
 !!! note "Detecção de expiração é reativa, por design"
     A validade do token só é verificada no momento em que uma chamada real à API acontece através do `client.js` — ou quando a conexão SSE de notificações (`AppTopBar.vue`) recebe um erro de autenticação do servidor. Não há timer proativo de logout — se o usuário ficar numa página já carregada sem disparar nenhuma requisição e sem receber nenhum erro do SSE, a sessão pode *parecer* válida até a próxima interação real. Essa é uma decisão deliberada, não um bug.

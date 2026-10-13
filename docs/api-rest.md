@@ -112,12 +112,11 @@ O `ImagemService` cria o bucket sob demanda na primeira execução; o bucket é 
 
 Sem exclusão definitiva — usuários são autores de documento (FK sem `ON DELETE`), então o ciclo de vida é ativar/desativar, nunca apagar.
 
-Três rotas sob `/v1/usuarios` sobrescrevem a restrição de Admin da classe (`isAuthenticated()`) — alimentam os seletores de pessoa por nome (CPF é dado pessoal, quase nunca sabido de cor, ver [Autenticação e Colaboração](autenticacao.md#papeis-e-posse-de-documento)):
+Duas rotas sob `/v1/usuarios` sobrescrevem a restrição de Admin da classe (`isAuthenticated()`) — alimentam os seletores de pessoa por nome (CPF é dado pessoal, quase nunca sabido de cor, ver [Autenticação e Colaboração](autenticacao.md#papeis-e-posse-de-documento)):
 
 | Método | Rota | Descrição |
 |---|---|---|
 | `GET` | `/elegiveis?papel=&q=` | Candidatos a revisor/publicador — escopado à OM de quem chama; `q` opcional filtra por nome/nome de guerra |
-| `GET` | `/eu` | Cadastro de quem está logado (posto, nome de guerra, OM) — a barra superior mostra "posto + nome de guerra" a partir dele |
 | `GET` | `/buscar?q=` | Candidatos a coautor — **sem** filtro de OM/papel (coautoria não é restrita a isso); exige 2+ caracteres |
 
 ## Organizações militares — `/v1/organizacoes-militares`

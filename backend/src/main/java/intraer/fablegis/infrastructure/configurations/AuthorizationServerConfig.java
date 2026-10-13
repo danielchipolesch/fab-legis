@@ -269,7 +269,7 @@ public class AuthorizationServerConfig {
     // Espelha exatamente o que JwtService.gerarToken() produzia -- sub = id
     // numérico do usuário (não o principal name default do Authorization
     // Server, que é o CPF -- ver DaoAuthenticationProvider/UsuarioPrincipal.
-    // getUsername()), preferred_username (CPF), nome, om_id, realm_access.roles
+    // getUsername()), preferred_username (CPF), nome, om_id, nome_guerra, posto_bigrama, om_nome, realm_access.roles
     // -- pra não exigir nenhuma mudança em PapelEnum/@PreAuthorize/
     // DocumentoAcessoService/JwtToUsuarioAuthenticationConverter (que lê "sub"
     // como o id pra recarregar o Usuario do banco).
@@ -287,6 +287,10 @@ public class AuthorizationServerConfig {
                         .claim("nome", usuario.getNome())
                         .claim("om_id", String.valueOf(usuario.getOm().getId()))
                         .claim("realm_access", java.util.Map.of("roles", roles));
+                // Posto, nome de guerra e OM para a barra superior (opcionais: servidor civil pode não ter posto/nome de guerra).
+                if (usuario.getNomeGuerra() != null) context.getClaims().claim("nome_guerra", usuario.getNomeGuerra());
+                if (usuario.getPostoGraduacao() != null) context.getClaims().claim("posto_bigrama", usuario.getPostoGraduacao().getBigrama());
+                context.getClaims().claim("om_nome", usuario.getOm().getNome());
             }
         };
     }

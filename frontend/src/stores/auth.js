@@ -1,7 +1,6 @@
 import { defineStore } from 'pinia'
 import { podeCriarNoModulo, podeCriarEspecie } from '@/utils/habilitacao.js'
 import { listMinhasEspeciesCriaveis } from '@/api/habilitacao.js'
-import { getMeuUsuario } from '@/api/usuarios.js'
 import { setAuthTokenGetter, setUnauthorizedHandler, setRefreshHandler } from '@/api/client.js'
 import { gerarCodeVerifier, gerarCodeChallenge, gerarState } from '@/utils/pkce.js'
 
@@ -111,7 +110,7 @@ export const useAuthStore = defineStore('auth', {
     // Chamado uma vez no boot do app (main.js) -- plugueia o client HTTP no
     // token/estado deste store sem criar dependência circular entre módulos.
     inicializar() {
-      if (this.token) { this.carregarEspeciesCriaveis(); this.carregarMeuPerfil() }
+      if (this.token) this.carregarEspeciesCriaveis()
       setAuthTokenGetter(() => this.token)
       setUnauthorizedHandler(() => this.logout())
       setRefreshHandler(() => this.refresh())
@@ -126,17 +125,6 @@ export const useAuthStore = defineStore('auth', {
       }
     },
 
-    // Busca posto, nome de guerra e OM de quem está logado (não vão no token) e atualiza a barra superior. Falha em silêncio:
-    // sem isso a barra mostra o nome completo.
-    async carregarMeuPerfil() {
-      try {
-        const eu = await getMeuUsuario()
-        this.atualizarPerfil({ ...eu, papeis: this.usuario?.papeis })
-      } catch {
-        // mantém o que já havia
-      }
-    },
-
     _aplicarTokens(tokenResp) {
       const claims = decodificarClaims(tokenResp.access_token)
       this.token = tokenResp.access_token
@@ -145,13 +133,9 @@ export const useAuthStore = defineStore('auth', {
         nome: claims.nome,
         cpf: claims.preferred_username,
         omId: claims.om_id != null ? Number(claims.om_id) : null,
-        // omNome/nomeGuerra/postoGraduacaoBigrama não vão na claim (mesmo
-        // conjunto que o token caseiro já carregava) -- quem precisa desses
-        // três em telas específicas já busca via GET /usuarios/{id} quando
-        // necessário; o topbar usa nome/cpf, que o token sempre traz.
-        omNome: this.usuario?.omId === claims.om_id ? this.usuario?.omNome : null,
-        nomeGuerra: this.usuario?.nomeGuerra ?? null,
-        postoGraduacaoBigrama: this.usuario?.postoGraduacaoBigrama ?? null,
+        omNome: claims.om_nome ?? null,
+        nomeGuerra: claims.nome_guerra ?? null,
+        postoGraduacaoBigrama: claims.posto_bigrama ?? null,
         papeis: claims.realm_access?.roles ?? [],
       }
       localStorage.setItem(STORAGE_KEY, JSON.stringify({
@@ -166,7 +150,6 @@ export const useAuthStore = defineStore('auth', {
         papeis: this.usuario.papeis,
       }))
       this.carregarEspeciesCriaveis()
-      this.carregarMeuPerfil()
     },
 
     // Início do fluxo Authorization Code + PKCE: gera verifier/state, guarda
