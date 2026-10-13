@@ -64,13 +64,13 @@ const routes = [
     path: '/revisao',
     name: 'revisao',
     component: () => import('@/pages/RevisaoPage.vue'),
-    meta: { title: 'Revisão', requiresAprovador: true },
+    meta: { title: 'Manter Revisão de Documento', requiresAprovador: true },
   },
   {
     path: '/publicacao',
     name: 'publicacao',
     component: () => import('@/pages/PublicacaoPage.vue'),
-    meta: { title: 'Publicação', requiresPublicador: true },
+    meta: { title: 'Manter Publicação de Documento', requiresPublicador: true },
   },
   {
     path: '/usuarios',
@@ -82,13 +82,13 @@ const routes = [
     path: '/habilitacao-de-documentos',
     name: 'habilitacao-de-documentos',
     component: () => import('@/pages/HabilitacaoDeDocumentosPage.vue'),
-    meta: { title: 'Habilitação de Documentos', requiresAdmin: true },
+    meta: { title: 'Manter Habilitação de Espécies Normativas por OM', requiresAdmin: true },
   },
   {
     path: '/distintivos-das-oms',
     name: 'distintivos-das-oms',
     component: () => import('@/pages/DistintivosDasOmsPage.vue'),
-    meta: { title: 'Distintivos das OMs', requiresAdmin: true },
+    meta: { title: 'Manter DOM de OM', requiresAdmin: true },
   },
   {
     path: '/auditoria',

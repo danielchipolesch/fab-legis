@@ -515,8 +515,8 @@ const podeEditar = computed(() => {
 // partir da fila pessoal de Revisão/Publicação (query `origem`), o breadcrumb
 // do meio volta pra lá em vez de pro acervo geral.
 const ORIGEM_CRUMB = {
-  revisao:    { label: 'Revisão',    to: { name: 'revisao' } },
-  publicacao: { label: 'Publicação', to: { name: 'publicacao' } },
+  revisao:    { label: 'Manter Revisão de Documento',    to: { name: 'revisao' } },
+  publicacao: { label: 'Manter Publicação de Documento', to: { name: 'publicacao' } },
   busca:      { label: 'Busca Textual', to: { name: 'busca' } },
 }
 // Sem origem, o crumb do meio é o módulo a que o documento pertence (a tela inicial dele).

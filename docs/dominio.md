@@ -98,7 +98,7 @@ A **NPA** é uma espécie de **uso interno da OM**, para disciplinar rotinas int
 
 ### DOM (distintivo da OM)
 
-O cabeçalho da NPA tem, no alto da primeira coluna, o **DOM**: o distintivo da organização militar (imagem **PNG ou JPEG de até 1 MB**, `DistintivoDaOm`). O administrador cadastra uma imagem **por OM** na tela *Distintivos das OMs* (menu do usuário, só `ADMIN`); a OM sem distintivo fica com o espaço em branco, como no modelo. A imagem fica no armazenamento de objetos (MinIO) e a OM guarda só a URL (`tx_url_distintivo`).
+O cabeçalho da NPA tem, no alto da primeira coluna, o **DOM**: o distintivo da organização militar (imagem **PNG ou JPEG de até 1 MB**, `DistintivoDaOm`). O administrador cadastra uma imagem **por OM** na tela *Manter DOM de OM* (menu do usuário, só `ADMIN`); a OM sem distintivo fica com o espaço em branco, como no modelo. A imagem fica no armazenamento de objetos (MinIO) e a OM guarda só a URL (`tx_url_distintivo`).
 
 **Regra de aceite — o DOM é sempre o da OM do documento.** `CabecalhoDaNpa` lê o distintivo de `Documento.om` **a cada geração** (PDF, HTML e prévia), nunca o copia: ao **clonar ou substituir** uma NPA, o clone nasce da OM de quem clona (`CriacaoDeNpa`, `autor.getOm()`), então mostra o distintivo da **OM de quem clonou**, nunca o da OM do documento original; e trocar o distintivo da OM vale para as próximas gerações (a URL entra no *fingerprint* do cache de PDF/HTML). Cobertura: `CabecalhoDaNpaTest`, `DocumentoFoNpaBuilderTest`, `LeiauteHtmlDeNpaTest`, `DistintivoDaOmTest` e `npa.test.js`.
 

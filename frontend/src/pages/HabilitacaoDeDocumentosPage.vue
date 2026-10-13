@@ -2,7 +2,7 @@
   <q-page class="q-pa-xl">
 
     <div class="q-mb-lg">
-      <h1 class="text-h5 text-weight-bold text-primary q-my-none">Habilitação de Documentos</h1>
+      <h1 class="text-h5 text-weight-bold text-primary q-my-none">Manter Habilitação de Espécies Normativas por OM</h1>
       <p class="text-body2 text-grey-7 q-mb-none">
         Para cada espécie normativa convencional, as organizações militares que podem <strong>criá-la</strong>. As demais pessoas
         continuam consultando todos os documentos e podem ser coautoras; a NPA é criada por qualquer OM.

@@ -11,7 +11,7 @@
 
     <div class="row items-center justify-between q-mb-xl">
       <div>
-        <h1 class="text-h5 text-weight-bold text-primary q-my-none">Publicação</h1>
+        <h1 class="text-h5 text-weight-bold text-primary q-my-none">Manter Publicação de Documento</h1>
         <p class="text-body2 text-grey-7 q-mb-none">
           Documentos atribuídos a você para publicar, revogar ou devolver.
         </p>

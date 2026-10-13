@@ -2,7 +2,7 @@
   <q-page class="q-pa-xl">
 
     <div class="q-mb-lg">
-      <h1 class="text-h5 text-weight-bold text-primary q-my-none">Distintivos das OMs</h1>
+      <h1 class="text-h5 text-weight-bold text-primary q-my-none">Manter DOM de OM</h1>
       <p class="text-body2 text-grey-7 q-mb-none">
         O <strong>DOM</strong> (distintivo da organização militar) é a imagem que a NPA mostra no cabeçalho. Cada NPA usa o
         distintivo da OM do próprio documento — uma NPA clonada mostra o da OM de quem clonou. PNG ou JPEG, até 1 MB.

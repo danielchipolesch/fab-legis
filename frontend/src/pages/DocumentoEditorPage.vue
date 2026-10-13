@@ -587,8 +587,8 @@ async function onReordenarIncluido(elementoId, direcao) {
 // volta pra lá em vez de pro acervo geral -- é de lá que quem está revisando/
 // publicando veio, e é pra lá que faz sentido voltar.
 const ORIGEM_CRUMB = {
-  revisao:    { label: 'Revisão',    to: { name: 'revisao' } },
-  publicacao: { label: 'Publicação', to: { name: 'publicacao' } },
+  revisao:    { label: 'Manter Revisão de Documento',    to: { name: 'revisao' } },
+  publicacao: { label: 'Manter Publicação de Documento', to: { name: 'publicacao' } },
 }
 // Sem origem, o crumb do meio é o módulo a que o documento pertence (a tela inicial dele).
 const moduloCrumb = computed(() => {

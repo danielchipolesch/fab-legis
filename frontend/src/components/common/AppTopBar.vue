@@ -97,13 +97,13 @@
               <q-item-section avatar>
                 <q-icon name="mdi-account-search-outline" color="primary" />
               </q-item-section>
-              <q-item-section>Revisão</q-item-section>
+              <q-item-section>Manter Revisão de Documento</q-item-section>
             </q-item>
             <q-item v-if="auth.isPublicador" clickable v-close-popup :to="{ name: 'publicacao' }">
               <q-item-section avatar>
                 <q-icon name="mdi-publish" color="primary" />
               </q-item-section>
-              <q-item-section>Publicação</q-item-section>
+              <q-item-section>Manter Publicação de Documento</q-item-section>
             </q-item>
             <q-item v-if="auth.isAdmin" clickable v-close-popup :to="{ name: 'usuarios' }">
               <q-item-section avatar>
@@ -115,13 +115,13 @@
               <q-item-section avatar>
                 <q-icon name="mdi-file-check-outline" color="primary" />
               </q-item-section>
-              <q-item-section>Habilitação de Documentos</q-item-section>
+              <q-item-section>Manter Habilitação de Espécies Normativas por OM</q-item-section>
             </q-item>
             <q-item v-if="auth.isAdmin" clickable v-close-popup :to="{ name: 'distintivos-das-oms' }" data-testid="menu-distintivos">
               <q-item-section avatar>
                 <q-icon name="mdi-shield-star-outline" color="primary" />
               </q-item-section>
-              <q-item-section>Distintivos das OMs</q-item-section>
+              <q-item-section>Manter DOM de OM</q-item-section>
             </q-item>
             <q-item v-if="auth.isAuditor" clickable v-close-popup :to="{ name: 'auditoria' }">
               <q-item-section avatar>
