@@ -53,7 +53,7 @@ A identificação de um ato — por exemplo **`ICA 5-3`** — é composta por:
 |---|---|---|
 | **Espécie Normativa** | `EspecieNormativaEnum` | `ICA` (Instrução do Comando da Aeronáutica) |
 | **Assunto Básico** | `AssuntoBasicoEnum` | `5` (Publicações) |
-| **Número Secundário** | Calculado pelo sistema | `3` |
+| **Número Secundário** | Calculado pelo sistema: o menor número livre da espécie e do assunto, **único no banco** (a criação simultânea nunca o repete; ver [Réplicas](replicas.md#4-numeração-dos-documentos-resolvido)) | `3` |
 
 A identificação (o **código do documento**) é gravada na criação (`Documento.identificacao`) e nunca recalculada — nas espécies convencionais é gerada e **não pode ser alterada**; na NPA, por ser texto livre, **pode ser corrigida nos metadados do editor enquanto o documento está em Rascunho ou Minuta** (`RegrasDeCriacaoDoDocumento.novaIdentificacao`); quem a monta é a regra de criação da espécie (`RegrasDeCriacaoDoDocumento`). O **número secundário é atribuído automaticamente** por `CriacaoDeEspecieConvencional`: o serviço busca todos os documentos da mesma combinação Espécie + Assunto e **reaproveita a primeira lacuna** na sequência, evitando buracos na numeração do acervo.
 

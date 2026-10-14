@@ -12,7 +12,7 @@ Este documento responde a uma pergunta de implantação: **quais serviços do si
 | Serviço | Réplicas? | Por quê |
 |---|---|---|
 | **Frontend (Nginx)** | **Sim, livremente** | só servem arquivos estáticos e repassam chamadas; não guardam estado |
-| **Backend** | **Hoje, não** — só depois de resolver 3 pontos (abaixo) | guarda em memória o login em andamento, os códigos de autorização e as conexões de tempo real; a numeração tem uma corrida; a chave de assinatura precisa ser compartilhada |
+| **Backend** | **Hoje, não** — só depois de resolver 2 pontos (abaixo) | guarda em memória o login em andamento, os códigos de autorização e as conexões de tempo real; a chave de assinatura precisa ser compartilhada |
 | **Collab** (edição colaborativa) | **Não** (1 réplica) | cada documento aberto vive na memória de **uma** instância; duas instâncias dariam versões diferentes do mesmo texto |
 | **PostgreSQL** | **Não como "réplicas do container"** | é um banco com um primário que aceita escrita; alta disponibilidade exige um operador/serviço próprio (ver abaixo) |
 | **MinIO** | **Não como "réplicas do container"** | é um armazenamento com discos; o modo distribuído é outro tipo de implantação |
@@ -23,7 +23,7 @@ Entrega arquivos prontos (a SPA compilada) e repassam as chamadas ao backend. Qu
 
 ## Backend (Spring Boot) — o que impede as réplicas hoje
 
-O backend é *quase* sem estado: a API em si é protegida por token (`STATELESS`), o conteúdo vai para o PostgreSQL e os arquivos para o MinIO, e a edição concorrente é protegida por travas otimistas (`@Version`), que funcionam entre instâncias. Mas há **cinco** coisas que não:
+O backend é *quase* sem estado: a API em si é protegida por token (`STATELESS`), o conteúdo vai para o PostgreSQL e os arquivos para o MinIO, e a edição concorrente é protegida por travas otimistas (`@Version`), que funcionam entre instâncias. Mas há **quatro** coisas que não (a quinta, a numeração, já foi resolvida):
 
 ### 1. Login em andamento e códigos de autorização (bloqueia réplicas)
 
@@ -41,11 +41,14 @@ As conexões SSE (`SseEmitter`) com o navegador — o aviso "fulano também est�
 
 *Como resolver:* um **barramento** entre as réplicas (Redis *pub/sub* ou o `LISTEN/NOTIFY` do próprio PostgreSQL): cada réplica publica o evento e todas o repassam às conexões que têm. Ou, como paliativo, afinidade de sessão por usuário (não resolve se duas pessoas no mesmo documento caírem em réplicas diferentes).
 
-### 4. Numeração dos documentos (corrida — já é um risco hoje)
+### 4. Numeração dos documentos (resolvido)
 
-O número sequencial de um documento novo é escolhido **na aplicação** ("o menor número livre", `CriacaoDeEspecieConvencional.proximoSequencial`): lê os números existentes e escolhe o próximo. Duas criações **simultâneas** (em réplicas diferentes, ou mesmo na mesma instância) podem escolher o **mesmo número**, e não há restrição de unicidade no banco que impeça. Com uma só instância e poucos usuários é raro, mas é uma falha real.
+O número sequencial de um documento novo é "o menor número livre" da espécie e do assunto (`CriacaoDeEspecieConvencional`). Escolhido só na aplicação, duas criações **simultâneas** (em réplicas diferentes ou na mesma instância) podiam escolher o **mesmo número**. Hoje há duas camadas, e a numeração **não é mais um impedimento** para réplicas:
 
-*Como resolver:* uma restrição **única** no banco para (espécie, assunto, número) e, ao violá-la, tentar de novo com o número seguinte; ou obter o número de uma sequência/trava do próprio PostgreSQL. **Deve ser feito antes de qualquer réplica** (e é recomendável mesmo sem elas).
+1. **Trava no banco:** quem cria um documento trava a numeração daquela espécie + assunto (`pg_advisory_xact_lock`, uma trava do PostgreSQL que cai no fim da transação) antes de ler os números existentes. A criação simultânea espera e já lê o número da outra. Vale entre réplicas, porque a trava é do banco.
+2. **Índice único:** `ux_documento_numero` (migração V25) em (espécie, assunto, número) — só onde há assunto e sequencial; a NPA, que tem identificação em texto livre, fica de fora. Se por algum motivo duas criações ainda escolherem o mesmo número, o banco recusa a segunda, e `CriacaoComNumeracaoUnica` refaz a criação inteira (até 5 vezes, cada tentativa numa transação própria); esgotadas, responde `503` com `Retry-After`.
+
+Clonar e Substituir passam pelo mesmo caminho. Testes: `CriacaoDeEspecieConvencionalTest` (a trava vem antes da leitura), `CriacaoComNumeracaoUnicaTest` (nova tentativa) e `NumeracaoUnicaIntegracaoTest` (índice no PostgreSQL de verdade e oito criações simultâneas sem repetir número).
 
 ### 5. Limite de geração de PDF (funciona, mas é "por réplica")
 
@@ -77,7 +80,7 @@ Também é um armazenamento de dados, não um serviço sem estado: réplicas do 
 | Recurso | Tipo | Réplicas | Observações |
 |---|---|---|---|
 | Frontend (Nginx) | `Deployment` | 2+ | *readiness* em `/health` |
-| Backend | `Deployment` | **1** hoje; 2+ só após os pontos 1, 3 e 4 acima | *readiness/liveness* em `/actuator/health`; `Secret` com a chave RSA; `Job` de migração |
+| Backend | `Deployment` | **1** hoje; 2+ só após os pontos 1 e 3 acima | *readiness/liveness* em `/actuator/health`; `Secret` com a chave RSA; `Job` de migração |
 | Collab | `Deployment` | **1** (`strategy: Recreate`) | WebSocket: *timeouts* longos no Ingress |
 | PostgreSQL | operador ou serviço gerenciado | conforme o operador | o backend usa o endereço do primário |
 | MinIO / S3 | serviço de armazenamento da FAB, ou MinIO distribuído | — | `MINIO_PUBLIC_URL` com HTTPS |
@@ -87,7 +90,7 @@ O `.env` vira `ConfigMap` (valores) e `Secret` (senhas e a chave RSA); o `nginx.
 
 ## Para ir além de uma réplica do backend: o roteiro
 
-1. **Numeração:** restrição única + nova tentativa (ponto 4) — vale mesmo sem réplicas.
+1. **Numeração:** feito (ponto 4: trava + índice único).
 2. **Login:** `JdbcOAuth2AuthorizationService` + Spring Session JDBC (ponto 1).
 3. **Tempo real:** barramento entre réplicas (ponto 3).
 4. **Chave RSA** compartilhada por *Secret* e `APP_OAUTH2_CHAVE_OBRIGATORIA=true` (ponto 2).

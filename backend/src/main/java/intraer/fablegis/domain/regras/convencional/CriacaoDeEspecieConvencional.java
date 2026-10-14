@@ -81,7 +81,16 @@ public class CriacaoDeEspecieConvencional implements RegrasDeCriacaoDoDocumento 
         return ordenados.size() + 1;
     }
 
+    // A numeração de uma espécie + assunto é travada enquanto o número é escolhido e o documento gravado (a trava cai no fim da
+    // transação): duas criações simultâneas não escolhem o mesmo número. O índice único do banco (V25) é a garantia final.
+    static long chaveDaNumeracao(EspecieNormativa especie, AssuntoBasico assunto) {
+        long idDaEspecie = especie.getId() == null ? 0 : especie.getId();
+        long idDoAssunto = assunto.getId() == null ? 0 : assunto.getId();
+        return (idDaEspecie << 32) ^ idDoAssunto;
+    }
+
     private int proximoSequencial(EspecieNormativa especie, AssuntoBasico assunto) {
+        documentoRepository.travarNumeracao(chaveDaNumeracao(especie, assunto));
         return proximoSequencial(documentoRepository.findByEspecieNormativaAndAssuntoBasico(especie, assunto).stream()
                 .map(Documento::getNumeroSecundario).toList());
     }

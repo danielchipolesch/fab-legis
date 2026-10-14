@@ -83,13 +83,19 @@ public class DocumentoService {
 
     final HabilitacaoDeCriacaoService habilitacaoDeCriacaoService;
 
+    final CriacaoComNumeracaoUnica numeracaoUnica;
+
     private static Long omDoUsuarioAtual() {
         var om = AutenticacaoUtil.usuarioAtual().getOm();
         return om == null ? null : om.getId();
     }
 
-    @Transactional
+    // O número do documento é único no banco; se outra criação simultânea tomou o mesmo, refaz com o seguinte (CriacaoComNumeracaoUnica).
     public DocumentoResponseSemAnexoTextualDto create(DocumentoRequestCreateDto request) {
+        return numeracaoUnica.executar(() -> criar(request));
+    }
+
+    private DocumentoResponseSemAnexoTextualDto criar(DocumentoRequestCreateDto request) {
 
         EspecieNormativa especieNormativa = especieNormativaRepository.findById(request.idEspecieNormativa()).orElseThrow(() -> new ResourceNotFoundException(EspecieNormativaException.NOT_FOUND.getMessage()));
 
@@ -316,8 +322,11 @@ public class DocumentoService {
         return DocumentoMapper.documentoToDocumentoSemAnexoTextualResponseDto(documento);
     }
 
-    @Transactional
     public DocumentoResponseSemAnexoTextualDto clone(Long id) {
+        return numeracaoUnica.executar(() -> clonar(id));
+    }
+
+    private DocumentoResponseSemAnexoTextualDto clonar(Long id) {
         Documento clonado = copiarParaNovoDocumento(id);
         documentoHistoricoService.registrar(clonado, TipoAlteracaoEnum.CLONAGEM,
                 "Clonado do documento #" + id, null, SituacaoLocalEnum.RASCUNHO);
@@ -327,8 +336,11 @@ public class DocumentoService {
     // "Substituir" (NPA): para mudar uma NPA publicada cria-se outra e revoga-se a anterior. Esta ação faz a primeira metade
     // de forma explícita: cria a NPA nova (cópia em RASCUNHO, da OM de quem substitui) já ligada à substituída. A revogação
     // da antiga continua sendo o pedido de revogação de sempre, feito depois (a nova ainda nem foi publicada).
-    @Transactional
     public DocumentoResponseSemAnexoTextualDto substituir(Long id) {
+        return numeracaoUnica.executar(() -> substituirPor(id));
+    }
+
+    private DocumentoResponseSemAnexoTextualDto substituirPor(Long id) {
         Documento substituido = documentoRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException(DocumentoException.NOT_FOUND.getMessage()));
 
