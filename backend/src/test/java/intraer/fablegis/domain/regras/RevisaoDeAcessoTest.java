@@ -85,7 +85,7 @@ class RevisaoDeAcessoTest {
     @Test
     void papeisElevadosSaoTodosMenosOEditor() {
         assertThat(RevisaoDeAcesso.papeisElevados(EnumSet.allOf(PapelEnum.class)))
-                .containsExactlyInAnyOrder(PapelEnum.APR_OM, PapelEnum.PUB_BCA, PapelEnum.ADM_OM, PapelEnum.ADM_GER, PapelEnum.AUD_OM, PapelEnum.AUD_GER, PapelEnum.GES_OM, PapelEnum.GES_GER);
+                .containsExactlyInAnyOrder(PapelEnum.APR_OM, PapelEnum.PUB_BCA, PapelEnum.ADM_OM, PapelEnum.ADM_GER, PapelEnum.AUD_OM, PapelEnum.AUD_GER, PapelEnum.PNL_OM, PapelEnum.PNL_GER);
         assertThat(RevisaoDeAcesso.papeisElevados(null)).isEmpty();
     }
 

@@ -11,8 +11,8 @@ export const PAPEIS = {
   AUD_GER: { codigo: 'AUD_GER', nome: 'Auditor Geral',       cor: 'indigo-3',      corDoTexto: 'indigo-10' },
   ADM_OM:  { codigo: 'ADM_OM',  nome: 'Administrador da OM', cor: 'deep-orange-2', corDoTexto: 'deep-orange-10' },
   ADM_GER: { codigo: 'ADM_GER', nome: 'Administrador Geral', cor: 'deep-orange-3', corDoTexto: 'deep-orange-10' },
-  GES_OM:  { codigo: 'GES_OM',  nome: 'Gestor da OM',        cor: 'cyan-2',        corDoTexto: 'cyan-10' },
-  GES_GER: { codigo: 'GES_GER', nome: 'Gestor Geral',        cor: 'cyan-3',        corDoTexto: 'cyan-10' },
+  PNL_OM:  { codigo: 'PNL_OM',  nome: 'Painel Gerencial da OM',        cor: 'cyan-2',        corDoTexto: 'cyan-10' },
+  PNL_GER: { codigo: 'PNL_GER', nome: 'Painel Gerencial Geral',        cor: 'cyan-3',        corDoTexto: 'cyan-10' },
 }
 
 export const nomeDoPapel = (codigo) => PAPEIS[codigo]?.nome ?? codigo
@@ -27,11 +27,11 @@ export const ehAuditor = (papeis) => tem(papeis, 'AUD_OM', 'AUD_GER')
 export const noCendoc = (siglaDaOm) => (siglaDaOm ?? '').toUpperCase() === OM_GERAL
 export const papelDeAdmin = (siglaDaOm) => (noCendoc(siglaDaOm) ? 'ADM_GER' : 'ADM_OM')
 export const papelDeAuditor = (siglaDaOm) => (noCendoc(siglaDaOm) ? 'AUD_GER' : 'AUD_OM')
-export const papelDeGestor = (siglaDaOm) => (noCendoc(siglaDaOm) ? 'GES_GER' : 'GES_OM')
+export const papelDoPainelGerencial = (siglaDaOm) => (noCendoc(siglaDaOm) ? 'PNL_GER' : 'PNL_OM')
 
-// Gestor (Painel Gerencial), de qualquer escopo; o Gestor Geral também filtra por OM.
-export const ehGestor = (papeis) => tem(papeis, 'GES_OM', 'GES_GER')
-export const ehGestorGeral = (papeis) => tem(papeis, 'GES_GER')
+// Perfil do Painel Gerencial (PNL_OM ou PNL_GER), de qualquer escopo; o Painel Gerencial Geral também filtra por OM.
+export const ehPainelGerencial = (papeis) => tem(papeis, 'PNL_OM', 'PNL_GER')
+export const ehPainelGerencialGeral = (papeis) => tem(papeis, 'PNL_GER')
 
 // Os perfis que exigem revisão periódica: todos menos o Elaborador, que todo usuário tem.
 export const papeisElevados = (papeis) => (papeis ?? []).filter(p => p !== 'ELB').sort()

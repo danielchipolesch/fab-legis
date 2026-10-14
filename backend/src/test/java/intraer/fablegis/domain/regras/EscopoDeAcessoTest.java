@@ -130,7 +130,7 @@ class EscopoDeAcessoTest {
 
     @Test
     void osPerfisDoCendocSoExistemNele() {
-        for (var papel : EnumSet.of(PapelEnum.ADM_GER, PapelEnum.AUD_GER, PapelEnum.PUB_BCA, PapelEnum.GES_GER)) {
+        for (var papel : EnumSet.of(PapelEnum.ADM_GER, PapelEnum.AUD_GER, PapelEnum.PUB_BCA, PapelEnum.PNL_GER)) {
             assertThatThrownBy(() -> EscopoDeAcesso.exigirPerfisDaLotacao("BAGL", EnumSet.of(PapelEnum.ELB, papel)))
                     .as(papel.name()).isInstanceOf(OperacaoNaoAutorizadaException.class).hasMessageContaining("exclusivo do CENDOC");
             assertThatCode(() -> EscopoDeAcesso.exigirPerfisDaLotacao("CENDOC", EnumSet.of(PapelEnum.ELB, papel))).doesNotThrowAnyException();
@@ -155,19 +155,19 @@ class EscopoDeAcessoTest {
     }
 
     @Test
-    void oGestorGeralSoNoCendocEODaOmNuncaNele() {
-        assertThatThrownBy(() -> EscopoDeAcesso.exigirPerfisDaLotacao("BAGL", EnumSet.of(PapelEnum.ELB, PapelEnum.GES_GER)))
+    void oPerfilGeralDoPainelSoNoCendocEODaOmNuncaNele() {
+        assertThatThrownBy(() -> EscopoDeAcesso.exigirPerfisDaLotacao("BAGL", EnumSet.of(PapelEnum.ELB, PapelEnum.PNL_GER)))
                 .isInstanceOf(OperacaoNaoAutorizadaException.class).hasMessageContaining("exclusivo do CENDOC");
-        assertThatThrownBy(() -> EscopoDeAcesso.exigirPerfisDaLotacao("CENDOC", EnumSet.of(PapelEnum.ELB, PapelEnum.GES_OM)))
-                .isInstanceOf(OperacaoNaoAutorizadaException.class).hasMessageContaining("use Gestor Geral");
-        assertThatCode(() -> EscopoDeAcesso.exigirPerfisDaLotacao("CENDOC", EnumSet.of(PapelEnum.ELB, PapelEnum.GES_GER))).doesNotThrowAnyException();
-        assertThatCode(() -> EscopoDeAcesso.exigirPerfisDaLotacao("BAGL", EnumSet.of(PapelEnum.ELB, PapelEnum.GES_OM))).doesNotThrowAnyException();
+        assertThatThrownBy(() -> EscopoDeAcesso.exigirPerfisDaLotacao("CENDOC", EnumSet.of(PapelEnum.ELB, PapelEnum.PNL_OM)))
+                .isInstanceOf(OperacaoNaoAutorizadaException.class).hasMessageContaining("use Painel Gerencial Geral");
+        assertThatCode(() -> EscopoDeAcesso.exigirPerfisDaLotacao("CENDOC", EnumSet.of(PapelEnum.ELB, PapelEnum.PNL_GER))).doesNotThrowAnyException();
+        assertThatCode(() -> EscopoDeAcesso.exigirPerfisDaLotacao("BAGL", EnumSet.of(PapelEnum.ELB, PapelEnum.PNL_OM))).doesNotThrowAnyException();
     }
 
     @Test
-    void oAdminDaOmConcedeGestorDaOmNaPropriaOm() {
+    void oAdminDaOmConcedePainelDaOmNaPropriaOm() {
         var local = usuario("BAGL", PapelEnum.ADM_OM);
-        assertThatCode(() -> EscopoDeAcesso.exigirPodeGerenciar(local, null, "BAGL", EnumSet.of(PapelEnum.ELB, PapelEnum.GES_OM)))
+        assertThatCode(() -> EscopoDeAcesso.exigirPodeGerenciar(local, null, "BAGL", EnumSet.of(PapelEnum.ELB, PapelEnum.PNL_OM)))
                 .doesNotThrowAnyException();
     }
 }

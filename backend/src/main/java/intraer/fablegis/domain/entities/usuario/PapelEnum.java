@@ -17,8 +17,8 @@ public enum PapelEnum {
     AUD_GER("Auditor Geral", "Consulta a trilha de auditoria de todas as OMs (perfil exclusivo do CENDOC)"),
     ADM_OM("Administrador da OM", "Gerencia os usuários da própria OM; não altera outros administradores"),
     ADM_GER("Administrador Geral", "Gerencia os usuários de todas as OMs e os administradores das OMs; cadastra habilitações e DOM (perfil exclusivo do CENDOC)"),
-    GES_OM("Gestor da OM", "Consulta os indicadores do Painel Gerencial da própria OM"),
-    GES_GER("Gestor Geral", "Consulta os indicadores do Painel Gerencial de todas as OMs, com filtro por OM (perfil exclusivo do CENDOC)");
+    PNL_OM("Painel Gerencial da OM", "Consulta os indicadores do Painel Gerencial da própria OM"),
+    PNL_GER("Painel Gerencial Geral", "Consulta os indicadores do Painel Gerencial de todas as OMs, com filtro por OM (perfil exclusivo do CENDOC)");
 
     private final String nome;
     private final String descricao;

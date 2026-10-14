@@ -66,7 +66,7 @@ class DataSeederTest {
         assertEquals("chipoleschdaca@fab.mil.br", u.getEmail());
         assertEquals("11144477735", u.getCpf());
         assertTrue(u.getPapeis().contains(PapelEnum.ADM_GER));
-        assertTrue(u.getPapeis().contains(PapelEnum.GES_GER));
+        assertTrue(u.getPapeis().contains(PapelEnum.PNL_GER));
         assertTrue(u.getPapeis().contains(PapelEnum.ELB));
     }
 

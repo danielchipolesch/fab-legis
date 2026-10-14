@@ -22,7 +22,7 @@
       </p>
     </div>
 
-    <!-- Filtros: o Gestor Geral escolhe a OM; o Gestor da OM não tem esse campo (o servidor fixa a própria OM). -->
+    <!-- Filtros: o Painel Gerencial Geral escolhe a OM; o Painel Gerencial da OM não tem esse campo (o servidor fixa a própria OM). -->
     <q-card flat class="cartao q-mb-lg">
       <q-card-section class="row q-col-gutter-md items-center">
         <div class="col-6 col-md-2">
@@ -161,7 +161,7 @@
         </q-card-section>
       </q-card>
 
-      <!-- Por OM: só faz sentido na visão geral (várias OMs). O Gestor da OM vê uma OM só, então não há comparação a fazer. -->
+      <!-- Por OM: só faz sentido na visão geral (várias OMs). O Painel Gerencial da OM vê uma OM só, então não há comparação a fazer. -->
       <q-card v-if="painel.escopo.podeFiltrarPorOm && !painel.escopo.omId" flat class="cartao">
         <q-card-section>
           <div class="titulo">Por OM</div>

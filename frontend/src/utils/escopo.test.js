@@ -17,8 +17,8 @@ describe('escopo de acesso', () => {
   })
 
   it('o local concede aprovador e auditor; admin só o geral; publicador só no CENDOC', () => {
-    expect(papeisConcediveis('BAGL', 'BAGL')).toEqual({ elaborador: true, aprovador: true, auditor: true, gestor: true, admin: false, publicador: false })
-    expect(papeisConcediveis('CENDOC', 'BAGL')).toEqual({ elaborador: true, aprovador: true, auditor: true, gestor: true, admin: true, publicador: false })
+    expect(papeisConcediveis('BAGL', 'BAGL')).toEqual({ elaborador: true, aprovador: true, auditor: true, painel: true, admin: false, publicador: false })
+    expect(papeisConcediveis('CENDOC', 'BAGL')).toEqual({ elaborador: true, aprovador: true, auditor: true, painel: true, admin: true, publicador: false })
     expect(papeisConcediveis('CENDOC', 'CENDOC').publicador).toBe(true)
     expect(papeisConcediveis('BAGL', 'CENDOC').publicador).toBe(false)
   })

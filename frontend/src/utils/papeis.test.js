@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest'
-import { PAPEIS, nomeDoPapel, ehAdmin, ehAdminGeral, ehAuditor, ehGestor, ehGestorGeral, papelDeAdmin, papelDeAuditor, papelDeGestor, papeisElevados } from './papeis.js'
+import { PAPEIS, nomeDoPapel, ehAdmin, ehAdminGeral, ehAuditor, ehPainelGerencial, ehPainelGerencialGeral, papelDeAdmin, papelDeAuditor, papelDoPainelGerencial, papeisElevados } from './papeis.js'
 
 describe('perfis (perfis)', () => {
   it('cada perfil tem código e nome por extenso (o mesmo de PapelEnum e da tabela t_papel)', () => {
-    expect(Object.keys(PAPEIS).sort()).toEqual(['ADM_GER', 'ADM_OM', 'APR_OM', 'AUD_GER', 'AUD_OM', 'ELB', 'GES_GER', 'GES_OM', 'PUB_BCA'])
+    expect(Object.keys(PAPEIS).sort()).toEqual(['ADM_GER', 'ADM_OM', 'APR_OM', 'AUD_GER', 'AUD_OM', 'ELB', 'PNL_GER', 'PNL_OM', 'PUB_BCA'])
     expect(nomeDoPapel('ELB')).toBe('Elaborador')
     expect(nomeDoPapel('APR_OM')).toBe('Aprovador da OM')
     expect(nomeDoPapel('PUB_BCA')).toBe('Publicador do BCA')
@@ -11,8 +11,8 @@ describe('perfis (perfis)', () => {
     expect(nomeDoPapel('AUD_GER')).toBe('Auditor Geral')
     expect(nomeDoPapel('ADM_OM')).toBe('Administrador da OM')
     expect(nomeDoPapel('ADM_GER')).toBe('Administrador Geral')
-    expect(nomeDoPapel('GES_OM')).toBe('Gestor da OM')
-    expect(nomeDoPapel('GES_GER')).toBe('Gestor Geral')
+    expect(nomeDoPapel('PNL_OM')).toBe('Painel Gerencial da OM')
+    expect(nomeDoPapel('PNL_GER')).toBe('Painel Gerencial Geral')
     expect(nomeDoPapel('XYZ')).toBe('XYZ')
     for (const [codigo, papel] of Object.entries(PAPEIS)) expect(papel.codigo).toBe(codigo)
   })
@@ -44,17 +44,17 @@ describe('perfis (perfis)', () => {
   })
 })
 
-describe('Gestor (Painel Gerencial)', () => {
-  it('o perfil de gestor depende da lotação', () => {
-    expect(papelDeGestor('CENDOC')).toBe('GES_GER')
-    expect(papelDeGestor('BAGL')).toBe('GES_OM')
+describe('Perfis do Painel Gerencial', () => {
+  it('o perfil do Painel Gerencial depende da lotação', () => {
+    expect(papelDoPainelGerencial('CENDOC')).toBe('PNL_GER')
+    expect(papelDoPainelGerencial('BAGL')).toBe('PNL_OM')
   })
 
-  it('gestor de qualquer escopo e o geral', () => {
-    expect(ehGestor(['ELB', 'GES_OM'])).toBe(true)
-    expect(ehGestor(['ELB', 'GES_GER'])).toBe(true)
-    expect(ehGestor(['ELB', 'ADM_GER', 'AUD_GER'])).toBe(false)
-    expect(ehGestorGeral(['GES_GER'])).toBe(true)
-    expect(ehGestorGeral(['GES_OM'])).toBe(false)
+  it('o perfil do Painel Gerencial, de qualquer escopo, e o geral', () => {
+    expect(ehPainelGerencial(['ELB', 'PNL_OM'])).toBe(true)
+    expect(ehPainelGerencial(['ELB', 'PNL_GER'])).toBe(true)
+    expect(ehPainelGerencial(['ELB', 'ADM_GER', 'AUD_GER'])).toBe(false)
+    expect(ehPainelGerencialGeral(['PNL_GER'])).toBe(true)
+    expect(ehPainelGerencialGeral(['PNL_OM'])).toBe(false)
   })
 })

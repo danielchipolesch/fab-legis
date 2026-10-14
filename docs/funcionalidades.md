@@ -121,16 +121,16 @@ Ver [Ciclo de Vida do Documento](ciclo-de-vida.md) para o fluxo completo (enviar
 
 ## Painel Gerencial
 
-O **Painel Gerencial** é o terceiro módulo do sistema (`/painel-gerencial`, `PainelGerencialPage.vue`), ao lado de *Espécies Convencionais* e *NPA*: indicadores da gestão normativa, calculados na hora a partir do que o sistema já registra (documentos, a data de cada etapa e o histórico) — nada é digitado. Fica **primeiro** no *Acesso Rápido* da Área de Trabalho e **só aparece** para quem tem o perfil **Gestor**.
+O **Painel Gerencial** é o terceiro módulo do sistema (`/painel-gerencial`, `PainelGerencialPage.vue`), ao lado de *Espécies Convencionais* e *NPA*: indicadores da gestão normativa, calculados na hora a partir do que o sistema já registra (documentos, a data de cada etapa e o histórico) — nada é digitado. Fica **primeiro** no *Acesso Rápido* da Área de Trabalho e **só aparece** para quem tem um dos perfis do painel (`PNL_OM` ou `PNL_GER`).
 
 | Perfil | O que vê |
 |---|---|
-| **Gestor Geral** (`GES_GER`, só no CENDOC) | Os indicadores de **todas as OMs**, com filtro por OM (e a tabela *Por OM*) |
-| **Gestor da OM** (`GES_OM`) | Só os da **própria OM**, filtrados **automaticamente** — não há campo de OM nem visão geral. O servidor fixa a OM (`EscopoDoPainel`): pedir outra responde `403` |
+| **Painel Gerencial Geral** (`PNL_GER`, só no CENDOC) | Os indicadores de **todas as OMs**, com filtro por OM (e a tabela *Por OM*) |
+| **Painel Gerencial da OM** (`PNL_OM`) | Só os da **própria OM**, filtrados **automaticamente** — não há campo de OM nem visão geral. O servidor fixa a OM (`EscopoDoPainel`): pedir outra responde `403` |
 
-O usuário padrão do sistema (o administrador do primeiro boot) já nasce com o Gestor Geral.
+O usuário padrão do sistema (o administrador do primeiro boot) já nasce com o Painel Gerencial Geral.
 
-**Filtros:** período (abre nos últimos 12 meses), espécie e — só o Gestor Geral — OM.
+**Filtros:** período (abre nos últimos 12 meses), espécie e — só o Painel Gerencial Geral — OM.
 
 **O que mostra:**
 - **Gráficos** (Apache ECharts): cada gráfico tem o botão de **baixar a imagem** (PNG) no canto superior direito. Abaixo, o que cada cartão mostra.
@@ -141,7 +141,7 @@ O usuário padrão do sistema (o administrador do primeiro boot) já nasce com o
 - **Situação atual** de todos os documentos e **Parados há mais tempo** (os dez mais antigos na aprovação ou na publicação, com link para o documento).
 - **Por OM** (só a visão geral): as OMs com mais documentos criados no período.
 
-Detalhes e endpoint em [API REST](api-rest.md#painel-gerencial-v1painel-gerencial-gestor).
+Detalhes e endpoint em [API REST](api-rest.md#painel-gerencial-v1painel-gerencial).
 
 ## NPA (Norma Padrão de Ação)
 

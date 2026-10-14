@@ -239,8 +239,8 @@
                   <q-tooltip>Só o Administrador Geral (CENDOC) concede o perfil de administrador.</q-tooltip>
                 </q-checkbox>
                 <q-checkbox v-model="form.auditor" :label="nomeDoPapel(papelDeAuditor(siglaDaOmDeDestino))" :disable="salvando || !concediveis.auditor" />
-                <q-checkbox v-model="form.gestor" :label="nomeDoPapel(papelDeGestor(siglaDaOmDeDestino))" :disable="salvando || !concediveis.gestor">
-                  <q-tooltip>Acesso ao Painel Gerencial: o Gestor Geral (CENDOC) vê todas as OMs; o Gestor da OM, só a própria.</q-tooltip>
+                <q-checkbox v-model="form.painel" :label="nomeDoPapel(papelDoPainelGerencial(siglaDaOmDeDestino))" :disable="salvando || !concediveis.painel">
+                  <q-tooltip>Acesso ao Painel Gerencial: o Painel Gerencial Geral (CENDOC) vê todas as OMs; o Painel Gerencial da OM, só a própria.</q-tooltip>
                 </q-checkbox>
               </div>
             </div>
@@ -341,7 +341,7 @@ import { caixaAlta, normalizarBusca } from '@/utils/texto.js'
 import { useAuthStore } from '@/stores/auth.js'
 import { emailInstitucional } from '@/utils/email.js'
 import { omsDoEscopo, papeisConcediveis, podeAdministrar } from '@/utils/escopo.js'
-import { PAPEIS, nomeDoPapel, ehAdmin, ehAuditor, ehGestor, papelDeAdmin, papelDeAuditor, papelDeGestor } from '@/utils/papeis.js'
+import { PAPEIS, nomeDoPapel, ehAdmin, ehAuditor, ehPainelGerencial, papelDeAdmin, papelDeAuditor, papelDoPainelGerencial } from '@/utils/papeis.js'
 import { motivoDaRevisao, rotuloDoPapel, contarPendentes, precisaDeRevisao, temPapelElevado, papeisElevadosDe } from '@/utils/revisaoDeAcessos.js'
 
 const $q = useQuasar()
@@ -473,7 +473,7 @@ const mostrarSenha = ref(false)
 // que vier daqui (mesma regra em duas camadas, não só decoração de tela).
 const form = reactive({
   nome: '', nomeGuerra: '', cpf: '', email: '', postoGraduacaoId: null, senha: '',
-  omId: null, editor: true, aprovador: false, publicador: false, admin: false, auditor: false, gestor: false, ativo: true,
+  omId: null, editor: true, aprovador: false, publicador: false, admin: false, auditor: false, painel: false, ativo: true,
 })
 
 // Escopo (utils/escopo.js): o admin local só gerencia a própria OM e não concede Administrador nem Publicador; o geral (CENDOC) gerencia
@@ -490,7 +490,7 @@ watch(concediveis, (c) => {
 function resetForm() {
   Object.assign(form, {
     nome: '', nomeGuerra: '', cpf: '', email: '', postoGraduacaoId: null, senha: '',
-    omId: null, editor: true, aprovador: false, publicador: false, admin: false, auditor: false, gestor: false, ativo: true,
+    omId: null, editor: true, aprovador: false, publicador: false, admin: false, auditor: false, painel: false, ativo: true,
   })
   formRef.value?.resetValidation()
 }
@@ -518,7 +518,7 @@ function abrirEdicao(usuario) {
     publicador: usuario.papeis.includes('PUB_BCA'),
     admin: ehAdmin(usuario.papeis),
     auditor: ehAuditor(usuario.papeis),
-    gestor: ehGestor(usuario.papeis),
+    painel: ehPainelGerencial(usuario.papeis),
     ativo: usuario.ativo,
   })
   formRef.value?.resetValidation()
@@ -533,7 +533,7 @@ function papeisSelecionados() {
   // Administrador e Auditor existem em duas versões; vale a da lotação de destino (CENDOC = geral).
   if (form.admin) papeis.push(papelDeAdmin(siglaDaOmDeDestino.value))
   if (form.auditor) papeis.push(papelDeAuditor(siglaDaOmDeDestino.value))
-  if (form.gestor) papeis.push(papelDeGestor(siglaDaOmDeDestino.value))
+  if (form.painel) papeis.push(papelDoPainelGerencial(siglaDaOmDeDestino.value))
   return papeis
 }
 

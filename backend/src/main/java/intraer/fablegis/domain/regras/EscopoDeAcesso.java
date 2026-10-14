@@ -19,8 +19,8 @@ public final class EscopoDeAcesso {
     public static final String OM_GERAL = "CENDOC";
 
     // Perfis que só existem lotados no CENDOC, e os que só existem fora dele.
-    public static final Set<PapelEnum> SO_NO_CENDOC = EnumSet.of(PapelEnum.PUB_BCA, PapelEnum.ADM_GER, PapelEnum.AUD_GER, PapelEnum.GES_GER);
-    public static final Set<PapelEnum> SO_FORA_DO_CENDOC = EnumSet.of(PapelEnum.ADM_OM, PapelEnum.AUD_OM, PapelEnum.GES_OM);
+    public static final Set<PapelEnum> SO_NO_CENDOC = EnumSet.of(PapelEnum.PUB_BCA, PapelEnum.ADM_GER, PapelEnum.AUD_GER, PapelEnum.PNL_GER);
+    public static final Set<PapelEnum> SO_FORA_DO_CENDOC = EnumSet.of(PapelEnum.ADM_OM, PapelEnum.AUD_OM, PapelEnum.PNL_OM);
 
     private EscopoDeAcesso() {}
 
@@ -99,7 +99,7 @@ public final class EscopoDeAcesso {
         return switch (papelDaOm) {
             case ADM_OM -> PapelEnum.ADM_GER;
             case AUD_OM -> PapelEnum.AUD_GER;
-            default -> PapelEnum.GES_GER;
+            default -> PapelEnum.PNL_GER;
         };
     }
 

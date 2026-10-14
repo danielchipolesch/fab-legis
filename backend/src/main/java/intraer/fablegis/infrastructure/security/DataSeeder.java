@@ -107,7 +107,7 @@ public class DataSeeder implements ApplicationRunner {
         // consegue criar nada até alguém entrar em Usuários e conceder o papel a
         // si mesmo -- então o admin padrão nasce com os dois perfis, e qualquer
         // outro ADMIN criado depois continua sem EDIT implícito nenhum.
-        admin.setPapeis(EnumSet.of(PapelEnum.ADM_GER, PapelEnum.ELB, PapelEnum.GES_GER));
+        admin.setPapeis(EnumSet.of(PapelEnum.ADM_GER, PapelEnum.ELB, PapelEnum.PNL_GER));
         usuarioRepository.save(admin);
         auditoriaDeAcesso.registrarCriacao(admin);
 

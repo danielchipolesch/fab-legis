@@ -32,6 +32,6 @@ class PapelEnumIntegracaoTest extends IntegracaoComPostgresBase {
     void oAdministradorPadraoNasceComoAdministradorGeralNoCendoc() {
         var papeis = jdbc.queryForList(
                 "select p.sg_papel from t_usuario_papel p join t_usuario u on u.id_usuario = p.usuario_id where u.nr_cpf = '11144477735'", String.class);
-        assertThat(papeis).contains("ADM_GER", "ELB", "GES_GER");
+        assertThat(papeis).contains("ADM_GER", "ELB", "PNL_GER");
     }
 }

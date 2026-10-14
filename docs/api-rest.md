@@ -144,11 +144,11 @@ Criar (`POST /v1/documentos`) ou clonar (`POST /v1/documentos/{id}/clonar`) sem 
 
 
 
-## Painel Gerencial — `/v1/painel-gerencial` *(Gestor)*
+## Painel Gerencial — `/v1/painel-gerencial`
 
-`GET /` — os indicadores do [Painel Gerencial](funcionalidades.md#painel-gerencial). Só os perfis **Gestor da OM** (`GES_OM`) e **Gestor Geral** (`GES_GER`). Parâmetros opcionais: `omId`, `especieId`, `dataInicio` e `dataFim` (`AAAA-MM-DD`; sem datas, os últimos 365 dias; início depois do fim → `406`).
+`GET /` — os indicadores do [Painel Gerencial](funcionalidades.md#painel-gerencial). Só os perfis **Painel Gerencial da OM** (`PNL_OM`) e **Painel Gerencial Geral** (`PNL_GER`). Parâmetros opcionais: `omId`, `especieId`, `dataInicio` e `dataFim` (`AAAA-MM-DD`; sem datas, os últimos 365 dias; início depois do fim → `406`).
 
-A OM é decidida no servidor: o Gestor Geral usa `omId` (ausente = todas as OMs); o Gestor da OM sempre vê a própria — mandar `omId` de outra OM responde `403`. A resposta traz `escopo` (a OM usada e se quem pergunta pode trocar de OM), `totais`, `porEspecie`, `porMes`, `situacaoAtual`, `tempos` (mediana e p90 de cada etapa, em dias), `filas`, `gargalos` e `porOm`.
+A OM é decidida no servidor: o Painel Gerencial Geral usa `omId` (ausente = todas as OMs); o Painel Gerencial da OM sempre vê a própria — mandar `omId` de outra OM responde `403`. A resposta traz `escopo` (a OM usada e se quem pergunta pode trocar de OM), `totais`, `porEspecie`, `porMes`, `situacaoAtual`, `tempos` (mediana e p90 de cada etapa, em dias), `filas`, `gargalos` e `porOm`.
 
 ## Auditoria — `/v1/auditoria` *(Auditor)*
 

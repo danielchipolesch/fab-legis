@@ -17,7 +17,7 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 
 // Painel Gerencial (docs/funcionalidades.md): indicadores da gestão normativa, calculados na hora a partir do que o sistema já registra
-// (documentos, datas de cada etapa e histórico). Quem vê o quê é EscopoDoPainel: o Gestor Geral, todas as OMs com filtro; o Gestor da
+// (documentos, datas de cada etapa e histórico). Quem vê o quê é EscopoDoPainel: o Painel Gerencial Geral, todas as OMs com filtro; o Painel Gerencial da
 // OM, só a própria, sempre.
 @Service
 @RequiredArgsConstructor

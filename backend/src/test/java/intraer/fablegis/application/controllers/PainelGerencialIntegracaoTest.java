@@ -28,11 +28,11 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-// Painel Gerencial de ponta a ponta (docs/funcionalidades.md): o Gestor Geral vê todas as OMs e filtra por uma; o Gestor da OM, só a
-// própria, sem visão geral; quem não é gestor não vê nada.
+// Painel Gerencial de ponta a ponta (docs/funcionalidades.md): o Painel Gerencial Geral vê todas as OMs e filtra por uma; o Painel Gerencial da OM, só a
+// própria, sem visão geral; quem não tem o perfil do painel não vê nada.
 class PainelGerencialIntegracaoTest extends IntegracaoComPostgresBase {
 
-    private static final String CPF_GESTOR_DA_OM = "50617283916";
+    private static final String CPF_PNL_DA_OM = "50617283916";
     private static final String CPF_SEM_PERFIL = "61728394027";
 
     @Autowired WebApplicationContext contexto;
@@ -64,7 +64,7 @@ class PainelGerencialIntegracaoTest extends IntegracaoComPostgresBase {
         jdbc.update("update t_documento set om_id = ?, dt_criacao = now() - interval '2 days' where id_documento = ?", bafl, rascunho);
     }
 
-    private Usuario gestorGeral() {
+    private Usuario painelGeral() {
         return usuarioRepository.findAll().stream().filter(u -> !u.isSistema()).findFirst().orElseThrow();
     }
 
@@ -89,15 +89,15 @@ class PainelGerencialIntegracaoTest extends IntegracaoComPostgresBase {
 
     private long novaNpa(String identificacao) throws Exception {
         long npa = especieRepository.findAll().stream().filter(e -> "NPA".equals(e.getSigla())).findFirst().orElseThrow().getId();
-        var criado = mvc.perform(post("/v1/documentos").with(como(gestorGeral())).contentType(MediaType.APPLICATION_JSON)
+        var criado = mvc.perform(post("/v1/documentos").with(como(painelGeral())).contentType(MediaType.APPLICATION_JSON)
                         .content("{\"idEspecieNormativa\": " + npa + ", \"identificacao\": \"" + identificacao + "\", \"tituloDocumento\": \"Teste\"}"))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
         return Long.parseLong(criado.replaceAll("(?s).*\"idDocumento\":(\\d+).*", "$1"));
     }
 
     @Test
-    void oGestorGeralVeUmaOmEFiltraPorEla() throws Exception {
-        mvc.perform(get("/v1/painel-gerencial").param("omId", String.valueOf(bant)).with(como(gestorGeral())))
+    void oPerfilGeralDoPainelVeUmaOmEFiltraPorEla() throws Exception {
+        mvc.perform(get("/v1/painel-gerencial").param("omId", String.valueOf(bant)).with(como(painelGeral())))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.escopo.omSigla").value("BANT"))
                 .andExpect(jsonPath("$.escopo.podeFiltrarPorOm").value(true))
@@ -120,8 +120,8 @@ class PainelGerencialIntegracaoTest extends IntegracaoComPostgresBase {
     }
 
     @Test
-    void semFiltroOGestorGeralVeTodasAsOmsEAPorOmListaAsDuas() throws Exception {
-        mvc.perform(get("/v1/painel-gerencial").with(como(gestorGeral())))
+    void semFiltroOPerfilGeralVeTodasAsOmsEAPorOmListaAsDuas() throws Exception {
+        mvc.perform(get("/v1/painel-gerencial").with(como(painelGeral())))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.escopo.omId").doesNotExist())
                 .andExpect(jsonPath("$.porOm[*].sigla", hasItem("BANT")))
@@ -129,10 +129,10 @@ class PainelGerencialIntegracaoTest extends IntegracaoComPostgresBase {
     }
 
     @Test
-    void oGestorDaOmVeSoAPropriaOmSemVisaoGeral() throws Exception {
-        var gestor = pessoa("BANT", CPF_GESTOR_DA_OM, PapelEnum.ELB, PapelEnum.GES_OM);
+    void oPerfilDaOmDoPainelVeSoAPropriaOmSemVisaoGeral() throws Exception {
+        var daOm = pessoa("BANT", CPF_PNL_DA_OM, PapelEnum.ELB, PapelEnum.PNL_OM);
 
-        mvc.perform(get("/v1/painel-gerencial").with(como(gestor)))
+        mvc.perform(get("/v1/painel-gerencial").with(como(daOm)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.escopo.omSigla").value("BANT"))
                 .andExpect(jsonPath("$.escopo.podeFiltrarPorOm").value(false))
@@ -140,19 +140,19 @@ class PainelGerencialIntegracaoTest extends IntegracaoComPostgresBase {
                 .andExpect(jsonPath("$.porOm.length()").value(1));
 
         // pedir a própria OM é aceito; pedir outra (a visão geral não existe para ele), não
-        mvc.perform(get("/v1/painel-gerencial").param("omId", String.valueOf(bant)).with(como(gestor))).andExpect(status().isOk());
-        mvc.perform(get("/v1/painel-gerencial").param("omId", String.valueOf(bafl)).with(como(gestor))).andExpect(status().isForbidden());
+        mvc.perform(get("/v1/painel-gerencial").param("omId", String.valueOf(bant)).with(como(daOm))).andExpect(status().isOk());
+        mvc.perform(get("/v1/painel-gerencial").param("omId", String.valueOf(bafl)).with(como(daOm))).andExpect(status().isForbidden());
     }
 
     @Test
-    void quemNaoTemOPerfilDeGestorNaoAcessa() throws Exception {
+    void quemNaoTemOPerfilDoPainelNaoAcessa() throws Exception {
         mvc.perform(get("/v1/painel-gerencial").with(como(pessoa("BANT", CPF_SEM_PERFIL, PapelEnum.ELB, PapelEnum.ADM_OM, PapelEnum.AUD_OM))))
                 .andExpect(status().isForbidden());
     }
 
     @Test
     void periodoInvertidoEhRecusado() throws Exception {
-        mvc.perform(get("/v1/painel-gerencial").param("dataInicio", "2026-05-02").param("dataFim", "2026-05-01").with(como(gestorGeral())))
+        mvc.perform(get("/v1/painel-gerencial").param("dataInicio", "2026-05-02").param("dataFim", "2026-05-01").with(como(painelGeral())))
                 .andExpect(status().is4xxClientError());
     }
 }

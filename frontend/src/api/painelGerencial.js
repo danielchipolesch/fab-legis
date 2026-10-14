@@ -1,7 +1,7 @@
 import * as http from './client.js'
 
-// Indicadores do Painel Gerencial (docs/funcionalidades.md). O servidor decide a OM: para o Gestor da OM vale sempre a própria
-// (pedir outra é recusado); só o Gestor Geral filtra por OM. Datas no formato AAAA-MM-DD; sem elas valem os últimos 365 dias.
+// Indicadores do Painel Gerencial (docs/funcionalidades.md). O servidor decide a OM: para o Painel Gerencial da OM vale sempre a própria
+// (pedir outra é recusado); só o Painel Gerencial Geral filtra por OM. Datas no formato AAAA-MM-DD; sem elas valem os últimos 365 dias.
 export async function getPainelGerencial(filtros = {}) {
   const params = new URLSearchParams()
   if (filtros.omId) params.set('omId', filtros.omId)
