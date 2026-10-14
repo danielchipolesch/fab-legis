@@ -91,3 +91,14 @@ O sistema segue [SemVer](https://semver.org/lang/pt-BR/) com [Conventional Commi
 - **Fonte única:** `<version>` do `backend/pom.xml`. O `frontend/package.json` acompanha.
 - **Automação:** o workflow `release.yml` (release-please, configurado em `release-please-config.json`) mantém na `master` um PR de release com a próxima versão e o `CHANGELOG.md`; mergeá-lo cria a tag `vX.Y.Z` e a release no GitHub.
 - **Versão visível:** `GET /v1/versao` (público; `VersaoController`, lê o `build-info` gravado no empacotamento) e o rodapé da tela de login ("v0.1.0").
+
+### Fluxo de branches e releases
+
+Há **uma branch só, a `master`**, protegida: só recebe Pull Request de branches curtas, com o CI verde (`backend`, `integracao` e `frontend`). A `master` é o código mais recente já revisado e sempre em condição de ser lançado, mas **não é a produção**: produção é uma **tag**. Fluxo de uma mudança:
+
+1. branch curta a partir da `master` → PR para a `master` → CI verde → merge;
+2. o release-please acumula o que entrou num PR de release aberto (`release-please--branches--master` → `master`), que só altera a versão e o `CHANGELOG.md`;
+3. quando se decide lançar, mergeia-se o PR de release: o robô cria a tag e a release, e **se implanta aquela tag** (primeiro em homologação, se houver, e depois em produção, sempre a mesma tag);
+4. correção urgente com a `master` já adiantada: branch de manutenção a partir da tag em produção (`release/1.x`), corrige-se nela e lança-se `1.x.y`.
+
+O PR de release é aberto pelo `GITHUB_TOKEN` e por isso o CI não roda nele; o administrador do repositório o mergeia contornando a exigência de checks.
