@@ -77,7 +77,6 @@ Também é um armazenamento de dados, não um serviço sem estado: réplicas do 
 | Recurso | Tipo | Réplicas | Observações |
 |---|---|---|---|
 | Frontend (Nginx) | `Deployment` | 2+ | *readiness* em `/health` |
-| Documentação | `Deployment` | 1–2 | opcional |
 | Backend | `Deployment` | **1** hoje; 2+ só após os pontos 1, 3 e 4 acima | *readiness/liveness* em `/actuator/health`; `Secret` com a chave RSA; `Job` de migração |
 | Collab | `Deployment` | **1** (`strategy: Recreate`) | WebSocket: *timeouts* longos no Ingress |
 | PostgreSQL | operador ou serviço gerenciado | conforme o operador | o backend usa o endereço do primário |
