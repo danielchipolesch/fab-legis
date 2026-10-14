@@ -3,6 +3,7 @@ backend/
 
 # Dependências locais — reinstaladas no build
 frontend/node_modules/
+collab/node_modules/
 .npm/
 
 # Artefatos de build locais

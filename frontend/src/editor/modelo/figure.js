@@ -1,13 +1,9 @@
 import { Node } from '@tiptap/core'
 
-// Espelha frontend/src/extensions/figure.js -- mesmo nome, mesmos atributos,
-// mesmo parseHTML/renderHTML, para que o Schema construído aqui (via
-// @tiptap/core getSchema) seja idêntico ao do editor no navegador e a
-// conversão Y.Doc <-> JSON TipTap não corrompa nós `figure`. Sem addNodeView:
-// esta cópia só existe para montar o Schema num processo Node headless, nunca
-// para renderizar -- a versão com VueNodeViewRenderer continua sendo a única
-// usada pelo editor de verdade.
-export const Figure = Node.create({
+// Modelo da figura: o que fica gravado no documento (nome do nó, atributos, parse/render do HTML). Fonte ÚNICA, usada pelo
+// editor (que acrescenta a view em extensions/figure.js) e pelo servidor de colaboração (collab/schema.js, que monta o
+// schema sem DOM). Nada aqui pode importar Vue, componente ou o alias "@/": o collab carrega este arquivo fora do Vite.
+export const FigureBase = Node.create({
   name: 'figure',
   group: 'block',
   atom: true,
@@ -40,6 +36,9 @@ export const Figure = Node.create({
 
   renderHTML({ node }) {
     const { src, alt, titulo, fonte } = node.attrs
+    // titulo armazenado limpo (sem número) — o número é gerado por CSS counter
+    // no preview web e pelo backend ao exportar PDF/HTML.
+    // "Fonte: " é embutido no HTML para portabilidade sem CSS.
     return [
       'figure', { 'data-type': 'figura', class: 'doc-figure' },
       ['p', { class: 'figura-titulo' }, titulo ?? ''],

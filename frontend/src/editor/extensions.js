@@ -1,40 +1,17 @@
-import StarterKit from '@tiptap/starter-kit'
-import Underline from '@tiptap/extension-underline'
-import TextAlign from '@tiptap/extension-text-align'
-import TextStyle from '@tiptap/extension-text-style'
-import Color from '@tiptap/extension-color'
-import Highlight from '@tiptap/extension-highlight'
-import TableRow from '@tiptap/extension-table-row'
 import { Tabela, CelulaDeTabela, CabecalhoDeTabela } from '@/extensions/tabela.js'
 import { Figure } from '@/extensions/figure.js'
+import { montarExtensoes } from '@/editor/modelo/extensoes.js'
 
-// history: false quando colaborativo -- a extensão Collaboration (Yjs) traz seu
-// próprio undo/redo consciente do CRDT; manter o History padrão do StarterKit junto
-// causaria dois sistemas de undo brigando pela mesma pilha. Precisa ficar em sincronia
-// com collab/schema.js (mesmas extensões, mesma versão de pacote) -- ver Fase 3 do
-// plano de colaboração em tempo real.
-function baseExtensions({ history = true } = {}) {
-  return [
-    StarterKit.configure({ history }),
-    Underline,
-    TextAlign.configure({ types: ['heading', 'paragraph'] }),
-    TextStyle,
-    Color,
-    Highlight.configure({ multicolor: true }),
-    Tabela,
-    TableRow,
-    CabecalhoDeTabela,
-    CelulaDeTabela,
-    Figure,
-  ]
-}
+// A lista de extensões (e a ordem) vive em editor/modelo/extensoes.js, compartilhada com o servidor de colaboração
+// (collab/schema.js) -- aqui só entram os nós com view do navegador.
+const nosDoNavegador = { Tabela, CelulaDeTabela, CabecalhoDeTabela, Figure }
 
 // Usado por WysiwygEditor.vue fora do modo colaborativo (elemento ainda sem id
 // persistido) e por conteudoParaHtml() nas telas de leitura (ComparisonPage,
 // DocumentoPreview, NpaPreview) -- essas nunca editam, então o histórico é irrelevante pra elas.
-export const editorExtensions = baseExtensions()
+export const editorExtensions = montarExtensoes(nosDoNavegador)
 
 // Usado só por WysiwygEditor.vue quando o elemento já tem sala Yjs (ver
 // collab/server.js) -- Collaboration/CollaborationCursor são adicionadas no próprio
 // WysiwygEditor.vue, não aqui, porque dependem do HocuspocusProvider da conexão.
-export const editorExtensionsColaborativas = baseExtensions({ history: false })
+export const editorExtensionsColaborativas = montarExtensoes({ ...nosDoNavegador, history: false })
