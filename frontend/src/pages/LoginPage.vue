@@ -75,6 +75,12 @@
           </div>
         </form>
       </q-card-section>
+      <q-separator />
+      <q-card-section class="text-center q-py-sm">
+        <router-link :to="{ name: 'manual' }" class="link-manual" data-testid="link-manual">
+          <q-icon name="mdi-book-open-page-variant-outline" size="16px" class="q-mr-xs" />Manual do usuário
+        </router-link>
+      </q-card-section>
     </q-card>
     <div v-if="versao" class="text-caption text-grey-6 q-mt-sm" data-testid="versao-do-sistema">v{{ versao }}</div>
   </q-page>
@@ -181,5 +187,13 @@ function aoEnviar(event) {
 .login-page {
   background: var(--color-background, #F4F6FA);
   min-height: 100vh;
+}
+.link-manual {
+  font-size: 13px;
+  color: var(--q-primary);
+  text-decoration: none;
+}
+.link-manual:hover {
+  text-decoration: underline;
 }
 </style>

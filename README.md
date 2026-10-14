@@ -53,6 +53,7 @@ A documentação técnica são arquivos Markdown na pasta [`docs/`](docs/), lido
 | Testar e analisar o código | [Testes e qualidade](docs/testes.md) |
 | Saber o que pode ter réplicas (Kubernetes) | [Réplicas e escalabilidade](docs/replicas.md) |
 | Ver o que está planejado para o futuro | [Roadmap](docs/roadmap.md) |
+| Ler (ou escrever) o manual do usuário, que fica dentro do sistema, em `/manual` | [Manual do usuário e ajuda](docs/funcionalidades.md#manual-do-usuário-e-ajuda); o texto está em `frontend/src/manual/` |
 | Instalar e rodar o projeto (desenvolvimento e produção) | as seções abaixo, neste README |
 
 ## Instalação em desenvolvimento

@@ -13,6 +13,11 @@
         </div>
       </q-toolbar-title>
 
+      <!-- Ajuda: abre o manual na página da tela em que a pessoa está (meta.manual da rota) -->
+      <q-btn v-if="auth.usuario" icon="mdi-help-circle-outline" flat round color="white" :to="paginaDeAjuda" data-testid="botao-ajuda">
+        <q-tooltip anchor="bottom middle" self="top middle">Ajuda — Manual do Usuário</q-tooltip>
+      </q-btn>
+
       <q-btn v-if="auth.usuario" icon="mdi-bell-outline" flat round color="white">
         <q-badge v-if="naoLidas.length" floating rounded color="negative">{{ naoLidas.length }}</q-badge>
         <q-tooltip anchor="bottom middle" self="top middle">Notificações</q-tooltip>
@@ -147,7 +152,7 @@
 
 <script setup>
 import { ref, computed, watch, onUnmounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { useAuthStore } from '@/stores/auth.js'
 import { useDocumentosStore } from '@/stores/documentos.js'
@@ -156,9 +161,16 @@ import { caixaAlta } from '@/utils/texto.js'
 import * as notificacoesApi from '@/api/notificacoes.js'
 
 const router = useRouter()
+const route = useRoute()
 const $q = useQuasar()
 const auth = useAuthStore()
 const documentosStore = useDocumentosStore()
+
+// O manual na página da tela atual (meta.manual da rota, 'pagina' ou 'pagina#secao'); sem ela, o início do manual.
+const paginaDeAjuda = computed(() => {
+  const [pagina, secao] = String(route.meta.manual ?? '').split('#')
+  return pagina ? { path: `/manual/${pagina}`, hash: secao ? `#${secao}` : '' } : { name: 'manual' }
+})
 
 // Servidores civis podem não ter posto/graduação nem nome de guerra
 // cadastrados (ver Usuario.java) -- nesse caso cai para o nome completo.

@@ -143,6 +143,18 @@ O usuário padrão do sistema (o administrador do primeiro boot) já nasce com o
 
 Detalhes e endpoint em [API REST](api-rest.md#painel-gerencial--v1painel-gerencial).
 
+## Manual do usuário e ajuda
+
+O sistema tem o **manual do usuário** dentro dele (`/manual`, `ManualPage.vue`), em linguagem de quem usa, separado desta documentação técnica. É **aberto a todos, com ou sem login** (o sistema só roda na intranet e o texto não tem nada restrito): a tela de login tem o link *Manual do usuário*, e logado a pessoa chega pelo botão **Ajuda (?)** da barra superior.
+
+- **Conteúdo em Markdown**, uma página por arquivo em `frontend/src/manual/` (`NN-nome-da-pagina.md`; o número só ordena, e o nome sem ele é o endereço: `/manual/nome-da-pagina`). Quem escreve não precisa saber Vue. A primeira linha pode ser `<!-- perfis: ELB APR_OM -->` (códigos dos perfis a que a página se dirige): a página mostra "Para: …" e, se a pessoa tem um desses perfis, o selo *É o seu perfil* e uma marca no índice.
+- **Navegação:** índice lateral, "Nesta página" (as seções `##`), página anterior/seguinte, **busca** no conteúdo (todas as palavras na mesma seção, sem distinguir maiúsculas nem acentos) e **impressão** (a folha de estilo de impressão esconde o índice).
+- **Ajuda por tela:** cada rota (e cada módulo, em `perfis/index.js`) diz em `meta.manual` a página e, se quiser, a seção que a explica (`'revisao-e-publicacao#aprovar-aprovador-da-om'`); o botão Ajuda abre exatamente ali.
+- **Links entre páginas** são `[texto](pagina#secao)`; o id de cada seção é o título sem acento, em minúsculas e com hífens (`slugDeTitulo`).
+- **Testes** (`utils/manual.test.js`): páginas, seções, busca, Markdown e — sobre o conteúdo de verdade — que todo link entre páginas e toda `meta.manual` apontam para uma página e uma seção que existem, e que os perfis citados existem.
+
+A regra do projeto: mudou um fluxo que o usuário vê, atualize a página do manual na mesma tarefa (ver `CLAUDE.md`).
+
 ## NPA (Norma Padrão de Ação)
 
 A [NPA](dominio.md#npa--norma-padrão-de-ação) é um módulo próprio (`/npa`) e usa as mesmas telas de documento das convencionais, mas cada uma se adapta à espécie pelo **perfil** do documento (`frontend/src/perfis/`, escolhido pelo `tipoDeEspecie` que o backend informa — nunca pela sigla):

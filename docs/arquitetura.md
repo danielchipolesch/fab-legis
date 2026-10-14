@@ -176,7 +176,7 @@ fab-legis/
     ├── vite.config.js
     ├── package.json
     ├── public/                 # Brasões, favicon
-    └── src/                    # pages, components, stores, api, utils, extensions
+    └── src/                    # pages, components, stores, api, utils, extensions; editor/modelo (modelo do documento, compartilhado com o collab); manual (o manual do usuário, em Markdown)
 ```
 
 **Migrações de banco:** scripts SQL em `resources/db/migration`, aplicados pelo Flyway. Em produção são estritamente aditivas — nunca se edita uma migração já aplicada.
