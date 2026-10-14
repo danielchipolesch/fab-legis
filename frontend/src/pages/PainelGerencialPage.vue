@@ -1,5 +1,5 @@
 <template>
-  <q-page class="q-pa-xl">
+  <q-page class="painel q-pa-xl">
 
     <q-breadcrumbs active-color="primary" class="q-mb-md" style="font-size:13px">
       <template #separator>
@@ -23,7 +23,7 @@
     </div>
 
     <!-- Filtros: o Gestor Geral escolhe a OM; o Gestor da OM não tem esse campo (o servidor fixa a própria OM). -->
-    <q-card flat bordered class="q-mb-lg">
+    <q-card flat class="cartao q-mb-lg">
       <q-card-section class="row q-col-gutter-md items-center">
         <div class="col-6 col-md-2">
           <q-input v-model="filtros.dataInicio" type="date" label="De" outlined dense hide-bottom-space data-testid="filtro-inicio" />
@@ -52,50 +52,39 @@
     <template v-if="painel">
       <!-- Resumo: o que importa primeiro. Os quatro primeiros contam o período; os dois últimos, a situação de agora. -->
       <div class="row q-col-gutter-md q-mb-lg" data-testid="resumo">
-        <div v-for="k in cartoes" :key="k.chave" class="col-6 col-md-2">
-          <q-card flat bordered class="kpi" :data-testid="`kpi-${k.chave}`">
+        <div v-for="k in cartoes" :key="k.chave" class="col-6 col-sm-4 col-md-2">
+          <q-card flat class="kpi" :data-testid="`kpi-${k.chave}`" :style="{ '--cor': k.cor }">
             <q-card-section class="q-pa-md">
-              <div class="text-caption text-grey-7">{{ k.rotulo }}</div>
-              <div class="text-h4 text-weight-bold text-primary">{{ k.valor }}</div>
-              <div class="text-caption text-grey-6">{{ k.nota }}</div>
+              <div class="row items-center no-wrap q-mb-sm">
+                <q-avatar size="34px" class="kpi-icone" :icon="k.icone" />
+                <div class="kpi-rotulo q-ml-sm">{{ k.rotulo }}</div>
+              </div>
+              <div class="kpi-valor">{{ k.valor }}</div>
+              <div class="kpi-nota">{{ k.nota }}</div>
             </q-card-section>
           </q-card>
         </div>
       </div>
 
       <div class="row q-col-gutter-lg q-mb-lg">
-        <div class="col-12 col-md-7">
-          <q-card flat bordered class="full-height">
+        <div class="col-12 col-md-8">
+          <q-card flat class="cartao full-height">
             <q-card-section>
-              <div class="text-subtitle1 text-weight-medium">Documentos por mês</div>
-              <div class="text-caption text-grey-7 q-mb-sm">Criados e publicados em cada mês do período</div>
-              <div v-if="!painel.porMes.length" class="text-grey-6">Nenhum mês no período.</div>
-              <div v-for="m in painel.porMes" :key="m.mes" class="linha-de-barra" data-testid="barra-do-mes">
-                <span class="rotulo">{{ rotuloDoMes(m.mes) }}</span>
-                <span class="barras">
-                  <span class="barra criados" :style="{ width: larguraDaBarra(m.criados, maiorDosMeses) + '%' }" />
-                  <span class="barra publicados" :style="{ width: larguraDaBarra(m.publicados, maiorDosMeses) + '%' }" />
-                </span>
-                <span class="valor">{{ m.criados }} / {{ m.publicados }}</span>
-              </div>
-              <div class="legenda text-caption text-grey-7 q-mt-sm">
-                <span class="chip criados" /> criados &nbsp; <span class="chip publicados" /> publicados
-              </div>
+              <div class="titulo">Documentos por mês</div>
+              <div class="sub">Criados e publicados em cada mês do período</div>
+              <div v-if="!painel.porMes.length" class="vazio">Nenhum mês no período.</div>
+              <GraficoEcharts v-else :opcao="opcoes.porMes" arquivo="documentos-por-mes" descricao="Documentos criados e publicados por mês" data-testid="grafico-por-mes" />
             </q-card-section>
           </q-card>
         </div>
 
-        <div class="col-12 col-md-5">
-          <q-card flat bordered class="full-height">
+        <div class="col-12 col-md-4">
+          <q-card flat class="cartao full-height">
             <q-card-section>
-              <div class="text-subtitle1 text-weight-medium">Criados por espécie</div>
-              <div class="text-caption text-grey-7 q-mb-sm">No período</div>
-              <div v-if="!painel.porEspecie.length" class="text-grey-6">Nenhum documento criado no período.</div>
-              <div v-for="e in painel.porEspecie" :key="e.sigla" class="linha-de-barra">
-                <span class="rotulo">{{ e.sigla }}</span>
-                <span class="barras"><span class="barra criados" :style="{ width: larguraDaBarra(e.criados, maiorDasEspecies) + '%' }" /></span>
-                <span class="valor">{{ e.criados }}</span>
-              </div>
+              <div class="titulo">Criados por espécie</div>
+              <div class="sub">No período</div>
+              <div v-if="!painel.porEspecie.length" class="vazio">Nenhum documento criado no período.</div>
+              <GraficoEcharts v-else :opcao="opcoes.porEspecie" arquivo="criados-por-especie" descricao="Documentos criados por espécie" />
             </q-card-section>
           </q-card>
         </div>
@@ -103,11 +92,12 @@
 
       <div class="row q-col-gutter-lg q-mb-lg">
         <div class="col-12 col-md-5">
-          <q-card flat bordered class="full-height">
+          <q-card flat class="cartao full-height">
             <q-card-section>
-              <div class="text-subtitle1 text-weight-medium">Tempo em cada etapa</div>
-              <div class="text-caption text-grey-7 q-mb-sm">Dos documentos criados no período que cumpriram a etapa (mediana e 90% dos casos)</div>
-              <q-markup-table flat dense data-testid="tempos">
+              <div class="titulo">Tempo em cada etapa</div>
+              <div class="sub">Mediana e "90% até", em dias, dos documentos criados no período que cumpriram a etapa</div>
+              <GraficoEcharts :opcao="opcoes.tempos" height="220px" arquivo="tempo-por-etapa" descricao="Tempo em cada etapa" />
+              <q-markup-table flat dense class="q-mt-sm" data-testid="tempos">
                 <thead><tr><th class="text-left">Etapa</th><th class="text-right">Mediana</th><th class="text-right">90% até</th><th class="text-right">Docs</th></tr></thead>
                 <tbody>
                   <tr v-for="t in linhasDeTempo" :key="t.rotulo">
@@ -124,35 +114,38 @@
         </div>
 
         <div class="col-12 col-md-3">
-          <q-card flat bordered class="full-height">
+          <q-card flat class="cartao full-height">
             <q-card-section>
-              <div class="text-subtitle1 text-weight-medium">Esperando agora</div>
-              <div class="text-caption text-grey-7 q-mb-sm">Fila de cada etapa</div>
-              <div class="fila"><span class="text-h5 text-weight-bold text-primary" data-testid="fila-aprovacao">{{ painel.filas.aguardandoAprovacao }}</span> aguardando aprovação</div>
-              <div class="fila"><span class="text-h5 text-weight-bold text-primary" data-testid="fila-publicacao">{{ painel.filas.aguardandoPublicacao }}</span> aguardando publicação</div>
+              <div class="titulo">Esperando agora</div>
+              <div class="sub">Fila de cada etapa</div>
+              <div class="fila-medidor">
+                <GraficoEcharts :opcao="opcoes.filaAprovacao" height="140px" arquivo="fila-aprovacao" descricao="Documentos aguardando aprovação" />
+                <div class="legenda-fila"><strong data-testid="fila-aprovacao">{{ painel.filas.aguardandoAprovacao }}</strong> aguardando aprovação</div>
+              </div>
+              <div class="fila-medidor">
+                <GraficoEcharts :opcao="opcoes.filaPublicacao" height="140px" arquivo="fila-publicacao" descricao="Documentos aguardando publicação" />
+                <div class="legenda-fila"><strong data-testid="fila-publicacao">{{ painel.filas.aguardandoPublicacao }}</strong> aguardando publicação</div>
+              </div>
             </q-card-section>
           </q-card>
         </div>
 
         <div class="col-12 col-md-4">
-          <q-card flat bordered class="full-height">
+          <q-card flat class="cartao full-height">
             <q-card-section>
-              <div class="text-subtitle1 text-weight-medium">Situação atual</div>
-              <div class="text-caption text-grey-7 q-mb-sm">Todos os documentos, hoje</div>
-              <div v-for="s in painel.situacaoAtual" :key="s.situacao" class="linha-de-barra">
-                <span class="rotulo larga">{{ situacaoLocalMeta(s.situacao).label }}</span>
-                <span class="barras"><span class="barra criados" :style="{ width: larguraDaBarra(s.quantidade, maiorDasSituacoes) + '%' }" /></span>
-                <span class="valor">{{ s.quantidade }}</span>
-              </div>
+              <div class="titulo">Situação atual</div>
+              <div class="sub">Todos os documentos, hoje</div>
+              <div v-if="!painel.situacaoAtual.length" class="vazio">Nenhum documento.</div>
+              <GraficoEcharts v-else :opcao="opcoes.situacao" :height="alturaDaSituacao" arquivo="situacao-atual" descricao="Documentos por situação atual" />
             </q-card-section>
           </q-card>
         </div>
       </div>
 
-      <q-card flat bordered class="q-mb-lg">
+      <q-card flat class="cartao q-mb-lg">
         <q-card-section>
-          <div class="text-subtitle1 text-weight-medium">Parados há mais tempo</div>
-          <div class="text-caption text-grey-7 q-mb-sm">Documentos esperando aprovação ou publicação, os mais antigos primeiro</div>
+          <div class="titulo">Parados há mais tempo</div>
+          <div class="sub">Documentos esperando aprovação ou publicação, os mais antigos primeiro</div>
           <q-markup-table flat dense data-testid="gargalos">
             <thead><tr><th class="text-left">Documento</th><th class="text-left">OM</th><th class="text-left">Etapa</th><th class="text-right">Parado há</th></tr></thead>
             <tbody>
@@ -169,19 +162,22 @@
       </q-card>
 
       <!-- Por OM: só faz sentido na visão geral (várias OMs). O Gestor da OM vê uma OM só, então não há comparação a fazer. -->
-      <q-card v-if="painel.escopo.podeFiltrarPorOm && !painel.escopo.omId" flat bordered>
+      <q-card v-if="painel.escopo.podeFiltrarPorOm && !painel.escopo.omId" flat class="cartao">
         <q-card-section>
-          <div class="text-subtitle1 text-weight-medium">Por OM</div>
-          <div class="text-caption text-grey-7 q-mb-sm">As OMs com mais documentos criados no período</div>
-          <q-markup-table flat dense data-testid="por-om">
-            <thead><tr><th class="text-left">OM</th><th class="text-right">Criados</th><th class="text-right">Publicados</th><th class="text-right">Em tramitação</th></tr></thead>
-            <tbody>
-              <tr v-if="!painel.porOm.length"><td colspan="4" class="text-grey-6">Nenhuma OM com movimento.</td></tr>
-              <tr v-for="o in painel.porOm" :key="o.omId">
-                <td>{{ o.sigla }}</td><td class="text-right">{{ o.criados }}</td><td class="text-right">{{ o.publicados }}</td><td class="text-right">{{ o.emTramitacao }}</td>
-              </tr>
-            </tbody>
-          </q-markup-table>
+          <div class="titulo">Por OM</div>
+          <div class="sub">As OMs com mais documentos criados no período</div>
+          <div v-if="!painel.porOm.length" class="vazio">Nenhuma OM com movimento.</div>
+          <template v-else>
+            <GraficoEcharts :opcao="opcoes.porOm" :height="alturaPorOm" arquivo="documentos-por-om" descricao="Documentos por OM" />
+            <q-markup-table flat dense class="q-mt-md" data-testid="por-om">
+              <thead><tr><th class="text-left">OM</th><th class="text-right">Criados</th><th class="text-right">Publicados</th><th class="text-right">Em tramitação</th></tr></thead>
+              <tbody>
+                <tr v-for="o in painel.porOm" :key="o.omId">
+                  <td>{{ o.sigla }}</td><td class="text-right">{{ o.criados }}</td><td class="text-right">{{ o.publicados }}</td><td class="text-right">{{ o.emTramitacao }}</td>
+                </tr>
+              </tbody>
+            </q-markup-table>
+          </template>
         </q-card-section>
       </q-card>
     </template>
@@ -190,14 +186,16 @@
 
 <script setup>
 import { ref, reactive, computed, watch, onMounted } from 'vue'
+import GraficoEcharts from '@/components/painel/GraficoEcharts.vue'
 import { getPainelGerencial } from '@/api/painelGerencial.js'
 import { listOrganizacoesMilitares } from '@/api/usuarios.js'
 import { listEspeciesNormativas, normalizeEspecie } from '@/api/referencias.js'
 import { situacaoLocalMeta } from '@/utils/statusDocumento.js'
 import { filtrarOpcoesDeOm } from '@/utils/habilitacao.js'
+import { rotuloDaEtapa, formatarDias, periodoPadrao } from '@/utils/painelGerencial.js'
 import {
-  larguraDaBarra, maiorValor, rotuloDaEtapa, formatarDias, rotuloDoMes, periodoPadrao,
-} from '@/utils/painelGerencial.js'
+  CORES, opcaoPorMes, opcaoPorEspecie, opcaoSituacaoAtual, opcaoTempos, opcaoPorOm, opcaoFila,
+} from '@/utils/painelGerencialGraficos.js'
 
 const painel = ref(null)
 const carregando = ref(false)
@@ -209,20 +207,16 @@ const filtros = reactive({ ...periodoPadrao(), especieId: null, omId: null })
 
 const formatarData = (aaaaMmDd) => (aaaaMmDd ? aaaaMmDd.split('-').reverse().join('/') : '')
 
-const maiorDosMeses = computed(() => Math.max(maiorValor(painel.value?.porMes, 'criados'), maiorValor(painel.value?.porMes, 'publicados')))
-const maiorDasEspecies = computed(() => maiorValor(painel.value?.porEspecie, 'criados'))
-const maiorDasSituacoes = computed(() => maiorValor(painel.value?.situacaoAtual, 'quantidade'))
-
 const cartoes = computed(() => {
   const t = painel.value?.totais
   if (!t) return []
   return [
-    { chave: 'criados', rotulo: 'Criados', valor: t.criados, nota: 'no período' },
-    { chave: 'publicados', rotulo: 'Publicados', valor: t.publicados, nota: 'no período' },
-    { chave: 'revogados', rotulo: 'Revogados', valor: t.revogados, nota: 'no período' },
-    { chave: 'devolvidos', rotulo: 'Devolvidos', valor: t.devolvidos, nota: 'voltaram à minuta, no período' },
-    { chave: 'em-tramitacao', rotulo: 'Em tramitação', valor: t.emTramitacao, nota: 'agora' },
-    { chave: 'vigentes', rotulo: 'Vigentes', valor: t.vigentes, nota: 'publicados em vigor, agora' },
+    { chave: 'criados', rotulo: 'Criados', valor: t.criados, nota: 'no período', icone: 'mdi-file-plus-outline', cor: '#0B3D91' },
+    { chave: 'publicados', rotulo: 'Publicados', valor: t.publicados, nota: 'no período', icone: 'mdi-publish', cor: '#2E9E6B' },
+    { chave: 'revogados', rotulo: 'Revogados', valor: t.revogados, nota: 'no período', icone: 'mdi-file-remove-outline', cor: '#6B7A90' },
+    { chave: 'devolvidos', rotulo: 'Devolvidos', valor: t.devolvidos, nota: 'voltaram à minuta, no período', icone: 'mdi-undo-variant', cor: '#D9534F' },
+    { chave: 'em-tramitacao', rotulo: 'Em tramitação', valor: t.emTramitacao, nota: 'agora', icone: 'mdi-timer-sand', cor: '#E0A030' },
+    { chave: 'vigentes', rotulo: 'Vigentes', valor: t.vigentes, nota: 'publicados em vigor, agora', icone: 'mdi-check-decagram-outline', cor: '#7A4FBF' },
   ]
 })
 
@@ -234,6 +228,26 @@ const linhasDeTempo = computed(() => {
     { rotulo: 'Publicação', dados: t.publicacao },
   ] : []
 })
+
+// Os dois medidores de fila usam a mesma escala (a maior das duas filas), para as duas poderem ser comparadas.
+const maiorFila = computed(() => Math.max(painel.value?.filas.aguardandoAprovacao ?? 0, painel.value?.filas.aguardandoPublicacao ?? 0))
+
+const opcoes = computed(() => {
+  const p = painel.value
+  if (!p) return {}
+  return {
+    porMes: opcaoPorMes(p.porMes),
+    porEspecie: opcaoPorEspecie(p.porEspecie),
+    situacao: opcaoSituacaoAtual(p.situacaoAtual, s => situacaoLocalMeta(s).label),
+    tempos: opcaoTempos(p.tempos),
+    porOm: opcaoPorOm(p.porOm),
+    filaAprovacao: opcaoFila(p.filas.aguardandoAprovacao, maiorFila.value, CORES.criados),
+    filaPublicacao: opcaoFila(p.filas.aguardandoPublicacao, maiorFila.value, CORES.p90),
+  }
+})
+
+const alturaDaSituacao = computed(() => `${Math.max(220, (painel.value?.situacaoAtual.length ?? 0) * 34 + 24)}px`)
+const alturaPorOm = computed(() => `${Math.max(240, (painel.value?.porOm.length ?? 0) * 46 + 60)}px`)
 
 function filtrarOms(valor, update) {
   update(() => { omsFiltradas.value = filtrarOpcoesDeOm(oms.value, valor) })
@@ -273,16 +287,19 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.kpi { height: 100%; }
-.linha-de-barra { display: flex; align-items: center; gap: 8px; margin: 4px 0; font-size: 13px; }
-.linha-de-barra .rotulo { width: 64px; flex: none; color: var(--q-grey-8, #444); }
-.linha-de-barra .rotulo.larga { width: 130px; }
-.linha-de-barra .barras { flex: 1; display: flex; flex-direction: column; gap: 2px; }
-.linha-de-barra .barra { display: block; height: 8px; border-radius: 4px; }
-.linha-de-barra .valor { width: 64px; flex: none; text-align: right; font-variant-numeric: tabular-nums; }
-.barra.criados, .chip.criados { background: var(--q-primary); }
-.barra.publicados, .chip.publicados { background: #2e9e6b; }
-.chip { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; }
-.fila { margin: 8px 0; }
-.fila .text-h5 { margin-right: 6px; }
+.painel { background: #F4F6FA; }
+.cartao { background: #fff; border-radius: 14px; box-shadow: 0 1px 2px rgba(20, 30, 60, .06), 0 4px 16px rgba(20, 30, 60, .05); }
+.titulo { font-size: 16px; font-weight: 600; color: #1A2E5A; }
+.sub { font-size: 12.5px; color: #6B7A90; margin-bottom: 12px; }
+.vazio { color: #8A94A6; padding: 32px 0; text-align: center; }
+
+.kpi { height: 100%; background: #fff; border-radius: 14px; border-top: 4px solid var(--cor); box-shadow: 0 1px 2px rgba(20, 30, 60, .06), 0 4px 16px rgba(20, 30, 60, .05); }
+.kpi-icone { background: color-mix(in srgb, var(--cor) 14%, #fff); color: var(--cor); }
+.kpi-rotulo { font-size: 13px; font-weight: 500; color: #4A566B; }
+.kpi-valor { font-size: 34px; line-height: 1.1; font-weight: 700; color: var(--cor); font-variant-numeric: tabular-nums; }
+.kpi-nota { font-size: 12px; color: #8A94A6; margin-top: 2px; }
+
+.fila-medidor { text-align: center; margin-top: 4px; }
+.legenda-fila { font-size: 13px; color: #4A566B; margin-top: -18px; }
+.legenda-fila strong { color: #1A2E5A; }
 </style>

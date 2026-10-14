@@ -71,6 +71,7 @@ Hoje, boa parte disso é feita à mão em editores de texto genéricos — o que
     | TipTap / ProseMirror | 2.10 | Editor WYSIWYG estrutural |
     | diff | 5.2 | Comparação textual entre versões |
     | vuedraggable | 4.1 | Reordenação por drag and drop |
+    | Apache ECharts | 6.1 | Gráficos do Painel Gerencial |
     | Sass | — | Estilos e variáveis do Quasar |
 
 === "Infraestrutura"

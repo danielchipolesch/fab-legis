@@ -38,7 +38,8 @@
     "vuedraggable": "^4.1.0",
     "pdfmake": "^0.2.12",
     "diff": "^5.2.0",
-    "uuid": "^9.0.1"
+    "uuid": "^9.0.1",
+    "echarts": "^6.1.0"
   },
   "devDependencies": {
     "vite": "^5.4.11",

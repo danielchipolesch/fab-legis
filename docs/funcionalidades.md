@@ -133,10 +133,11 @@ O usuário padrão do sistema (o administrador do primeiro boot) já nasce com o
 **Filtros:** período (abre nos últimos 12 meses), espécie e — só o Gestor Geral — OM.
 
 **O que mostra:**
+- **Gráficos** (Apache ECharts): cada gráfico tem o botão de **baixar a imagem** (PNG) no canto superior direito. Abaixo, o que cada cartão mostra.
 - **Resumo:** criados, publicados, revogados e devolvidos *no período*; em tramitação e vigentes *agora*. Devolvido = voltou à minuta/alteração a partir da aprovação ou da publicação.
-- **Documentos por mês** (criados e publicados) e **criados por espécie**.
+- **Documentos por mês** (colunas de criados e linha de publicados) e **criados por espécie** (rosca).
 - **Tempo em cada etapa:** mediana e "90% até" (percentil 90), em dias, para elaboração (criação → envio para aprovação), aprovação (envio → aprovação) e publicação (aprovação → publicação), entre os documentos criados no período que cumpriram a etapa. Mediana e percentil, não média, porque poucos casos muito lentos distorcem a média. As datas são as do ciclo mais recente do documento.
-- **Esperando agora:** quantos aguardam aprovação e quantos aguardam publicação.
+- **Esperando agora:** (medidores na mesma escala) quantos aguardam aprovação e quantos aguardam publicação.
 - **Situação atual** de todos os documentos e **Parados há mais tempo** (os dez mais antigos na aprovação ou na publicação, com link para o documento).
 - **Por OM** (só a visão geral): as OMs com mais documentos criados no período.
 
