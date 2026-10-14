@@ -75,10 +75,10 @@
         <template #body-cell-actions="props">
           <q-td :props="props" class="text-center">
             <div class="row justify-center no-wrap" style="gap:4px">
-              <q-btn icon="mdi-pencil-outline" size="sm" flat round dense color="primary" @click="abrirEdicao(props.row)">
+              <q-btn v-if="podeAdministrarEste(props.row)" icon="mdi-pencil-outline" size="sm" flat round dense color="primary" @click="abrirEdicao(props.row)">
                 <q-tooltip anchor="top middle" self="bottom middle">Editar</q-tooltip>
               </q-btn>
-              <q-btn icon="mdi-key-outline" size="sm" flat round dense color="primary" @click="abrirRedefinirSenha(props.row)">
+              <q-btn v-if="podeAdministrarEste(props.row)" icon="mdi-key-outline" size="sm" flat round dense color="primary" @click="abrirRedefinirSenha(props.row)">
                 <q-tooltip anchor="top middle" self="bottom middle">Redefinir senha</q-tooltip>
               </q-btn>
             </div>
@@ -198,10 +198,14 @@
                 <q-checkbox v-model="form.editor" label="Editor" disable>
                   <q-tooltip>Todo usuário tem este papel -- não dá pra remover.</q-tooltip>
                 </q-checkbox>
-                <q-checkbox v-model="form.aprovador" label="Aprovador" :disable="salvando" />
-                <q-checkbox v-model="form.publicador" label="Publicador" :disable="salvando" />
-                <q-checkbox v-model="form.admin" label="Administrador" :disable="salvando" />
-                <q-checkbox v-model="form.auditor" label="Auditor" :disable="salvando" />
+                <q-checkbox v-model="form.aprovador" label="Aprovador" :disable="salvando || !concediveis.aprovador" />
+                <q-checkbox v-model="form.publicador" label="Publicador" :disable="salvando || !concediveis.publicador">
+                  <q-tooltip>A publicação é exclusiva do CENDOC: só quem é da OM CENDOC (e só o administrador geral) recebe este papel.</q-tooltip>
+                </q-checkbox>
+                <q-checkbox v-model="form.admin" label="Administrador" :disable="salvando || !concediveis.admin">
+                  <q-tooltip>Só o administrador geral (CENDOC) concede o papel de administrador.</q-tooltip>
+                </q-checkbox>
+                <q-checkbox v-model="form.auditor" label="Auditor" :disable="salvando || !concediveis.auditor" />
               </div>
             </div>
 
@@ -279,6 +283,7 @@ import { validarCpf, mascaraCpf, ocultarCpf, onlyDigits } from '@/utils/cpf.js'
 import { caixaAlta, normalizarBusca } from '@/utils/texto.js'
 import { useAuthStore } from '@/stores/auth.js'
 import { emailInstitucional } from '@/utils/email.js'
+import { omsDoEscopo, papeisConcediveis, podeAdministrar } from '@/utils/escopo.js'
 
 const $q = useQuasar()
 const auth = useAuthStore()
@@ -301,7 +306,7 @@ const columns = [
 
 // Catálogo real de OMs da FAB passou de 1 (seed antigo) pra 300+ (ver
 // V1__initial.sql) -- uma lista desse tamanho sem busca é impraticável de rolar.
-const omOptions = computed(() => oms.value.map(om => ({
+const omOptions = computed(() => omsDoEscopo(oms.value, auth.usuario?.omSigla).map(om => ({
   label: `${om.nome} (${om.sigla})`, value: om.id, busca: normalizarBusca(`${om.nome} ${om.sigla}`),
 })))
 const omOptionsFiltradas = ref([])
@@ -370,6 +375,17 @@ const form = reactive({
   omId: null, editor: true, aprovador: false, publicador: false, admin: false, auditor: false, ativo: true,
 })
 
+// Escopo (utils/escopo.js): o admin local só gerencia a própria OM e não concede Administrador nem Publicador; o geral (CENDOC) gerencia
+// todas. A tela esconde o que o servidor recusaria -- o servidor é quem garante.
+const siglaDaOmDeDestino = computed(() => oms.value.find(o => o.id === form.omId)?.sigla)
+const concediveis = computed(() => papeisConcediveis(auth.usuario?.omSigla, siglaDaOmDeDestino.value))
+const podeAdministrarEste = (usuario) => podeAdministrar(auth.usuario?.omSigla, usuario)
+// Trocar a OM de destino para uma que não admite o papel desmarca o que deixou de valer (ex.: Publicador fora do CENDOC).
+watch(concediveis, (c) => {
+  if (!c.publicador) form.publicador = false
+  if (!c.admin) form.admin = false
+})
+
 function resetForm() {
   Object.assign(form, {
     nome: '', nomeGuerra: '', cpf: '', email: '', postoGraduacaoId: null, senha: '',
@@ -381,6 +397,8 @@ function resetForm() {
 function abrirCriacao() {
   editando.value = null
   resetForm()
+  // O admin local só tem uma OM possível: já vem escolhida.
+  if (omOptions.value.length === 1) form.omId = omOptions.value[0].value
   dialogForm.value = true
 }
 

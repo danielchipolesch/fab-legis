@@ -111,13 +111,13 @@
               </q-item-section>
               <q-item-section>Manter Usuários</q-item-section>
             </q-item>
-            <q-item v-if="auth.isAdmin" clickable v-close-popup :to="{ name: 'habilitacao-de-documentos' }" data-testid="menu-habilitacao">
+            <q-item v-if="auth.isAdminGeral" clickable v-close-popup :to="{ name: 'habilitacao-de-documentos' }" data-testid="menu-habilitacao">
               <q-item-section avatar>
                 <q-icon name="mdi-file-check-outline" color="primary" />
               </q-item-section>
               <q-item-section>Manter Habilitação de Espécies Normativas por OM</q-item-section>
             </q-item>
-            <q-item v-if="auth.isAdmin" clickable v-close-popup :to="{ name: 'distintivos-das-oms' }" data-testid="menu-distintivos">
+            <q-item v-if="auth.isAdminGeral" clickable v-close-popup :to="{ name: 'distintivos-das-oms' }" data-testid="menu-distintivos">
               <q-item-section avatar>
                 <q-icon name="mdi-shield-star-outline" color="primary" />
               </q-item-section>

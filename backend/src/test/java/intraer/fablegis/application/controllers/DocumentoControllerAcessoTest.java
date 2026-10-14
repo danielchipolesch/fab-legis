@@ -47,12 +47,16 @@ class DocumentoControllerAcessoTest {
                 .isEqualTo("@documentoAcessoService.podeEnviarPortaria(#id, authentication)");
     }
 
-    // Habilitação de documentos: só o administrador (ADMIN, o CENDOC) gerencia quais OMs criam quais espécies; qualquer pessoa
+    // Habilitação de documentos e DOM: só o administrador GERAL (ADMIN no CENDOC) gerencia quais OMs criam quais espécies e os
+    // distintivos; o admin local não. Qualquer pessoa
     // autenticada consulta o que a própria OM pode criar.
     @Test
-    void gerirAHabilitacaoDeDocumentosExigeAdmin() {
-        assertThat(regraDe(HabilitacaoDeDocumentosController.class, "listar")).isEqualTo("hasRole('ADMIN')");
-        assertThat(regraDe(HabilitacaoDeDocumentosController.class, "definir")).isEqualTo("hasRole('ADMIN')");
+    void gerirAHabilitacaoEOsDistintivosExigeAdminGeral() {
+        assertThat(regraDe(HabilitacaoDeDocumentosController.class, "listar")).isEqualTo("hasRole('ADMIN_GERAL')");
+        assertThat(regraDe(HabilitacaoDeDocumentosController.class, "definir")).isEqualTo("hasRole('ADMIN_GERAL')");
+        assertThat(regraDe(HabilitacaoDeDocumentosController.class, "definirPorEspecie")).isEqualTo("hasRole('ADMIN_GERAL')");
+        assertThat(regraDe(OrganizacaoMilitarController.class, "definirDistintivo")).isEqualTo("hasRole('ADMIN_GERAL')");
+        assertThat(regraDe(OrganizacaoMilitarController.class, "removerDistintivo")).isEqualTo("hasRole('ADMIN_GERAL')");
     }
 
     @Test

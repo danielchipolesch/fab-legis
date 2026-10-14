@@ -49,13 +49,14 @@ class AuditoriaDeAcessosIntegracaoTest extends IntegracaoComPostgresBase {
         return usuarioRepository.findAll().stream().filter(u -> !u.isSistema()).findFirst().orElseThrow();
     }
 
+    // Auditor GERAL (no CENDOC): o auditor de outra OM só enxerga a própria (ver EscopoDeAcessoIntegracaoTest).
     private Usuario auditor() {
         return usuarioRepository.findByCpf("11122233396").orElseGet(() -> {
             var u = new Usuario();
             u.setNome("Auditor");
             u.setCpf("11122233396");
             u.setSenhaHash("{noop}x");
-            u.setOm(omRepository.findBySigla("EMAER").orElseThrow());
+            u.setOm(omRepository.findBySigla("CENDOC").orElseThrow());
             u.setPapeis(new HashSet<>(Set.of(PapelEnum.EDIT, PapelEnum.AUDITOR)));
             return usuarioRepository.save(u);
         });

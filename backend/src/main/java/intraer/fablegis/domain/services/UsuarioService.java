@@ -7,6 +7,7 @@ import intraer.fablegis.application.dtos.usuarioDtos.UsuarioResponseDto;
 import intraer.fablegis.application.dtos.usuarioDtos.UsuarioUpdateRequestDto;
 import intraer.fablegis.domain.entities.usuario.OrganizacaoMilitar;
 import intraer.fablegis.domain.regras.DiferencaDeAcesso;
+import intraer.fablegis.domain.regras.EscopoDeAcesso;
 import intraer.fablegis.domain.entities.usuario.PapelEnum;
 import intraer.fablegis.domain.entities.usuario.PostoGraduacao;
 import intraer.fablegis.domain.entities.usuario.Usuario;
@@ -44,14 +45,16 @@ public class UsuarioService {
     private final AuditoriaDeAcessoService auditoriaDeAcesso;
 
     public List<UsuarioResponseDto> listar() {
+        var ator = AutenticacaoUtil.usuarioAtual();
         return usuarioRepository.findAll().stream()
                 .filter(u -> !u.isSistema())
+                .filter(u -> EscopoDeAcesso.enxerga(ator, u))
                 .map(UsuarioResponseDto::from)
                 .toList();
     }
 
     public UsuarioResponseDto obter(Long id) {
-        return UsuarioResponseDto.from(buscarUsuarioReal(id));
+        return UsuarioResponseDto.from(buscarUsuarioDoEscopo(id, AutenticacaoUtil.usuarioAtual()));
     }
 
     @Transactional
@@ -62,6 +65,8 @@ public class UsuarioService {
         }
 
         OrganizacaoMilitar om = buscarOm(request.omId());
+        var papeis = papeisComo(request.papeis());
+        EscopoDeAcesso.exigirPodeGerenciar(AutenticacaoUtil.usuarioAtual(), null, om.getSigla(), papeis);
 
         var usuario = new Usuario();
         usuario.setNome(request.nome());
@@ -72,7 +77,7 @@ public class UsuarioService {
         usuario.setSenhaHash(passwordEncoder.encode(request.senha()));
         usuario.setOm(om);
         usuario.setAtivo(true);
-        usuario.setPapeis(papeisComo(request.papeis()));
+        usuario.setPapeis(papeis);
 
         var salvo = usuarioRepository.save(usuario);
         auditoriaDeAcesso.registrarCriacao(salvo);
@@ -81,8 +86,8 @@ public class UsuarioService {
 
     @Transactional
     public UsuarioResponseDto atualizar(Long id, UsuarioUpdateRequestDto request) {
-        Usuario usuario = buscarUsuarioReal(id);
         Usuario usuarioLogado = AutenticacaoUtil.usuarioAtual();
+        Usuario usuario = buscarUsuarioDoEscopo(id, usuarioLogado);
 
         boolean ehVoceMesmo = usuario.getId().equals(usuarioLogado.getId());
         if (ehVoceMesmo && !request.ativo()) {
@@ -93,6 +98,8 @@ public class UsuarioService {
         }
 
         OrganizacaoMilitar om = buscarOm(request.omId());
+        var papeisDepois = papeisComo(request.papeis());
+        EscopoDeAcesso.exigirPodeGerenciar(usuarioLogado, usuario, om.getSigla(), papeisDepois);
 
         // O estado de acesso ANTES da mudança, para a auditoria registrar só o que de fato mudou (papéis, situação, OM).
         var antes = new DiferencaDeAcesso.Estado(EnumSet.copyOf(papeisOuVazio(usuario.getPapeis())), usuario.isAtivo(), siglaDa(usuario.getOm()));
@@ -103,7 +110,7 @@ public class UsuarioService {
         usuario.setPostoGraduacao(buscarPostoGraduacaoOpcional(request.postoGraduacaoId()));
         usuario.setOm(om);
         usuario.setAtivo(request.ativo());
-        usuario.setPapeis(papeisComo(request.papeis()));
+        usuario.setPapeis(papeisDepois);
 
         var salvo = usuarioRepository.save(usuario);
         var depois = new DiferencaDeAcesso.Estado(EnumSet.copyOf(papeisOuVazio(salvo.getPapeis())), salvo.isAtivo(), siglaDa(salvo.getOm()));
@@ -113,7 +120,8 @@ public class UsuarioService {
 
     @Transactional
     public void redefinirSenha(Long id, RedefinirSenhaRequestDto request) {
-        Usuario usuario = buscarUsuarioReal(id);
+        Usuario usuario = buscarUsuarioDoEscopo(id, AutenticacaoUtil.usuarioAtual());
+        EscopoDeAcesso.exigirPodeAdministrar(AutenticacaoUtil.usuarioAtual(), usuario);
         usuario.setSenhaHash(passwordEncoder.encode(request.novaSenha()));
         usuarioRepository.save(usuario);
         auditoriaDeAcesso.registrarRedefinicaoDeSenha(usuario);
@@ -125,6 +133,15 @@ public class UsuarioService {
 
     private static String siglaDa(OrganizacaoMilitar om) {
         return om != null ? om.getSigla() : null;
+    }
+
+    // O usuário real, se quem age o enxerga: o admin local nem sabe que existe um usuário de outra OM (404, como se não houvesse).
+    private Usuario buscarUsuarioDoEscopo(Long id, Usuario ator) {
+        Usuario usuario = buscarUsuarioReal(id);
+        if (!EscopoDeAcesso.enxerga(ator, usuario)) {
+            throw new ResourceNotFoundException("Usuário não encontrado.");
+        }
+        return usuario;
     }
 
     private Usuario buscarUsuarioReal(Long id) {

@@ -62,12 +62,14 @@ public class AuditoriaDeAcessoService {
 
     @Transactional(readOnly = true)
     public Page<LogDeAcessoResponseDto> filtrar(String cpfDoAlvo, AcaoDeAcessoEnum acao, Timestamp dataInicio, Timestamp dataFim,
-                                                Pageable pageable) {
+                                                String omSiglaDoEscopo, Pageable pageable) {
         Specification<LogDeAcesso> spec = (root, query, cb) -> null;
         if (cpfDoAlvo != null && !cpfDoAlvo.isBlank()) {
             String digitos = cpfDoAlvo.replaceAll("\\D", "");
             spec = spec.and((root, query, cb) -> cb.equal(root.get("alvoCpf"), digitos));
         }
+        // Auditor LOCAL: só os acessos de usuários da própria OM (a do registro, no momento); o geral passa nulo e vê tudo.
+        if (omSiglaDoEscopo != null) spec = spec.and((root, query, cb) -> cb.equal(root.get("omSigla"), omSiglaDoEscopo));
         if (acao != null) spec = spec.and((root, query, cb) -> cb.equal(root.get("acao"), acao));
         if (dataInicio != null) spec = spec.and((root, query, cb) -> cb.greaterThanOrEqualTo(root.get("dtOcorrencia"), dataInicio));
         if (dataFim != null) spec = spec.and((root, query, cb) -> cb.lessThanOrEqualTo(root.get("dtOcorrencia"), dataFim));

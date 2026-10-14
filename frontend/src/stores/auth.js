@@ -1,5 +1,6 @@
 import { defineStore, getActivePinia } from 'pinia'
 import { limparCachesDaSessao } from '@/utils/limparSessao.js'
+import { ehAdminGeral, temEscopoGeral } from '@/utils/escopo.js'
 import { podeCriarNoModulo, podeCriarEspecie } from '@/utils/habilitacao.js'
 import { listMinhasEspeciesCriaveis } from '@/api/habilitacao.js'
 import { setAuthTokenGetter, setUnauthorizedHandler, setRefreshHandler } from '@/api/client.js'
@@ -97,6 +98,10 @@ export const useAuthStore = defineStore('auth', {
     // ADMIN é puramente administrativo (usuários/OMs) -- não implica EDIT/APROV/PUBLIC
     // nenhum, ver PapelEnum no backend.
     isAdmin: (state) => state.usuario?.papeis?.includes('ADMIN') ?? false,
+    // Admin GERAL = ADMIN no CENDOC (ver utils/escopo.js): cadastra habilitação e DOM e mantém os admins locais.
+    isAdminGeral: (state) => ehAdminGeral(state.usuario?.papeis, state.usuario?.omSigla),
+    // Escopo geral de quem está logado (OM = CENDOC), para a auditoria e a revisão de acessos.
+    temEscopoGeral: (state) => temEscopoGeral(state.usuario?.omSigla),
     isEditor: (state) => state.usuario?.papeis?.includes('EDIT') ?? false,
     isAprovador: (state) => state.usuario?.papeis?.includes('APROV') ?? false,
     isPublicador: (state) => state.usuario?.papeis?.includes('PUBLIC') ?? false,

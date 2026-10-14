@@ -88,6 +88,12 @@ class UsuarioServiceTest {
                 new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(principal, null, principal.getAuthorities()));
     }
 
+    // Por padrão, quem age é o administrador geral (ADMIN no CENDOC); os testes do escopo local trocam o ator.
+    @org.junit.jupiter.api.BeforeEach
+    void autenticarOAdministradorGeral() {
+        autenticarComo(existente(1L, "CENDOC", PapelEnum.ADMIN, PapelEnum.EDIT));
+    }
+
     @org.junit.jupiter.api.AfterEach
     void limparContexto() {
         org.springframework.security.core.context.SecurityContextHolder.clearContext();
@@ -155,5 +161,63 @@ class UsuarioServiceTest {
         service.redefinirSenha(2L, new intraer.fablegis.application.dtos.usuarioDtos.RedefinirSenhaRequestDto("nova-senha-1"));
 
         verify(auditoriaDeAcesso).registrarRedefinicaoDeSenha(alvo);
+    }
+
+    // ─── Escopo do administrador local ───────────────────────────────────────
+
+    @Test
+    void oAdminLocalSoVeOsUsuariosDaPropriaOm() {
+        autenticarComo(existente(1L, "BAGL", PapelEnum.ADMIN, PapelEnum.EDIT));
+        when(usuarioRepository.findAll()).thenReturn(java.util.List.of(
+                existente(2L, "BAGL", PapelEnum.EDIT), existente(3L, "BABE", PapelEnum.EDIT), existente(4L, "CENDOC", PapelEnum.EDIT)));
+
+        assertThat(service.listar()).extracting(r -> r.id()).containsExactly(2L);
+    }
+
+    @Test
+    void oAdminGeralVeTodosOsUsuarios() {
+        when(usuarioRepository.findAll()).thenReturn(java.util.List.of(
+                existente(2L, "BAGL", PapelEnum.EDIT), existente(3L, "BABE", PapelEnum.EDIT), existente(4L, "CENDOC", PapelEnum.EDIT)));
+
+        assertThat(service.listar()).hasSize(3);
+    }
+
+    @Test
+    void oAdminLocalNaoConsultaUsuarioDeOutraOm() {
+        autenticarComo(existente(1L, "BAGL", PapelEnum.ADMIN, PapelEnum.EDIT));
+        when(usuarioRepository.findById(3L)).thenReturn(Optional.of(existente(3L, "BABE", PapelEnum.EDIT)));
+
+        assertThatThrownBy(() -> service.obter(3L)).isInstanceOf(intraer.fablegis.domain.handlers.exceptions.ResourceNotFoundException.class);
+    }
+
+    @Test
+    void oAdminLocalNaoCriaUsuarioEmOutraOmNemComPapelDeAdmin() {
+        autenticarComo(existente(1L, "BAGL", PapelEnum.ADMIN, PapelEnum.EDIT));
+        when(usuarioRepository.existsByCpf("11144477735")).thenReturn(false);
+        var outra = new OrganizacaoMilitar();
+        outra.setSigla("BABE");
+        when(organizacaoMilitarRepository.findById(2L)).thenReturn(Optional.of(outra));
+
+        assertThatThrownBy(() -> service.criar(new UsuarioCreateRequestDto("Fulano", null, "11144477735", null, null, "senha-forte-1", 2L, null)))
+                .isInstanceOf(intraer.fablegis.domain.handlers.exceptions.OperacaoNaoAutorizadaException.class);
+        verify(usuarioRepository, never()).save(any());
+
+        var propria = new OrganizacaoMilitar();
+        propria.setSigla("BAGL");
+        when(organizacaoMilitarRepository.findById(1L)).thenReturn(Optional.of(propria));
+        assertThatThrownBy(() -> service.criar(new UsuarioCreateRequestDto("Fulano", null, "11144477735", null, null, "senha-forte-1", 1L,
+                java.util.Set.of(PapelEnum.ADMIN))))
+                .isInstanceOf(intraer.fablegis.domain.handlers.exceptions.OperacaoNaoAutorizadaException.class);
+        verify(usuarioRepository, never()).save(any());
+    }
+
+    @Test
+    void oAdminLocalNaoRedefineASenhaDeOutroAdmin() {
+        autenticarComo(existente(1L, "BAGL", PapelEnum.ADMIN, PapelEnum.EDIT));
+        when(usuarioRepository.findById(2L)).thenReturn(Optional.of(existente(2L, "BAGL", PapelEnum.ADMIN, PapelEnum.EDIT)));
+
+        assertThatThrownBy(() -> service.redefinirSenha(2L, new intraer.fablegis.application.dtos.usuarioDtos.RedefinirSenhaRequestDto("nova-senha-1")))
+                .isInstanceOf(intraer.fablegis.domain.handlers.exceptions.OperacaoNaoAutorizadaException.class);
+        verify(passwordEncoder, never()).encode(any());
     }
 }

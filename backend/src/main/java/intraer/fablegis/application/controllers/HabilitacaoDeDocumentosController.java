@@ -32,13 +32,13 @@ public class HabilitacaoDeDocumentosController {
 
     private final HabilitacaoDeCriacaoService habilitacaoService;
 
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN_GERAL')")
     @GetMapping
     public ResponseEntity<List<HabilitacaoDaOmResponseDto>> listar() {
         return ResponseEntity.ok(habilitacaoService.listar());
     }
 
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN_GERAL')")
     @PutMapping("/{omId}")
     public ResponseEntity<HabilitacaoDaOmResponseDto> definir(@PathVariable Long omId,
                                                               @RequestBody @Valid HabilitacaoDaOmRequestDto pedido) {
@@ -46,7 +46,7 @@ public class HabilitacaoDeDocumentosController {
     }
 
     // A visão por espécie (a tela de administração): as OMs habilitadas a criar uma espécie convencional.
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN_GERAL')")
     @PutMapping("/por-especie/{especieId}")
     public ResponseEntity<HabilitacaoDaEspecieResponseDto> definirPorEspecie(@PathVariable Long especieId,
                                                                              @RequestBody @Valid HabilitacaoDaEspecieRequestDto pedido) {

@@ -2,6 +2,7 @@ package intraer.fablegis.infrastructure.security;
 
 import intraer.fablegis.domain.entities.usuario.PapelEnum;
 import intraer.fablegis.domain.entities.usuario.Usuario;
+import intraer.fablegis.domain.regras.EscopoDeAcesso;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -28,9 +29,14 @@ public class UsuarioPrincipal implements UserDetails {
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        return usuario.getPapeis().stream()
-                .map(p -> (GrantedAuthority) new SimpleGrantedAuthority("ROLE_" + p.name()))
-                .toList();
+        var authorities = new java.util.ArrayList<GrantedAuthority>();
+        usuario.getPapeis().forEach(p -> authorities.add(new SimpleGrantedAuthority("ROLE_" + p.name())));
+        // Escopo GERAL (só o CENDOC, ver EscopoDeAcesso): ADMIN_GERAL e AUDITOR_GERAL, para o @PreAuthorize distinguir do local.
+        if (EscopoDeAcesso.temEscopoGeral(usuario)) {
+            if (usuario.getPapeis().contains(PapelEnum.ADMIN)) authorities.add(new SimpleGrantedAuthority("ROLE_ADMIN_GERAL"));
+            if (usuario.getPapeis().contains(PapelEnum.AUDITOR)) authorities.add(new SimpleGrantedAuthority("ROLE_AUDITOR_GERAL"));
+        }
+        return authorities;
     }
 
     public List<PapelEnum> getPapeis() {

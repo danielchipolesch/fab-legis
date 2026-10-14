@@ -82,13 +82,13 @@ const routes = [
     path: '/habilitacao-de-documentos',
     name: 'habilitacao-de-documentos',
     component: () => import('@/pages/HabilitacaoDeDocumentosPage.vue'),
-    meta: { title: 'Manter Habilitação de Espécies Normativas por OM', requiresAdmin: true },
+    meta: { title: 'Manter Habilitação de Espécies Normativas por OM', requiresAdminGeral: true },
   },
   {
     path: '/distintivos-das-oms',
     name: 'distintivos-das-oms',
     component: () => import('@/pages/DistintivosDasOmsPage.vue'),
-    meta: { title: 'Manter DOM de OM', requiresAdmin: true },
+    meta: { title: 'Manter DOM de OM', requiresAdminGeral: true },
   },
   {
     path: '/auditoria',
@@ -111,6 +111,9 @@ router.beforeEach((to) => {
   const auth = useAuthStore()
   if (!auth.isAuthenticated) {
     return { name: 'login', query: { redirect: to.fullPath } }
+  }
+  if (to.meta.requiresAdminGeral && !auth.isAdminGeral) {
+    return { name: 'home' }
   }
   if (to.meta.requiresAdmin && !auth.isAdmin) {
     return { name: 'home' }
