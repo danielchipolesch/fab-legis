@@ -15,7 +15,7 @@
     </div>
 
     <!-- Revisão periódica de acessos (docs/autenticacao.md): automática -- o sistema aponta quem precisa de revisão; o admin só
-         confere (Manter acesso / Retirar perfis…). Ninguém precisa pedir nada e nada é retirado sozinho: por ora só avisa. -->
+         confere (Manter acesso / Retirar papéis…). Ninguém precisa pedir nada e nada é retirado sozinho: por ora só avisa. -->
     <q-banner v-if="pendentes" rounded class="bg-amber-1 text-amber-10 q-mb-md" data-testid="aviso-de-pendencias">
       <template #avatar><q-icon name="mdi-account-alert-outline" /></template>
       {{ pendentes }} {{ pendentes === 1 ? 'acesso precisa' : 'acessos precisam' }} de revisão.
@@ -58,17 +58,17 @@
           <q-td :props="props">{{ props.row.omNome }}</q-td>
         </template>
 
-        <template #body-cell-perfis="props">
+        <template #body-cell-papeis="props">
           <q-td :props="props">
             <div class="row justify-center q-gutter-xs">
               <q-chip
-                v-for="p in props.row.perfis"
+                v-for="p in props.row.papeis"
                 :key="p"
                 dense square size="sm"
-                :color="PERFIS[p]?.cor ?? 'grey-3'"
-                :text-color="PERFIS[p]?.corDoTexto ?? 'grey-9'"
+                :color="PAPEIS[p]?.cor ?? 'grey-3'"
+                :text-color="PAPEIS[p]?.corDoTexto ?? 'grey-9'"
               >
-                {{ nomeDoPerfil(p) }}
+                {{ nomeDoPapel(p) }}
               </q-chip>
             </div>
           </q-td>
@@ -83,7 +83,7 @@
                 {{ motivoDaRevisao(props.row.motivoDaRevisao).explicacao }}
               </q-tooltip>
             </q-chip>
-            <div v-if="temPerfilElevado(props.row)" class="text-caption text-grey-7">
+            <div v-if="temPapelElevado(props.row)" class="text-caption text-grey-7">
               Revisado em {{ formatarData(props.row.dtRevisaoAcesso) }}
             </div>
           </q-td>
@@ -102,11 +102,11 @@
             <div class="row justify-center no-wrap" style="gap:4px">
               <q-btn v-if="props.row.revisavel" icon="mdi-check" size="sm" flat round dense color="positive"
                      :loading="revisando === props.row.id" :data-testid="`manter-acesso-${props.row.cpf}`" @click="manterAcesso(props.row)">
-                <q-tooltip anchor="top middle" self="bottom middle">Manter acesso (reconfirma os perfis)</q-tooltip>
+                <q-tooltip anchor="top middle" self="bottom middle">Manter acesso (reconfirma os papéis)</q-tooltip>
               </q-btn>
               <q-btn v-if="props.row.revisavel" icon="mdi-account-minus-outline" size="sm" flat round dense color="negative"
-                     :disable="revisando === props.row.id" :data-testid="`retirar-perfis-${props.row.cpf}`" @click="abrirRetirada(props.row)">
-                <q-tooltip anchor="top middle" self="bottom middle">Retirar perfis…</q-tooltip>
+                     :disable="revisando === props.row.id" :data-testid="`retirar-papeis-${props.row.cpf}`" @click="abrirRetirada(props.row)">
+                <q-tooltip anchor="top middle" self="bottom middle">Retirar papéis…</q-tooltip>
               </q-btn>
               <q-btn v-if="podeAdministrarEste(props.row)" icon="mdi-pencil-outline" size="sm" flat round dense color="primary" @click="abrirEdicao(props.row)">
                 <q-tooltip anchor="top middle" self="bottom middle">Editar</q-tooltip>
@@ -226,20 +226,20 @@
             />
 
             <div>
-              <div class="text-caption text-grey-7 q-mb-xs">Perfis (Elaborador é padrão de todo usuário e não pode ser removido; os demais são adicionais)</div>
+              <div class="text-caption text-grey-7 q-mb-xs">Papéis (Elaborador é padrão de todo usuário e não pode ser removido; os demais são adicionais)</div>
               <div class="row q-gutter-md">
                 <q-checkbox v-model="form.editor" label="Elaborador" disable>
-                  <q-tooltip>Todo usuário tem este perfil -- não dá pra remover.</q-tooltip>
+                  <q-tooltip>Todo usuário tem este papel -- não dá pra remover.</q-tooltip>
                 </q-checkbox>
                 <q-checkbox v-model="form.aprovador" label="Aprovador da OM" :disable="salvando || !concediveis.aprovador" />
                 <q-checkbox v-model="form.publicador" label="Publicador do BCA" :disable="salvando || !concediveis.publicador">
-                  <q-tooltip>A publicação é exclusiva do CENDOC: só quem é lotado no CENDOC (e só o Administrador Geral) recebe este perfil.</q-tooltip>
+                  <q-tooltip>A publicação é exclusiva do CENDOC: só quem é lotado no CENDOC (e só o Administrador Geral) recebe este papel.</q-tooltip>
                 </q-checkbox>
-                <q-checkbox v-model="form.admin" :label="nomeDoPerfil(perfilDeAdmin(siglaDaOmDeDestino))" :disable="salvando || !concediveis.admin">
-                  <q-tooltip>Só o Administrador Geral (CENDOC) concede o perfil de administrador.</q-tooltip>
+                <q-checkbox v-model="form.admin" :label="nomeDoPapel(papelDeAdmin(siglaDaOmDeDestino))" :disable="salvando || !concediveis.admin">
+                  <q-tooltip>Só o Administrador Geral (CENDOC) concede o papel de administrador.</q-tooltip>
                 </q-checkbox>
-                <q-checkbox v-model="form.auditor" :label="nomeDoPerfil(perfilDeAuditor(siglaDaOmDeDestino))" :disable="salvando || !concediveis.auditor" />
-                <q-checkbox v-model="form.painel" :label="nomeDoPerfil(perfilDoPainelGerencial(siglaDaOmDeDestino))" :disable="salvando || !concediveis.painel">
+                <q-checkbox v-model="form.auditor" :label="nomeDoPapel(papelDeAuditor(siglaDaOmDeDestino))" :disable="salvando || !concediveis.auditor" />
+                <q-checkbox v-model="form.painel" :label="nomeDoPapel(papelDoPainelGerencial(siglaDaOmDeDestino))" :disable="salvando || !concediveis.painel">
                   <q-tooltip>Acesso ao Painel Gerencial: o Painel Gerencial Geral (CENDOC) vê todas as OMs; o Painel Gerencial da OM, só a própria.</q-tooltip>
                 </q-checkbox>
               </div>
@@ -267,18 +267,18 @@
       </q-card>
     </q-dialog>
 
-    <!-- Retirar perfis (revisão de acesso): desmarque o que a pessoa deixa de ter; o que continuar marcado é mantido. -->
+    <!-- Retirar papéis (revisão de acesso): desmarque o que a pessoa deixa de ter; o que continuar marcado é mantido. -->
     <q-dialog v-model="retirada.aberta" persistent>
       <q-card style="min-width:400px">
         <q-card-section class="row items-center q-pb-none">
           <q-icon name="mdi-account-minus-outline" color="negative" size="24px" class="q-mr-sm" />
-          <span class="text-h6">Retirar perfis</span>
+          <span class="text-h6">Retirar papéis</span>
         </q-card-section>
         <q-card-section v-if="retirada.usuario" class="q-pt-md">
           <div class="text-weight-medium q-mb-sm">{{ caixaAlta(retirada.usuario.nome) }}</div>
           <div class="text-caption text-grey-7 q-mb-xs">Desmarque o que a pessoa deixa de ter:</div>
           <div class="column">
-            <q-checkbox v-for="p in perfisElevadosDe(retirada.usuario)" :key="p" v-model="retirada.mantidos[p]" :label="rotuloDoPerfil(p)" />
+            <q-checkbox v-for="p in papeisElevadosDe(retirada.usuario)" :key="p" v-model="retirada.mantidos[p]" :label="rotuloDoPapel(p)" />
           </div>
         </q-card-section>
         <q-card-actions align="right">
@@ -340,9 +340,9 @@ import { validarCpf, mascaraCpf, ocultarCpf, onlyDigits } from '@/utils/cpf.js'
 import { caixaAlta, normalizarBusca } from '@/utils/texto.js'
 import { useAuthStore } from '@/stores/auth.js'
 import { emailInstitucional } from '@/utils/email.js'
-import { omsDoEscopo, perfisConcediveis, podeAdministrar } from '@/utils/escopo.js'
-import { PERFIS, nomeDoPerfil, ehAdmin, ehAuditor, ehPainelGerencial, perfilDeAdmin, perfilDeAuditor, perfilDoPainelGerencial } from '@/utils/perfis.js'
-import { motivoDaRevisao, rotuloDoPerfil, contarPendentes, precisaDeRevisao, temPerfilElevado, perfisElevadosDe } from '@/utils/revisaoDeAcessos.js'
+import { omsDoEscopo, papeisConcediveis, podeAdministrar } from '@/utils/escopo.js'
+import { PAPEIS, nomeDoPapel, ehAdmin, ehAuditor, ehPainelGerencial, papelDeAdmin, papelDeAuditor, papelDoPainelGerencial } from '@/utils/papeis.js'
+import { motivoDaRevisao, rotuloDoPapel, contarPendentes, precisaDeRevisao, temPapelElevado, papeisElevadosDe } from '@/utils/revisaoDeAcessos.js'
 
 const $q = useQuasar()
 const auth = useAuthStore()
@@ -358,7 +358,7 @@ const columns = [
   { name: 'nomeGuerra', label: 'Nome de Guerra', field: 'nomeGuerra', align: 'left', sortable: true },
   { name: 'cpf',    label: 'CPF',     field: 'cpf',    align: 'center', sortable: true, style: 'width:160px' },
   { name: 'om',     label: 'OM',      field: 'omNome', align: 'center', sortable: true },
-  { name: 'perfis', label: 'Perfis',  field: 'perfis', align: 'center' },
+  { name: 'papeis', label: 'Papéis',  field: 'papeis', align: 'center' },
   { name: 'acesso', label: 'Acesso',  field: 'motivoDaRevisao', align: 'center', style: 'width:150px' },
   { name: 'ativo',  label: 'Situação', field: 'ativo',  align: 'center', sortable: true, style: 'width:110px' },
   { name: 'actions', label: 'Ações',  field: 'actions', align: 'center', style: 'width:110px' },
@@ -386,7 +386,7 @@ const postoOptions = computed(() => postos.value.map(p => ({ label: `${p.bigrama
 
 // ── Revisão periódica de acessos ─────────────────────────────────────────────
 // Automática: o servidor diz, para cada usuário, se o acesso precisa de revisão (motivoDaRevisao) e se QUEM está logado é quem o
-// revisa (revisavel). O admin só confere: Manter acesso (reconfirma) ou Retirar perfis…; nada é retirado sozinho, por ora só avisa.
+// revisa (revisavel). O admin só confere: Manter acesso (reconfirma) ou Retirar papéis…; nada é retirado sozinho, por ora só avisa.
 const soPendentes = ref(false)
 const revisando = ref(null)
 const retirada = reactive({ aberta: false, usuario: null, mantidos: {} })
@@ -400,10 +400,10 @@ function formatarData(iso) {
   return `${d}/${m}/${y}`
 }
 
-async function enviarRevisao(usuario, perfisMantidos, mensagem) {
+async function enviarRevisao(usuario, papeisMantidos, mensagem) {
   revisando.value = usuario.id
   try {
-    const atualizado = await usuariosApi.revisarAcesso(usuario.id, ['ELB', ...perfisMantidos])
+    const atualizado = await usuariosApi.revisarAcesso(usuario.id, ['ELB', ...papeisMantidos])
     const i = usuarios.value.findIndex(u => u.id === usuario.id)
     if (i >= 0) usuarios.value.splice(i, 1, atualizado)
     if (!pendentes.value) soPendentes.value = false
@@ -416,12 +416,12 @@ async function enviarRevisao(usuario, perfisMantidos, mensagem) {
 }
 
 function manterAcesso(usuario) {
-  enviarRevisao(usuario, perfisElevadosDe(usuario), `Acesso de ${caixaAlta(usuario.nome)} mantido.`)
+  enviarRevisao(usuario, papeisElevadosDe(usuario), `Acesso de ${caixaAlta(usuario.nome)} mantido.`)
 }
 
 function abrirRetirada(usuario) {
   retirada.usuario = usuario
-  retirada.mantidos = Object.fromEntries(perfisElevadosDe(usuario).map(p => [p, true]))
+  retirada.mantidos = Object.fromEntries(papeisElevadosDe(usuario).map(p => [p, true]))
   retirada.aberta = true
 }
 
@@ -429,7 +429,7 @@ function confirmarRetirada() {
   const usuario = retirada.usuario
   retirada.aberta = false
   if (!usuario) return
-  enviarRevisao(usuario, perfisElevadosDe(usuario).filter(p => retirada.mantidos[p]), `Acesso de ${caixaAlta(usuario.nome)} revisado.`)
+  enviarRevisao(usuario, papeisElevadosDe(usuario).filter(p => retirada.mantidos[p]), `Acesso de ${caixaAlta(usuario.nome)} revisado.`)
 }
 
 
@@ -469,7 +469,7 @@ const editando    = ref(null) // Usuario sendo editado, ou null (criação)
 const mostrarSenha = ref(false)
 
 // editor: true por padrão e travado na UI (checkbox disable) -- ver
-// UsuarioService.perfisComo no backend, que também força isso independente do
+// UsuarioService.papeisComo no backend, que também força isso independente do
 // que vier daqui (mesma regra em duas camadas, não só decoração de tela).
 const form = reactive({
   nome: '', nomeGuerra: '', cpf: '', email: '', postoGraduacaoId: null, senha: '',
@@ -479,9 +479,9 @@ const form = reactive({
 // Escopo (utils/escopo.js): o admin local só gerencia a própria OM e não concede Administrador nem Publicador; o geral (CENDOC) gerencia
 // todas. A tela esconde o que o servidor recusaria -- o servidor é quem garante.
 const siglaDaOmDeDestino = computed(() => oms.value.find(o => o.id === form.omId)?.sigla)
-const concediveis = computed(() => perfisConcediveis(auth.usuario?.omSigla, siglaDaOmDeDestino.value))
+const concediveis = computed(() => papeisConcediveis(auth.usuario?.omSigla, siglaDaOmDeDestino.value))
 const podeAdministrarEste = (usuario) => podeAdministrar(auth.usuario?.omSigla, usuario)
-// Trocar a OM de destino para uma que não admite o perfil desmarca o que deixou de valer (ex.: Publicador fora do CENDOC).
+// Trocar a OM de destino para uma que não admite o papel desmarca o que deixou de valer (ex.: Publicador fora do CENDOC).
 watch(concediveis, (c) => {
   if (!c.publicador) form.publicador = false
   if (!c.admin) form.admin = false
@@ -514,27 +514,27 @@ function abrirEdicao(usuario) {
     senha: '',
     omId: usuario.omId,
     editor: true, // sempre -- ver comentário no form acima
-    aprovador: usuario.perfis.includes('APR_OM'),
-    publicador: usuario.perfis.includes('PUB_BCA'),
-    admin: ehAdmin(usuario.perfis),
-    auditor: ehAuditor(usuario.perfis),
-    painel: ehPainelGerencial(usuario.perfis),
+    aprovador: usuario.papeis.includes('APR_OM'),
+    publicador: usuario.papeis.includes('PUB_BCA'),
+    admin: ehAdmin(usuario.papeis),
+    auditor: ehAuditor(usuario.papeis),
+    painel: ehPainelGerencial(usuario.papeis),
     ativo: usuario.ativo,
   })
   formRef.value?.resetValidation()
   dialogForm.value = true
 }
 
-function perfisSelecionados() {
-  const perfis = []
-  if (form.editor) perfis.push('ELB')
-  if (form.aprovador) perfis.push('APR_OM')
-  if (form.publicador) perfis.push('PUB_BCA')
+function papeisSelecionados() {
+  const papeis = []
+  if (form.editor) papeis.push('ELB')
+  if (form.aprovador) papeis.push('APR_OM')
+  if (form.publicador) papeis.push('PUB_BCA')
   // Administrador e Auditor existem em duas versões; vale a da lotação de destino (CENDOC = geral).
-  if (form.admin) perfis.push(perfilDeAdmin(siglaDaOmDeDestino.value))
-  if (form.auditor) perfis.push(perfilDeAuditor(siglaDaOmDeDestino.value))
-  if (form.painel) perfis.push(perfilDoPainelGerencial(siglaDaOmDeDestino.value))
-  return perfis
+  if (form.admin) papeis.push(papelDeAdmin(siglaDaOmDeDestino.value))
+  if (form.auditor) papeis.push(papelDeAuditor(siglaDaOmDeDestino.value))
+  if (form.painel) papeis.push(papelDoPainelGerencial(siglaDaOmDeDestino.value))
+  return papeis
 }
 
 async function salvar() {
@@ -551,7 +551,7 @@ async function salvar() {
         postoGraduacaoId: form.postoGraduacaoId,
         omId: form.omId,
         ativo: form.ativo,
-        perfis: perfisSelecionados(),
+        papeis: papeisSelecionados(),
       })
       // Se o admin editou o próprio usuário, atualiza o topbar na hora --
       // sem isso, o nome/posto exibido ficaria desatualizado até um novo login.
@@ -568,7 +568,7 @@ async function salvar() {
         postoGraduacaoId: form.postoGraduacaoId,
         senha: form.senha,
         omId: form.omId,
-        perfis: perfisSelecionados(),
+        papeis: papeisSelecionados(),
       })
       $q.notify({ type: 'positive', message: 'Usuário criado.' })
     }

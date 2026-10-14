@@ -636,7 +636,7 @@ function executarClone() {
 const dialogSubstituir = reactive({ open: false })
 const substituicao = ref(null)
 
-// Visível para quem pode criar NPA (perfil ELB e OM habilitada, como no Clonar) e só numa NPA publicada e parada.
+// Visível para quem pode criar NPA (papel ELB e OM habilitada, como no Clonar) e só numa NPA publicada e parada.
 const podeSubstituirEste = computed(() =>
   podeSubstituir(documento.value, regras.value) && auth.isElaborador && auth.podeCriarNoModulo(regras.value.tipo))
 

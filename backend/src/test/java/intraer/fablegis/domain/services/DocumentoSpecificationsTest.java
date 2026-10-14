@@ -4,7 +4,7 @@ import intraer.fablegis.domain.entities.estruturaDocumento.Documento;
 import intraer.fablegis.domain.entities.estruturaDocumento.SituacaoBcaEnum;
 import intraer.fablegis.domain.entities.estruturaDocumento.SituacaoLocalEnum;
 import intraer.fablegis.domain.entities.usuario.OrganizacaoMilitar;
-import intraer.fablegis.domain.entities.usuario.PerfilEnum;
+import intraer.fablegis.domain.entities.usuario.PapelEnum;
 import intraer.fablegis.domain.entities.usuario.Usuario;
 import intraer.fablegis.domain.regras.TipoDeEspecie;
 import jakarta.persistence.criteria.CriteriaBuilder;
@@ -64,7 +64,7 @@ class DocumentoSpecificationsTest {
     }
 
     @Test
-    void aRevisaoEAPublicacaoSaoAsEtapasDeCadaPerfilNoFluxoNormalENaRevogacao() {
+    void aRevisaoEAPublicacaoSaoAsEtapasDeCadaPapelNoFluxoNormalENaRevogacao() {
         assertThat(DocumentoSpecifications.SITUACOES_DE_REVISAO)
                 .containsExactlyInAnyOrder(SituacaoLocalEnum.EM_REVISAO, SituacaoLocalEnum.ANALISE_REVOGACAO);
         assertThat(DocumentoSpecifications.SITUACOES_DE_PUBLICACAO)
@@ -134,15 +134,15 @@ class DocumentoSpecificationsTest {
 
     // ─── Aguardando minha ação: sem atribuição pessoal ─────────────────────────
 
-    private static Usuario pessoa(Long omId, PerfilEnum... perfis) {
+    private static Usuario pessoa(Long omId, PapelEnum... papeis) {
         var om = new OrganizacaoMilitar();
         om.setId(omId);
         var u = new Usuario();
         u.setId(7L);
         u.setOm(om);
-        var conjunto = EnumSet.noneOf(PerfilEnum.class);
-        conjunto.addAll(java.util.List.of(perfis));
-        u.setPerfis(conjunto);
+        var conjunto = EnumSet.noneOf(PapelEnum.class);
+        conjunto.addAll(java.util.List.of(papeis));
+        u.setPapeis(conjunto);
         return u;
     }
 
@@ -181,25 +181,25 @@ class DocumentoSpecificationsTest {
     @Test
     void oAprovadorVeOQueAguardaAprovacaoNaPropriaOm() {
         var c = new Cena();
-        assertThat(c.para(pessoa(1L, PerfilEnum.ELB, PerfilEnum.APR_OM))).isSameAs(c.comoAprovador);
+        assertThat(c.para(pessoa(1L, PapelEnum.ELB, PapelEnum.APR_OM))).isSameAs(c.comoAprovador);
     }
 
     // Publicador (só existe no CENDOC): o que está em publicação, de qualquer OM.
     @Test
     void oPublicadorVeOQueAguardaPublicacaoDeQualquerOm() {
         var c = new Cena();
-        assertThat(c.para(pessoa(1L, PerfilEnum.ELB, PerfilEnum.PUB_BCA))).isSameAs(c.naPublicacao);
+        assertThat(c.para(pessoa(1L, PapelEnum.ELB, PapelEnum.PUB_BCA))).isSameAs(c.naPublicacao);
     }
 
     @Test
     void quemEAprovadorEPublicadorVeAsDuasFilas() {
         var c = new Cena();
-        assertThat(c.para(pessoa(1L, PerfilEnum.APR_OM, PerfilEnum.PUB_BCA))).isSameAs(c.ambos);
+        assertThat(c.para(pessoa(1L, PapelEnum.APR_OM, PapelEnum.PUB_BCA))).isSameAs(c.ambos);
     }
 
     @Test
-    void semPerfilDeAprovadorNemDePublicadorNadaAguardaAPessoa() {
+    void semPapelDeAprovadorNemDePublicadorNadaAguardaAPessoa() {
         var c = new Cena();
-        assertThat(c.para(pessoa(1L, PerfilEnum.ELB))).isSameAs(c.ninguem);
+        assertThat(c.para(pessoa(1L, PapelEnum.ELB))).isSameAs(c.ninguem);
     }
 }

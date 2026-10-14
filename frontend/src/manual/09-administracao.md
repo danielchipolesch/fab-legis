@@ -1,7 +1,7 @@
-<!-- perfis: ADM_OM ADM_GER AUD_OM AUD_GER -->
+<!-- papeis: ADM_OM ADM_GER AUD_OM AUD_GER -->
 # Administração e auditoria
 
-Para quem tem perfil de **Administrador** ou de **Auditor**. O administrador é um perfil **puramente administrativo**: ele gerencia acessos, mas não edita, aprova nem publica documentos (para isso a pessoa precisa dos perfis correspondentes).
+Para quem tem papel de **Administrador** ou de **Auditor**. O administrador é um papel **puramente administrativo**: ele gerencia acessos, mas não edita, aprova nem publica documentos (para isso a pessoa precisa dos papéis correspondentes).
 
 ## Manter Usuários
 
@@ -9,25 +9,25 @@ Menu do usuário › **Manter Usuários**. Aqui o administrador cadastra e mant�
 
 - **Criar** o usuário (CPF, nome, nome de guerra, posto, e-mail `@fab.mil.br`, OM e senha inicial);
 - **Editar** os dados, **desativar** e **redefinir a senha**;
-- **Conceder ou retirar perfis**, marcando as caixas do formulário.
+- **Conceder ou retirar papéis**, marcando as caixas do formulário.
 
 O que cada administrador alcança:
 
 | | Administrador Geral (CENDOC) | Administrador da OM |
 |---|---|---|
 | Usuários | De **todas** as OMs | Só os da **própria OM** |
-| Perfis que concede | Todos, respeitando a lotação | **Elaborador, Aprovador da OM, Auditor da OM e Painel Gerencial da OM** |
+| Papéis que concede | Todos, respeitando a lotação | **Elaborador, Aprovador da OM, Auditor da OM e Painel Gerencial da OM** |
 | Administradores | Mantém os administradores das OMs | **Não altera outro administrador** |
 
-Regras de lotação, que o sistema recusa se não forem cumpridas: **Administrador Geral, Auditor Geral, Publicador do BCA e Painel Gerencial Geral** só existem para quem é do **CENDOC**; **Administrador da OM, Auditor da OM e Painel Gerencial da OM**, para quem é de **outras OMs**. O CENDOC **nunca fica sem Administrador Geral**: o último não pode perder o perfil, ser desativado nem mudar de OM. Conceda o perfil a outra pessoa antes.
+Regras de lotação, que o sistema recusa se não forem cumpridas: **Administrador Geral, Auditor Geral, Publicador do BCA e Painel Gerencial Geral** só existem para quem é do **CENDOC**; **Administrador da OM, Auditor da OM e Painel Gerencial da OM**, para quem é de **outras OMs**. O CENDOC **nunca fica sem Administrador Geral**: o último não pode perder o papel, ser desativado nem mudar de OM. Conceda o papel a outra pessoa antes.
 
 O CPF aparece parcialmente oculto nas telas (`111.***.***-35`).
 
 ## Revisão periódica de acessos
 
-Quem tem um perfil além do Elaborador precisa ter o acesso **reconfirmado**: a cada **6 meses**, ao **trocar de OM** e quando a conta fica **6 meses sem entrar**. O sistema calcula isso sozinho e mostra na coluna **Acesso** da lista de usuários, com um aviso e o filtro "só os pendentes". Ninguém precisa pedir.
+Quem tem um papel além do Elaborador precisa ter o acesso **reconfirmado**: a cada **6 meses**, ao **trocar de OM** e quando a conta fica **6 meses sem entrar**. O sistema calcula isso sozinho e mostra na coluna **Acesso** da lista de usuários, com um aviso e o filtro "só os pendentes". Ninguém precisa pedir.
 
-O administrador confere as linhas que cabem a ele, com **Manter acesso** (reconfirma os mesmos perfis) ou **Retirar perfis…**. O Administrador Geral confere os administradores das OMs e o pessoal do CENDOC; o Administrador da OM, os demais usuários da própria OM. Ninguém revisa o próprio acesso. Por ora é só um **aviso**: nada é suspenso sozinho.
+O administrador confere as linhas que cabem a ele, com **Manter acesso** (reconfirma os mesmos papéis) ou **Retirar papéis…**. O Administrador Geral confere os administradores das OMs e o pessoal do CENDOC; o Administrador da OM, os demais usuários da própria OM. Ninguém revisa o próprio acesso. Por ora é só um **aviso**: nada é suspenso sozinho.
 
 ## Habilitação de espécies por OM
 
@@ -42,6 +42,6 @@ Para o **Administrador Geral**. Menu do usuário › **Manter DOM de OM**. Cada 
 Para o **Auditor da OM** (só a própria OM) e o **Auditor Geral** (todas). Menu do usuário › **Auditoria**, com duas abas:
 
 - **Documentos:** quem visualizou, criou, editou, excluiu, clonou, mudou a situação ou compartilhou cada documento, e quando. O registro sobrevive à exclusão do documento.
-- **Acessos:** toda mudança no acesso de um usuário (criação, concessão e retirada de perfil, ativação e desativação, troca de OM, redefinição de senha, revisão), com quem fez e o detalhe. Filtre por CPF, ação e período.
+- **Acessos:** toda mudança no acesso de um usuário (criação, concessão e retirada de papel, ativação e desativação, troca de OM, redefinição de senha, revisão), com quem fez e o detalhe. Filtre por CPF, ação e período.
 
-O auditor é independente do administrador: quem administra **não** vê a auditoria sem ter o perfil de auditor.
+O auditor é independente do administrador: quem administra **não** vê a auditoria sem ter o papel de auditor.

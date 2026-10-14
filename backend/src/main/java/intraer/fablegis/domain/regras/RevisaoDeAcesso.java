@@ -1,6 +1,6 @@
 package intraer.fablegis.domain.regras;
 
-import intraer.fablegis.domain.entities.usuario.PerfilEnum;
+import intraer.fablegis.domain.entities.usuario.PapelEnum;
 import intraer.fablegis.domain.entities.usuario.Usuario;
 
 import java.sql.Timestamp;
@@ -8,7 +8,7 @@ import java.time.Duration;
 import java.util.EnumSet;
 import java.util.Set;
 
-// Revisão periódica de acessos (docs/autenticacao.md, "Revisão periódica de acessos"). Quem tem perfil ELEVADO -- qualquer um
+// Revisão periódica de acessos (docs/autenticacao.md, "Revisão periódica de acessos"). Quem tem papel ELEVADO -- qualquer um
 // além do Editor, que todo usuário tem -- precisa ter o acesso reconfirmado:
 //   - a cada 6 meses (180 dias) desde a última revisão;
 //   - ao trocar de OM (a revisão fica pendente de imediato);
@@ -33,22 +33,22 @@ public final class RevisaoDeAcesso {
 
     private RevisaoDeAcesso() {}
 
-    // Os perfis que exigem revisão: todos menos o Editor.
-    public static Set<PerfilEnum> perfisElevados(Set<PerfilEnum> perfis) {
-        var elevados = EnumSet.noneOf(PerfilEnum.class);
-        if (perfis != null) {
-            elevados.addAll(perfis);
+    // Os papéis que exigem revisão: todos menos o Editor.
+    public static Set<PapelEnum> papeisElevados(Set<PapelEnum> papeis) {
+        var elevados = EnumSet.noneOf(PapelEnum.class);
+        if (papeis != null) {
+            elevados.addAll(papeis);
         }
-        elevados.remove(PerfilEnum.ELB);
+        elevados.remove(PapelEnum.ELB);
         return elevados;
     }
 
-    public static boolean temPerfilElevado(Usuario usuario) {
-        return !perfisElevados(usuario.getPerfis()).isEmpty();
+    public static boolean temPapelElevado(Usuario usuario) {
+        return !papeisElevados(usuario.getPapeis()).isEmpty();
     }
 
     public static Motivo motivo(Usuario usuario, Timestamp agora) {
-        if (!temPerfilElevado(usuario)) return Motivo.NENHUM;
+        if (!temPapelElevado(usuario)) return Motivo.NENHUM;
         if (usuario.getDtRevisaoAcesso() == null) return Motivo.TROCA_DE_OM;
         if (passou(usuario.getDtUltimoAcesso(), PRAZO_DE_CONTA_DORMENTE, agora)) return Motivo.CONTA_DORMENTE;
         if (passou(usuario.getDtRevisaoAcesso(), PRAZO_DE_REVISAO, agora)) return Motivo.REVISAO_VENCIDA;

@@ -16,8 +16,8 @@ Hoje, boa parte disso é feita à mão em editores de texto genéricos — o que
 - **exportar o mesmo conteúdo** em PDF e HTML sem reformatar nada;
 - **comparar versões** e mostrar exatamente o que mudou entre elas;
 - **gerar o texto sugerido** da portaria de alteração, seguindo o Art. 22 da NSCA 5-3;
-- **controlar o ciclo de vida** (Rascunho → Minuta → Aprovado → Publicado…) com transições validadas no servidor **e autorizadas por perfil**;
-- **coordenar edição concorrente** — login por CPF, perfis (Elaborador, Aprovador da OM, Publicador do BCA, Auditor, Administrador e Painel Gerencial, cada um com o seu escopo), coautoria, aviso de presença e notificações em tempo real.
+- **controlar o ciclo de vida** (Rascunho → Minuta → Aprovado → Publicado…) com transições validadas no servidor **e autorizadas por papel**;
+- **coordenar edição concorrente** — login por CPF, papéis (Elaborador, Aprovador da OM, Publicador do BCA, Auditor, Administrador e Painel Gerencial, cada um com o seu escopo), coautoria, aviso de presença e notificações em tempo real.
 
 > **Público-alvo.** Seções de legislação, assessorias jurídicas e órgãos centrais de sistema responsáveis pela elaboração de ICA, NSCA, MCA, RCA, DCA, PCA, OCA, RICA, ROCA, TCA e FCA.
 
@@ -27,7 +27,7 @@ Hoje, boa parte disso é feita à mão em editores de texto genéricos — o que
 
 ### Backend
 
-| Tecnologia | Versão | Perfil |
+| Tecnologia | Versão | Papel |
 |---|---|---|
 | Java | 25 | Linguagem |
 | Spring Boot | 4.1.1 | Framework de aplicação |
@@ -48,7 +48,7 @@ Hoje, boa parte disso é feita à mão em editores de texto genéricos — o que
 
 ### Frontend
 
-| Tecnologia | Versão | Perfil |
+| Tecnologia | Versão | Papel |
 |---|---|---|
 | Vue | 3.5 (Composition API) | Framework de UI |
 | Quasar | 2.17 | Biblioteca de componentes e design system |
@@ -63,7 +63,7 @@ Hoje, boa parte disso é feita à mão em editores de texto genéricos — o que
 
 ### Infraestrutura
 
-| Tecnologia | Perfil |
+| Tecnologia | Papel |
 |---|---|
 | Docker / Docker Compose | Orquestração dos serviços |
 | Nginx | Servidor estático do frontend em produção |

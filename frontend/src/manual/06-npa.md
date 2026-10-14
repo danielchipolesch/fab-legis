@@ -1,4 +1,4 @@
-<!-- perfis: ELB APR_OM PUB_BCA -->
+<!-- papeis: ELB APR_OM PUB_BCA -->
 # NPA — Norma Padrão de Ação
 
 A NPA é uma Comunicação Oficial Padronizada, com regras próprias. Ela fica no módulo **NPA**, separada das espécies convencionais, e **qualquer OM pode criá-la**.

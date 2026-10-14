@@ -7,7 +7,7 @@ import org.hibernate.annotations.CreationTimestamp;
 
 import java.sql.Timestamp;
 
-// Trilha de auditoria dos ACESSOS (quem concedeu/retirou perfil, criou ou desativou usuário...). O alvo é um snapshot, não uma
+// Trilha de auditoria dos ACESSOS (quem concedeu/retirou papel, criou ou desativou usuário...). O alvo é um snapshot, não uma
 // FK: o registro tem de continuar fiel ao que aconteceu mesmo que o cadastro mude depois.
 @Data
 @Entity

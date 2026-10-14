@@ -45,7 +45,7 @@ const MODULO_COMUNICACAO_OFICIAL_PADRONIZADA = {
   colunasOcultas: ['especie', 'assunto_basico'],
 }
 
-const PERFIS = {
+const PAPÉIS = {
   [CONVENCIONAL]: {
     tipo: CONVENCIONAL,
     modulo: MODULO_CONVENCIONAL,
@@ -82,11 +82,11 @@ const PERFIS = {
 }
 
 export function regrasDe(tipoDeEspecie) {
-  return PERFIS[tipoDeEspecie] ?? PERFIS[CONVENCIONAL]
+  return PAPÉIS[tipoDeEspecie] ?? PAPÉIS[CONVENCIONAL]
 }
 
 // Os módulos do sistema, na ordem em que aparecem no hub e no menu.
-export const MODULOS = Object.values(PERFIS).map(p => p.modulo)
+export const MODULOS = Object.values(PAPÉIS).map(p => p.modulo)
 
 export function moduloDe(tipoDeEspecie) {
   return regrasDe(tipoDeEspecie).modulo

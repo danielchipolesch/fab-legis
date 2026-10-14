@@ -8,8 +8,8 @@ import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.List;
 
-// motivoDaRevisao: por que o acesso precisa de revisão (NENHUM = em dia ou sem perfil elevado) -- calculado na hora, nada é gravado.
-// revisavel: quem pergunta é quem revisa o acesso deste usuário (RevisaoDeAcesso.podeRevisar) e há perfil elevado a revisar.
+// motivoDaRevisao: por que o acesso precisa de revisão (NENHUM = em dia ou sem papel elevado) -- calculado na hora, nada é gravado.
+// revisavel: quem pergunta é quem revisa o acesso deste usuário (RevisaoDeAcesso.podeRevisar) e há papel elevado a revisar.
 public record UsuarioResponseDto(
 
         Long id,
@@ -24,7 +24,7 @@ public record UsuarioResponseDto(
         String omNome,
         String omSigla,
         boolean ativo,
-        List<String> perfis,
+        List<String> papeis,
         RevisaoDeAcesso.Motivo motivoDaRevisao,
         boolean revisavel,
 
@@ -45,7 +45,7 @@ public record UsuarioResponseDto(
     public static UsuarioResponseDto from(Usuario usuario, Usuario quemPergunta) {
         var posto = usuario.getPostoGraduacao();
         boolean revisavel = quemPergunta != null && usuario.isAtivo()
-                && RevisaoDeAcesso.temPerfilElevado(usuario) && RevisaoDeAcesso.podeRevisar(quemPergunta, usuario);
+                && RevisaoDeAcesso.temPapelElevado(usuario) && RevisaoDeAcesso.podeRevisar(quemPergunta, usuario);
         return new UsuarioResponseDto(
                 usuario.getId(),
                 usuario.getNome(),
@@ -59,7 +59,7 @@ public record UsuarioResponseDto(
                 usuario.getOm().getNome(),
                 usuario.getOm().getSigla(),
                 usuario.isAtivo(),
-                usuario.getPerfis().stream().map(Enum::name).toList(),
+                usuario.getPapeis().stream().map(Enum::name).toList(),
                 usuario.isAtivo() ? RevisaoDeAcesso.motivo(usuario, Timestamp.from(Instant.now())) : RevisaoDeAcesso.Motivo.NENHUM,
                 revisavel,
                 usuario.getDtRevisaoAcesso(),

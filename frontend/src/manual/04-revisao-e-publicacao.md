@@ -1,4 +1,4 @@
-<!-- perfis: APR_OM PUB_BCA -->
+<!-- papeis: APR_OM PUB_BCA -->
 # Revisão e publicação
 
 O documento percorre estas etapas, e em cada uma há **quem age**:
@@ -14,7 +14,7 @@ Ninguém é "atribuído": quem envia não escolhe uma pessoa. Qualquer Aprovador
 
 ## Aprovar (Aprovador da OM)
 
-Para quem tem o perfil **Aprovador da OM**. Abra **Manter Revisão de Documento** (pelo quadro **Aguardando Minha Ação** da Área de Trabalho ou pelo menu). A fila mostra os documentos da sua OM em **Em revisão** ou **Análise de revogação**, com código, título, autores e situação.
+Para quem tem o papel **Aprovador da OM**. Abra **Manter Revisão de Documento** (pelo quadro **Aguardando Minha Ação** da Área de Trabalho ou pelo menu). A fila mostra os documentos da sua OM em **Em revisão** ou **Análise de revogação**, com código, título, autores e situação.
 
 - **Abrir:** enquanto o documento está em revisão, você pode **editar o texto** (o autor não).
 - **Aprovar:** o documento segue para a fila de publicação do CENDOC. Fica registrado **quem aprovou**. Você não escolhe o publicador.
@@ -24,7 +24,7 @@ Você só age nos documentos da **sua OM**: o aprovador de outra OM não.
 
 ## Publicar (Publicador do BCA)
 
-Para quem tem o perfil **Publicador do BCA**, só no CENDOC. Abra **Manter Publicação de Documento**. A fila mostra os documentos de todas as OMs em **Em publicação** ou **Em revogação**.
+Para quem tem o papel **Publicador do BCA**, só no CENDOC. Abra **Manter Publicação de Documento**. A fila mostra os documentos de todas as OMs em **Em publicação** ou **Em revogação**.
 
 - **Publicar:** abre um formulário. Na **primeira publicação**, informe a **Portaria** (órgão, setor, número, data), o **BCA** (número, data), anexe o PDF da portaria e preencha a **parte preliminar** (epígrafe, ementa, preâmbulo, fecho e assinatura). A parte preliminar é gravada **só na primeira publicação** e não muda depois. Numa **alteração**, basta Portaria, BCA e o PDF da portaria.
 - **Devolver:** só para o que está *Em publicação*. Uma revogação já aprovada não é devolvida: só pode ser formalizada.

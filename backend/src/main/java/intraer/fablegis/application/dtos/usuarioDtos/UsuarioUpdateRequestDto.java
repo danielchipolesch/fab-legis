@@ -1,6 +1,6 @@
 package intraer.fablegis.application.dtos.usuarioDtos;
 
-import intraer.fablegis.domain.entities.usuario.PerfilEnum;
+import intraer.fablegis.domain.entities.usuario.PapelEnum;
 import intraer.fablegis.application.validation.EmailInstitucional;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -27,9 +27,9 @@ public record UsuarioUpdateRequestDto(
         @NotNull
         Boolean ativo,
 
-        Set<PerfilEnum> perfis
+        Set<PapelEnum> papeis
 ) {
     public UsuarioUpdateRequestDto {
-        if (perfis == null) perfis = Set.of();
+        if (papeis == null) papeis = Set.of();
     }
 }

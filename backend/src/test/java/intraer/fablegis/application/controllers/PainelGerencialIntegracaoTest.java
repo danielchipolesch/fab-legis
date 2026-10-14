@@ -1,7 +1,7 @@
 package intraer.fablegis.application.controllers;
 
 import intraer.fablegis.IntegracaoComPostgresBase;
-import intraer.fablegis.domain.entities.usuario.PerfilEnum;
+import intraer.fablegis.domain.entities.usuario.PapelEnum;
 import intraer.fablegis.domain.entities.usuario.Usuario;
 import intraer.fablegis.infrastructure.repositories.EspecieNormativaRepository;
 import intraer.fablegis.infrastructure.repositories.OrganizacaoMilitarRepository;
@@ -29,11 +29,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 // Painel Gerencial de ponta a ponta (docs/funcionalidades.md): o Painel Gerencial Geral vê todas as OMs e filtra por uma; o Painel Gerencial da OM, só a
-// própria, sem visão geral; quem não tem o perfil do painel não vê nada.
+// própria, sem visão geral; quem não tem o papel do painel não vê nada.
 class PainelGerencialIntegracaoTest extends IntegracaoComPostgresBase {
 
     private static final String CPF_PNL_DA_OM = "50617283916";
-    private static final String CPF_SEM_PERFIL = "61728394027";
+    private static final String CPF_SEM_PAPEL = "61728394027";
 
     @Autowired WebApplicationContext contexto;
     @Autowired UsuarioRepository usuarioRepository;
@@ -68,16 +68,16 @@ class PainelGerencialIntegracaoTest extends IntegracaoComPostgresBase {
         return usuarioRepository.findAll().stream().filter(u -> !u.isSistema()).findFirst().orElseThrow();
     }
 
-    private Usuario pessoa(String sigla, String cpf, PerfilEnum... perfis) {
+    private Usuario pessoa(String sigla, String cpf, PapelEnum... papeis) {
         return usuarioRepository.findByCpf(cpf).orElseGet(() -> {
             var u = new Usuario();
             u.setNome("Pessoa " + cpf);
             u.setCpf(cpf);
             u.setSenhaHash("{noop}x");
             u.setOm(omRepository.findBySigla(sigla).orElseThrow());
-            var conjunto = EnumSet.noneOf(PerfilEnum.class);
-            conjunto.addAll(java.util.List.of(perfis));
-            u.setPerfis(conjunto);
+            var conjunto = EnumSet.noneOf(PapelEnum.class);
+            conjunto.addAll(java.util.List.of(papeis));
+            u.setPapeis(conjunto);
             return usuarioRepository.save(u);
         });
     }
@@ -96,7 +96,7 @@ class PainelGerencialIntegracaoTest extends IntegracaoComPostgresBase {
     }
 
     @Test
-    void oPerfilGeralDoPainelVeUmaOmEFiltraPorEla() throws Exception {
+    void oPapelGeralDoPainelVeUmaOmEFiltraPorEla() throws Exception {
         mvc.perform(get("/v1/painel-gerencial").param("omId", String.valueOf(bant)).with(como(painelGeral())))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.escopo.omSigla").value("BANT"))
@@ -120,7 +120,7 @@ class PainelGerencialIntegracaoTest extends IntegracaoComPostgresBase {
     }
 
     @Test
-    void semFiltroOPerfilGeralVeTodasAsOmsEAPorOmListaAsDuas() throws Exception {
+    void semFiltroOPapelGeralVeTodasAsOmsEAPorOmListaAsDuas() throws Exception {
         mvc.perform(get("/v1/painel-gerencial").with(como(painelGeral())))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.escopo.omId").doesNotExist())
@@ -129,8 +129,8 @@ class PainelGerencialIntegracaoTest extends IntegracaoComPostgresBase {
     }
 
     @Test
-    void oPerfilDaOmDoPainelVeSoAPropriaOmSemVisaoGeral() throws Exception {
-        var daOm = pessoa("BANT", CPF_PNL_DA_OM, PerfilEnum.ELB, PerfilEnum.PNL_OM);
+    void oPapelDaOmDoPainelVeSoAPropriaOmSemVisaoGeral() throws Exception {
+        var daOm = pessoa("BANT", CPF_PNL_DA_OM, PapelEnum.ELB, PapelEnum.PNL_OM);
 
         mvc.perform(get("/v1/painel-gerencial").with(como(daOm)))
                 .andExpect(status().isOk())
@@ -145,8 +145,8 @@ class PainelGerencialIntegracaoTest extends IntegracaoComPostgresBase {
     }
 
     @Test
-    void quemNaoTemOPerfilDoPainelNaoAcessa() throws Exception {
-        mvc.perform(get("/v1/painel-gerencial").with(como(pessoa("BANT", CPF_SEM_PERFIL, PerfilEnum.ELB, PerfilEnum.ADM_OM, PerfilEnum.AUD_OM))))
+    void quemNaoTemOPapelDoPainelNaoAcessa() throws Exception {
+        mvc.perform(get("/v1/painel-gerencial").with(como(pessoa("BANT", CPF_SEM_PAPEL, PapelEnum.ELB, PapelEnum.ADM_OM, PapelEnum.AUD_OM))))
                 .andExpect(status().isForbidden());
     }
 

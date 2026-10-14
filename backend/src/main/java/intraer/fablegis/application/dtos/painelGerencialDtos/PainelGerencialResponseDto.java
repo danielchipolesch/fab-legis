@@ -4,7 +4,7 @@ import java.time.LocalDate;
 import java.util.List;
 
 // Os indicadores do Painel Gerencial (docs/funcionalidades.md). `escopo` diz a OM pela qual tudo foi filtrado (nulo = todas) e se quem
-// pergunta pode trocar de OM (`podeFiltrarPorOm`: só o perfil Painel Gerencial Geral). Tempos em dias.
+// pergunta pode trocar de OM (`podeFiltrarPorOm`: só o papel Painel Gerencial Geral). Tempos em dias.
 public record PainelGerencialResponseDto(
         Escopo escopo,
         Totais totais,

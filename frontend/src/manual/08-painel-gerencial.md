@@ -1,18 +1,18 @@
-<!-- perfis: PNL_OM PNL_GER -->
+<!-- papeis: PNL_OM PNL_GER -->
 # Painel Gerencial
 
-Para quem tem o perfil **Painel Gerencial da OM** ou **Painel Gerencial Geral**. O painel mostra indicadores da gestão normativa, calculados na hora com o que o sistema já registra; ninguém digita nada. O botão de acesso fica no **Acesso Rápido** da Área de Trabalho, **antes** dos outros módulos, e só aparece para quem tem o perfil.
+Para quem tem o papel **Painel Gerencial da OM** ou **Painel Gerencial Geral**. O painel mostra indicadores da gestão normativa, calculados na hora com o que o sistema já registra; ninguém digita nada. O botão de acesso fica no **Acesso Rápido** da Área de Trabalho, **antes** dos outros módulos, e só aparece para quem tem o papel.
 
 ## O que você vê
 
-| Perfil | Alcance |
+| Papel | Alcance |
 |---|---|
 | **Painel Gerencial Geral** (CENDOC) | Os indicadores de **todas as OMs**, com filtro por OM e a tabela *Por OM* |
 | **Painel Gerencial da OM** | Só os da **própria OM**. Não há campo de OM nem visão geral |
 
 ## Filtros
 
-**Período** (abre nos últimos 12 meses), **espécie** e, só para o perfil Geral, **OM**. O botão **Últimos 12 meses** volta ao período padrão. Os números se atualizam a cada mudança.
+**Período** (abre nos últimos 12 meses), **espécie** e, só para o papel Geral, **OM**. O botão **Últimos 12 meses** volta ao período padrão. Os números se atualizam a cada mudança.
 
 ## Os indicadores
 
@@ -23,7 +23,7 @@ Para quem tem o perfil **Painel Gerencial da OM** ou **Painel Gerencial Geral**.
 - **Esperando Agora:** quantos documentos aguardam aprovação e quantos aguardam publicação.
 - **Situação Atual:** todos os documentos, hoje, por etapa.
 - **Parados Há Mais Tempo:** os dez documentos mais antigos esperando aprovação ou publicação, com link para abrir cada um.
-- **Por OM** (só no perfil Geral): as OMs com mais documentos criados no período.
+- **Por OM** (só no papel Geral): as OMs com mais documentos criados no período.
 
 ## Baixar um gráfico
 

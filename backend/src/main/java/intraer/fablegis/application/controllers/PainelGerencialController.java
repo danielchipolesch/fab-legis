@@ -17,7 +17,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDate;
 
-// Painel Gerencial: os indicadores da gestão normativa -- só para quem tem o perfil do Painel Gerencial (da OM ou Geral). A OM pela qual se filtra
+// Painel Gerencial: os indicadores da gestão normativa -- só para quem tem o papel do Painel Gerencial (da OM ou Geral). A OM pela qual se filtra
 // é decidida no servidor (EscopoDoPainel): o Painel Gerencial da OM nunca vê além da própria.
 @RestController
 @RequestMapping(value = "/v1/painel-gerencial", produces = MediaType.APPLICATION_JSON_VALUE)

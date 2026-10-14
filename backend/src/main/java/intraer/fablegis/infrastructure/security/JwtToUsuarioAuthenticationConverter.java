@@ -17,7 +17,7 @@ import org.springframework.stereotype.Component;
 // o Usuario do banco pelo claim "sub" (mesmo id que JwtAuthenticationFilter
 // usava) e devolve um UsuarioPrincipal -- todo o resto do código continua
 // igual. Authorities vêm sempre do estado ATUAL do usuário no banco (não das
-// claims do token), igual o filtro antigo já fazia -- uma mudança de perfil
+// claims do token), igual o filtro antigo já fazia -- uma mudança de papel
 // no meio da vida do token já vale na próxima requisição, sem esperar expirar.
 @Component
 @RequiredArgsConstructor

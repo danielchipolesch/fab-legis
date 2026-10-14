@@ -29,8 +29,8 @@ import java.time.LocalDateTime;
 
 // Trilha de auditoria (quem viu/editou/excluiu/mudou status de cada
 // documento, quando -- ver LogAuditoriaService) -- leitura exclusiva de
-// AUDITOR. Perfil independente de ADMIN: um admin só enxerga a auditoria
-// se também tiver o perfil de auditor marcado no próprio cadastro.
+// AUDITOR. Papel independente de ADMIN: um admin só enxerga a auditoria
+// se também tiver o papel de auditor marcado no próprio cadastro.
 @RestController
 @RequestMapping(value = "/v1/auditoria", produces = MediaType.APPLICATION_JSON_VALUE)
 @Tag(name = "Auditoria", description = "Log de acesso/ações a nível de documento")
@@ -58,7 +58,7 @@ public class AuditoriaController {
         return ResponseEntity.ok(logAuditoriaService.filtrar(documentoId, usuarioId, acao, inicio, fim, omDoEscopo, pageable));
     }
 
-    // Trilha dos acessos: quem criou usuário, concedeu ou retirou perfil, ativou/desativou, trocou de OM ou redefiniu senha.
+    // Trilha dos acessos: quem criou usuário, concedeu ou retirou papel, ativou/desativou, trocou de OM ou redefiniu senha.
     @GetMapping("/acessos")
     public ResponseEntity<Page<LogDeAcessoResponseDto>> acessos(
             @RequestParam(required = false) String cpf,

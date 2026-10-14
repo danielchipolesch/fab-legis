@@ -4,7 +4,7 @@ import intraer.fablegis.domain.entities.estruturaDocumento.Documento;
 import intraer.fablegis.domain.entities.estruturaDocumento.SituacaoBcaEnum;
 import intraer.fablegis.domain.entities.estruturaDocumento.SituacaoLocalEnum;
 import intraer.fablegis.domain.entities.usuario.OrganizacaoMilitar;
-import intraer.fablegis.domain.entities.usuario.PerfilEnum;
+import intraer.fablegis.domain.entities.usuario.PapelEnum;
 import intraer.fablegis.domain.entities.usuario.Usuario;
 import intraer.fablegis.infrastructure.repositories.DocumentoCompartilhamentoRepository;
 import intraer.fablegis.infrastructure.repositories.DocumentoRepository;
@@ -51,13 +51,13 @@ class DocumentoAcessoServiceTest {
     private Usuario estranho;
     private Documento doc;
 
-    private static Usuario usuario(long id, long omId, PerfilEnum perfil) {
+    private static Usuario usuario(long id, long omId, PapelEnum papel) {
         var om = new OrganizacaoMilitar();
         om.setId(omId);
         var u = new Usuario();
         u.setId(id);
         u.setOm(om);
-        u.setPerfis(EnumSet.of(perfil));
+        u.setPapeis(EnumSet.of(papel));
         return u;
     }
 
@@ -67,13 +67,13 @@ class DocumentoAcessoServiceTest {
 
     @BeforeEach
     void cenario() {
-        autor = usuario(1, OM_ID, PerfilEnum.ELB);
-        coautor = usuario(2, OM_ID, PerfilEnum.ELB);
-        aprovadorDaOm = usuario(3, OM_ID, PerfilEnum.APR_OM);
-        aprovadorDeOutraOm = usuario(4, 99, PerfilEnum.APR_OM);
-        revisor = usuario(5, OM_ID, PerfilEnum.APR_OM);
-        publicador = usuario(6, OM_ID, PerfilEnum.PUB_BCA);
-        estranho = usuario(7, OM_ID, PerfilEnum.ELB);
+        autor = usuario(1, OM_ID, PapelEnum.ELB);
+        coautor = usuario(2, OM_ID, PapelEnum.ELB);
+        aprovadorDaOm = usuario(3, OM_ID, PapelEnum.APR_OM);
+        aprovadorDeOutraOm = usuario(4, 99, PapelEnum.APR_OM);
+        revisor = usuario(5, OM_ID, PapelEnum.APR_OM);
+        publicador = usuario(6, OM_ID, PapelEnum.PUB_BCA);
+        estranho = usuario(7, OM_ID, PapelEnum.ELB);
 
         var om = new OrganizacaoMilitar();
         om.setId(OM_ID);
@@ -100,7 +100,7 @@ class DocumentoAcessoServiceTest {
 
     @ParameterizedTest
     @EnumSource(value = SituacaoLocalEnum.class, names = {"EM_REVISAO", "ANALISE_REVOGACAO"})
-    void autorECoautorComPerfilEditPedemRevisaoOuAnaliseDeRevogacao(SituacaoLocalEnum destino) {
+    void autorECoautorComPapelEditPedemRevisaoOuAnaliseDeRevogacao(SituacaoLocalEnum destino) {
         doc.setSituacaoLocal(destino == EM_REVISAO ? MINUTA : SEM_ETAPA);
         assertThat(pode(autor, destino)).isTrue();
         assertThat(pode(coautor, destino)).isTrue();
@@ -108,9 +108,9 @@ class DocumentoAcessoServiceTest {
     }
 
     @Test
-    void semOPerfilEditNemOAutorEnviaParaRevisao() {
+    void semOPapelEditNemOAutorEnviaParaRevisao() {
         doc.setSituacaoLocal(MINUTA);
-        autor.setPerfis(EnumSet.of(PerfilEnum.APR_OM));
+        autor.setPapeis(EnumSet.of(PapelEnum.APR_OM));
         assertThat(pode(autor, EM_REVISAO)).isFalse();
     }
 
@@ -123,7 +123,7 @@ class DocumentoAcessoServiceTest {
 
         assertThat(pode(aprovadorDaOm, EM_ALTERACAO)).isTrue();
         assertThat(pode(aprovadorDeOutraOm, EM_ALTERACAO)).isFalse();
-        // Nem o autor (perfil EDIT): quem reabre um ato publicado é um Aprovador.
+        // Nem o autor (papel EDIT): quem reabre um ato publicado é um Aprovador.
         assertThat(pode(autor, EM_ALTERACAO)).isFalse();
         assertThat(pode(publicador, EM_ALTERACAO)).isFalse();
     }
@@ -173,7 +173,7 @@ class DocumentoAcessoServiceTest {
         assertThat(pode(aprovadorDeOutraOm, SEM_ETAPA)).isFalse();
     }
 
-    // ─── Publicação e revogação: QUALQUER publicador decide (o perfil só existe no CENDOC) ────────
+    // ─── Publicação e revogação: QUALQUER publicador decide (o papel só existe no CENDOC) ────────
 
     @ParameterizedTest
     @EnumSource(value = SituacaoLocalEnum.class, names = {"SEM_ETAPA", "MINUTA", "EM_ALTERACAO"})
@@ -182,7 +182,7 @@ class DocumentoAcessoServiceTest {
 
         assertThat(pode(publicador, destino)).isTrue();
         // outro publicador, de qualquer OM, também
-        assertThat(pode(usuario(60, 99, PerfilEnum.PUB_BCA), destino)).isTrue();
+        assertThat(pode(usuario(60, 99, PapelEnum.PUB_BCA), destino)).isTrue();
         assertThat(pode(revisor, destino)).isFalse();
         assertThat(pode(autor, destino)).isFalse();
     }
@@ -193,7 +193,7 @@ class DocumentoAcessoServiceTest {
         doc.setSituacaoLocal(EM_REVOGACAO);
 
         assertThat(pode(publicador, SEM_ETAPA)).isTrue();
-        assertThat(pode(usuario(60, 99, PerfilEnum.PUB_BCA), SEM_ETAPA)).isTrue();
+        assertThat(pode(usuario(60, 99, PapelEnum.PUB_BCA), SEM_ETAPA)).isTrue();
         assertThat(pode(revisor, SEM_ETAPA)).isFalse();
     }
 
@@ -215,7 +215,7 @@ class DocumentoAcessoServiceTest {
     }
 
     // ─── Editar o conteúdo (podeEditar): a etapa manda ─────────────────────────────
-    // Regra (docs/ciclo-de-vida.md): RASCUNHO/MINUTA/EM_ALTERACAO, o autor e os coautores com perfil EDIT; EM_REVISAO, só o
+    // Regra (docs/ciclo-de-vida.md): RASCUNHO/MINUTA/EM_ALTERACAO, o autor e os coautores com papel EDIT; EM_REVISAO, só o
     // revisor atribuído (e só de documento ainda não publicado); de EM_PUBLICACAO em diante, ninguém -- nem o autor.
 
     private boolean podeEditar(Usuario u) {
@@ -224,20 +224,20 @@ class DocumentoAcessoServiceTest {
 
     @ParameterizedTest
     @EnumSource(value = SituacaoLocalEnum.class, names = {"RASCUNHO", "MINUTA", "EM_ALTERACAO"})
-    void nasEtapasDeEscritaEditamAutorECoautorComPerfilEdit(SituacaoLocalEnum etapa) {
+    void nasEtapasDeEscritaEditamAutorECoautorComPapelEdit(SituacaoLocalEnum etapa) {
         doc.setSituacaoLocal(etapa);
 
         assertThat(podeEditar(autor)).isTrue();
         assertThat(podeEditar(coautor)).isTrue();
-        assertThat(podeEditar(estranho)).isFalse();      // tem o perfil EDIT, mas não é autor nem coautor
+        assertThat(podeEditar(estranho)).isFalse();      // tem o papel EDIT, mas não é autor nem coautor
         assertThat(podeEditar(aprovadorDaOm)).isFalse();
         assertThat(podeEditar(publicador)).isFalse();
     }
 
     @Test
-    void semOPerfilEditNemOAutorEdita() {
+    void semOPapelEditNemOAutorEdita() {
         doc.setSituacaoLocal(MINUTA);
-        autor.setPerfis(EnumSet.of(PerfilEnum.APR_OM));
+        autor.setPapeis(EnumSet.of(PapelEnum.APR_OM));
 
         assertThat(podeEditar(autor)).isFalse();
     }
@@ -314,7 +314,7 @@ class DocumentoAcessoServiceTest {
         doc.setSituacaoLocal(etapa);
 
         assertThat(service.podeEnviarPortaria(DOC_ID, como(publicador))).isTrue();
-        assertThat(service.podeEnviarPortaria(DOC_ID, como(usuario(8, 99, PerfilEnum.PUB_BCA)))).isTrue();
+        assertThat(service.podeEnviarPortaria(DOC_ID, como(usuario(8, 99, PapelEnum.PUB_BCA)))).isTrue();
         assertThat(service.podeEnviarPortaria(DOC_ID, como(autor))).isFalse();
         assertThat(service.podeEnviarPortaria(DOC_ID, como(aprovadorDaOm))).isFalse();
     }

@@ -19,7 +19,7 @@ import intraer.fablegis.domain.entities.estruturaDocumento.ItemParteFinal;
 import intraer.fablegis.domain.entities.numeracaoDocumento.AssuntoBasico;
 import intraer.fablegis.domain.entities.numeracaoDocumento.EspecieNormativa;
 import intraer.fablegis.domain.entities.usuario.OrganizacaoMilitar;
-import intraer.fablegis.domain.entities.usuario.PerfilEnum;
+import intraer.fablegis.domain.entities.usuario.PapelEnum;
 import intraer.fablegis.domain.entities.usuario.Usuario;
 import intraer.fablegis.domain.handlers.exceptions.ResourceNotFoundException;
 import intraer.fablegis.domain.handlers.exceptions.enums.AssuntoBasicoException;
@@ -116,18 +116,18 @@ public class DocumentoService {
     }
 
     // Fila da tela de Revisão (RevisaoPage.vue): o que aguarda aprovação na OM de quem pergunta -- no fluxo normal (EM_REVISAO) e na
-    // análise de revogação (ANALISE_REVOGACAO). Só quem tem o perfil APROV vê a fila; qualquer aprovador da OM age.
+    // análise de revogação (ANALISE_REVOGACAO). Só quem tem o papel APROV vê a fila; qualquer aprovador da OM age.
     public List<DocumentoFilaResponseDto> getFilaDeRevisao(Usuario usuario) {
-        if (!usuario.getPerfis().contains(PerfilEnum.APR_OM)) return List.of();
+        if (!usuario.getPapeis().contains(PapelEnum.APR_OM)) return List.of();
         return documentoRepository.findByOmIdAndSituacaoLocalIn(usuario.getOm().getId(),
                         List.copyOf(DocumentoSpecifications.SITUACOES_DE_REVISAO))
                 .stream().map(this::toFilaResponseDto).toList();
     }
 
-    // Fila da tela de Publicação (PublicacaoPage.vue): o que aguarda publicação, de TODAS as OMs -- a publicação é do CENDOC (o perfil
+    // Fila da tela de Publicação (PublicacaoPage.vue): o que aguarda publicação, de TODAS as OMs -- a publicação é do CENDOC (o papel
     // PUBLIC só existe lá) -- no fluxo normal (EM_PUBLICACAO) e na revogação (EM_REVOGACAO).
     public List<DocumentoFilaResponseDto> getFilaDePublicacao(Usuario usuario) {
-        if (!usuario.getPerfis().contains(PerfilEnum.PUB_BCA)) return List.of();
+        if (!usuario.getPapeis().contains(PapelEnum.PUB_BCA)) return List.of();
         return documentoRepository.findBySituacaoLocalIn(List.copyOf(DocumentoSpecifications.SITUACOES_DE_PUBLICACAO))
                 .stream().map(this::toFilaResponseDto).toList();
     }

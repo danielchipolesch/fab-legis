@@ -157,7 +157,7 @@ public class CamposDeNpa implements CamposEspecificosDaEspecie {
         return nomes;
     }
 
-    // Quem aprova é a pessoa (perfil APROV) escolhida ao enviar o documento para revisão -- mas o nome só aparece quando
+    // Quem aprova é a pessoa (papel APROV) escolhida ao enviar o documento para revisão -- mas o nome só aparece quando
     // ela de fato aprova (é a mesma data de aprovação da EMISSÃO); antes disso o bloco fica com a máscara de
     // CabecalhoDaNpa, para a NPA em elaboração não parecer já aprovada por alguém.
     private List<String> aprovadoPor(Documento documento) {

@@ -19,7 +19,7 @@ import java.sql.Timestamp;
 import java.util.List;
 
 // Auditoria dos acessos (docs/autenticacao.md, "Auditoria de acessos"). Diferente da auditoria de documentos -- que engole a
-// falha para não derrubar a ação --, esta grava NA TRANSAÇÃO da mudança e deixa a falha subir: conceder um perfil sem deixar
+// falha para não derrubar a ação --, esta grava NA TRANSAÇÃO da mudança e deixa a falha subir: conceder um papel sem deixar
 // rastro é pior do que não conceder. Quem fez a mudança é o usuário autenticado; sem autenticação (primeiro boot), é o sistema.
 @Service
 @RequiredArgsConstructor
@@ -30,7 +30,7 @@ public class AuditoriaDeAcessoService {
     @Transactional
     public void registrarCriacao(Usuario alvo) {
         gravar(alvo, AcaoDeAcessoEnum.CRIOU_USUARIO,
-                "Perfis: " + DiferencaDeAcesso.lista(alvo.getPerfis()) + (alvo.isAtivo() ? "" : ". Criado inativo"));
+                "Papéis: " + DiferencaDeAcesso.lista(alvo.getPapeis()) + (alvo.isAtivo() ? "" : ". Criado inativo"));
     }
 
     @Transactional

@@ -113,7 +113,7 @@ public class SecurityConfig {
             // o frontend só trata 401 como "sessão inválida" (ver client.js),
             // então esse 403 indevido passava batido, sem deslogar nem
             // redirecionar para o login. AccessDeniedException (autenticado
-            // mas sem o perfil exigido) continua caindo no AccessDeniedHandler
+            // mas sem o papel exigido) continua caindo no AccessDeniedHandler
             // padrão, que responde 403 normalmente -- só a falta de
             // autenticação muda.
             .exceptionHandling(ex -> ex.authenticationEntryPoint((request, response, authException) -> {

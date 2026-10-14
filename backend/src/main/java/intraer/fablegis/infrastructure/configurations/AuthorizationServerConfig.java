@@ -270,7 +270,7 @@ public class AuthorizationServerConfig {
     // numérico do usuário (não o principal name default do Authorization
     // Server, que é o CPF -- ver DaoAuthenticationProvider/UsuarioPrincipal.
     // getUsername()), preferred_username (CPF), nome, om_id, nome_guerra, posto_bigrama, om_nome, realm_access.roles
-    // -- pra não exigir nenhuma mudança em PerfilEnum/@PreAuthorize/
+    // -- pra não exigir nenhuma mudança em PapelEnum/@PreAuthorize/
     // DocumentoAcessoService/JwtToUsuarioAuthenticationConverter (que lê "sub"
     // como o id pra recarregar o Usuario do banco).
     @Bean
@@ -279,7 +279,7 @@ public class AuthorizationServerConfig {
             if (context.getTokenType().getValue().equals("access_token")
                     && context.getPrincipal().getPrincipal() instanceof UsuarioPrincipal principal) {
                 var usuario = principal.getUsuario();
-                List<String> roles = principal.getPerfis().stream().map(Enum::name).toList();
+                List<String> roles = principal.getPapeis().stream().map(Enum::name).toList();
 
                 context.getClaims()
                         .subject(String.valueOf(usuario.getId()))

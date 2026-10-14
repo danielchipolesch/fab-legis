@@ -60,7 +60,7 @@ class DocumentoControllerAcessoTest {
     }
 
     @Test
-    void consultarOQueAPropriaOmPodeCriarNaoExigePerfil() {
+    void consultarOQueAPropriaOmPodeCriarNaoExigePapel() {
         var minhas = Arrays.stream(HabilitacaoDeDocumentosController.class.getDeclaredMethods())
                 .filter(x -> x.getName().equals("minhas")).findFirst().orElseThrow();
         assertThat(minhas.getAnnotation(PreAuthorize.class)).isNull();

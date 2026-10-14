@@ -1,7 +1,7 @@
 package intraer.fablegis.infrastructure.security;
 
 import intraer.fablegis.domain.entities.usuario.OrganizacaoMilitar;
-import intraer.fablegis.domain.entities.usuario.PerfilEnum;
+import intraer.fablegis.domain.entities.usuario.PapelEnum;
 import intraer.fablegis.domain.entities.usuario.Usuario;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.core.GrantedAuthority;
@@ -10,18 +10,18 @@ import java.util.EnumSet;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-// Um authority por perfil, pelo CÓDIGO (docs/autenticacao.md): o escopo geral/local já está no próprio perfil (ADM_GER, AUD_GER só no
+// Um authority por papel, pelo CÓDIGO (docs/autenticacao.md): o escopo geral/local já está no próprio papel (ADM_GER, AUD_GER só no
 // CENDOC; ADM_OM, AUD_OM nas demais OMs) -- nada é deduzido da lotação aqui.
 class UsuarioPrincipalTest {
 
-    private static Usuario usuario(PerfilEnum... perfis) {
+    private static Usuario usuario(PapelEnum... papeis) {
         var o = new OrganizacaoMilitar();
         o.setSigla("CENDOC");
         var u = new Usuario();
         u.setOm(o);
-        var conjunto = EnumSet.noneOf(PerfilEnum.class);
-        conjunto.addAll(java.util.List.of(perfis));
-        u.setPerfis(conjunto);
+        var conjunto = EnumSet.noneOf(PapelEnum.class);
+        conjunto.addAll(java.util.List.of(papeis));
+        u.setPapeis(conjunto);
         return u;
     }
 
@@ -30,29 +30,29 @@ class UsuarioPrincipalTest {
     }
 
     @Test
-    void cadaPerfilViraUmRolePeloCodigo() {
-        assertThat(authorities(usuario(PerfilEnum.ELB, PerfilEnum.ADM_GER, PerfilEnum.AUD_GER, PerfilEnum.PUB_BCA)))
+    void cadaPapelViraUmRolePeloCodigo() {
+        assertThat(authorities(usuario(PapelEnum.ELB, PapelEnum.ADM_GER, PapelEnum.AUD_GER, PapelEnum.PUB_BCA)))
                 .containsExactlyInAnyOrder("ROLE_ELB", "ROLE_ADM_GER", "ROLE_AUD_GER", "ROLE_PUB_BCA");
-        assertThat(authorities(usuario(PerfilEnum.ELB, PerfilEnum.APR_OM, PerfilEnum.ADM_OM, PerfilEnum.AUD_OM)))
+        assertThat(authorities(usuario(PapelEnum.ELB, PapelEnum.APR_OM, PapelEnum.ADM_OM, PapelEnum.AUD_OM)))
                 .containsExactlyInAnyOrder("ROLE_ELB", "ROLE_APR_OM", "ROLE_ADM_OM", "ROLE_AUD_OM");
     }
 
     @Test
-    void semPerfilNaoHaAuthority() {
+    void semPapelNaoHaAuthority() {
         assertThat(authorities(usuario())).isEmpty();
     }
 
     @Test
-    void oCodigoEoNomePorExtensoDeCadaPerfil() {
-        assertThat(PerfilEnum.ELB.codigo()).isEqualTo("ELB");
-        assertThat(PerfilEnum.ELB.nome()).isEqualTo("Elaborador");
-        assertThat(PerfilEnum.APR_OM.nome()).isEqualTo("Aprovador da OM");
-        assertThat(PerfilEnum.PUB_BCA.nome()).isEqualTo("Publicador do BCA");
-        assertThat(PerfilEnum.AUD_OM.nome()).isEqualTo("Auditor da OM");
-        assertThat(PerfilEnum.AUD_GER.nome()).isEqualTo("Auditor Geral");
-        assertThat(PerfilEnum.ADM_OM.nome()).isEqualTo("Administrador da OM");
-        assertThat(PerfilEnum.ADM_GER.nome()).isEqualTo("Administrador Geral");
-        for (var p : PerfilEnum.values()) {
+    void oCodigoEoNomePorExtensoDeCadaPapel() {
+        assertThat(PapelEnum.ELB.codigo()).isEqualTo("ELB");
+        assertThat(PapelEnum.ELB.nome()).isEqualTo("Elaborador");
+        assertThat(PapelEnum.APR_OM.nome()).isEqualTo("Aprovador da OM");
+        assertThat(PapelEnum.PUB_BCA.nome()).isEqualTo("Publicador do BCA");
+        assertThat(PapelEnum.AUD_OM.nome()).isEqualTo("Auditor da OM");
+        assertThat(PapelEnum.AUD_GER.nome()).isEqualTo("Auditor Geral");
+        assertThat(PapelEnum.ADM_OM.nome()).isEqualTo("Administrador da OM");
+        assertThat(PapelEnum.ADM_GER.nome()).isEqualTo("Administrador Geral");
+        for (var p : PapelEnum.values()) {
             assertThat(p.descricao()).as("descrição de %s", p).isNotBlank();
         }
     }

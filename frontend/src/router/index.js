@@ -30,7 +30,7 @@ const routes = [
     component: () => import('@/pages/HubPage.vue'),
     meta: { title: 'Área de Trabalho', manual: 'area-de-trabalho' },
   },
-  // Painel Gerencial: o módulo dos indicadores, só para quem tem o perfil do Painel Gerencial (da OM ou Geral).
+  // Painel Gerencial: o módulo dos indicadores, só para quem tem o papel do Painel Gerencial (da OM ou Geral).
   {
     path: '/painel-gerencial',
     name: 'painel-gerencial',

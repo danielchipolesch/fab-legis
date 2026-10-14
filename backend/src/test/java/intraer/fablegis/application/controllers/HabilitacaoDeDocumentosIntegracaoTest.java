@@ -2,7 +2,7 @@ package intraer.fablegis.application.controllers;
 
 import intraer.fablegis.IntegracaoComPostgresBase;
 import intraer.fablegis.domain.entities.usuario.OrganizacaoMilitar;
-import intraer.fablegis.domain.entities.usuario.PerfilEnum;
+import intraer.fablegis.domain.entities.usuario.PapelEnum;
 import intraer.fablegis.domain.entities.usuario.Usuario;
 import intraer.fablegis.infrastructure.repositories.AssuntoBasicoRepository;
 import intraer.fablegis.infrastructure.repositories.EspecieNormativaRepository;
@@ -55,7 +55,7 @@ class HabilitacaoDeDocumentosIntegracaoTest extends IntegracaoComPostgresBase {
         return usuarioRepository.findAll().stream().filter(u -> !u.isSistema()).findFirst().orElseThrow();
     }
 
-    // Uma pessoa com o perfil EDIT numa OM comum (sem habilitação nenhuma).
+    // Uma pessoa com o papel EDIT numa OM comum (sem habilitação nenhuma).
     private Usuario editorDaOm(String siglaDaOm, String cpf) {
         return usuarioRepository.findByCpf(cpf).orElseGet(() -> {
             OrganizacaoMilitar om = omRepository.findBySigla(siglaDaOm).orElseThrow();
@@ -64,7 +64,7 @@ class HabilitacaoDeDocumentosIntegracaoTest extends IntegracaoComPostgresBase {
             u.setCpf(cpf);
             u.setSenhaHash("{noop}x");
             u.setOm(om);
-            u.setPerfis(new HashSet<>(Set.of(PerfilEnum.ELB)));
+            u.setPapeis(new HashSet<>(Set.of(PapelEnum.ELB)));
             return usuarioRepository.save(u);
         });
     }

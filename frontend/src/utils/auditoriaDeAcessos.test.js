@@ -3,10 +3,10 @@ import { acaoDeAcessoLabel, acaoDeAcessoCor, atorDoAcesso, ACAO_DE_ACESSO } from
 
 describe('auditoria de acessos', () => {
   it('tem rótulo e cor para cada ação do backend', () => {
-    for (const acao of ['CRIOU_USUARIO', 'ALTEROU_PERFIS', 'ATIVOU_USUARIO', 'DESATIVOU_USUARIO', 'TROCOU_OM', 'REDEFINIU_SENHA', 'REVISOU_ACESSO']) {
+    for (const acao of ['CRIOU_USUARIO', 'ALTEROU_PAPEIS', 'ATIVOU_USUARIO', 'DESATIVOU_USUARIO', 'TROCOU_OM', 'REDEFINIU_SENHA', 'REVISOU_ACESSO']) {
       expect(ACAO_DE_ACESSO[acao]).toBeTruthy()
     }
-    expect(acaoDeAcessoLabel('ALTEROU_PERFIS')).toBe('Alterou perfis')
+    expect(acaoDeAcessoLabel('ALTEROU_PAPEIS')).toBe('Alterou papéis')
     expect(acaoDeAcessoLabel('NOVA')).toBe('NOVA')
     expect(acaoDeAcessoCor('NOVA')).toBe('grey')
   })

@@ -19,7 +19,7 @@ Cada linha mostra o tipo do módulo (ícone), a identificação do documento (po
 
 ## Acesso Rápido
 
-Abaixo dos quadros ficam os botões dos módulos: **Painel Gerencial** (só para quem tem o perfil, e sempre o primeiro), **Espécies Convencionais** e **NPA**.
+Abaixo dos quadros ficam os botões dos módulos: **Painel Gerencial** (só para quem tem o papel, e sempre o primeiro), **Espécies Convencionais** e **NPA**.
 
 ## Criar um documento
 

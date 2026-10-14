@@ -4,7 +4,7 @@ import lombok.RequiredArgsConstructor;
 import intraer.fablegis.domain.entities.estruturaDocumento.Documento;
 import intraer.fablegis.domain.entities.estruturaDocumento.SituacaoBcaEnum;
 import intraer.fablegis.domain.entities.estruturaDocumento.SituacaoLocalEnum;
-import intraer.fablegis.domain.entities.usuario.PerfilEnum;
+import intraer.fablegis.domain.entities.usuario.PapelEnum;
 import intraer.fablegis.domain.entities.usuario.Usuario;
 import intraer.fablegis.infrastructure.repositories.DocumentoCompartilhamentoRepository;
 import intraer.fablegis.infrastructure.repositories.DocumentoRepository;
@@ -22,9 +22,9 @@ import java.util.Set;
 // Só editar, compartilhar e excluir precisam de posse -- e editar depende também da ETAPA do documento (podeEditar):
 // conteúdo congelado não é editado por ninguém, nem pelo autor.
 //
-// ADMIN nunca aparece aqui como bypass: sob o modelo atual de perfis, Admin é
+// ADMIN nunca aparece aqui como bypass: sob o modelo atual de papéis, Admin é
 // puramente administrativo (usuários/OMs) e não tem poder nenhum sobre o
-// ciclo de vida de um documento -- ver PerfilEnum.
+// ciclo de vida de um documento -- ver PapelEnum.
 @Service
 @RequiredArgsConstructor
 public class DocumentoAcessoService {
@@ -39,8 +39,8 @@ public class DocumentoAcessoService {
     // Pode editar o que COMPÕE o documento (texto de cada elemento, estrutura, metadados, anexos, cabeçalho da NPA, emendas)
     // AGORA -- a etapa manda, e é aqui, na única fonte de checagem de acesso, que ela é barrada (antes, só alguns serviços
     // barravam, cada um à sua maneira, e o conteúdo de um documento já aprovado ainda podia ser alterado pela API):
-    //   RASCUNHO, MINUTA, EM_ALTERACAO : autor/coautor com perfil EDIT.
-    //   EM_REVISAO                     : SÓ a pessoa atribuída como revisora (perfil APROV), e só se o documento ainda não foi
+    //   RASCUNHO, MINUTA, EM_ALTERACAO : autor/coautor com papel EDIT.
+    //   EM_REVISAO                     : SÓ a pessoa atribuída como revisora (papel APROV), e só se o documento ainda não foi
     //                                    publicado -- a revisão de uma alteração de ato PUBLICADO é somente leitura (o texto
     //                                    vigente só muda por emenda, em EM_ALTERACAO). Nem o autor edita durante a revisão.
     //   demais etapas (EM_PUBLICACAO em diante, todo o fluxo de revogação, CANCELADO, SEM_ETAPA) : ninguém, nem o autor.
@@ -53,7 +53,7 @@ public class DocumentoAcessoService {
         if (doc.getSituacaoLocal() == SituacaoLocalEnum.EM_REVISAO) {
             return doc.getSituacaoBca() != SituacaoBcaEnum.PUBLICADO && ehAprovadorDaOm(doc, usuario);
         }
-        return usuario.getPerfis().contains(PerfilEnum.ELB)
+        return usuario.getPapeis().contains(PapelEnum.ELB)
                 && (ehAutor(doc, usuario) || compartilhamentoRepository.existsByDocumentoIdAndUsuarioId(documentoId, usuario.getId()));
     }
 
@@ -70,12 +70,12 @@ public class DocumentoAcessoService {
         return ehPublicador(usuario);
     }
 
-    // Publicador: qualquer pessoa com o perfil PUBLIC -- e esse perfil só existe no CENDOC (EscopoDeAcesso), que publica no BCA.
+    // Publicador: qualquer pessoa com o papel PUBLIC -- e esse papel só existe no CENDOC (EscopoDeAcesso), que publica no BCA.
     private boolean ehPublicador(Usuario usuario) {
-        return usuario.getPerfis().contains(PerfilEnum.PUB_BCA);
+        return usuario.getPapeis().contains(PapelEnum.PUB_BCA);
     }
 
-    // Posse do documento, SEM olhar a etapa: autor/coautor com perfil EDIT ou, durante EM_REVISAO, a pessoa atribuída
+    // Posse do documento, SEM olhar a etapa: autor/coautor com papel EDIT ou, durante EM_REVISAO, a pessoa atribuída
     // como revisora. É o que autoriza mudar de etapa (enviar para revisão, pedir análise de revogação, cancelar...) e
     // excluir -- coisas que se pedem justamente em etapas em que o conteúdo já está congelado (ex.: pedir a revogação de
     // um ato publicado, em SEM_ETAPA). Editar o conteúdo é outra pergunta: ver podeEditar.
@@ -88,7 +88,7 @@ public class DocumentoAcessoService {
             return true;
         }
 
-        if (!usuario.getPerfis().contains(PerfilEnum.ELB)) return false;
+        if (!usuario.getPapeis().contains(PapelEnum.ELB)) return false;
         return ehAutor(doc, usuario) || compartilhamentoRepository.existsByDocumentoIdAndUsuarioId(documentoId, usuario.getId());
     }
 
@@ -103,7 +103,7 @@ public class DocumentoAcessoService {
     // Autor OU coautor, mas só enquanto o documento estiver em RASCUNHO/MINUTA
     // -- um rascunho de outra pessoa, não compartilhado com o usuário, nunca
     // aparece como excluível, mesmo estando nessas situações. Fora delas,
-    // ninguém com o perfil padrão exclui, nem o próprio autor.
+    // ninguém com o papel padrão exclui, nem o próprio autor.
     public boolean podeExcluir(Long documentoId, Authentication auth) {
         Documento doc = documentoRepository.findById(documentoId).orElse(null);
         if (doc == null) return false;
@@ -138,7 +138,7 @@ public class DocumentoAcessoService {
             return temPosse(documentoId, auth);
         }
 
-        // Única transição sem atribuição pessoal prévia: qualquer perfil APROV da mesma OM pode
+        // Única transição sem atribuição pessoal prévia: qualquer papel APROV da mesma OM pode
         // reabrir um documento publicado para alteração -- e desistir dela (cancelar), além de
         // quem já conduz a edição (autor/coautor).
         if (destino == SituacaoLocalEnum.EM_ALTERACAO && atual == SituacaoLocalEnum.SEM_ETAPA) {
@@ -168,7 +168,7 @@ public class DocumentoAcessoService {
     }
 
     private boolean ehAprovadorDaOm(Documento doc, Usuario usuario) {
-        return usuario.getPerfis().contains(PerfilEnum.APR_OM) && doc.getOm().getId().equals(usuario.getOm().getId());
+        return usuario.getPapeis().contains(PapelEnum.APR_OM) && doc.getOm().getId().equals(usuario.getOm().getId());
     }
 
     private boolean ehAutor(Documento doc, Usuario usuario) {

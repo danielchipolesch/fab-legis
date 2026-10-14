@@ -1,7 +1,7 @@
 package intraer.fablegis.application.controllers;
 
 import intraer.fablegis.IntegracaoComPostgresBase;
-import intraer.fablegis.domain.entities.usuario.PerfilEnum;
+import intraer.fablegis.domain.entities.usuario.PapelEnum;
 import intraer.fablegis.domain.entities.usuario.Usuario;
 import intraer.fablegis.infrastructure.repositories.OrganizacaoMilitarRepository;
 import intraer.fablegis.infrastructure.repositories.UsuarioRepository;
@@ -54,27 +54,27 @@ class RevisaoDeAcessoIntegracaoTest extends IntegracaoComPostgresBase {
         return usuarioRepository.findAll().stream().filter(u -> !u.isSistema()).findFirst().orElseThrow();
     }
 
-    private Usuario usuarioDa(String sigla, String cpf, PerfilEnum... perfis) {
+    private Usuario usuarioDa(String sigla, String cpf, PapelEnum... papeis) {
         return usuarioRepository.findByCpf(cpf).orElseGet(() -> {
             var u = new Usuario();
             u.setNome("Pessoa " + sigla + " " + cpf);
             u.setCpf(cpf);
             u.setSenhaHash("{noop}x");
             u.setOm(omRepository.findBySigla(sigla).orElseThrow());
-            var conjunto = EnumSet.noneOf(PerfilEnum.class);
-            conjunto.addAll(java.util.List.of(perfis));
-            u.setPerfis(conjunto);
+            var conjunto = EnumSet.noneOf(PapelEnum.class);
+            conjunto.addAll(java.util.List.of(papeis));
+            u.setPapeis(conjunto);
             u.setDtRevisaoAcesso(new java.sql.Timestamp(System.currentTimeMillis()));
             return usuarioRepository.save(u);
         });
     }
 
     private Usuario adminLocal() {
-        return usuarioDa("BAGL", CPF_ADMIN_LOCAL, PerfilEnum.ELB, PerfilEnum.ADM_OM);
+        return usuarioDa("BAGL", CPF_ADMIN_LOCAL, PapelEnum.ELB, PapelEnum.ADM_OM);
     }
 
     private Usuario aprovadorLocal() {
-        return usuarioDa("BAGL", CPF_APROVADOR_LOCAL, PerfilEnum.ELB, PerfilEnum.APR_OM, PerfilEnum.AUD_OM);
+        return usuarioDa("BAGL", CPF_APROVADOR_LOCAL, PapelEnum.ELB, PapelEnum.APR_OM, PapelEnum.AUD_OM);
     }
 
     private static RequestPostProcessor como(Usuario usuario) {
@@ -87,7 +87,7 @@ class RevisaoDeAcessoIntegracaoTest extends IntegracaoComPostgresBase {
     void aListaDeUsuariosMarcaSoQuemCadaRevisorConferee() throws Exception {
         adminLocal();
         aprovadorLocal();
-        usuarioDa("BABE", CPF_APROVADOR_OUTRA_OM, PerfilEnum.ELB, PerfilEnum.APR_OM);
+        usuarioDa("BABE", CPF_APROVADOR_OUTRA_OM, PapelEnum.ELB, PapelEnum.APR_OM);
 
         // o admin geral confere o admin local, não os aprovadores das outras OMs
         mvc.perform(get("/v1/usuarios").with(como(geral())))
@@ -114,43 +114,43 @@ class RevisaoDeAcessoIntegracaoTest extends IntegracaoComPostgresBase {
 
         // revisar (manter) volta a "em dia", e continua revisável por quem o confere
         mvc.perform(post("/v1/revisao-de-acessos/" + aprovador.getId()).with(como(adminLocal())).contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"perfis\":[\"ELB\",\"APR_OM\",\"AUD_OM\"]}"))
+                        .content("{\"papeis\":[\"ELB\",\"APR_OM\",\"AUD_OM\"]}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.motivoDaRevisao").value("NENHUM"))
                 .andExpect(jsonPath("$.revisavel").value(true));
     }
 
     @Test
-    void retirarUmPerfilNaRevisaoVaiParaAAuditoriaEQuemNaoRevisaNaoPode() throws Exception {
+    void retirarUmPapelNaRevisaoVaiParaAAuditoriaEQuemNaoRevisaNaoPode() throws Exception {
         var aprovador = aprovadorLocal();
 
         // quem não é o revisor dele (o admin geral, ou outro aprovador) leva 403
         mvc.perform(post("/v1/revisao-de-acessos/" + aprovador.getId()).with(como(geral())).contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"perfis\":[\"ELB\",\"APR_OM\",\"AUD_OM\"]}"))
+                        .content("{\"papeis\":[\"ELB\",\"APR_OM\",\"AUD_OM\"]}"))
                 .andExpect(status().isForbidden());
 
         // o admin local mantém o aprovador e retira o auditor
         mvc.perform(post("/v1/revisao-de-acessos/" + aprovador.getId()).with(como(adminLocal())).contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"perfis\":[\"ELB\",\"APR_OM\"]}"))
+                        .content("{\"papeis\":[\"ELB\",\"APR_OM\"]}"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.perfis", hasItem("APR_OM")))
-                .andExpect(jsonPath("$.perfis", not(hasItem("AUD_OM"))));
+                .andExpect(jsonPath("$.papeis", hasItem("APR_OM")))
+                .andExpect(jsonPath("$.papeis", not(hasItem("AUD_OM"))));
 
-        var perfis = jdbc.queryForList("select sg_perfil from t_usuario_perfil where usuario_id = ?", String.class, aprovador.getId());
-        assertThat(perfis).containsExactlyInAnyOrder("ELB", "APR_OM");
+        var papeis = jdbc.queryForList("select sg_papel from t_usuario_papel where usuario_id = ?", String.class, aprovador.getId());
+        assertThat(papeis).containsExactlyInAnyOrder("ELB", "APR_OM");
 
         mvc.perform(get("/v1/auditoria/acessos").param("cpf", CPF_APROVADOR_LOCAL).param("acao", "REVISOU_ACESSO")
-                        .with(como(usuarioDa("CENDOC", "11122233396", PerfilEnum.ELB, PerfilEnum.AUD_GER))))
+                        .with(como(usuarioDa("CENDOC", "11122233396", PapelEnum.ELB, PapelEnum.AUD_GER))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content[0].detalhe").value(containsString("Retirou: AUD_OM")))
                 .andExpect(jsonPath("$.content[0].atorId").value(adminLocal().getId()));
     }
 
     @Test
-    void aRevisaoNuncaConcedeUmPerfil() throws Exception {
+    void aRevisaoNuncaConcedeUmPapel() throws Exception {
         var aprovador = aprovadorLocal();
         mvc.perform(post("/v1/revisao-de-acessos/" + aprovador.getId()).with(como(adminLocal())).contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"perfis\":[\"ELB\",\"APR_OM\",\"PUB_BCA\"]}"))
+                        .content("{\"papeis\":[\"ELB\",\"APR_OM\",\"PUB_BCA\"]}"))
                 .andExpect(status().is4xxClientError())
                 .andExpect(jsonPath("$.message").value(containsString("só mantém ou retira")));
     }
@@ -159,10 +159,10 @@ class RevisaoDeAcessoIntegracaoTest extends IntegracaoComPostgresBase {
     void ninguemRevisaOProprioAcessoEQuemNaoEAdminNaoRevisa() throws Exception {
         var admin = adminLocal();
         mvc.perform(post("/v1/revisao-de-acessos/" + admin.getId()).with(como(admin)).contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"perfis\":[\"ELB\",\"ADM_OM\"]}"))
+                        .content("{\"papeis\":[\"ELB\",\"ADM_OM\"]}"))
                 .andExpect(status().isForbidden());
         mvc.perform(post("/v1/revisao-de-acessos/" + admin.getId()).with(como(aprovadorLocal())).contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"perfis\":[\"ELB\"]}"))
+                        .content("{\"papeis\":[\"ELB\"]}"))
                 .andExpect(status().isForbidden());
     }
 }

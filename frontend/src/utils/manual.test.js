@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'vitest'
-import { slugDeTitulo, slugDaPagina, secoesDe, montarPaginas, nomesDosPerfis, ehParaMim, buscarNoManual } from './manual.js'
+import { slugDeTitulo, slugDaPagina, secoesDe, montarPaginas, nomesDosPapeis, ehParaMim, buscarNoManual } from './manual.js'
 import { renderizarManual } from './manualMarkdown.js'
-import { PERFIS } from './perfis.js'
+import { PAPEIS } from './papeis.js'
 
 const arquivos = {
-  '/src/manual/02-segunda.md': '<!-- perfis: ELB APR_OM -->\n# Segunda página\n\nIntrodução da segunda.\n\n## Aprovar um documento\n\nO **Aprovador da OM** decide.\n\n## Publicação\n\nSó no CENDOC.',
+  '/src/manual/02-segunda.md': '<!-- papeis: ELB APR_OM -->\n# Segunda página\n\nIntrodução da segunda.\n\n## Aprovar um documento\n\nO **Aprovador da OM** decide.\n\n## Publicação\n\nSó no CENDOC.',
   '/src/manual/01-primeira.md': '# Primeira página\n\nTexto de abertura sobre acessibilidade.\n\n## Entrar no sistema\n\nDigite o CPF.',
 }
 
@@ -19,14 +19,14 @@ describe('manual: páginas e seções', () => {
     expect(slugDaPagina('/src/manual/03-elaborar-um-documento.md')).toBe('elaborar-um-documento')
   })
 
-  it('as páginas saem na ordem do número do arquivo, com título, perfis e seções', () => {
+  it('as páginas saem na ordem do número do arquivo, com título, papéis e seções', () => {
     const paginas = montarPaginas(arquivos)
     expect(paginas.map(p => p.slug)).toEqual(['primeira', 'segunda'])
     expect(paginas[1].titulo).toBe('Segunda página')
-    expect(paginas[1].perfis).toEqual(['ELB', 'APR_OM'])
-    expect(paginas[0].perfis).toEqual([])
+    expect(paginas[1].papeis).toEqual(['ELB', 'APR_OM'])
+    expect(paginas[0].papeis).toEqual([])
     expect(paginas[1].secoes.map(s => s.id)).toEqual(['aprovar-um-documento', 'publicacao'])
-    expect(paginas[1].markdown).not.toContain('perfis:')
+    expect(paginas[1].markdown).not.toContain('papeis:')
     expect(paginas[1].markdown).not.toMatch(/^# /m)
   })
 
@@ -34,11 +34,11 @@ describe('manual: páginas e seções', () => {
     expect(secoesDe('intro\n\n```\n## não é título\n```\n\n## Título real').filter(s => s.titulo).map(s => s.titulo)).toEqual(['Título real'])
   })
 
-  it('os perfis da página viram nomes por extenso; código desconhecido é ignorado', () => {
-    expect(nomesDosPerfis(['ELB', 'APR_OM', 'XXX'])).toEqual(['Elaborador', 'Aprovador da OM'])
+  it('os papéis da página viram nomes por extenso; código desconhecido é ignorado', () => {
+    expect(nomesDosPapeis(['ELB', 'APR_OM', 'XXX'])).toEqual(['Elaborador', 'Aprovador da OM'])
   })
 
-  it('a página é para quem tem algum dos perfis dela; sem perfis, não destaca ninguém', () => {
+  it('a página é para quem tem algum dos papéis dela; sem papéis, não destaca ninguém', () => {
     const [primeira, segunda] = montarPaginas(arquivos)
     expect(ehParaMim(segunda, ['ELB'])).toBe(true)
     expect(ehParaMim(segunda, ['PUB_BCA'])).toBe(false)
@@ -106,8 +106,8 @@ describe('manual: o conteúdo de verdade', () => {
     }
   })
 
-  it('os perfis citados existem', () => {
-    for (const p of paginas) for (const codigo of p.perfis) expect(PERFIS[codigo], `${p.slug}: ${codigo}`).toBeTruthy()
+  it('os papéis citados existem', () => {
+    for (const p of paginas) for (const codigo of p.papeis) expect(PAPEIS[codigo], `${p.slug}: ${codigo}`).toBeTruthy()
   })
 
   it('todo link entre páginas aponta para uma página e uma seção que existem', () => {

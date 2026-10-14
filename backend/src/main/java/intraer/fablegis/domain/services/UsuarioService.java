@@ -9,7 +9,7 @@ import intraer.fablegis.domain.entities.usuario.OrganizacaoMilitar;
 import intraer.fablegis.domain.regras.DiferencaDeAcesso;
 import intraer.fablegis.domain.regras.EscopoDeAcesso;
 import intraer.fablegis.domain.regras.RevisaoDeAcesso;
-import intraer.fablegis.domain.entities.usuario.PerfilEnum;
+import intraer.fablegis.domain.entities.usuario.PapelEnum;
 import intraer.fablegis.domain.entities.usuario.PostoGraduacao;
 import intraer.fablegis.domain.entities.usuario.Usuario;
 import intraer.fablegis.domain.handlers.exceptions.ResourceAlreadyExistsException;
@@ -67,8 +67,8 @@ public class UsuarioService {
         }
 
         OrganizacaoMilitar om = buscarOm(request.omId());
-        var perfis = perfisComo(request.perfis());
-        EscopoDeAcesso.exigirPodeGerenciar(AutenticacaoUtil.usuarioAtual(), null, om.getSigla(), perfis);
+        var papeis = papeisComo(request.papeis());
+        EscopoDeAcesso.exigirPodeGerenciar(AutenticacaoUtil.usuarioAtual(), null, om.getSigla(), papeis);
 
         var usuario = new Usuario();
         usuario.setNome(request.nome());
@@ -79,8 +79,8 @@ public class UsuarioService {
         usuario.setSenhaHash(passwordEncoder.encode(request.senha()));
         usuario.setOm(om);
         usuario.setAtivo(true);
-        usuario.setPerfis(perfis);
-        // Quem nasce com perfil elevado conta como revisado agora: o prazo de 6 meses corre a partir da concessão.
+        usuario.setPapeis(papeis);
+        // Quem nasce com papel elevado conta como revisado agora: o prazo de 6 meses corre a partir da concessão.
         usuario.setDtRevisaoAcesso(java.sql.Timestamp.from(java.time.Instant.now()));
 
         var salvo = usuarioRepository.save(usuario);
@@ -97,20 +97,20 @@ public class UsuarioService {
         if (ehVoceMesmo && !request.ativo()) {
             throw new ResourceCannotBeUpdatedException("Você não pode desativar sua própria conta.");
         }
-        if (ehVoceMesmo && !request.perfis().contains(PerfilEnum.ADM_OM) && !request.perfis().contains(PerfilEnum.ADM_GER)) {
-            throw new ResourceCannotBeUpdatedException("Você não pode remover seu próprio perfil de administrador.");
+        if (ehVoceMesmo && !request.papeis().contains(PapelEnum.ADM_OM) && !request.papeis().contains(PapelEnum.ADM_GER)) {
+            throw new ResourceCannotBeUpdatedException("Você não pode remover seu próprio papel de administrador.");
         }
 
         OrganizacaoMilitar om = buscarOm(request.omId());
-        var perfisDepois = perfisComo(request.perfis());
-        EscopoDeAcesso.exigirPodeGerenciar(usuarioLogado, usuario, om.getSigla(), perfisDepois);
+        var papeisDepois = papeisComo(request.papeis());
+        EscopoDeAcesso.exigirPodeGerenciar(usuarioLogado, usuario, om.getSigla(), papeisDepois);
         EscopoDeAcesso.exigirAoMenosUmAdminGeral(
                 EscopoDeAcesso.ehAdminGeral(usuario) && usuario.isAtivo(),
-                perfisDepois.contains(PerfilEnum.ADM_GER) && request.ativo(),
-                usuarioRepository.contarAtivosComPerfil(PerfilEnum.ADM_GER));
+                papeisDepois.contains(PapelEnum.ADM_GER) && request.ativo(),
+                usuarioRepository.contarAtivosComPapel(PapelEnum.ADM_GER));
 
-        // O estado de acesso ANTES da mudança, para a auditoria registrar só o que de fato mudou (perfis, situação, OM).
-        var antes = new DiferencaDeAcesso.Estado(EnumSet.copyOf(perfisOuVazio(usuario.getPerfis())), usuario.isAtivo(), siglaDa(usuario.getOm()));
+        // O estado de acesso ANTES da mudança, para a auditoria registrar só o que de fato mudou (papéis, situação, OM).
+        var antes = new DiferencaDeAcesso.Estado(EnumSet.copyOf(papeisOuVazio(usuario.getPapeis())), usuario.isAtivo(), siglaDa(usuario.getOm()));
 
         usuario.setNome(request.nome());
         usuario.setNomeGuerra(vazioComoNulo(request.nomeGuerra()));
@@ -118,11 +118,11 @@ public class UsuarioService {
         usuario.setPostoGraduacao(buscarPostoGraduacaoOpcional(request.postoGraduacaoId()));
         usuario.setOm(om);
         usuario.setAtivo(request.ativo());
-        usuario.setPerfis(perfisDepois);
+        usuario.setPapeis(papeisDepois);
         atualizarRevisaoDeAcesso(usuario, antes);
 
         var salvo = usuarioRepository.save(usuario);
-        var depois = new DiferencaDeAcesso.Estado(EnumSet.copyOf(perfisOuVazio(salvo.getPerfis())), salvo.isAtivo(), siglaDa(salvo.getOm()));
+        var depois = new DiferencaDeAcesso.Estado(EnumSet.copyOf(papeisOuVazio(salvo.getPapeis())), salvo.isAtivo(), siglaDa(salvo.getOm()));
         auditoriaDeAcesso.registrarMudancas(salvo, DiferencaDeAcesso.entre(antes, depois));
         return UsuarioResponseDto.from(salvo, usuarioLogado);
     }
@@ -136,20 +136,20 @@ public class UsuarioService {
         auditoriaDeAcesso.registrarRedefinicaoDeSenha(usuario);
     }
 
-    // Troca de OM de quem tem perfil elevado deixa a revisão PENDENTE (data nula); conceder um perfil elevado novo conta como revisão
+    // Troca de OM de quem tem papel elevado deixa a revisão PENDENTE (data nula); conceder um papel elevado novo conta como revisão
     // (o prazo corre dali). Ver RevisaoDeAcesso.
     private static void atualizarRevisaoDeAcesso(Usuario usuario, DiferencaDeAcesso.Estado antes) {
-        var elevadosDepois = RevisaoDeAcesso.perfisElevados(usuario.getPerfis());
+        var elevadosDepois = RevisaoDeAcesso.papeisElevados(usuario.getPapeis());
         boolean trocouDeOm = !java.util.Objects.equals(antes.omSigla(), siglaDa(usuario.getOm()));
         if (trocouDeOm && !elevadosDepois.isEmpty()) {
             usuario.setDtRevisaoAcesso(null);
-        } else if (!RevisaoDeAcesso.perfisElevados(antes.perfis()).containsAll(elevadosDepois)) {
+        } else if (!RevisaoDeAcesso.papeisElevados(antes.papeis()).containsAll(elevadosDepois)) {
             usuario.setDtRevisaoAcesso(java.sql.Timestamp.from(java.time.Instant.now()));
         }
     }
 
-    private static java.util.Set<PerfilEnum> perfisOuVazio(java.util.Set<PerfilEnum> perfis) {
-        return perfis == null || perfis.isEmpty() ? EnumSet.noneOf(PerfilEnum.class) : perfis;
+    private static java.util.Set<PapelEnum> papeisOuVazio(java.util.Set<PapelEnum> papeis) {
+        return papeis == null || papeis.isEmpty() ? EnumSet.noneOf(PapelEnum.class) : papeis;
     }
 
     private static String siglaDa(OrganizacaoMilitar om) {
@@ -191,16 +191,16 @@ public class UsuarioService {
         return (valor == null || valor.isBlank()) ? null : valor.trim();
     }
 
-    // Editor é perfil padrão e permanente de todo usuário (exceto o usuário
+    // Editor é papel padrão e permanente de todo usuário (exceto o usuário
     // "sistema", que nem passa por aqui) -- a regra de posse sobre documento
     // continua a mesma (DocumentoAcessoService: só edita quem é autor/coautor),
     // isso só garante que ninguém cria/edita um usuário sem a capacidade básica
     // de editar. Adicionado aqui, não só na tela (UsuariosPage.vue trava o
     // checkbox), pra valer também numa chamada direta à API.
-    private EnumSet<PerfilEnum> perfisComo(java.util.Set<PerfilEnum> perfis) {
-        var resultado = EnumSet.noneOf(PerfilEnum.class);
-        if (perfis != null) resultado.addAll(perfis);
-        resultado.add(PerfilEnum.ELB);
+    private EnumSet<PapelEnum> papeisComo(java.util.Set<PapelEnum> papeis) {
+        var resultado = EnumSet.noneOf(PapelEnum.class);
+        if (papeis != null) resultado.addAll(papeis);
+        resultado.add(PapelEnum.ELB);
         return resultado;
     }
 }

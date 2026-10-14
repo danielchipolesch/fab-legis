@@ -2,7 +2,7 @@
 
 ## Não vejo o botão de criar documento
 
-Quem cria espécies convencionais é decidido por OM. Se a sua OM não foi habilitada, você consulta tudo, mas não cria. Peça ao Administrador Geral (CENDOC) a habilitação. A NPA pode ser criada por qualquer OM. Verifique também se o seu perfil de **Elaborador** está ativo.
+Quem cria espécies convencionais é decidido por OM. Se a sua OM não foi habilitada, você consulta tudo, mas não cria. Peça ao Administrador Geral (CENDOC) a habilitação. A NPA pode ser criada por qualquer OM. Verifique também se o seu papel de **Elaborador** está ativo.
 
 ## Por que não consigo editar o documento?
 

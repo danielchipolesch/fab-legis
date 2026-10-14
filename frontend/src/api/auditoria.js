@@ -12,7 +12,7 @@ export async function listAuditoria(filtros = {}) {
   return http.get(`/auditoria?${params.toString()}`)
 }
 
-// Trilha dos acessos (quem concedeu perfil, criou/desativou usuário...): filtros por CPF do usuário afetado, ação e período.
+// Trilha dos acessos (quem concedeu papel, criou/desativou usuário...): filtros por CPF do usuário afetado, ação e período.
 export async function listAuditoriaDeAcessos(filtros = {}) {
   const params = new URLSearchParams()
   if (filtros.cpf) params.set('cpf', filtros.cpf)

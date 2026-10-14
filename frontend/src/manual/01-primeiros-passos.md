@@ -16,24 +16,24 @@ Para sair, abra o menu com o seu nome (canto superior direito) e escolha **Sair*
 
 - **Sino:** as suas notificações (um documento chegou para você, foi aprovado, foi devolvido…).
 - **Ajuda (?):** abre este manual na página da tela em que você está.
-- **Seu nome:** o menu do usuário, com os atalhos de administração (para quem tem esse perfil) e a opção **Sair**.
+- **Seu nome:** o menu do usuário, com os atalhos de administração (para quem tem esse papel) e a opção **Sair**.
 
 O caminho no topo de cada tela (🏠 › Área de Trabalho › …) mostra onde você está e permite voltar.
 
-## Perfis: o que cada pessoa pode fazer
+## Papéis: o que cada pessoa pode fazer
 
-O que você vê e faz depende dos **perfis** que o administrador deu a você. Quem não tem nenhum perfil especial **só consulta** os documentos.
+O que você vê e faz depende dos **papéis** que o administrador deu a você. Quem não tem nenhum papel especial **só consulta** os documentos.
 
-| Perfil | O que faz |
+| Papel | O que faz |
 |---|---|
-| **Elaborador** | Cria e edita os documentos de que é autor ou coautor e os envia para aprovação. Todo usuário tem este perfil |
+| **Elaborador** | Cria e edita os documentos de que é autor ou coautor e os envia para aprovação. Todo usuário tem este papel |
 | **Aprovador da OM** | Aprova ou devolve os documentos da própria OM que aguardam aprovação |
 | **Publicador do BCA** | Só no CENDOC: registra a publicação e a revogação |
 | **Auditor da OM / Auditor Geral** | Consulta a trilha de auditoria (da própria OM ou de todas) |
 | **Administrador da OM / Administrador Geral** | Gerencia os usuários (da própria OM ou de todas) |
 | **Painel Gerencial da OM / Geral** | Consulta os indicadores do Painel Gerencial |
 
-O perfil **Geral** existe só no CENDOC; os da **OM**, nas demais OMs. Cada pessoa pode ter vários perfis. O que cada um faz está explicado nas páginas seguintes, sempre com a indicação de **para quem** vale.
+O papel **Geral** existe só no CENDOC; os da **OM**, nas demais OMs. Cada pessoa pode ter vários papéis. O que cada um faz está explicado nas páginas seguintes, sempre com a indicação de **para quem** vale.
 
 ## Conceitos que aparecem em todo o sistema
 

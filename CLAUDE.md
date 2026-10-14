@@ -4,7 +4,7 @@
 
 Este projeto mantém a documentação técnica em `docs/`, em Markdown, **lida só no repositório (git)**: não há site, serviço nem ferramenta de geração (o MkDocs foi abandonado de propósito — não reintroduza). O `README.md` é o **hub**: visão geral, instalação e a tabela que leva a cada página de `docs/`.
 
-**Sempre que uma feature nova for implementada ou um comportamento documentado em `docs/` mudar (fluxo, endpoint, regra de negócio, perfil/permissão, migração de banco relevante), atualize a página correspondente em `docs/` como parte da mesma tarefa** — não deixe para depois nem espere o usuário pedir. Páginas existentes:
+**Sempre que uma feature nova for implementada ou um comportamento documentado em `docs/` mudar (fluxo, endpoint, regra de negócio, papel/permissão, migração de banco relevante), atualize a página correspondente em `docs/` como parte da mesma tarefa** — não deixe para depois nem espere o usuário pedir. Páginas existentes:
 
 | Página | Conteúdo |
 |---|---|
@@ -12,7 +12,7 @@ Este projeto mantém a documentação técnica em `docs/`, em Markdown, **lida s
 | `docs/funcionalidades.md` | O que cada tela faz |
 | `docs/arquitetura.md` | Camadas backend/frontend, estrutura de pastas |
 | `docs/dominio.md` | Modelo do ato normativo, regras de numeração |
-| `docs/autenticacao.md` | Login, perfis, colaboração, notificações, auditoria |
+| `docs/autenticacao.md` | Login, papéis, colaboração, notificações, auditoria |
 | `docs/ciclo-de-vida.md` | Status do documento, portarias/BCA, ciclo de emenda |
 | `docs/exportacao-pdf.md` | Geração de PDF (Apache FOP) e HTML, fontes, texto sugerido de portaria, regra de consistência entre PDF e HTML |
 | `docs/api-rest.md` | Endpoints |
@@ -52,7 +52,7 @@ O domínio deste sistema é a técnica legislativa brasileira (LC 95/1998, Decre
 
 Ao criar algo novo, mantenha o nome do conceito consistente com o que já existe no resto do código para o mesmo conceito — não traduza um nome de entidade/DTO/página já usado em outro lugar (ex.: se a entidade é `EspecieNormativa`, o DTO correspondente é `EspecieNormativaResponseDto`, não `DocumentationTypeResponseDto`).
 
-**Isso é a linguagem ubíqua do projeto**: o termo usado para um conceito de domínio deve ser sempre o mesmo, em toda camada — entidade/DTO/serviço no backend, variável/componente/store no frontend, rótulo mostrado na tela e texto em `docs/` — nunca um sinônimo, abreviação ou tradução alternativa, mesmo que pareça mais natural num contexto específico. `docs/dominio.md` é o glossário de referência (Documento, Parte Preliminar, Parte Normativa, Anexos, Epígrafe, Ementa, Preâmbulo, Fecho, Assinatura, Capítulo, Seção, Subseção, Artigo, Parágrafo, Parágrafo único, Inciso, Alínea, Subalínea, Emenda, Espécie Normativa, Assunto Básico...), e espelha o vocabulário da própria LC 95/1998, do Decreto nº 12.002/2024 e da NSCA 5-3 — ao introduzir um conceito de domínio novo, confira primeiro se a norma já dá um nome a ele antes de inventar um. Vale também no sentido inverso: um nome já usado para um conceito não pode ser reaproveitado para outro conceito diferente, mesmo que pareça conveniente no momento. Dois casos já decididos: o que um usuário **tem** para poder agir (Elaborador, Aprovador da OM, Administrador Geral… — `PerfilEnum`, `t_perfil`) é **perfil**, nunca "papel" nem "role"; e o conjunto de regras que varia por espécie normativa chama-se **regras da espécie** (`domain.regras`, `frontend/src/regras/`), nunca "perfil".
+**Isso é a linguagem ubíqua do projeto**: o termo usado para um conceito de domínio deve ser sempre o mesmo, em toda camada — entidade/DTO/serviço no backend, variável/componente/store no frontend, rótulo mostrado na tela e texto em `docs/` — nunca um sinônimo, abreviação ou tradução alternativa, mesmo que pareça mais natural num contexto específico. `docs/dominio.md` é o glossário de referência (Documento, Parte Preliminar, Parte Normativa, Anexos, Epígrafe, Ementa, Preâmbulo, Fecho, Assinatura, Capítulo, Seção, Subseção, Artigo, Parágrafo, Parágrafo único, Inciso, Alínea, Subalínea, Emenda, Espécie Normativa, Assunto Básico...), e espelha o vocabulário da própria LC 95/1998, do Decreto nº 12.002/2024 e da NSCA 5-3 — ao introduzir um conceito de domínio novo, confira primeiro se a norma já dá um nome a ele antes de inventar um. Vale também no sentido inverso: um nome já usado para um conceito não pode ser reaproveitado para outro conceito diferente, mesmo que pareça conveniente no momento. Dois casos já decididos: o que um usuário **tem** para poder agir (Elaborador, Aprovador da OM, Administrador Geral… — `PapelEnum`, `t_papel`) é **papel** (o termo de controle de acesso, *role*, que também é o do Spring `ROLE_*` e do Keycloak), nunca "perfil"; e o conjunto de regras que varia por espécie normativa chama-se **regras da espécie** (`domain.regras`, `frontend/src/regras/`), nunca "perfil" nem "papel". ("Perfil" só aparece nos perfis do Docker Compose e do Spring, que são coisa de ferramenta.)
 
 ## Regras que variam por espécie entram por interface
 
@@ -81,6 +81,6 @@ O que **não dá para descobrir lendo o código** e já custou tempo. O "como fu
 
 - **Comentários em linha foram removidos de propósito** (complexidade sem retorno). Não reintroduza sem alinhar com o usuário.
 - **Número de página no PDF:** Espécie Convencional **não tem** (navega-se pelo artigo/capítulo, do sumário); a **NPA tem** ("n/total", `DocumentoFoNpaBuilder`); anexos de imagem (ANEXO II em diante) têm rodapé próprio. Cada um é gerado por um construtor à parte — não "unifique".
-- **`ADM_OM`/`ADM_GER` não implicam `ELB`/`APR_OM`/`PUB_BCA`** (perfis puramente administrativos). O único caso em que se juntam é o administrador seed do `DataSeeder` (`ADM_GER` + `ELB` + `PNL_GER`), para o primeiro usuário já conseguir criar um documento.
+- **`ADM_OM`/`ADM_GER` não implicam `ELB`/`APR_OM`/`PUB_BCA`** (papéis puramente administrativos). O único caso em que se juntam é o administrador seed do `DataSeeder` (`ADM_GER` + `ELB` + `PNL_GER`), para o primeiro usuário já conseguir criar um documento.
 - **A NPA não passa por alteração** (sem "Iniciar Alteração", sem `EM_ALTERACAO`) — para mudar uma NPA publicada, cria-se outra e revoga-se a anterior.
-- **Navegação em módulos:** a *Área de Trabalho* é o hub (cards por etapa, atravessando os módulos); *Espécies Convencionais* e *NPA* são módulos com listas próprias, e o *Painel Gerencial* é o módulo dos indicadores (só para o perfil do Painel Gerencial; primeiro no Acesso Rápido). Revisão e Publicação são filas por perfil, não módulos. Use "Módulo de Espécies Convencionais" / "Módulo de NPA", não "subsistema".
+- **Navegação em módulos:** a *Área de Trabalho* é o hub (cards por etapa, atravessando os módulos); *Espécies Convencionais* e *NPA* são módulos com listas próprias, e o *Painel Gerencial* é o módulo dos indicadores (só para o papel do Painel Gerencial; primeiro no Acesso Rápido). Revisão e Publicação são filas por papel, não módulos. Use "Módulo de Espécies Convencionais" / "Módulo de NPA", não "subsistema".

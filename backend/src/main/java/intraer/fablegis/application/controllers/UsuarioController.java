@@ -6,7 +6,7 @@ import intraer.fablegis.application.dtos.usuarioDtos.UsuarioBuscaResponseDto;
 import intraer.fablegis.application.dtos.usuarioDtos.UsuarioCreateRequestDto;
 import intraer.fablegis.application.dtos.usuarioDtos.UsuarioResponseDto;
 import intraer.fablegis.application.dtos.usuarioDtos.UsuarioUpdateRequestDto;
-import intraer.fablegis.domain.entities.usuario.PerfilEnum;
+import intraer.fablegis.domain.entities.usuario.PapelEnum;
 import intraer.fablegis.domain.services.UsuarioService;
 import intraer.fablegis.infrastructure.repositories.UsuarioRepository;
 import intraer.fablegis.infrastructure.security.AutenticacaoUtil;
@@ -21,7 +21,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-// Gestão de usuários -- exclusiva de ADMIN (ver PerfilEnum). Sem exclusão
+// Gestão de usuários -- exclusiva de ADMIN (ver PapelEnum). Sem exclusão
 // definitiva de propósito: usuários são autores de documento (FK sem ON
 // DELETE), então o ciclo de vida é ativar/desativar, nunca apagar.
 @RestController
@@ -44,7 +44,7 @@ public class UsuarioController {
     // documento quase nunca sabe o CPF de um colega de cor, mas sabe o nome; o CPF só
     // é resolvido internamente a partir do candidato escolhido aqui (ver
     // DocumentoCompartilhamentoService.compartilhar, que continua recebendo CPF).
-    // Sem filtro de OM/perfil de propósito: coautoria não é restrita a isso. Termo
+    // Sem filtro de OM/papel de propósito: coautoria não é restrita a isso. Termo
     // mínimo de 2 caracteres evita devolver a base inteira a cada tecla digitada.
     @GetMapping("/buscar")
     @PreAuthorize("isAuthenticated()")

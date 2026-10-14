@@ -1,7 +1,7 @@
 import { defineStore, getActivePinia } from 'pinia'
 import { limparCachesDaSessao } from '@/utils/limparSessao.js'
 import { temEscopoGeral } from '@/utils/escopo.js'
-import { ehAdmin, ehAdminGeral, ehAuditor, ehPainelGerencial, ehPainelGerencialGeral } from '@/utils/perfis.js'
+import { ehAdmin, ehAdminGeral, ehAuditor, ehPainelGerencial, ehPainelGerencialGeral } from '@/utils/papeis.js'
 import { podeCriarNoModulo, podeCriarEspecie } from '@/utils/habilitacao.js'
 import { listMinhasEspeciesCriaveis } from '@/api/habilitacao.js'
 import { setAuthTokenGetter, setUnauthorizedHandler, setRefreshHandler } from '@/api/client.js'
@@ -84,7 +84,7 @@ export const useAuthStore = defineStore('auth', {
         omSigla: salvo.omSigla,
         nomeGuerra: salvo.nomeGuerra,
         postoGraduacaoBigrama: salvo.postoGraduacaoBigrama,
-        perfis: salvo.perfis ?? [],
+        papeis: salvo.papeis ?? [],
       } : null,
       loading: false,
       // Espécies que a OM da pessoa pode criar (habilitação de documentos): decide onde aparecem os botões de criar. Vazia até
@@ -97,22 +97,22 @@ export const useAuthStore = defineStore('auth', {
   getters: {
     isAuthenticated: (state) => !!state.token,
     // Administrador (ADM_OM/ADM_GER) é puramente administrativo (usuários/OMs) -- não implica ELB/APR_OM/PUB_BCA
-    // nenhum, ver PerfilEnum no backend.
-    isAdmin: (state) => ehAdmin(state.usuario?.perfis),
-    // Administrador Geral (ADM_GER, só no CENDOC; ver utils/perfis.js): cadastra habilitação e DOM e mantém os admins locais.
-    isAdminGeral: (state) => ehAdminGeral(state.usuario?.perfis),
+    // nenhum, ver PapelEnum no backend.
+    isAdmin: (state) => ehAdmin(state.usuario?.papeis),
+    // Administrador Geral (ADM_GER, só no CENDOC; ver utils/papeis.js): cadastra habilitação e DOM e mantém os admins locais.
+    isAdminGeral: (state) => ehAdminGeral(state.usuario?.papeis),
     // Escopo geral de quem está logado (OM = CENDOC), para a auditoria e a revisão de acessos.
     temEscopoGeral: (state) => temEscopoGeral(state.usuario?.omSigla),
-    isElaborador: (state) => state.usuario?.perfis?.includes('ELB') ?? false,
-    isAprovador: (state) => state.usuario?.perfis?.includes('APR_OM') ?? false,
-    isPublicador: (state) => state.usuario?.perfis?.includes('PUB_BCA') ?? false,
-    // Espelha o backend (hasAnyRole('AUD_OM', 'AUD_GER') -- ver AuditoriaController): perfil
+    isElaborador: (state) => state.usuario?.papeis?.includes('ELB') ?? false,
+    isAprovador: (state) => state.usuario?.papeis?.includes('APR_OM') ?? false,
+    isPublicador: (state) => state.usuario?.papeis?.includes('PUB_BCA') ?? false,
+    // Espelha o backend (hasAnyRole('AUD_OM', 'AUD_GER') -- ver AuditoriaController): papel
     // independente de ADMIN, precisa estar marcado no próprio cadastro.
-    isAuditor: (state) => ehAuditor(state.usuario?.perfis),
-    // Painel Gerencial (módulo): só para quem tem o perfil do Painel Gerencial; o Painel Gerencial Geral (CENDOC) também filtra por OM.
-    temAcessoAoPainel: (state) => ehPainelGerencial(state.usuario?.perfis),
-    isPainelGerencialGeral: (state) => ehPainelGerencialGeral(state.usuario?.perfis),
-    // Criar documento = ter o perfil Elaborador (ELB) E a OM habilitada para a espécie (a NPA, toda OM). Consultar e ser coautor independem disso.
+    isAuditor: (state) => ehAuditor(state.usuario?.papeis),
+    // Painel Gerencial (módulo): só para quem tem o papel do Painel Gerencial; o Painel Gerencial Geral (CENDOC) também filtra por OM.
+    temAcessoAoPainel: (state) => ehPainelGerencial(state.usuario?.papeis),
+    isPainelGerencialGeral: (state) => ehPainelGerencialGeral(state.usuario?.papeis),
+    // Criar documento = ter o papel Elaborador (ELB) E a OM habilitada para a espécie (a NPA, toda OM). Consultar e ser coautor independem disso.
     podeCriarNoModulo: (state) => (tipoDeEspecie) => podeCriarNoModulo(state.especiesCriaveis, tipoDeEspecie),
     podeCriarEspecie: (state) => (sigla) => podeCriarEspecie(state.especiesCriaveis, sigla),
   },
@@ -148,7 +148,7 @@ export const useAuthStore = defineStore('auth', {
         omSigla: claims.om_sigla ?? null,
         nomeGuerra: claims.nome_guerra ?? null,
         postoGraduacaoBigrama: claims.posto_bigrama ?? null,
-        perfis: claims.realm_access?.roles ?? [],
+        papeis: claims.realm_access?.roles ?? [],
       }
       localStorage.setItem(STORAGE_KEY, JSON.stringify({
         token: this.token,
@@ -160,7 +160,7 @@ export const useAuthStore = defineStore('auth', {
         omSigla: this.usuario.omSigla,
         nomeGuerra: this.usuario.nomeGuerra,
         postoGraduacaoBigrama: this.usuario.postoGraduacaoBigrama,
-        perfis: this.usuario.perfis,
+        papeis: this.usuario.papeis,
       }))
       this.carregarEspeciesCriaveis()
     },
@@ -283,7 +283,7 @@ export const useAuthStore = defineStore('auth', {
         omId: dados.omId ?? this.usuario.omId,
         omNome: dados.omNome ?? this.usuario.omNome,
         omSigla: dados.omSigla ?? this.usuario.omSigla,
-        perfis: dados.perfis ?? this.usuario.perfis,
+        papeis: dados.papeis ?? this.usuario.papeis,
       }
       const salvo = lerArmazenado()
       if (salvo) {
@@ -295,7 +295,7 @@ export const useAuthStore = defineStore('auth', {
           omId: this.usuario.omId,
           omNome: this.usuario.omNome,
           omSigla: this.usuario.omSigla,
-          perfis: this.usuario.perfis,
+          papeis: this.usuario.papeis,
         }))
       }
     },

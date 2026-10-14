@@ -1,7 +1,7 @@
-<!-- perfis: ELB -->
+<!-- papeis: ELB -->
 # Elaborar um documento
 
-Para quem tem o perfil **Elaborador** (todo usuário tem). Aqui você cria o documento, escreve, e o envia para aprovação.
+Para quem tem o papel **Elaborador** (todo usuário tem). Aqui você cria o documento, escreve, e o envia para aprovação.
 
 ## Criar
 

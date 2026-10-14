@@ -28,7 +28,7 @@ Endpoints padrão do Spring Authorization Server (`AuthorizationServerConfig`), 
 | `GET` | `/filtrar` | Filtra por espécie normativa e assunto básico |
 | `GET` | `/busca?q=&page=&size=` | Busca full-text no **conteúdo** dos dispositivos (`tsvector`/PostgreSQL, ver [Funcionalidades](funcionalidades.md#busca-textual)) — resultado paginado por dispositivo (não por documento), com trecho destacado |
 | `PUT` | `/{id}` | Atualiza metadados (somente Rascunho/Minuta, autor/coautor). `identificacao` (o código do documento) só é aceita numa NPA e em Rascunho/Minuta; nas convencionais um valor diferente do atual é recusado |
-| `PATCH` | `/{id}/status` | Muda a **Situação Local** (corpo: `situacaoLocal` (sem escolher pessoa: "enviar para aprovação" e "aprovar" valem para qualquer aprovador da OM e qualquer publicador); `SEM_ETAPA` = concluir a etapa em curso). Transição validada e autorizada por perfil; publicar/revogar registram Portaria+BCA (a parte preliminar só na 1ª publicação) — ou, numa NPA, só `numeroBoletimInterno` + `dataBoletimInterno` e são os únicos a mudar a Situação BCA — ver [Ciclo de Vida](ciclo-de-vida.md) |
+| `PATCH` | `/{id}/status` | Muda a **Situação Local** (corpo: `situacaoLocal` (sem escolher pessoa: "enviar para aprovação" e "aprovar" valem para qualquer aprovador da OM e qualquer publicador); `SEM_ETAPA` = concluir a etapa em curso). Transição validada e autorizada por papel; publicar/revogar registram Portaria+BCA (a parte preliminar só na 1ª publicação) — ou, numa NPA, só `numeroBoletimInterno` + `dataBoletimInterno` e são os únicos a mudar a Situação BCA — ver [Ciclo de Vida](ciclo-de-vida.md) |
 | `GET` | `/{id}/pdf?versao=` | `/{id}/html?versao=` | PDF/HTML do documento. `versao=VIGENTE` (a da Situação BCA, armazenada) ou `TRAMITACAO` (a da etapa local em curso); sem o parâmetro, a em tramitação se houver, senão a vigente. `404` se a versão pedida não existe |
 | `PATCH` | `/{id}/secoes` | Salva a árvore de seções por *diff* contra o que já está persistido (checagem de versão) — nunca reescreve `conteudo` de elemento existente, criado/atualizado/excluído propagam via SSE (`event: estrutura`); resposta é `{ itens, numeracao }`, não só a árvore |
 | `PATCH` | `/{id}/elementos/{elementoId}/conteudo` | Grava só o `conteudo` de um elemento — usado pelo serviço `collab` a cada persistência da edição colaborativa |
@@ -84,7 +84,7 @@ Os quatro cards do hub, de qualquer módulo; qualquer usuário autenticado. Devo
 | `POST` | `/` | Envia uma imagem (multipart: `titulo`, `arquivo` e, opcional, `orientacao` = `RETRATO` ou `PAISAGEM`) como anexo. Sem `orientacao`, o servidor a sugere pela proporção da imagem (mais larga que alta = paisagem); valor inválido responde 400. A resposta (e `GET /`) traz `id`, `titulo`, `urlImagem`, `ordem` e `orientacao` |
 | `DELETE` | `/{anexoId}` | Remove um anexo |
 
-**Acesso:** `GET` é visualização, livre para qualquer usuário autenticado. `POST` e `DELETE` seguem a mesma regra de editar o documento (parte normativa, metadados): só autor ou coautor com perfil Editor — ou o revisor atribuído, em `EM_REVISAO` — (`@documentoAcessoService.podeEditar`, `403` caso contrário), e só com o documento em `RASCUNHO`, `MINUTA`, `EM_ALTERACAO` ou `EM_REVISAO` (`403` com "Os anexos só podem ser alterados enquanto o documento está em edição…" nas demais etapas). Ver [Ciclo de Vida](ciclo-de-vida.md).
+**Acesso:** `GET` é visualização, livre para qualquer usuário autenticado. `POST` e `DELETE` seguem a mesma regra de editar o documento (parte normativa, metadados): só autor ou coautor com papel Editor — ou o revisor atribuído, em `EM_REVISAO` — (`@documentoAcessoService.podeEditar`, `403` caso contrário), e só com o documento em `RASCUNHO`, `MINUTA`, `EM_ALTERACAO` ou `EM_REVISAO` (`403` com "Os anexos só podem ser alterados enquanto o documento está em edição…" nas demais etapas). Ver [Ciclo de Vida](ciclo-de-vida.md).
 
 ## Espécies normativas — `/v1/especie-normativa`
 
@@ -108,23 +108,23 @@ O `ImagemService` cria o bucket sob demanda na primeira execução; o bucket é 
 | Método | Rota | Descrição |
 |---|---|---|
 | `GET` | `/` · `/{id}` | Lista ou obtém um usuário (no escopo de quem pergunta). Cada um traz `motivoDaRevisao` (`NENHUM`, `TROCA_DE_OM`, `REVISAO_VENCIDA`, `CONTA_DORMENTE`) e `revisavel` — se quem pergunta é quem confere o acesso dele — e as datas da última revisão e do último acesso |
-| `POST` | `/` | Cria usuário (CPF, senha, OM, perfis) |
-| `PUT` | `/{id}` | Atualiza nome, OM, perfis e situação (ativo/inativo) |
+| `POST` | `/` | Cria usuário (CPF, senha, OM, papéis) |
+| `PUT` | `/{id}` | Atualiza nome, OM, papéis e situação (ativo/inativo) |
 | `PATCH` | `/{id}/senha` | Redefine a senha de um usuário |
 
 Sem exclusão definitiva — usuários são autores de documento (FK sem `ON DELETE`), então o ciclo de vida é ativar/desativar, nunca apagar.
 
-Duas rotas sob `/v1/usuarios` sobrescrevem a restrição de Admin da classe (`isAuthenticated()`) — alimentam os seletores de pessoa por nome (CPF é dado pessoal, quase nunca sabido de cor, ver [Autenticação e Colaboração](autenticacao.md#perfis-e-posse-de-documento)):
+Duas rotas sob `/v1/usuarios` sobrescrevem a restrição de Admin da classe (`isAuthenticated()`) — alimentam os seletores de pessoa por nome (CPF é dado pessoal, quase nunca sabido de cor, ver [Autenticação e Colaboração](autenticacao.md#papéis-e-posse-de-documento)):
 
 | Método | Rota | Descrição |
 |---|---|---|
-| `GET` | `/buscar?q=` | Candidatos a coautor — **sem** filtro de OM/perfil (coautoria não é restrita a isso); exige 2+ caracteres |
+| `GET` | `/buscar?q=` | Candidatos a coautor — **sem** filtro de OM/papel (coautoria não é restrita a isso); exige 2+ caracteres |
 
 ## Organizações militares — `/v1/organizacoes-militares`
 
 `GET /` — lista simples, usada para popular o seletor de OM nas telas de usuários e de distintivos (inclui `urlDistintivo`).
 
-| Método | Rota | Perfil | Descrição |
+| Método | Rota | Papel | Descrição |
 |---|---|---|---|
 | `PUT` | `/{id}/distintivo` | Admin | Envia/troca o DOM da OM (multipart, campo `arquivo`; PNG ou JPEG, até 1 MB; outro formato ou tamanho → 406) |
 | `DELETE` | `/{id}/distintivo` | Admin | Remove o DOM da OM |
@@ -146,21 +146,21 @@ Criar (`POST /v1/documentos`) ou clonar (`POST /v1/documentos/{id}/clonar`) sem 
 
 ## Painel Gerencial — `/v1/painel-gerencial`
 
-`GET /` — os indicadores do [Painel Gerencial](funcionalidades.md#painel-gerencial). Só os perfis **Painel Gerencial da OM** (`PNL_OM`) e **Painel Gerencial Geral** (`PNL_GER`). Parâmetros opcionais: `omId`, `especieId`, `dataInicio` e `dataFim` (`AAAA-MM-DD`; sem datas, os últimos 365 dias; início depois do fim → `406`).
+`GET /` — os indicadores do [Painel Gerencial](funcionalidades.md#painel-gerencial). Só os papéis **Painel Gerencial da OM** (`PNL_OM`) e **Painel Gerencial Geral** (`PNL_GER`). Parâmetros opcionais: `omId`, `especieId`, `dataInicio` e `dataFim` (`AAAA-MM-DD`; sem datas, os últimos 365 dias; início depois do fim → `406`).
 
 A OM é decidida no servidor: o Painel Gerencial Geral usa `omId` (ausente = todas as OMs); o Painel Gerencial da OM sempre vê a própria — mandar `omId` de outra OM responde `403`. A resposta traz `escopo` (a OM usada e se quem pergunta pode trocar de OM), `totais`, `porEspecie`, `porMes`, `situacaoAtual`, `tempos` (mediana e p90 de cada etapa, em dias), `filas`, `gargalos` e `porOm`.
 
 ## Auditoria — `/v1/auditoria` *(Auditor)*
 
-`GET /` — trilha paginada e filtrável por documento, usuário, ação e período. Requer o perfil Auditor especificamente (Admin não tem acesso automático — ver [Autenticação e Colaboração](autenticacao.md)).
+`GET /` — trilha paginada e filtrável por documento, usuário, ação e período. Requer o papel Auditor especificamente (Admin não tem acesso automático — ver [Autenticação e Colaboração](autenticacao.md)).
 
-`GET /acessos` — a trilha dos **acessos** (criação de usuário, concessão/retirada de perfil, ativação, troca de OM, redefinição de senha — [Auditoria de acessos](autenticacao.md#auditoria-de-acessos)), filtrável por `cpf` do usuário afetado, `acao` e período; mesmo perfil Auditor.
+`GET /acessos` — a trilha dos **acessos** (criação de usuário, concessão/retirada de papel, ativação, troca de OM, redefinição de senha — [Auditoria de acessos](autenticacao.md#auditoria-de-acessos)), filtrável por `cpf` do usuário afetado, `acao` e período; mesmo papel Auditor.
 
 ## Revisão de acessos — `/v1/revisao-de-acessos` *(Admin)*
 
 | Método | Rota | Descrição |
 |---|---|---|
-| `POST` | `/{usuarioId}` | Devolve o usuário atualizado. Resultado da revisão `{ "perfis": [...] }`: os perfis que a pessoa **mantém** (os elevados ausentes são retirados; incluir um perfil que ela não tem → 406). Quem não a revisa, ou a si mesmo → 403. Grava a data e registra a revisão na auditoria de acessos |
+| `POST` | `/{usuarioId}` | Devolve o usuário atualizado. Resultado da revisão `{ "papeis": [...] }`: os papéis que a pessoa **mantém** (os elevados ausentes são retirados; incluir um papel que ela não tem → 406). Quem não a revisa, ou a si mesmo → 403. Grava a data e registra a revisão na auditoria de acessos |
 
 Ver [Revisão periódica de acessos](autenticacao.md#revisão-periódica-de-acessos).
 

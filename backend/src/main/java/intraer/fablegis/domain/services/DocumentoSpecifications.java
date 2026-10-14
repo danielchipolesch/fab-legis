@@ -4,7 +4,7 @@ import intraer.fablegis.domain.entities.estruturaDocumento.Documento;
 import intraer.fablegis.domain.entities.estruturaDocumento.DocumentoCompartilhamento;
 import intraer.fablegis.domain.entities.estruturaDocumento.SituacaoBcaEnum;
 import intraer.fablegis.domain.entities.estruturaDocumento.SituacaoLocalEnum;
-import intraer.fablegis.domain.entities.usuario.PerfilEnum;
+import intraer.fablegis.domain.entities.usuario.PapelEnum;
 import intraer.fablegis.domain.entities.usuario.Usuario;
 import intraer.fablegis.domain.regras.TipoDeEspecie;
 import jakarta.persistence.criteria.CommonAbstractCriteria;
@@ -60,11 +60,11 @@ public class DocumentoSpecifications {
     }
 
     // Card "Aguardando Minha Ação": o que espera a decisão de quem pergunta -- como aprovador, o que está em revisão na SUA OM (qualquer
-    // aprovador da OM age); como publicador, o que está em publicação (de qualquer OM: a publicação é do CENDOC). Sem esses perfis, nada.
+    // aprovador da OM age); como publicador, o que está em publicação (de qualquer OM: a publicação é do CENDOC). Sem esses papéis, nada.
     public static Specification<Documento> aguardandoAcaoDe(Usuario usuario) {
         return (root, query, cb) -> {
-            boolean aprovador = usuario.getPerfis().contains(PerfilEnum.APR_OM);
-            boolean publicador = usuario.getPerfis().contains(PerfilEnum.PUB_BCA);
+            boolean aprovador = usuario.getPapeis().contains(PapelEnum.APR_OM);
+            boolean publicador = usuario.getPapeis().contains(PapelEnum.PUB_BCA);
             if (!aprovador && !publicador) return cb.disjunction();
 
             Predicate comoAprovador = !aprovador ? null : cb.and(

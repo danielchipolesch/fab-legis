@@ -1,6 +1,6 @@
 // Manual do usuário: o conteúdo são arquivos Markdown em src/manual/ (NN-nome-da-pagina.md). Aqui ficam as funções puras que
 // montam as páginas e as seções a partir deles e que fazem a busca; quem desenha é pages/ManualPage.vue.
-import { PERFIS } from '@/utils/perfis.js'
+import { PAPEIS } from '@/utils/papeis.js'
 
 // 'Área de Trabalho' -> 'area-de-trabalho' (o id de cada título, usado nos links com #)
 export function slugDeTitulo(texto) {
@@ -17,7 +17,7 @@ export function slugDaPagina(caminho) {
   return nome.replace(/^\d+-/, '')
 }
 
-const COMENTARIO_DE_PERFIS = /^\s*<!--\s*perfis:\s*([^>]*?)\s*-->\s*\n?/
+const COMENTARIO_DE_PAPEIS = /^\s*<!--\s*papeis:\s*([^>]*?)\s*-->\s*\n?/
 
 // Divide o Markdown de uma página nas suas seções (cada "## Título"); o que vem antes do primeiro "##" é a introdução.
 // Os blocos de código não contam como título.
@@ -47,24 +47,24 @@ export function montarPaginas(arquivos) {
     .sort((a, b) => a.localeCompare(b))
     .map((caminho) => {
       let markdown = arquivos[caminho]
-      const comentario = markdown.match(COMENTARIO_DE_PERFIS)
-      const perfis = comentario ? comentario[1].split(/[\s,]+/).filter(Boolean) : []
-      if (comentario) markdown = markdown.replace(COMENTARIO_DE_PERFIS, '')
+      const comentario = markdown.match(COMENTARIO_DE_PAPEIS)
+      const papeis = comentario ? comentario[1].split(/[\s,]+/).filter(Boolean) : []
+      if (comentario) markdown = markdown.replace(COMENTARIO_DE_PAPEIS, '')
       const titulo = markdown.match(/^#\s+(.*?)\s*$/m)?.[1] ?? slugDaPagina(caminho)
       const corpo = markdown.replace(/^#\s+.*\n?/m, '').trim()
-      return { slug: slugDaPagina(caminho), titulo, perfis, markdown: corpo, secoes: secoesDe(corpo).filter(s => s.titulo) }
+      return { slug: slugDaPagina(caminho), titulo, papeis, markdown: corpo, secoes: secoesDe(corpo).filter(s => s.titulo) }
     })
 }
 
-// Os nomes por extenso dos perfis a que a página se dirige ('ELB' -> 'Elaborador'); código desconhecido é ignorado.
-export function nomesDosPerfis(perfis) {
-  return (perfis ?? []).map(codigo => PERFIS[codigo]?.nome).filter(Boolean)
+// Os nomes por extenso dos papéis a que a página se dirige ('ELB' -> 'Elaborador'); código desconhecido é ignorado.
+export function nomesDosPapeis(papeis) {
+  return (papeis ?? []).map(codigo => PAPEIS[codigo]?.nome).filter(Boolean)
 }
 
-// A página é para quem tem algum dos perfis dela? (uma página sem perfis é para todos)
-export function ehParaMim(pagina, meusPerfis) {
-  if (!pagina.perfis.length) return false
-  return pagina.perfis.some(p => (meusPerfis ?? []).includes(p))
+// A página é para quem tem algum dos papéis dela? (uma página sem papéis é para todos)
+export function ehParaMim(pagina, meusPapeis) {
+  if (!pagina.papeis.length) return false
+  return pagina.papeis.some(p => (meusPapeis ?? []).includes(p))
 }
 
 const normalizar = (texto) => String(texto ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()

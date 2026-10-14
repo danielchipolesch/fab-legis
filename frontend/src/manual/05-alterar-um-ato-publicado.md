@@ -1,4 +1,4 @@
-<!-- perfis: ELB APR_OM -->
+<!-- papeis: ELB APR_OM -->
 # Alterar um ato publicado
 
 Um ato publicado **não é editado diretamente**: abre-se uma **alteração**, que passa de novo por revisão e publicação. Enquanto isso, a versão em vigor continua valendo.
