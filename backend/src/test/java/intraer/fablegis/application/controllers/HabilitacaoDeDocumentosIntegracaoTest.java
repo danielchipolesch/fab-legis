@@ -64,7 +64,7 @@ class HabilitacaoDeDocumentosIntegracaoTest extends IntegracaoComPostgresBase {
             u.setCpf(cpf);
             u.setSenhaHash("{noop}x");
             u.setOm(om);
-            u.setPapeis(new HashSet<>(Set.of(PapelEnum.EDIT)));
+            u.setPapeis(new HashSet<>(Set.of(PapelEnum.ELB)));
             return usuarioRepository.save(u);
         });
     }

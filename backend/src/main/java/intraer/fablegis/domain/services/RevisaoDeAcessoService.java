@@ -49,7 +49,7 @@ public class RevisaoDeAcessoService {
             throw new InvalidInputException("A revisão só mantém ou retira papéis; para conceder um papel use Manter Usuários.");
         }
 
-        var depois = EnumSet.of(PapelEnum.EDIT);
+        var depois = EnumSet.of(PapelEnum.ELB);
         depois.addAll(elevadosMantidos);
         var retirados = EnumSet.noneOf(PapelEnum.class);
         retirados.addAll(elevadosAntes);
@@ -57,8 +57,8 @@ public class RevisaoDeAcessoService {
 
         EscopoDeAcesso.exigirAoMenosUmAdminGeral(
                 EscopoDeAcesso.ehAdminGeral(alvo) && alvo.isAtivo(),
-                depois.contains(PapelEnum.ADMIN) && EscopoDeAcesso.temEscopoGeral(alvo) && alvo.isAtivo(),
-                usuarioRepository.contarAtivosComPapelNaOm(EscopoDeAcesso.OM_GERAL, PapelEnum.ADMIN));
+                depois.contains(PapelEnum.ADM_GER) && alvo.isAtivo(),
+                usuarioRepository.contarAtivosComPapel(PapelEnum.ADM_GER));
         alvo.setPapeis(depois);
         alvo.setDtRevisaoAcesso(Timestamp.from(Instant.now()));
         var salvo = usuarioRepository.save(alvo);

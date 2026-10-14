@@ -77,6 +77,6 @@ O que **não dá para descobrir lendo o código** e já custou tempo. O "como fu
 
 - **Comentários em linha foram removidos de propósito** (complexidade sem retorno). Não reintroduza sem alinhar com o usuário.
 - **Número de página no PDF:** Espécie Convencional **não tem** (navega-se pelo artigo/capítulo, do sumário); a **NPA tem** ("n/total", `DocumentoFoNpaBuilder`); anexos de imagem (ANEXO II em diante) têm rodapé próprio. Cada um é gerado por um construtor à parte — não "unifique".
-- **`ADMIN` não implica `EDIT`/`APROV`/`PUBLIC`** (papel puramente administrativo). O único caso em que os dois se juntam é o admin seed do `DataSeeder` (`ADMIN` + `EDIT`), para o primeiro usuário já conseguir criar um documento.
+- **`ADM_OM`/`ADM_GER` não implicam `ELB`/`APR_OM`/`PUB_BCA`** (perfis puramente administrativos). O único caso em que se juntam é o administrador seed do `DataSeeder` (`ADM_GER` + `ELB`), para o primeiro usuário já conseguir criar um documento.
 - **A NPA não passa por alteração** (sem "Iniciar Alteração", sem `EM_ALTERACAO`) — para mudar uma NPA publicada, cria-se outra e revoga-se a anterior.
 - **Navegação em módulos:** a *Área de Trabalho* é o hub (cards por etapa, atravessando os módulos); *Espécies Convencionais* e *NPA* são módulos com listas próprias. Revisão e Publicação são filas por papel, não módulos. Use "Módulo de Espécies Convencionais" / "Módulo de NPA", não "subsistema".

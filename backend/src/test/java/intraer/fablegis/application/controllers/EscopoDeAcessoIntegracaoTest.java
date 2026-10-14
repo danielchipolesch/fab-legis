@@ -67,11 +67,11 @@ class EscopoDeAcessoIntegracaoTest extends IntegracaoComPostgresBase {
     }
 
     private Usuario adminLocal() {
-        return usuarioDa("EMAER", CPF_ADMIN_LOCAL, PapelEnum.EDIT, PapelEnum.ADMIN);
+        return usuarioDa("EMAER", CPF_ADMIN_LOCAL, PapelEnum.ELB, PapelEnum.ADM_OM);
     }
 
     private long idDoEditorLocal() {
-        return usuarioDa("EMAER", CPF_EDITOR_LOCAL, PapelEnum.EDIT).getId();
+        return usuarioDa("EMAER", CPF_EDITOR_LOCAL, PapelEnum.ELB).getId();
     }
 
     private static RequestPostProcessor como(Usuario usuario) {
@@ -104,7 +104,7 @@ class EscopoDeAcessoIntegracaoTest extends IntegracaoComPostgresBase {
 
         mvc.perform(get("/v1/usuarios/" + idDoGeral).with(como(adminLocal()))).andExpect(status().isNotFound());
         mvc.perform(put("/v1/usuarios/" + idDoGeral).with(como(adminLocal())).contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"nome\":\"X\",\"omId\":" + omRepository.findBySigla("EMAER").orElseThrow().getId() + ",\"ativo\":true,\"papeis\":[\"EDIT\"]}"))
+                        .content("{\"nome\":\"X\",\"omId\":" + omRepository.findBySigla("EMAER").orElseThrow().getId() + ",\"ativo\":true,\"papeis\":[\"ELB\"]}"))
                 .andExpect(status().isNotFound());
     }
 
@@ -114,19 +114,19 @@ class EscopoDeAcessoIntegracaoTest extends IntegracaoComPostgresBase {
         long cendoc = omRepository.findBySigla("CENDOC").orElseThrow().getId();
 
         mvc.perform(post("/v1/usuarios").with(como(adminLocal())).contentType(MediaType.APPLICATION_JSON)
-                        .content(corpo("55566677720", cendoc, "[\"EDIT\"]")))
+                        .content(corpo("55566677720", cendoc, "[\"ELB\"]")))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.message").value(containsString("própria OM")));
         mvc.perform(post("/v1/usuarios").with(como(adminLocal())).contentType(MediaType.APPLICATION_JSON)
-                        .content(corpo("55566677720", emaer, "[\"EDIT\",\"ADMIN\"]")))
+                        .content(corpo("55566677720", emaer, "[\"ELB\",\"ADM_OM\"]")))
                 .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.message").value(containsString("administrador geral")));
+                .andExpect(jsonPath("$.message").value(containsString("Administrador Geral")));
         mvc.perform(post("/v1/usuarios").with(como(adminLocal())).contentType(MediaType.APPLICATION_JSON)
-                        .content(corpo("55566677720", emaer, "[\"EDIT\",\"PUBLIC\"]")))
+                        .content(corpo("55566677720", emaer, "[\"ELB\",\"PUB_BCA\"]")))
                 .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.message").value(containsString("exclusiva do CENDOC")));
+                .andExpect(jsonPath("$.message").value(containsString("exclusivo do CENDOC")));
         mvc.perform(post("/v1/usuarios").with(como(adminLocal())).contentType(MediaType.APPLICATION_JSON)
-                        .content(corpo("55566677720", emaer, "[\"EDIT\",\"APROV\",\"AUDITOR\"]")))
+                        .content(corpo("55566677720", emaer, "[\"ELB\",\"APR_OM\",\"AUD_OM\"]")))
                 .andExpect(status().isCreated());
     }
 
@@ -135,17 +135,17 @@ class EscopoDeAcessoIntegracaoTest extends IntegracaoComPostgresBase {
         long emaer = omRepository.findBySigla("EMAER").orElseThrow().getId();
         long idEditor = idDoEditorLocal();
         mvc.perform(put("/v1/usuarios/" + idEditor).with(como(adminLocal())).contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"nome\":\"Pessoa EMAER\",\"omId\":" + emaer + ",\"ativo\":true,\"papeis\":[\"EDIT\",\"APROV\"]}"))
+                        .content("{\"nome\":\"Pessoa EMAER\",\"omId\":" + emaer + ",\"ativo\":true,\"papeis\":[\"ELB\",\"APR_OM\"]}"))
                 .andExpect(status().isOk());
 
         // outro administrador da mesma OM: só o admin geral mexe
-        var outroAdmin = usuarioDa("EMAER", "66677788830", PapelEnum.EDIT, PapelEnum.ADMIN);
+        var outroAdmin = usuarioDa("EMAER", "66677788830", PapelEnum.ELB, PapelEnum.ADM_OM);
         mvc.perform(put("/v1/usuarios/" + outroAdmin.getId()).with(como(adminLocal())).contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"nome\":\"X\",\"omId\":" + emaer + ",\"ativo\":true,\"papeis\":[\"EDIT\"]}"))
+                        .content("{\"nome\":\"X\",\"omId\":" + emaer + ",\"ativo\":true,\"papeis\":[\"ELB\"]}"))
                 .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.message").value(containsString("administradores locais")));
+                .andExpect(jsonPath("$.message").value(containsString("administradores são mantidos")));
         mvc.perform(put("/v1/usuarios/" + outroAdmin.getId()).with(como(geral())).contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"nome\":\"X\",\"omId\":" + emaer + ",\"ativo\":true,\"papeis\":[\"EDIT\"]}"))
+                        .content("{\"nome\":\"X\",\"omId\":" + emaer + ",\"ativo\":true,\"papeis\":[\"ELB\"]}"))
                 .andExpect(status().isOk());
     }
 
@@ -161,9 +161,9 @@ class EscopoDeAcessoIntegracaoTest extends IntegracaoComPostgresBase {
 
     @Test
     void oAuditorLocalSoVeOsAcessosDaPropriaOm() throws Exception {
-        var auditorLocal = usuarioDa("EMAER", "77788899941", PapelEnum.EDIT, PapelEnum.AUDITOR);
+        var auditorLocal = usuarioDa("EMAER", "77788899941", PapelEnum.ELB, PapelEnum.AUD_OM);
         mvc.perform(post("/v1/usuarios").with(como(geral())).contentType(MediaType.APPLICATION_JSON)
-                        .content(corpo("88899900078", omRepository.findBySigla("BAGL").orElseThrow().getId(), "[\"EDIT\"]")))
+                        .content(corpo("88899900078", omRepository.findBySigla("BAGL").orElseThrow().getId(), "[\"ELB\"]")))
                 .andExpect(status().isCreated());
 
         mvc.perform(get("/v1/auditoria/acessos").with(como(auditorLocal)))

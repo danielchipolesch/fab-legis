@@ -57,7 +57,7 @@ class AuditoriaDeAcessosIntegracaoTest extends IntegracaoComPostgresBase {
             u.setCpf("11122233396");
             u.setSenhaHash("{noop}x");
             u.setOm(omRepository.findBySigla("CENDOC").orElseThrow());
-            u.setPapeis(new HashSet<>(Set.of(PapelEnum.EDIT, PapelEnum.AUDITOR)));
+            u.setPapeis(new HashSet<>(Set.of(PapelEnum.ELB, PapelEnum.AUD_GER)));
             return usuarioRepository.save(u);
         });
     }
@@ -71,12 +71,12 @@ class AuditoriaDeAcessosIntegracaoTest extends IntegracaoComPostgresBase {
     void criarConcederERedefinirSenhaFicamRegistradosEQuemNaoEAuditorNaoLe() throws Exception {
         long omId = omRepository.findBySigla("EMAER").orElseThrow().getId();
         var criado = mvc.perform(post("/v1/usuarios").with(como(administrador())).contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"nome\":\"Beltrano\",\"cpf\":\"" + CPF_NOVO + "\",\"senha\":\"senha-forte-1\",\"omId\":" + omId + ",\"papeis\":[\"EDIT\"]}"))
+                        .content("{\"nome\":\"Beltrano\",\"cpf\":\"" + CPF_NOVO + "\",\"senha\":\"senha-forte-1\",\"omId\":" + omId + ",\"papeis\":[\"ELB\"]}"))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
         long id = Long.parseLong(criado.replaceAll("(?s).*\"id\":(\\d+).*", "$1"));
 
         mvc.perform(put("/v1/usuarios/" + id).with(como(administrador())).contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"nome\":\"Beltrano\",\"omId\":" + omId + ",\"ativo\":true,\"papeis\":[\"EDIT\",\"APROV\"]}"))
+                        .content("{\"nome\":\"Beltrano\",\"omId\":" + omId + ",\"ativo\":true,\"papeis\":[\"ELB\",\"APR_OM\"]}"))
                 .andExpect(status().isOk());
         mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch("/v1/usuarios/" + id + "/senha")
                         .with(como(administrador())).contentType(MediaType.APPLICATION_JSON).content("{\"novaSenha\":\"outra-senha-2\"}"))
@@ -86,7 +86,7 @@ class AuditoriaDeAcessosIntegracaoTest extends IntegracaoComPostgresBase {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalElements").value(3))
                 .andExpect(jsonPath("$.content[?(@.acao == 'CRIOU_USUARIO')]").isNotEmpty())
-                .andExpect(jsonPath("$.content[?(@.acao == 'ALTEROU_PAPEIS')].detalhe").value(org.hamcrest.Matchers.hasItem(containsString("Concedido(s): APROV"))))
+                .andExpect(jsonPath("$.content[?(@.acao == 'ALTEROU_PAPEIS')].detalhe").value(org.hamcrest.Matchers.hasItem(containsString("Concedido(s): APR_OM"))))
                 .andExpect(jsonPath("$.content[?(@.acao == 'REDEFINIU_SENHA')]").isNotEmpty())
                 .andExpect(jsonPath("$.content[0].atorId").value(administrador().getId()))
                 .andExpect(jsonPath("$.content[0].omSigla").value("EMAER"));

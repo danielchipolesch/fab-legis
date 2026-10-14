@@ -65,10 +65,10 @@
                 v-for="p in props.row.papeis"
                 :key="p"
                 dense square size="sm"
-                :color="PAPEL_CHIP[p]?.color ?? 'grey-3'"
-                :text-color="PAPEL_CHIP[p]?.textColor ?? 'grey-9'"
+                :color="PAPEIS[p]?.cor ?? 'grey-3'"
+                :text-color="PAPEIS[p]?.corDoTexto ?? 'grey-9'"
               >
-                {{ PAPEL_CHIP[p]?.label ?? p }}
+                {{ nomeDoPapel(p) }}
               </q-chip>
             </div>
           </q-td>
@@ -226,19 +226,19 @@
             />
 
             <div>
-              <div class="text-caption text-grey-7 q-mb-xs">Papéis (Editor é padrão de todo usuário e não pode ser removido; os demais são adicionais)</div>
+              <div class="text-caption text-grey-7 q-mb-xs">Perfis (Elaborador é padrão de todo usuário e não pode ser removido; os demais são adicionais)</div>
               <div class="row q-gutter-md">
-                <q-checkbox v-model="form.editor" label="Editor" disable>
-                  <q-tooltip>Todo usuário tem este papel -- não dá pra remover.</q-tooltip>
+                <q-checkbox v-model="form.editor" label="Elaborador" disable>
+                  <q-tooltip>Todo usuário tem este perfil -- não dá pra remover.</q-tooltip>
                 </q-checkbox>
-                <q-checkbox v-model="form.aprovador" label="Aprovador" :disable="salvando || !concediveis.aprovador" />
-                <q-checkbox v-model="form.publicador" label="Publicador" :disable="salvando || !concediveis.publicador">
-                  <q-tooltip>A publicação é exclusiva do CENDOC: só quem é da OM CENDOC (e só o administrador geral) recebe este papel.</q-tooltip>
+                <q-checkbox v-model="form.aprovador" label="Aprovador da OM" :disable="salvando || !concediveis.aprovador" />
+                <q-checkbox v-model="form.publicador" label="Publicador do BCA" :disable="salvando || !concediveis.publicador">
+                  <q-tooltip>A publicação é exclusiva do CENDOC: só quem é lotado no CENDOC (e só o Administrador Geral) recebe este perfil.</q-tooltip>
                 </q-checkbox>
-                <q-checkbox v-model="form.admin" label="Administrador" :disable="salvando || !concediveis.admin">
-                  <q-tooltip>Só o administrador geral (CENDOC) concede o papel de administrador.</q-tooltip>
+                <q-checkbox v-model="form.admin" :label="nomeDoPapel(papelDeAdmin(siglaDaOmDeDestino))" :disable="salvando || !concediveis.admin">
+                  <q-tooltip>Só o Administrador Geral (CENDOC) concede o perfil de administrador.</q-tooltip>
                 </q-checkbox>
-                <q-checkbox v-model="form.auditor" label="Auditor" :disable="salvando || !concediveis.auditor" />
+                <q-checkbox v-model="form.auditor" :label="nomeDoPapel(papelDeAuditor(siglaDaOmDeDestino))" :disable="salvando || !concediveis.auditor" />
               </div>
             </div>
 
@@ -338,6 +338,7 @@ import { caixaAlta, normalizarBusca } from '@/utils/texto.js'
 import { useAuthStore } from '@/stores/auth.js'
 import { emailInstitucional } from '@/utils/email.js'
 import { omsDoEscopo, papeisConcediveis, podeAdministrar } from '@/utils/escopo.js'
+import { PAPEIS, nomeDoPapel, ehAdmin, ehAuditor, papelDeAdmin, papelDeAuditor } from '@/utils/papeis.js'
 import { motivoDaRevisao, rotuloDoPapel, contarPendentes, precisaDeRevisao, temPapelElevado, papeisElevadosDe } from '@/utils/revisaoDeAcessos.js'
 
 const $q = useQuasar()
@@ -354,7 +355,7 @@ const columns = [
   { name: 'nomeGuerra', label: 'Nome de Guerra', field: 'nomeGuerra', align: 'left', sortable: true },
   { name: 'cpf',    label: 'CPF',     field: 'cpf',    align: 'center', sortable: true, style: 'width:160px' },
   { name: 'om',     label: 'OM',      field: 'omNome', align: 'center', sortable: true },
-  { name: 'papeis', label: 'Papéis',  field: 'papeis', align: 'center' },
+  { name: 'papeis', label: 'Perfis',  field: 'papeis', align: 'center' },
   { name: 'acesso', label: 'Acesso',  field: 'motivoDaRevisao', align: 'center', style: 'width:150px' },
   { name: 'ativo',  label: 'Situação', field: 'ativo',  align: 'center', sortable: true, style: 'width:110px' },
   { name: 'actions', label: 'Ações',  field: 'actions', align: 'center', style: 'width:110px' },
@@ -399,7 +400,7 @@ function formatarData(iso) {
 async function enviarRevisao(usuario, papeisMantidos, mensagem) {
   revisando.value = usuario.id
   try {
-    const atualizado = await usuariosApi.revisarAcesso(usuario.id, ['EDIT', ...papeisMantidos])
+    const atualizado = await usuariosApi.revisarAcesso(usuario.id, ['ELB', ...papeisMantidos])
     const i = usuarios.value.findIndex(u => u.id === usuario.id)
     if (i >= 0) usuarios.value.splice(i, 1, atualizado)
     if (!pendentes.value) soPendentes.value = false
@@ -428,13 +429,6 @@ function confirmarRetirada() {
   enviarRevisao(usuario, papeisElevadosDe(usuario).filter(p => retirada.mantidos[p]), `Acesso de ${caixaAlta(usuario.nome)} revisado.`)
 }
 
-const PAPEL_CHIP = {
-  EDIT:    { label: 'Editor',     color: 'blue-2',        textColor: 'secondary' },
-  APROV:   { label: 'Aprovador',  color: 'teal-2',        textColor: 'teal-10' },
-  PUBLIC:  { label: 'Publicador', color: 'purple-2',      textColor: 'purple-10' },
-  ADMIN:   { label: 'Admin',      color: 'deep-orange-2', textColor: 'deep-orange-10' },
-  AUDITOR: { label: 'Auditor',    color: 'indigo-2',      textColor: 'indigo-10' },
-}
 
 async function carregar() {
   carregando.value = true
@@ -517,10 +511,10 @@ function abrirEdicao(usuario) {
     senha: '',
     omId: usuario.omId,
     editor: true, // sempre -- ver comentário no form acima
-    aprovador: usuario.papeis.includes('APROV'),
-    publicador: usuario.papeis.includes('PUBLIC'),
-    admin: usuario.papeis.includes('ADMIN'),
-    auditor: usuario.papeis.includes('AUDITOR'),
+    aprovador: usuario.papeis.includes('APR_OM'),
+    publicador: usuario.papeis.includes('PUB_BCA'),
+    admin: ehAdmin(usuario.papeis),
+    auditor: ehAuditor(usuario.papeis),
     ativo: usuario.ativo,
   })
   formRef.value?.resetValidation()
@@ -529,11 +523,12 @@ function abrirEdicao(usuario) {
 
 function papeisSelecionados() {
   const papeis = []
-  if (form.editor) papeis.push('EDIT')
-  if (form.aprovador) papeis.push('APROV')
-  if (form.publicador) papeis.push('PUBLIC')
-  if (form.admin) papeis.push('ADMIN')
-  if (form.auditor) papeis.push('AUDITOR')
+  if (form.editor) papeis.push('ELB')
+  if (form.aprovador) papeis.push('APR_OM')
+  if (form.publicador) papeis.push('PUB_BCA')
+  // Administrador e Auditor existem em duas versões; vale a da lotação de destino (CENDOC = geral).
+  if (form.admin) papeis.push(papelDeAdmin(siglaDaOmDeDestino.value))
+  if (form.auditor) papeis.push(papelDeAuditor(siglaDaOmDeDestino.value))
   return papeis
 }
 

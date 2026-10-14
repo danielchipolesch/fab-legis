@@ -156,8 +156,8 @@ export function podeSubstituir(doc, perfil) {
   return !!perfil?.permiteSubstituicao && doc?.situacao_local === 'SEM_ETAPA' && doc?.situacao_bca === 'PUBLICADO'
 }
 
-// Aprovador do documento: quem tem o papel APROV na OM dele. Qualquer um age ao "Enviar para aprovação" -- ninguém é escolhido
+// Aprovador do documento: quem tem o perfil Aprovador da OM (APR_OM) na OM dele. Qualquer um age ao "Enviar para aprovação" -- ninguém é escolhido
 // (espelha DocumentoAcessoService.ehAprovadorDaOm, backend). `usuario`: { omId, papeis }.
 export function ehAprovadorDaOm(doc, usuario) {
-  return !!usuario && (usuario.papeis ?? []).includes('APROV') && String(doc?.om_id) === String(usuario.omId)
+  return !!usuario && (usuario.papeis ?? []).includes('APR_OM') && String(doc?.om_id) === String(usuario.omId)
 }

@@ -638,7 +638,7 @@ const substituicao = ref(null)
 
 // Visível para quem pode criar NPA (papel EDIT e OM habilitada, como no Clonar) e só numa NPA publicada e parada.
 const podeSubstituirEste = computed(() =>
-  podeSubstituir(documento.value, perfil.value) && auth.isEditor && auth.podeCriarNoModulo(perfil.value.tipo))
+  podeSubstituir(documento.value, perfil.value) && auth.isElaborador && auth.podeCriarNoModulo(perfil.value.tipo))
 
 async function carregarSubstituicao() {
   substituicao.value = null

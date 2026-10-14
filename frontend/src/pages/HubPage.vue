@@ -35,7 +35,7 @@
       <!-- Criar só leva ao módulo: quem cria de fato é o botão de criar da tela inicial dele. Só aparecem os módulos em que a OM
            da pessoa pode criar (habilitação de documentos): a espécie convencional só para OM habilitada, a NPA para todas. Os
            cartões dos módulos, abaixo, continuam todos, para consultar. -->
-      <q-btn-dropdown v-if="auth.isEditor && modulosQueCria.length" class="col-auto" color="primary" unelevated size="lg" icon="mdi-plus" label="Criar" data-testid="criar">
+      <q-btn-dropdown v-if="auth.isElaborador && modulosQueCria.length" class="col-auto" color="primary" unelevated size="lg" icon="mdi-plus" label="Criar" data-testid="criar">
         <q-list style="min-width:240px">
           <q-item v-for="m in modulosQueCria" :key="m.rota" clickable v-close-popup :to="{ name: m.rota }" :data-testid="`criar-${m.rota}`">
             <q-item-section avatar><q-icon :name="m.icone" color="primary" /></q-item-section>

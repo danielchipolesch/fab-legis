@@ -53,7 +53,7 @@ public class DocumentoAcessoService {
         if (doc.getSituacaoLocal() == SituacaoLocalEnum.EM_REVISAO) {
             return doc.getSituacaoBca() != SituacaoBcaEnum.PUBLICADO && ehAprovadorDaOm(doc, usuario);
         }
-        return usuario.getPapeis().contains(PapelEnum.EDIT)
+        return usuario.getPapeis().contains(PapelEnum.ELB)
                 && (ehAutor(doc, usuario) || compartilhamentoRepository.existsByDocumentoIdAndUsuarioId(documentoId, usuario.getId()));
     }
 
@@ -72,7 +72,7 @@ public class DocumentoAcessoService {
 
     // Publicador: qualquer pessoa com o papel PUBLIC -- e esse papel só existe no CENDOC (EscopoDeAcesso), que publica no BCA.
     private boolean ehPublicador(Usuario usuario) {
-        return usuario.getPapeis().contains(PapelEnum.PUBLIC);
+        return usuario.getPapeis().contains(PapelEnum.PUB_BCA);
     }
 
     // Posse do documento, SEM olhar a etapa: autor/coautor com papel EDIT ou, durante EM_REVISAO, a pessoa atribuída
@@ -88,7 +88,7 @@ public class DocumentoAcessoService {
             return true;
         }
 
-        if (!usuario.getPapeis().contains(PapelEnum.EDIT)) return false;
+        if (!usuario.getPapeis().contains(PapelEnum.ELB)) return false;
         return ehAutor(doc, usuario) || compartilhamentoRepository.existsByDocumentoIdAndUsuarioId(documentoId, usuario.getId());
     }
 
@@ -168,7 +168,7 @@ public class DocumentoAcessoService {
     }
 
     private boolean ehAprovadorDaOm(Documento doc, Usuario usuario) {
-        return usuario.getPapeis().contains(PapelEnum.APROV) && doc.getOm().getId().equals(usuario.getOm().getId());
+        return usuario.getPapeis().contains(PapelEnum.APR_OM) && doc.getOm().getId().equals(usuario.getOm().getId());
     }
 
     private boolean ehAutor(Documento doc, Usuario usuario) {

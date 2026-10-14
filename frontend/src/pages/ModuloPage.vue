@@ -23,7 +23,7 @@
         </div>
       </div>
       <q-btn
-        v-if="auth.isEditor && auth.podeCriarNoModulo(tipoDeEspecie)"
+        v-if="auth.isElaborador && auth.podeCriarNoModulo(tipoDeEspecie)"
         class="col-auto"
         color="primary"
         unelevated
@@ -312,7 +312,7 @@
 
                 <!-- Clonar -->
                 <q-btn
-                  v-if="auth.isEditor && auth.podeCriarEspecie(props.row.especie)"
+                  v-if="auth.isElaborador && auth.podeCriarEspecie(props.row.especie)"
                   icon="mdi-content-copy"
                   size="sm"
                   flat
@@ -446,7 +446,7 @@
                 Visualizar
               </q-btn>
               <q-space />
-              <q-btn v-if="auth.isEditor && auth.podeCriarEspecie(doc.especie)" size="sm" icon="mdi-content-copy" flat round dense color="primary" @click="confirmarClone(doc)">
+              <q-btn v-if="auth.isElaborador && auth.podeCriarEspecie(doc.especie)" size="sm" icon="mdi-content-copy" flat round dense color="primary" @click="confirmarClone(doc)">
                 <q-tooltip anchor="top middle" self="bottom middle">Clonar</q-tooltip>
                 <q-badge v-if="doc.qtd_replicas > 0" floating color="indigo" :label="doc.qtd_replicas" />
               </q-btn>
@@ -793,11 +793,11 @@ function statusActions(doc) {
   const publicado = doc.situacao_bca === 'PUBLICADO'
   switch (doc.situacao_local) {
     case 'RASCUNHO':
-      return auth.isEditor
+      return auth.isElaborador
         ? [{ destino: 'MINUTA', label: 'Enviar para Minuta', icon: 'mdi-file-edit-outline', rotuloDestino: 'Minuta' }]
         : []
     case 'MINUTA':
-      return auth.isEditor
+      return auth.isElaborador
         ? [{
           destino: 'EM_REVISAO', label: 'Enviar para Aprovação', icon: 'mdi-account-arrow-right-outline',
           descricao: 'será enviado para aprovação: qualquer aprovador da OM poderá aprová-lo ou devolvê-lo. Ninguém precisa ser escolhido.',
@@ -805,14 +805,14 @@ function statusActions(doc) {
         : []
     case 'EM_ALTERACAO':
       return [
-        ...(auth.isEditor ? [{
+        ...(auth.isElaborador ? [{
           destino: 'EM_REVISAO', label: 'Enviar Alteração para Aprovação', icon: 'mdi-account-arrow-right-outline',
           descricao: 'será enviado para aprovação: qualquer aprovador da OM poderá aprová-lo ou devolvê-lo. Ninguém precisa ser escolhido.',
         }] : []),
         // Desistir da alteração: o documento segue PUBLICADO com a versão vigente (SEM_ETAPA =
         // concluir a etapa, aqui, cancelando-a). Só sem alterações pendentes: cada uma se desfaz
         // elemento a elemento, no painel lateral do editor.
-        ...(auth.isAprovador || auth.isEditor ? [{
+        ...(auth.isAprovador || auth.isElaborador ? [{
           destino: 'SEM_ETAPA', label: 'Cancelar Alteração', icon: 'mdi-close-circle-outline',
           descricao: 'terá a alteração cancelada e continua PUBLICADO, com a versão vigente. Só é possível sem alterações pendentes: desfaça-as antes, elemento a elemento, no painel lateral do editor.',
         }] : []),
@@ -821,7 +821,7 @@ function statusActions(doc) {
       return publicado ? [
         // A NPA não tem alteração: para mudá-la cria-se outra e revoga-se a anterior (perfis/index.js).
         ...(auth.isAprovador && perfilDoDocumento(doc).permiteAlteracao ? [{ destino: 'EM_ALTERACAO', label: 'Iniciar Alteração', icon: 'mdi-pencil-lock-outline', rotuloDestino: 'Em Alteração' }] : []),
-        ...(auth.isEditor ? [{
+        ...(auth.isElaborador ? [{
           destino: 'ANALISE_REVOGACAO', label: 'Enviar para Revogação', icon: 'mdi-file-remove-outline',
           descricao: 'terá a revogação enviada para análise: qualquer aprovador da OM poderá aprová-la ou recusá-la. Ninguém precisa ser escolhido.',
         }] : []),

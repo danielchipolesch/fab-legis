@@ -27,7 +27,7 @@ import java.util.List;
 @RestController
 @RequestMapping(value = "/v1/usuarios", produces = MediaType.APPLICATION_JSON_VALUE)
 @Tag(name = "Usuário", description = "Gestão de usuários (administração)")
-@PreAuthorize("hasRole('ADMIN')")
+@PreAuthorize("hasAnyRole('ADM_OM', 'ADM_GER')")
 @RequiredArgsConstructor
 public class UsuarioController {
 

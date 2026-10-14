@@ -63,8 +63,8 @@ public class DocumentoSpecifications {
     // aprovador da OM age); como publicador, o que está em publicação (de qualquer OM: a publicação é do CENDOC). Sem esses papéis, nada.
     public static Specification<Documento> aguardandoAcaoDe(Usuario usuario) {
         return (root, query, cb) -> {
-            boolean aprovador = usuario.getPapeis().contains(PapelEnum.APROV);
-            boolean publicador = usuario.getPapeis().contains(PapelEnum.PUBLIC);
+            boolean aprovador = usuario.getPapeis().contains(PapelEnum.APR_OM);
+            boolean publicador = usuario.getPapeis().contains(PapelEnum.PUB_BCA);
             if (!aprovador && !publicador) return cb.disjunction();
 
             Predicate comoAprovador = !aprovador ? null : cb.and(

@@ -52,11 +52,11 @@ class DocumentoControllerAcessoTest {
     // autenticada consulta o que a própria OM pode criar.
     @Test
     void gerirAHabilitacaoEOsDistintivosExigeAdminGeral() {
-        assertThat(regraDe(HabilitacaoDeDocumentosController.class, "listar")).isEqualTo("hasRole('ADMIN_GERAL')");
-        assertThat(regraDe(HabilitacaoDeDocumentosController.class, "definir")).isEqualTo("hasRole('ADMIN_GERAL')");
-        assertThat(regraDe(HabilitacaoDeDocumentosController.class, "definirPorEspecie")).isEqualTo("hasRole('ADMIN_GERAL')");
-        assertThat(regraDe(OrganizacaoMilitarController.class, "definirDistintivo")).isEqualTo("hasRole('ADMIN_GERAL')");
-        assertThat(regraDe(OrganizacaoMilitarController.class, "removerDistintivo")).isEqualTo("hasRole('ADMIN_GERAL')");
+        assertThat(regraDe(HabilitacaoDeDocumentosController.class, "listar")).isEqualTo("hasRole('ADM_GER')");
+        assertThat(regraDe(HabilitacaoDeDocumentosController.class, "definir")).isEqualTo("hasRole('ADM_GER')");
+        assertThat(regraDe(HabilitacaoDeDocumentosController.class, "definirPorEspecie")).isEqualTo("hasRole('ADM_GER')");
+        assertThat(regraDe(OrganizacaoMilitarController.class, "definirDistintivo")).isEqualTo("hasRole('ADM_GER')");
+        assertThat(regraDe(OrganizacaoMilitarController.class, "removerDistintivo")).isEqualTo("hasRole('ADM_GER')");
     }
 
     @Test

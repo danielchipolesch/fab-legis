@@ -113,7 +113,7 @@ public class DocumentoController {
     // Criar (e clonar, que cria uma cópia nova) exige o papel EDIT -- ver PapelEnum.
     // Nenhuma outra regra de posse se aplica aqui (não há documento prévio do
     // usuário a checar), então a authority sozinha já basta.
-    @PreAuthorize("hasRole('EDIT')")
+    @PreAuthorize("hasRole('ELB')")
     @PostMapping
     public ResponseEntity<EntityModel<DocumentoResponseSemAnexoTextualDto>> post(
             @RequestBody @Valid DocumentoRequestCreateDto request) {
@@ -122,7 +122,7 @@ public class DocumentoController {
         return ResponseEntity.status(HttpStatus.CREATED).body(toModel(dto));
     }
 
-    @PreAuthorize("hasRole('EDIT')")
+    @PreAuthorize("hasRole('ELB')")
     @PostMapping("{id}/clonar")
     public ResponseEntity<EntityModel<DocumentoResponseSemAnexoTextualDto>> clone(
             @PathVariable(value = "id") Long id) {
@@ -133,7 +133,7 @@ public class DocumentoController {
 
     // "Substituir" (NPA publicada): cria a NPA nova, ligada à substituída. Criar um documento exige o papel EDIT (e a OM
     // habilitada, se a espécie pedir), como clonar.
-    @PreAuthorize("hasRole('EDIT')")
+    @PreAuthorize("hasRole('ELB')")
     @PostMapping("{id}/substituir")
     public ResponseEntity<EntityModel<DocumentoResponseSemAnexoTextualDto>> substituir(
             @PathVariable(value = "id") Long id) {

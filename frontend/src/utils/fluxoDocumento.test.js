@@ -219,13 +219,13 @@ describe('podeSubstituir (NPA publicada)', () => {
 describe('ehAprovadorDaOm (enviar para aprovação sem escolher ninguém)', () => {
   const documento = { om_id: '5' }
   it('qualquer pessoa com APROV na OM do documento', () => {
-    expect(ehAprovadorDaOm(documento, { omId: 5, papeis: ['EDIT', 'APROV'] })).toBe(true)
-    expect(ehAprovadorDaOm(documento, { omId: '5', papeis: ['APROV'] })).toBe(true)
+    expect(ehAprovadorDaOm(documento, { omId: 5, papeis: ['ELB', 'APR_OM'] })).toBe(true)
+    expect(ehAprovadorDaOm(documento, { omId: '5', papeis: ['APR_OM'] })).toBe(true)
   })
   it('não quem é de outra OM, nem quem não tem APROV', () => {
-    expect(ehAprovadorDaOm(documento, { omId: 6, papeis: ['APROV'] })).toBe(false)
-    expect(ehAprovadorDaOm(documento, { omId: 5, papeis: ['EDIT', 'PUBLIC'] })).toBe(false)
+    expect(ehAprovadorDaOm(documento, { omId: 6, papeis: ['APR_OM'] })).toBe(false)
+    expect(ehAprovadorDaOm(documento, { omId: 5, papeis: ['ELB', 'PUB_BCA'] })).toBe(false)
     expect(ehAprovadorDaOm(documento, null)).toBe(false)
-    expect(ehAprovadorDaOm(undefined, { omId: 5, papeis: ['APROV'] })).toBe(false)
+    expect(ehAprovadorDaOm(undefined, { omId: 5, papeis: ['APR_OM'] })).toBe(false)
   })
 })

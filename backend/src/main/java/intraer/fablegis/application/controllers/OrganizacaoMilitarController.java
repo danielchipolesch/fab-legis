@@ -39,14 +39,14 @@ public class OrganizacaoMilitarController {
     }
 
     // DOM (distintivo) da OM -- cadastro exclusivo do administrador (ver DistintivoDaOmService).
-    @PreAuthorize("hasRole('ADMIN_GERAL')")
+    @PreAuthorize("hasRole('ADM_GER')")
     @PutMapping(value = "{id}/distintivo", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<OrganizacaoMilitarResponseDto> definirDistintivo(
             @PathVariable Long id, @RequestParam("arquivo") MultipartFile arquivo) throws Exception {
         return ResponseEntity.ok(distintivoDaOmService.definir(id, arquivo));
     }
 
-    @PreAuthorize("hasRole('ADMIN_GERAL')")
+    @PreAuthorize("hasRole('ADM_GER')")
     @DeleteMapping("{id}/distintivo")
     public ResponseEntity<OrganizacaoMilitarResponseDto> removerDistintivo(@PathVariable Long id) {
         return ResponseEntity.ok(distintivoDaOmService.remover(id));

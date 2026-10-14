@@ -34,7 +34,7 @@ import java.time.LocalDateTime;
 @RestController
 @RequestMapping(value = "/v1/auditoria", produces = MediaType.APPLICATION_JSON_VALUE)
 @Tag(name = "Auditoria", description = "Log de acesso/ações a nível de documento")
-@PreAuthorize("hasRole('AUDITOR')")
+@PreAuthorize("hasAnyRole('AUD_OM', 'AUD_GER')")
 @RequiredArgsConstructor
 public class AuditoriaController {
 

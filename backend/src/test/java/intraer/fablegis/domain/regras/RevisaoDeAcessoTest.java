@@ -42,38 +42,38 @@ class RevisaoDeAcessoTest {
 
     @Test
     void soQuemTemPapelElevadoPrecisaDeRevisao() {
-        var soEditor = usuario(1L, "BAGL", PapelEnum.EDIT);
+        var soEditor = usuario(1L, "BAGL", PapelEnum.ELB);
         soEditor.setDtRevisaoAcesso(haDias(400));
         assertThat(RevisaoDeAcesso.temPapelElevado(soEditor)).isFalse();
         assertThat(RevisaoDeAcesso.motivo(soEditor, AGORA_TS)).isEqualTo(Motivo.NENHUM);
 
-        assertThat(RevisaoDeAcesso.temPapelElevado(usuario(2L, "BAGL", PapelEnum.EDIT, PapelEnum.APROV))).isTrue();
+        assertThat(RevisaoDeAcesso.temPapelElevado(usuario(2L, "BAGL", PapelEnum.ELB, PapelEnum.APR_OM))).isTrue();
     }
 
     @Test
     void dentroDoPrazoNaoHaPendencia() {
-        var u = usuario(1L, "BAGL", PapelEnum.EDIT, PapelEnum.APROV);
+        var u = usuario(1L, "BAGL", PapelEnum.ELB, PapelEnum.APR_OM);
         u.setDtRevisaoAcesso(haDias(179));
         assertThat(RevisaoDeAcesso.pendente(u, AGORA_TS)).isFalse();
     }
 
     @Test
     void depoisDe180DiasARevisaoVence() {
-        var u = usuario(1L, "BAGL", PapelEnum.EDIT, PapelEnum.APROV);
+        var u = usuario(1L, "BAGL", PapelEnum.ELB, PapelEnum.APR_OM);
         u.setDtRevisaoAcesso(haDias(181));
         assertThat(RevisaoDeAcesso.motivo(u, AGORA_TS)).isEqualTo(Motivo.REVISAO_VENCIDA);
     }
 
     @Test
     void trocarDeOmDeixaARevisaoPendenteDeImediato() {
-        var u = usuario(1L, "BAGL", PapelEnum.EDIT, PapelEnum.AUDITOR);
+        var u = usuario(1L, "BAGL", PapelEnum.ELB, PapelEnum.AUD_OM);
         u.setDtRevisaoAcesso(null);
         assertThat(RevisaoDeAcesso.motivo(u, AGORA_TS)).isEqualTo(Motivo.TROCA_DE_OM);
     }
 
     @Test
     void contaSemEntrarHa180DiasEDormente() {
-        var u = usuario(1L, "BAGL", PapelEnum.EDIT, PapelEnum.APROV);
+        var u = usuario(1L, "BAGL", PapelEnum.ELB, PapelEnum.APR_OM);
         u.setDtUltimoAcesso(haDias(181));
         assertThat(RevisaoDeAcesso.motivo(u, AGORA_TS)).isEqualTo(Motivo.CONTA_DORMENTE);
         u.setDtUltimoAcesso(haDias(179));
@@ -85,7 +85,7 @@ class RevisaoDeAcessoTest {
     @Test
     void papeisElevadosSaoTodosMenosOEditor() {
         assertThat(RevisaoDeAcesso.papeisElevados(EnumSet.allOf(PapelEnum.class)))
-                .containsExactlyInAnyOrder(PapelEnum.APROV, PapelEnum.PUBLIC, PapelEnum.ADMIN, PapelEnum.AUDITOR);
+                .containsExactlyInAnyOrder(PapelEnum.APR_OM, PapelEnum.PUB_BCA, PapelEnum.ADM_OM, PapelEnum.ADM_GER, PapelEnum.AUD_OM, PapelEnum.AUD_GER);
         assertThat(RevisaoDeAcesso.papeisElevados(null)).isEmpty();
     }
 
@@ -93,41 +93,41 @@ class RevisaoDeAcessoTest {
 
     @Test
     void oAdminGeralRevisaOsAdminsLocais() {
-        var geral = usuario(1L, "CENDOC", PapelEnum.EDIT, PapelEnum.ADMIN);
-        assertThat(RevisaoDeAcesso.podeRevisar(geral, usuario(2L, "BAGL", PapelEnum.EDIT, PapelEnum.ADMIN))).isTrue();
+        var geral = usuario(1L, "CENDOC", PapelEnum.ELB, PapelEnum.ADM_GER);
+        assertThat(RevisaoDeAcesso.podeRevisar(geral, usuario(2L, "BAGL", PapelEnum.ELB, PapelEnum.ADM_OM))).isTrue();
     }
 
     @Test
     void oAdminGeralNaoRevisaOsDemaisUsuariosDeOutraOm() {
-        var geral = usuario(1L, "CENDOC", PapelEnum.EDIT, PapelEnum.ADMIN);
-        assertThat(RevisaoDeAcesso.podeRevisar(geral, usuario(2L, "BAGL", PapelEnum.EDIT, PapelEnum.APROV))).isFalse();
+        var geral = usuario(1L, "CENDOC", PapelEnum.ELB, PapelEnum.ADM_GER);
+        assertThat(RevisaoDeAcesso.podeRevisar(geral, usuario(2L, "BAGL", PapelEnum.ELB, PapelEnum.APR_OM))).isFalse();
     }
 
     @Test
     void oAdminLocalRevisaOsDemaisDaPropriaOm() {
-        var local = usuario(1L, "BAGL", PapelEnum.EDIT, PapelEnum.ADMIN);
-        assertThat(RevisaoDeAcesso.podeRevisar(local, usuario(2L, "BAGL", PapelEnum.EDIT, PapelEnum.APROV))).isTrue();
-        assertThat(RevisaoDeAcesso.podeRevisar(local, usuario(3L, "BABE", PapelEnum.EDIT, PapelEnum.APROV))).isFalse();
+        var local = usuario(1L, "BAGL", PapelEnum.ELB, PapelEnum.ADM_OM);
+        assertThat(RevisaoDeAcesso.podeRevisar(local, usuario(2L, "BAGL", PapelEnum.ELB, PapelEnum.APR_OM))).isTrue();
+        assertThat(RevisaoDeAcesso.podeRevisar(local, usuario(3L, "BABE", PapelEnum.ELB, PapelEnum.APR_OM))).isFalse();
     }
 
     @Test
     void oAdminLocalNaoRevisaOutroAdminNemOPessoalDoCendoc() {
-        var local = usuario(1L, "BAGL", PapelEnum.EDIT, PapelEnum.ADMIN);
-        assertThat(RevisaoDeAcesso.podeRevisar(local, usuario(2L, "BAGL", PapelEnum.EDIT, PapelEnum.ADMIN))).isFalse();
-        assertThat(RevisaoDeAcesso.podeRevisar(local, usuario(3L, "CENDOC", PapelEnum.EDIT, PapelEnum.PUBLIC))).isFalse();
+        var local = usuario(1L, "BAGL", PapelEnum.ELB, PapelEnum.ADM_OM);
+        assertThat(RevisaoDeAcesso.podeRevisar(local, usuario(2L, "BAGL", PapelEnum.ELB, PapelEnum.ADM_OM))).isFalse();
+        assertThat(RevisaoDeAcesso.podeRevisar(local, usuario(3L, "CENDOC", PapelEnum.ELB, PapelEnum.PUB_BCA))).isFalse();
     }
 
     @Test
     void oPessoalDoCendocERevisadoPeloAdminGeralMasNuncaPeloProprio() {
-        var geral = usuario(1L, "CENDOC", PapelEnum.EDIT, PapelEnum.ADMIN);
-        assertThat(RevisaoDeAcesso.podeRevisar(geral, usuario(2L, "CENDOC", PapelEnum.EDIT, PapelEnum.PUBLIC))).isTrue();
-        assertThat(RevisaoDeAcesso.podeRevisar(geral, usuario(3L, "CENDOC", PapelEnum.EDIT, PapelEnum.ADMIN))).isTrue();
+        var geral = usuario(1L, "CENDOC", PapelEnum.ELB, PapelEnum.ADM_GER);
+        assertThat(RevisaoDeAcesso.podeRevisar(geral, usuario(2L, "CENDOC", PapelEnum.ELB, PapelEnum.PUB_BCA))).isTrue();
+        assertThat(RevisaoDeAcesso.podeRevisar(geral, usuario(3L, "CENDOC", PapelEnum.ELB, PapelEnum.ADM_GER))).isTrue();
         assertThat(RevisaoDeAcesso.podeRevisar(geral, geral)).isFalse();
     }
 
     @Test
     void quemNaoEAdminNaoRevisaNinguem() {
-        var aprovador = usuario(1L, "BAGL", PapelEnum.EDIT, PapelEnum.APROV);
-        assertThat(RevisaoDeAcesso.podeRevisar(aprovador, usuario(2L, "BAGL", PapelEnum.EDIT, PapelEnum.APROV))).isFalse();
+        var aprovador = usuario(1L, "BAGL", PapelEnum.ELB, PapelEnum.APR_OM);
+        assertThat(RevisaoDeAcesso.podeRevisar(aprovador, usuario(2L, "BAGL", PapelEnum.ELB, PapelEnum.APR_OM))).isFalse();
     }
 }

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { ehOmGeral, temEscopoGeral, ehAdminGeral, omsDoEscopo, papeisConcediveis, podeAdministrar } from './escopo.js'
+import { ehOmGeral, temEscopoGeral, omsDoEscopo, papeisConcediveis, podeAdministrar } from './escopo.js'
 
 describe('escopo de acesso', () => {
   it('só o CENDOC tem escopo geral', () => {
@@ -7,9 +7,6 @@ describe('escopo de acesso', () => {
     expect(ehOmGeral('cendoc')).toBe(true)
     expect(temEscopoGeral('GABAER')).toBe(false)
     expect(temEscopoGeral(null)).toBe(false)
-    expect(ehAdminGeral(['EDIT', 'ADMIN'], 'CENDOC')).toBe(true)
-    expect(ehAdminGeral(['EDIT', 'ADMIN'], 'BAGL')).toBe(false)
-    expect(ehAdminGeral(['EDIT'], 'CENDOC')).toBe(false)
   })
 
   it('o admin local só escolhe a própria OM; o geral, todas', () => {
@@ -20,16 +17,16 @@ describe('escopo de acesso', () => {
   })
 
   it('o local concede aprovador e auditor; admin só o geral; publicador só no CENDOC', () => {
-    expect(papeisConcediveis('BAGL', 'BAGL')).toEqual({ editor: true, aprovador: true, auditor: true, admin: false, publicador: false })
-    expect(papeisConcediveis('CENDOC', 'BAGL')).toEqual({ editor: true, aprovador: true, auditor: true, admin: true, publicador: false })
+    expect(papeisConcediveis('BAGL', 'BAGL')).toEqual({ elaborador: true, aprovador: true, auditor: true, admin: false, publicador: false })
+    expect(papeisConcediveis('CENDOC', 'BAGL')).toEqual({ elaborador: true, aprovador: true, auditor: true, admin: true, publicador: false })
     expect(papeisConcediveis('CENDOC', 'CENDOC').publicador).toBe(true)
     expect(papeisConcediveis('BAGL', 'CENDOC').publicador).toBe(false)
   })
 
   it('o local não administra outros administradores nem outra OM', () => {
-    expect(podeAdministrar('BAGL', { omSigla: 'BAGL', papeis: ['EDIT'] })).toBe(true)
-    expect(podeAdministrar('BAGL', { omSigla: 'BAGL', papeis: ['EDIT', 'ADMIN'] })).toBe(false)
-    expect(podeAdministrar('BAGL', { omSigla: 'BABE', papeis: ['EDIT'] })).toBe(false)
-    expect(podeAdministrar('CENDOC', { omSigla: 'BABE', papeis: ['EDIT', 'ADMIN'] })).toBe(true)
+    expect(podeAdministrar('BAGL', { omSigla: 'BAGL', papeis: ['ELB'] })).toBe(true)
+    expect(podeAdministrar('BAGL', { omSigla: 'BAGL', papeis: ['ELB', 'ADM_OM'] })).toBe(false)
+    expect(podeAdministrar('BAGL', { omSigla: 'BABE', papeis: ['ELB'] })).toBe(false)
+    expect(podeAdministrar('CENDOC', { omSigla: 'BABE', papeis: ['ELB', 'ADM_OM'] })).toBe(true)
   })
 })

@@ -101,13 +101,13 @@ public class DataSeeder implements ApplicationRunner {
                             () -> log.warn("app.admin.posto ({}) não existe -- o administrador padrão foi criado sem posto.", adminPosto));
         }
         // ADMIN sozinho não basta pra criar documento (ver isEditor em
-        // stores/auth.js e o comentário de PapelEnum.ADMIN -- é papel puramente
+        // stores/auth.js e o comentário de PapelEnum.ADM_GER -- é papel puramente
         // administrativo, sem poder nenhum sobre documentos, de propósito).
         // Sem EDIT aqui, o único usuário que existe logo após a instalação não
         // consegue criar nada até alguém entrar em Usuários e conceder o papel a
         // si mesmo -- então o admin padrão nasce com os dois papéis, e qualquer
         // outro ADMIN criado depois continua sem EDIT implícito nenhum.
-        admin.setPapeis(EnumSet.of(PapelEnum.ADMIN, PapelEnum.EDIT));
+        admin.setPapeis(EnumSet.of(PapelEnum.ADM_GER, PapelEnum.ELB));
         usuarioRepository.save(admin);
         auditoriaDeAcesso.registrarCriacao(admin);
 

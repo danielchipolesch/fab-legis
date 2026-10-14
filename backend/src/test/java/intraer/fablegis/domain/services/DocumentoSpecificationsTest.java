@@ -181,25 +181,25 @@ class DocumentoSpecificationsTest {
     @Test
     void oAprovadorVeOQueAguardaAprovacaoNaPropriaOm() {
         var c = new Cena();
-        assertThat(c.para(pessoa(1L, PapelEnum.EDIT, PapelEnum.APROV))).isSameAs(c.comoAprovador);
+        assertThat(c.para(pessoa(1L, PapelEnum.ELB, PapelEnum.APR_OM))).isSameAs(c.comoAprovador);
     }
 
     // Publicador (só existe no CENDOC): o que está em publicação, de qualquer OM.
     @Test
     void oPublicadorVeOQueAguardaPublicacaoDeQualquerOm() {
         var c = new Cena();
-        assertThat(c.para(pessoa(1L, PapelEnum.EDIT, PapelEnum.PUBLIC))).isSameAs(c.naPublicacao);
+        assertThat(c.para(pessoa(1L, PapelEnum.ELB, PapelEnum.PUB_BCA))).isSameAs(c.naPublicacao);
     }
 
     @Test
     void quemEAprovadorEPublicadorVeAsDuasFilas() {
         var c = new Cena();
-        assertThat(c.para(pessoa(1L, PapelEnum.APROV, PapelEnum.PUBLIC))).isSameAs(c.ambos);
+        assertThat(c.para(pessoa(1L, PapelEnum.APR_OM, PapelEnum.PUB_BCA))).isSameAs(c.ambos);
     }
 
     @Test
     void semPapelDeAprovadorNemDePublicadorNadaAguardaAPessoa() {
         var c = new Cena();
-        assertThat(c.para(pessoa(1L, PapelEnum.EDIT))).isSameAs(c.ninguem);
+        assertThat(c.para(pessoa(1L, PapelEnum.ELB))).isSameAs(c.ninguem);
     }
 }

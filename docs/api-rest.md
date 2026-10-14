@@ -21,7 +21,7 @@ Endpoints padrão do Spring Authorization Server (`AuthorizationServerConfig`), 
 |---|---|---|
 | `POST` | `/` | Cria documento já com a estrutura inicial da espécie. Ato normativo: exige `idAssuntoBasico` (calcula o número secundário) e nasce com os [capítulos padronizados da NSCA 5-3](dominio.md#capitulos-padronizados-nsca-5-3). [NPA](dominio.md#npa-norma-padrao-de-acao): exige `identificacao` (texto livre), não usa assunto básico e nasce com a estrutura do Anexo XII |
 | `POST` | `/{id}/clonar` | Clona o documento em novo `RASCUNHO` |
-| `POST` | `/{id}/substituir` | **NPA publicada** e sem etapa em curso (`EDIT`; OM habilitada, se a espécie pedir): cria a NPA nova em `RASCUNHO`, ligada à substituída. Espécie convencional, NPA não publicada, em revogação ou revogada, ou já com substituta → 4xx. Ver [Substituir](dominio.md#substituir) |
+| `POST` | `/{id}/substituir` | **NPA publicada** e sem etapa em curso (`ELB`; OM habilitada, se a espécie pedir): cria a NPA nova em `RASCUNHO`, ligada à substituída. Espécie convencional, NPA não publicada, em revogação ou revogada, ou já com substituta → 4xx. Ver [Substituir](dominio.md#substituir) |
 | `GET` | `/{id}/substituicao` | Os dois lados da ligação: `{ substitui, substituidoPor }` (cada um `{ id, identificacao, titulo, situacaoLocal, situacaoBca }` ou `null`) |
 | `GET` | `/{id}` | Obtém documento com anexo textual + links HATEOAS — inclui `numeracao` (capítulo/seção/subseção/artigo já calculados pelo servidor, ver [Modelo de Domínio](dominio.md#numeracao-automatica-conforme-a-tecnica-legislativa)) |
 | `GET` | `/obter-todos` | Lista paginada (DTO enxuto, sem os itens da árvore); filtros `aba`, `busca`, `tipoDeEspecie` (o módulo: `CONVENCIONAL` ou `COMUNICACAO_OFICIAL_PADRONIZADA`), `especieSigla`, `situacaoBca`, `situacaoLocal`. Cada item traz `situacaoBca` e `situacaoLocal`. `GET /resumo` devolve as contagens `porAba`, `porSituacaoBca` e `porSituacaoLocal` |
@@ -114,7 +114,7 @@ O `ImagemService` cria o bucket sob demanda na primeira execução; o bucket é 
 
 Sem exclusão definitiva — usuários são autores de documento (FK sem `ON DELETE`), então o ciclo de vida é ativar/desativar, nunca apagar.
 
-Duas rotas sob `/v1/usuarios` sobrescrevem a restrição de Admin da classe (`isAuthenticated()`) — alimentam os seletores de pessoa por nome (CPF é dado pessoal, quase nunca sabido de cor, ver [Autenticação e Colaboração](autenticacao.md#papeis-e-posse-de-documento)):
+Duas rotas sob `/v1/usuarios` sobrescrevem a restrição de Admin da classe (`isAuthenticated()`) — alimentam os seletores de pessoa por nome (CPF é dado pessoal, quase nunca sabido de cor, ver [Autenticação e Colaboração](autenticacao.md#perfis-papeis-e-posse-de-documento)):
 
 | Método | Rota | Descrição |
 |---|---|---|

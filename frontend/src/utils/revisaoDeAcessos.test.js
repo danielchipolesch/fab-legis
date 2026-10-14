@@ -11,16 +11,16 @@ describe('revisão de acessos (dentro de Manter Usuários)', () => {
   })
 
   it('rótulos dos papéis elevados', () => {
-    expect(rotuloDoPapel('APROV')).toBe('Aprovador')
+    expect(rotuloDoPapel('APR_OM')).toBe('Aprovador da OM')
     expect(rotuloDoPapel('XYZ')).toBe('XYZ')
   })
 
   it('papéis elevados são todos menos o Editor', () => {
-    expect(papeisElevadosDe({ papeis: ['EDIT', 'PUBLIC', 'APROV'] })).toEqual(['APROV', 'PUBLIC'])
-    expect(papeisElevadosDe({ papeis: ['EDIT'] })).toEqual([])
+    expect(papeisElevadosDe({ papeis: ['ELB', 'PUB_BCA', 'APR_OM'] })).toEqual(['APR_OM', 'PUB_BCA'])
+    expect(papeisElevadosDe({ papeis: ['ELB'] })).toEqual([])
     expect(papeisElevadosDe(undefined)).toEqual([])
-    expect(temPapelElevado({ papeis: ['EDIT', 'AUDITOR'] })).toBe(true)
-    expect(temPapelElevado({ papeis: ['EDIT'] })).toBe(false)
+    expect(temPapelElevado({ papeis: ['ELB', 'AUD_OM'] })).toBe(true)
+    expect(temPapelElevado({ papeis: ['ELB'] })).toBe(false)
   })
 
   it('só marca o que quem está logado revisa e que tem motivo', () => {

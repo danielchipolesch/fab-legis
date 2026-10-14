@@ -20,33 +20,33 @@ class DiferencaDeAcessoTest {
 
     @Test
     void semMudancaNaoHaEvento() {
-        assertThat(DiferencaDeAcesso.entre(estado(true, "CENDOC", PapelEnum.EDIT), estado(true, "CENDOC", PapelEnum.EDIT))).isEmpty();
+        assertThat(DiferencaDeAcesso.entre(estado(true, "CENDOC", PapelEnum.ELB), estado(true, "CENDOC", PapelEnum.ELB))).isEmpty();
     }
 
     @Test
     void concederPapelRegistraOConcedidoEOEstadoFinal() {
-        var eventos = DiferencaDeAcesso.entre(estado(true, "BAGL", PapelEnum.EDIT), estado(true, "BAGL", PapelEnum.EDIT, PapelEnum.APROV));
+        var eventos = DiferencaDeAcesso.entre(estado(true, "BAGL", PapelEnum.ELB), estado(true, "BAGL", PapelEnum.ELB, PapelEnum.APR_OM));
 
         assertThat(eventos).hasSize(1);
         assertThat(eventos.get(0).acao()).isEqualTo(AcaoDeAcessoEnum.ALTEROU_PAPEIS);
-        assertThat(eventos.get(0).detalhe()).contains("Concedido(s): APROV").doesNotContain("Retirado").endsWith("Papéis agora: APROV, EDIT");
+        assertThat(eventos.get(0).detalhe()).contains("Concedido(s): APR_OM").doesNotContain("Retirado").endsWith("Papéis agora: APR_OM, ELB");
     }
 
     @Test
     void retirarPapelRegistraORetirado() {
-        var eventos = DiferencaDeAcesso.entre(estado(true, "BAGL", PapelEnum.EDIT, PapelEnum.PUBLIC), estado(true, "BAGL", PapelEnum.EDIT));
+        var eventos = DiferencaDeAcesso.entre(estado(true, "BAGL", PapelEnum.ELB, PapelEnum.PUB_BCA), estado(true, "BAGL", PapelEnum.ELB));
 
         assertThat(eventos).hasSize(1);
-        assertThat(eventos.get(0).detalhe()).contains("Retirado(s): PUBLIC").doesNotContain("Concedido");
+        assertThat(eventos.get(0).detalhe()).contains("Retirado(s): PUB_BCA").doesNotContain("Concedido");
     }
 
     @Test
     void conceder_e_retirar_na_mesma_edicao_saem_num_so_registro() {
-        var eventos = DiferencaDeAcesso.entre(estado(true, "BAGL", PapelEnum.EDIT, PapelEnum.PUBLIC),
-                estado(true, "BAGL", PapelEnum.EDIT, PapelEnum.APROV));
+        var eventos = DiferencaDeAcesso.entre(estado(true, "BAGL", PapelEnum.ELB, PapelEnum.PUB_BCA),
+                estado(true, "BAGL", PapelEnum.ELB, PapelEnum.APR_OM));
 
         assertThat(eventos).hasSize(1);
-        assertThat(eventos.get(0).detalhe()).contains("Concedido(s): APROV").contains("Retirado(s): PUBLIC");
+        assertThat(eventos.get(0).detalhe()).contains("Concedido(s): APR_OM").contains("Retirado(s): PUB_BCA");
     }
 
     @Test
@@ -68,7 +68,7 @@ class DiferencaDeAcessoTest {
 
     @Test
     void varias_mudancas_geram_um_evento_de_cada_tipo() {
-        var eventos = DiferencaDeAcesso.entre(estado(true, "BAGL", PapelEnum.EDIT), estado(false, "CENDOC", PapelEnum.EDIT, PapelEnum.AUDITOR));
+        var eventos = DiferencaDeAcesso.entre(estado(true, "BAGL", PapelEnum.ELB), estado(false, "CENDOC", PapelEnum.ELB, PapelEnum.AUD_GER));
 
         assertThat(eventos).extracting(DiferencaDeAcesso.Evento::acao)
                 .containsExactly(AcaoDeAcessoEnum.ALTEROU_PAPEIS, AcaoDeAcessoEnum.DESATIVOU_USUARIO, AcaoDeAcessoEnum.TROCOU_OM);
@@ -76,7 +76,7 @@ class DiferencaDeAcessoTest {
 
     @Test
     void listaDePapeisEmOrdemAlfabeticaOuNenhum() {
-        assertThat(DiferencaDeAcesso.lista(EnumSet.of(PapelEnum.PUBLIC, PapelEnum.ADMIN, PapelEnum.EDIT))).isEqualTo("ADMIN, EDIT, PUBLIC");
+        assertThat(DiferencaDeAcesso.lista(EnumSet.of(PapelEnum.PUB_BCA, PapelEnum.ADM_OM, PapelEnum.ELB))).isEqualTo("ADM_OM, ELB, PUB_BCA");
         assertThat(DiferencaDeAcesso.lista(EnumSet.noneOf(PapelEnum.class))).isEqualTo("nenhum");
         assertThat(DiferencaDeAcesso.lista(null)).isEqualTo("nenhum");
     }

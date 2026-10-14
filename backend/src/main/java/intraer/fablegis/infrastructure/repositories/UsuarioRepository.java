@@ -24,9 +24,9 @@ public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
     @Query("SELECT DISTINCT u FROM Usuario u JOIN u.papeis p WHERE u.ativo = true AND u.sistema = false AND p = :papel ORDER BY u.nome")
     List<Usuario> findAtivosByPapel(@Param("papel") PapelEnum papel);
 
-    // Quantos usuários ativos têm o papel numa OM (pela sigla): garante que o CENDOC nunca fique sem administrador geral.
-    @Query("SELECT COUNT(DISTINCT u) FROM Usuario u JOIN u.papeis p WHERE u.ativo = true AND u.sistema = false AND p = :papel AND upper(u.om.sigla) = upper(:sigla)")
-    long contarAtivosComPapelNaOm(@Param("sigla") String sigla, @Param("papel") PapelEnum papel);
+    // Quantos usuários ativos têm o perfil: garante que o CENDOC nunca fique sem Administrador Geral (ADM_GER).
+    @Query("SELECT COUNT(DISTINCT u) FROM Usuario u JOIN u.papeis p WHERE u.ativo = true AND u.sistema = false AND p = :papel")
+    long contarAtivosComPapel(@Param("papel") PapelEnum papel);
 
     // Os aprovadores ativos de uma OM (papel APROV): destinatários do aviso de "aguardando aprovação" (DocumentoStatusService) --
     // sempre restrito à OM do documento, nunca cross-OM.

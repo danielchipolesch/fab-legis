@@ -1,3 +1,5 @@
+import { nomeDoPapel, papeisElevados } from '@/utils/papeis.js'
+
 // Revisão periódica de acessos: textos e regras da tela de usuários (espelha RevisaoDeAcesso, backend). A revisão é automática:
 // o servidor devolve, em cada usuário, o `motivoDaRevisao` e se quem pergunta o revisa (`revisavel`).
 export const MOTIVO = {
@@ -9,12 +11,10 @@ export const MOTIVO = {
 
 export const motivoDaRevisao = (motivo) => MOTIVO[motivo] ?? MOTIVO.NENHUM
 
-export const ROTULO_DO_PAPEL = { APROV: 'Aprovador', PUBLIC: 'Publicador', ADMIN: 'Administrador', AUDITOR: 'Auditor' }
+export const rotuloDoPapel = nomeDoPapel
 
-export const rotuloDoPapel = (papel) => ROTULO_DO_PAPEL[papel] ?? papel
-
-// Os papéis que exigem revisão: todos menos o Editor, que todo usuário tem.
-export const papeisElevadosDe = (usuario) => (usuario?.papeis ?? []).filter(p => p !== 'EDIT').sort()
+// Os perfis que exigem revisão: todos menos o Elaborador, que todo usuário tem.
+export const papeisElevadosDe = (usuario) => papeisElevados(usuario?.papeis)
 
 export const temPapelElevado = (usuario) => papeisElevadosDe(usuario).length > 0
 

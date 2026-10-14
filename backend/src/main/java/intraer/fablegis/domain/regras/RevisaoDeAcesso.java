@@ -39,7 +39,7 @@ public final class RevisaoDeAcesso {
         if (papeis != null) {
             elevados.addAll(papeis);
         }
-        elevados.remove(PapelEnum.EDIT);
+        elevados.remove(PapelEnum.ELB);
         return elevados;
     }
 
@@ -69,11 +69,11 @@ public final class RevisaoDeAcesso {
     //   - o alvo é de outra OM e não é admin: só o admin local da mesma OM (o geral não -- confere só os admins locais).
     public static boolean podeRevisar(Usuario revisor, Usuario alvo) {
         if (revisor == null || alvo == null || revisor.getId() != null && revisor.getId().equals(alvo.getId())) return false;
-        if (!revisor.getPapeis().contains(PapelEnum.ADMIN)) return false;
+        if (!EscopoDeAcesso.ehAdmin(revisor)) return false;
 
-        boolean revisorGeral = EscopoDeAcesso.temEscopoGeral(revisor);
+        boolean revisorGeral = EscopoDeAcesso.ehAdminGeral(revisor);
         boolean alvoGeral = EscopoDeAcesso.temEscopoGeral(alvo);
-        boolean alvoAdmin = alvo.getPapeis().contains(PapelEnum.ADMIN);
+        boolean alvoAdmin = EscopoDeAcesso.ehAdmin(alvo);
 
         if (alvoGeral || alvoAdmin) return revisorGeral;
         return !revisorGeral && EscopoDeAcesso.mesmaOm(revisor, alvo);

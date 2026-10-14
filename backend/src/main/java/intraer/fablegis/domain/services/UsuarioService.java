@@ -97,8 +97,8 @@ public class UsuarioService {
         if (ehVoceMesmo && !request.ativo()) {
             throw new ResourceCannotBeUpdatedException("Você não pode desativar sua própria conta.");
         }
-        if (ehVoceMesmo && !request.papeis().contains(PapelEnum.ADMIN)) {
-            throw new ResourceCannotBeUpdatedException("Você não pode remover seu próprio papel de administrador.");
+        if (ehVoceMesmo && !request.papeis().contains(PapelEnum.ADM_OM) && !request.papeis().contains(PapelEnum.ADM_GER)) {
+            throw new ResourceCannotBeUpdatedException("Você não pode remover seu próprio perfil de administrador.");
         }
 
         OrganizacaoMilitar om = buscarOm(request.omId());
@@ -106,8 +106,8 @@ public class UsuarioService {
         EscopoDeAcesso.exigirPodeGerenciar(usuarioLogado, usuario, om.getSigla(), papeisDepois);
         EscopoDeAcesso.exigirAoMenosUmAdminGeral(
                 EscopoDeAcesso.ehAdminGeral(usuario) && usuario.isAtivo(),
-                papeisDepois.contains(PapelEnum.ADMIN) && EscopoDeAcesso.ehOmGeral(om.getSigla()) && request.ativo(),
-                usuarioRepository.contarAtivosComPapelNaOm(EscopoDeAcesso.OM_GERAL, PapelEnum.ADMIN));
+                papeisDepois.contains(PapelEnum.ADM_GER) && request.ativo(),
+                usuarioRepository.contarAtivosComPapel(PapelEnum.ADM_GER));
 
         // O estado de acesso ANTES da mudança, para a auditoria registrar só o que de fato mudou (papéis, situação, OM).
         var antes = new DiferencaDeAcesso.Estado(EnumSet.copyOf(papeisOuVazio(usuario.getPapeis())), usuario.isAtivo(), siglaDa(usuario.getOm()));
@@ -200,7 +200,7 @@ public class UsuarioService {
     private EnumSet<PapelEnum> papeisComo(java.util.Set<PapelEnum> papeis) {
         var resultado = EnumSet.noneOf(PapelEnum.class);
         if (papeis != null) resultado.addAll(papeis);
-        resultado.add(PapelEnum.EDIT);
+        resultado.add(PapelEnum.ELB);
         return resultado;
     }
 }

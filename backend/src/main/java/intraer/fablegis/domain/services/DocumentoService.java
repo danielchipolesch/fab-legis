@@ -118,7 +118,7 @@ public class DocumentoService {
     // Fila da tela de Revisão (RevisaoPage.vue): o que aguarda aprovação na OM de quem pergunta -- no fluxo normal (EM_REVISAO) e na
     // análise de revogação (ANALISE_REVOGACAO). Só quem tem o papel APROV vê a fila; qualquer aprovador da OM age.
     public List<DocumentoFilaResponseDto> getFilaDeRevisao(Usuario usuario) {
-        if (!usuario.getPapeis().contains(PapelEnum.APROV)) return List.of();
+        if (!usuario.getPapeis().contains(PapelEnum.APR_OM)) return List.of();
         return documentoRepository.findByOmIdAndSituacaoLocalIn(usuario.getOm().getId(),
                         List.copyOf(DocumentoSpecifications.SITUACOES_DE_REVISAO))
                 .stream().map(this::toFilaResponseDto).toList();
@@ -127,7 +127,7 @@ public class DocumentoService {
     // Fila da tela de Publicação (PublicacaoPage.vue): o que aguarda publicação, de TODAS as OMs -- a publicação é do CENDOC (o papel
     // PUBLIC só existe lá) -- no fluxo normal (EM_PUBLICACAO) e na revogação (EM_REVOGACAO).
     public List<DocumentoFilaResponseDto> getFilaDePublicacao(Usuario usuario) {
-        if (!usuario.getPapeis().contains(PapelEnum.PUBLIC)) return List.of();
+        if (!usuario.getPapeis().contains(PapelEnum.PUB_BCA)) return List.of();
         return documentoRepository.findBySituacaoLocalIn(List.copyOf(DocumentoSpecifications.SITUACOES_DE_PUBLICACAO))
                 .stream().map(this::toFilaResponseDto).toList();
     }

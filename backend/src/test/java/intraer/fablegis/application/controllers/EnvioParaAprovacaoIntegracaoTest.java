@@ -95,8 +95,8 @@ class EnvioParaAprovacaoIntegracaoTest extends IntegracaoComPostgresBase {
     @Test
     void enviarParaAprovacaoNaoEscolheNinguemEQualquerAprovadorDaOmAprova() throws Exception {
         long id = novaNpaMinutada("NPA-APROV-01");
-        var aprovador = pessoa("CENDOC", CPF_APROVADOR, PapelEnum.EDIT, PapelEnum.APROV);
-        var deOutraOm = pessoa("EMAER", CPF_APROVADOR_DE_OUTRA_OM, PapelEnum.EDIT, PapelEnum.APROV);
+        var aprovador = pessoa("CENDOC", CPF_APROVADOR, PapelEnum.ELB, PapelEnum.APR_OM);
+        var deOutraOm = pessoa("EMAER", CPF_APROVADOR_DE_OUTRA_OM, PapelEnum.ELB, PapelEnum.APR_OM);
 
         // sem revisorId nenhum: "Enviar para aprovação"
         mvc.perform(patch("/v1/documentos/" + id + "/status").with(como(autor())).contentType(MediaType.APPLICATION_JSON)
@@ -127,8 +127,8 @@ class EnvioParaAprovacaoIntegracaoTest extends IntegracaoComPostgresBase {
     @Test
     void qualquerPublicadorVeAFilaDePublicacaoESoOPublicadorVe() throws Exception {
         long id = novaNpaMinutada("NPA-APROV-02");
-        var aprovador = pessoa("CENDOC", CPF_APROVADOR, PapelEnum.EDIT, PapelEnum.APROV);
-        var publicador = pessoa("CENDOC", CPF_PUBLICADOR, PapelEnum.EDIT, PapelEnum.PUBLIC);
+        var aprovador = pessoa("CENDOC", CPF_APROVADOR, PapelEnum.ELB, PapelEnum.APR_OM);
+        var publicador = pessoa("CENDOC", CPF_PUBLICADOR, PapelEnum.ELB, PapelEnum.PUB_BCA);
         mvc.perform(patch("/v1/documentos/" + id + "/status").with(como(autor())).contentType(MediaType.APPLICATION_JSON)
                         .content("{\"situacaoLocal\":\"EM_REVISAO\"}"))
                 .andExpect(status().isOk());

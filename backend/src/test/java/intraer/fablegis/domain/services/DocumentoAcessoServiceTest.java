@@ -67,13 +67,13 @@ class DocumentoAcessoServiceTest {
 
     @BeforeEach
     void cenario() {
-        autor = usuario(1, OM_ID, PapelEnum.EDIT);
-        coautor = usuario(2, OM_ID, PapelEnum.EDIT);
-        aprovadorDaOm = usuario(3, OM_ID, PapelEnum.APROV);
-        aprovadorDeOutraOm = usuario(4, 99, PapelEnum.APROV);
-        revisor = usuario(5, OM_ID, PapelEnum.APROV);
-        publicador = usuario(6, OM_ID, PapelEnum.PUBLIC);
-        estranho = usuario(7, OM_ID, PapelEnum.EDIT);
+        autor = usuario(1, OM_ID, PapelEnum.ELB);
+        coautor = usuario(2, OM_ID, PapelEnum.ELB);
+        aprovadorDaOm = usuario(3, OM_ID, PapelEnum.APR_OM);
+        aprovadorDeOutraOm = usuario(4, 99, PapelEnum.APR_OM);
+        revisor = usuario(5, OM_ID, PapelEnum.APR_OM);
+        publicador = usuario(6, OM_ID, PapelEnum.PUB_BCA);
+        estranho = usuario(7, OM_ID, PapelEnum.ELB);
 
         var om = new OrganizacaoMilitar();
         om.setId(OM_ID);
@@ -110,7 +110,7 @@ class DocumentoAcessoServiceTest {
     @Test
     void semOPapelEditNemOAutorEnviaParaRevisao() {
         doc.setSituacaoLocal(MINUTA);
-        autor.setPapeis(EnumSet.of(PapelEnum.APROV));
+        autor.setPapeis(EnumSet.of(PapelEnum.APR_OM));
         assertThat(pode(autor, EM_REVISAO)).isFalse();
     }
 
@@ -182,7 +182,7 @@ class DocumentoAcessoServiceTest {
 
         assertThat(pode(publicador, destino)).isTrue();
         // outro publicador, de qualquer OM, também
-        assertThat(pode(usuario(60, 99, PapelEnum.PUBLIC), destino)).isTrue();
+        assertThat(pode(usuario(60, 99, PapelEnum.PUB_BCA), destino)).isTrue();
         assertThat(pode(revisor, destino)).isFalse();
         assertThat(pode(autor, destino)).isFalse();
     }
@@ -193,7 +193,7 @@ class DocumentoAcessoServiceTest {
         doc.setSituacaoLocal(EM_REVOGACAO);
 
         assertThat(pode(publicador, SEM_ETAPA)).isTrue();
-        assertThat(pode(usuario(60, 99, PapelEnum.PUBLIC), SEM_ETAPA)).isTrue();
+        assertThat(pode(usuario(60, 99, PapelEnum.PUB_BCA), SEM_ETAPA)).isTrue();
         assertThat(pode(revisor, SEM_ETAPA)).isFalse();
     }
 
@@ -237,7 +237,7 @@ class DocumentoAcessoServiceTest {
     @Test
     void semOPapelEditNemOAutorEdita() {
         doc.setSituacaoLocal(MINUTA);
-        autor.setPapeis(EnumSet.of(PapelEnum.APROV));
+        autor.setPapeis(EnumSet.of(PapelEnum.APR_OM));
 
         assertThat(podeEditar(autor)).isFalse();
     }
@@ -314,7 +314,7 @@ class DocumentoAcessoServiceTest {
         doc.setSituacaoLocal(etapa);
 
         assertThat(service.podeEnviarPortaria(DOC_ID, como(publicador))).isTrue();
-        assertThat(service.podeEnviarPortaria(DOC_ID, como(usuario(8, 99, PapelEnum.PUBLIC)))).isTrue();
+        assertThat(service.podeEnviarPortaria(DOC_ID, como(usuario(8, 99, PapelEnum.PUB_BCA)))).isTrue();
         assertThat(service.podeEnviarPortaria(DOC_ID, como(autor))).isFalse();
         assertThat(service.podeEnviarPortaria(DOC_ID, como(aprovadorDaOm))).isFalse();
     }

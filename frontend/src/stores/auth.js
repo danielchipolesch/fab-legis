@@ -1,6 +1,7 @@
 import { defineStore, getActivePinia } from 'pinia'
 import { limparCachesDaSessao } from '@/utils/limparSessao.js'
-import { ehAdminGeral, temEscopoGeral } from '@/utils/escopo.js'
+import { temEscopoGeral } from '@/utils/escopo.js'
+import { ehAdmin, ehAdminGeral, ehAuditor } from '@/utils/papeis.js'
 import { podeCriarNoModulo, podeCriarEspecie } from '@/utils/habilitacao.js'
 import { listMinhasEspeciesCriaveis } from '@/api/habilitacao.js'
 import { setAuthTokenGetter, setUnauthorizedHandler, setRefreshHandler } from '@/api/client.js'
@@ -95,20 +96,20 @@ export const useAuthStore = defineStore('auth', {
 
   getters: {
     isAuthenticated: (state) => !!state.token,
-    // ADMIN é puramente administrativo (usuários/OMs) -- não implica EDIT/APROV/PUBLIC
+    // Administrador (ADM_OM/ADM_GER) é puramente administrativo (usuários/OMs) -- não implica ELB/APR_OM/PUB_BCA
     // nenhum, ver PapelEnum no backend.
-    isAdmin: (state) => state.usuario?.papeis?.includes('ADMIN') ?? false,
-    // Admin GERAL = ADMIN no CENDOC (ver utils/escopo.js): cadastra habilitação e DOM e mantém os admins locais.
-    isAdminGeral: (state) => ehAdminGeral(state.usuario?.papeis, state.usuario?.omSigla),
+    isAdmin: (state) => ehAdmin(state.usuario?.papeis),
+    // Administrador Geral (ADM_GER, só no CENDOC; ver utils/papeis.js): cadastra habilitação e DOM e mantém os admins locais.
+    isAdminGeral: (state) => ehAdminGeral(state.usuario?.papeis),
     // Escopo geral de quem está logado (OM = CENDOC), para a auditoria e a revisão de acessos.
     temEscopoGeral: (state) => temEscopoGeral(state.usuario?.omSigla),
-    isEditor: (state) => state.usuario?.papeis?.includes('EDIT') ?? false,
-    isAprovador: (state) => state.usuario?.papeis?.includes('APROV') ?? false,
-    isPublicador: (state) => state.usuario?.papeis?.includes('PUBLIC') ?? false,
-    // Espelha o backend (hasRole('AUDITOR') -- ver AuditoriaController): papel
+    isElaborador: (state) => state.usuario?.papeis?.includes('ELB') ?? false,
+    isAprovador: (state) => state.usuario?.papeis?.includes('APR_OM') ?? false,
+    isPublicador: (state) => state.usuario?.papeis?.includes('PUB_BCA') ?? false,
+    // Espelha o backend (hasAnyRole('AUD_OM', 'AUD_GER') -- ver AuditoriaController): perfil
     // independente de ADMIN, precisa estar marcado no próprio cadastro.
-    isAuditor: (state) => state.usuario?.papeis?.includes('AUDITOR') ?? false,
-    // Criar documento = ter o papel EDIT E a OM habilitada para a espécie (a NPA, toda OM). Consultar e ser coautor independem disso.
+    isAuditor: (state) => ehAuditor(state.usuario?.papeis),
+    // Criar documento = ter o perfil Elaborador (ELB) E a OM habilitada para a espécie (a NPA, toda OM). Consultar e ser coautor independem disso.
     podeCriarNoModulo: (state) => (tipoDeEspecie) => podeCriarNoModulo(state.especiesCriaveis, tipoDeEspecie),
     podeCriarEspecie: (state) => (sigla) => podeCriarEspecie(state.especiesCriaveis, sigla),
   },

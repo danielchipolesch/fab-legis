@@ -2,7 +2,6 @@ package intraer.fablegis.infrastructure.security;
 
 import intraer.fablegis.domain.entities.usuario.PapelEnum;
 import intraer.fablegis.domain.entities.usuario.Usuario;
-import intraer.fablegis.domain.regras.EscopoDeAcesso;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -12,7 +11,7 @@ import java.util.List;
 
 // Adapter entre Usuario (entidade JPA) e o contrato do Spring Security --
 // mantém a entidade livre de detalhes de autenticação. Nenhuma authority é
-// concedida incondicionalmente: EDIT/APROV/PUBLIC/ADMIN/AUDITOR (ver PapelEnum)
+// concedida incondicionalmente: os perfis de PapelEnum (ELB, APR_OM, PUB_BCA, AUD_OM, AUD_GER, ADM_OM, ADM_GER)
 // são todos explícitos, lidos de t_usuario_papel -- sem papel nenhum, a pessoa
 // só visualiza o acervo (DocumentoAcessoService não exige authority pra isso).
 public class UsuarioPrincipal implements UserDetails {
@@ -29,14 +28,10 @@ public class UsuarioPrincipal implements UserDetails {
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        var authorities = new java.util.ArrayList<GrantedAuthority>();
-        usuario.getPapeis().forEach(p -> authorities.add(new SimpleGrantedAuthority("ROLE_" + p.name())));
-        // Escopo GERAL (só o CENDOC, ver EscopoDeAcesso): ADMIN_GERAL e AUDITOR_GERAL, para o @PreAuthorize distinguir do local.
-        if (EscopoDeAcesso.temEscopoGeral(usuario)) {
-            if (usuario.getPapeis().contains(PapelEnum.ADMIN)) authorities.add(new SimpleGrantedAuthority("ROLE_ADMIN_GERAL"));
-            if (usuario.getPapeis().contains(PapelEnum.AUDITOR)) authorities.add(new SimpleGrantedAuthority("ROLE_AUDITOR_GERAL"));
-        }
-        return authorities;
+        // Um authority por perfil, pelo código (ROLE_ELB, ROLE_ADM_GER...): o escopo geral/local já está no próprio perfil.
+        return usuario.getPapeis().stream()
+                .map(p -> (GrantedAuthority) new SimpleGrantedAuthority("ROLE_" + p.codigo()))
+                .toList();
     }
 
     public List<PapelEnum> getPapeis() {

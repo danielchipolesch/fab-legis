@@ -446,9 +446,9 @@ class DocumentoStatusServiceTest {
     @Test
     void enviarParaAprovacaoNaoEscolheNinguemEAvisaOsAprovadoresDaOm() {
         var doc = documentoEm(NAO_PUBLICADO, MINUTA);
-        var a1 = comPapel(10L, "Aprovador 1", PapelEnum.APROV);
-        var a2 = comPapel(11L, "Aprovador 2", PapelEnum.APROV);
-        when(usuarioRepository.findByOmIdAndPapel(1L, PapelEnum.APROV)).thenReturn(List.of(a1, a2));
+        var a1 = comPapel(10L, "Aprovador 1", PapelEnum.APR_OM);
+        var a2 = comPapel(11L, "Aprovador 2", PapelEnum.APR_OM);
+        when(usuarioRepository.findByOmIdAndPapel(1L, PapelEnum.APR_OM)).thenReturn(List.of(a1, a2));
 
         service.changeStatus(DOC_ID, apenas(EM_REVISAO));
 
@@ -461,9 +461,9 @@ class DocumentoStatusServiceTest {
     @Test
     void quemEnviouNaoEAvisadoDeSuaPropriaAcao() {
         documentoEm(NAO_PUBLICADO, MINUTA);
-        var eu = comPapel(10L, "Autor e aprovador", PapelEnum.APROV);
-        var outro = comPapel(11L, "Outro aprovador", PapelEnum.APROV);
-        when(usuarioRepository.findByOmIdAndPapel(1L, PapelEnum.APROV)).thenReturn(List.of(eu, outro));
+        var eu = comPapel(10L, "Autor e aprovador", PapelEnum.APR_OM);
+        var outro = comPapel(11L, "Outro aprovador", PapelEnum.APR_OM);
+        when(usuarioRepository.findByOmIdAndPapel(1L, PapelEnum.APR_OM)).thenReturn(List.of(eu, outro));
         autenticarComo(eu);
 
         service.changeStatus(DOC_ID, apenas(EM_REVISAO));
@@ -477,7 +477,7 @@ class DocumentoStatusServiceTest {
         var doc = documentoEm(PUBLICADO, SEM_ETAPA);
         var quemAprovou = usuario(30L, "Quem aprovou o texto");
         doc.setAprovador(quemAprovou);
-        when(usuarioRepository.findByOmIdAndPapel(1L, PapelEnum.APROV)).thenReturn(List.of(comPapel(10L, "Aprovador", PapelEnum.APROV)));
+        when(usuarioRepository.findByOmIdAndPapel(1L, PapelEnum.APR_OM)).thenReturn(List.of(comPapel(10L, "Aprovador", PapelEnum.APR_OM)));
 
         service.changeStatus(DOC_ID, apenas(ANALISE_REVOGACAO));
 
@@ -490,10 +490,10 @@ class DocumentoStatusServiceTest {
     @Test
     void aprovarRegistraQuemAprovouEAvisaOsPublicadoresDoCendoc() {
         var doc = documentoEm(NAO_PUBLICADO, EM_REVISAO);
-        var aprovador = comPapel(10L, "Aprovador", PapelEnum.APROV);
-        var p1 = comPapel(20L, "Publicador 1", PapelEnum.PUBLIC);
-        var p2 = comPapel(21L, "Publicador 2", PapelEnum.PUBLIC);
-        when(usuarioRepository.findAtivosByPapel(PapelEnum.PUBLIC)).thenReturn(List.of(p1, p2));
+        var aprovador = comPapel(10L, "Aprovador", PapelEnum.APR_OM);
+        var p1 = comPapel(20L, "Publicador 1", PapelEnum.PUB_BCA);
+        var p2 = comPapel(21L, "Publicador 2", PapelEnum.PUB_BCA);
+        when(usuarioRepository.findAtivosByPapel(PapelEnum.PUB_BCA)).thenReturn(List.of(p1, p2));
         autenticarComo(aprovador);
 
         service.changeStatus(DOC_ID, apenas(EM_PUBLICACAO));
@@ -512,9 +512,9 @@ class DocumentoStatusServiceTest {
         var doc = documentoEm(PUBLICADO, ANALISE_REVOGACAO);
         var quemAprovou = usuario(30L, "Quem aprovou o texto");
         doc.setAprovador(quemAprovou);
-        var p1 = comPapel(20L, "Publicador", PapelEnum.PUBLIC);
-        when(usuarioRepository.findAtivosByPapel(PapelEnum.PUBLIC)).thenReturn(List.of(p1));
-        autenticarComo(comPapel(10L, "Aprovador da revogação", PapelEnum.APROV));
+        var p1 = comPapel(20L, "Publicador", PapelEnum.PUB_BCA);
+        when(usuarioRepository.findAtivosByPapel(PapelEnum.PUB_BCA)).thenReturn(List.of(p1));
+        autenticarComo(comPapel(10L, "Aprovador da revogação", PapelEnum.APR_OM));
 
         service.changeStatus(DOC_ID, apenas(EM_REVOGACAO));
 
@@ -527,7 +527,7 @@ class DocumentoStatusServiceTest {
     @Test
     void publicarRegistraQuemPublicou() {
         var doc = documentoEm(NAO_PUBLICADO, EM_PUBLICACAO);
-        var publicador = comPapel(20L, "Publicador", PapelEnum.PUBLIC);
+        var publicador = comPapel(20L, "Publicador", PapelEnum.PUB_BCA);
         autenticarComo(publicador);
 
         service.changeStatus(DOC_ID, publicacaoValida());

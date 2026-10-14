@@ -10,13 +10,13 @@ import java.util.EnumSet;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-// Escopo geral só no CENDOC (docs/autenticacao.md): o ADMIN lotado no CENDOC é o administrador GERAL; o ADMIN de qualquer outra OM é local,
-// nunca recebe ROLE_ADMIN_GERAL -- o escopo vem da OM, não de um papel que alguém possa conceder a quem é de outra OM.
+// Um authority por perfil, pelo CÓDIGO (docs/autenticacao.md): o escopo geral/local já está no próprio perfil (ADM_GER, AUD_GER só no
+// CENDOC; ADM_OM, AUD_OM nas demais OMs) -- nada é deduzido da lotação aqui.
 class UsuarioPrincipalTest {
 
-    private static Usuario usuario(String om, PapelEnum... papeis) {
+    private static Usuario usuario(PapelEnum... papeis) {
         var o = new OrganizacaoMilitar();
-        o.setSigla(om);
+        o.setSigla("CENDOC");
         var u = new Usuario();
         u.setOm(o);
         var conjunto = EnumSet.noneOf(PapelEnum.class);
@@ -30,26 +30,30 @@ class UsuarioPrincipalTest {
     }
 
     @Test
-    void soOAdminLotadoNoCendocEAdminGeral() {
-        assertThat(authorities(usuario("CENDOC", PapelEnum.EDIT, PapelEnum.ADMIN))).contains("ROLE_ADMIN", "ROLE_ADMIN_GERAL");
-        assertThat(authorities(usuario("BAGL", PapelEnum.EDIT, PapelEnum.ADMIN))).contains("ROLE_ADMIN").doesNotContain("ROLE_ADMIN_GERAL");
+    void cadaPerfilViraUmRolePeloCodigo() {
+        assertThat(authorities(usuario(PapelEnum.ELB, PapelEnum.ADM_GER, PapelEnum.AUD_GER, PapelEnum.PUB_BCA)))
+                .containsExactlyInAnyOrder("ROLE_ELB", "ROLE_ADM_GER", "ROLE_AUD_GER", "ROLE_PUB_BCA");
+        assertThat(authorities(usuario(PapelEnum.ELB, PapelEnum.APR_OM, PapelEnum.ADM_OM, PapelEnum.AUD_OM)))
+                .containsExactlyInAnyOrder("ROLE_ELB", "ROLE_APR_OM", "ROLE_ADM_OM", "ROLE_AUD_OM");
     }
 
     @Test
-    void soOAuditorLotadoNoCendocEAuditorGeral() {
-        assertThat(authorities(usuario("CENDOC", PapelEnum.AUDITOR))).contains("ROLE_AUDITOR", "ROLE_AUDITOR_GERAL");
-        assertThat(authorities(usuario("BAGL", PapelEnum.AUDITOR))).contains("ROLE_AUDITOR").doesNotContain("ROLE_AUDITOR_GERAL");
+    void semPerfilNaoHaAuthority() {
+        assertThat(authorities(usuario())).isEmpty();
     }
 
     @Test
-    void estarNoCendocSemSerAdminNaoDaEscopoGeralDeAdministracao() {
-        assertThat(authorities(usuario("CENDOC", PapelEnum.EDIT, PapelEnum.APROV))).doesNotContain("ROLE_ADMIN_GERAL", "ROLE_AUDITOR_GERAL");
-    }
-
-    @Test
-    void mudarDeOmTiraOEscopoGeral() {
-        var admin = usuario("CENDOC", PapelEnum.EDIT, PapelEnum.ADMIN);
-        admin.getOm().setSigla("BAGL");
-        assertThat(authorities(admin)).doesNotContain("ROLE_ADMIN_GERAL");
+    void oCodigoEoNomePorExtensoDeCadaPerfil() {
+        assertThat(PapelEnum.ELB.codigo()).isEqualTo("ELB");
+        assertThat(PapelEnum.ELB.nome()).isEqualTo("Elaborador");
+        assertThat(PapelEnum.APR_OM.nome()).isEqualTo("Aprovador da OM");
+        assertThat(PapelEnum.PUB_BCA.nome()).isEqualTo("Publicador do BCA");
+        assertThat(PapelEnum.AUD_OM.nome()).isEqualTo("Auditor da OM");
+        assertThat(PapelEnum.AUD_GER.nome()).isEqualTo("Auditor Geral");
+        assertThat(PapelEnum.ADM_OM.nome()).isEqualTo("Administrador da OM");
+        assertThat(PapelEnum.ADM_GER.nome()).isEqualTo("Administrador Geral");
+        for (var p : PapelEnum.values()) {
+            assertThat(p.descricao()).as("descrição de %s", p).isNotBlank();
+        }
     }
 }

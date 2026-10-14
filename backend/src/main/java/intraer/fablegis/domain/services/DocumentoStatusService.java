@@ -202,15 +202,15 @@ public class DocumentoStatusService {
         // Quem pode agir agora é avisado -- as pessoas com o papel, nunca uma escolhida: os aprovadores da OM do documento ao
         // enviar para aprovação (ou pedir a revogação); os publicadores (CENDOC) ao aprovar. Quem acabou de agir não é avisado.
         if (acao == AcaoDeEtapa.ENVIAR_PARA_REVISAO || acao == AcaoDeEtapa.PEDIR_REVOGACAO) {
-            avisar(usuarioRepository.findByOmIdAndPapel(documento.getOm().getId(), PapelEnum.APROV), documento, descricao,
+            avisar(usuarioRepository.findByOmIdAndPapel(documento.getOm().getId(), PapelEnum.APR_OM), documento, descricao,
                     "O documento " + descricao + " aguarda a aprovação da sua OM.");
         }
         if (acao == AcaoDeEtapa.APROVAR) {
-            avisar(usuarioRepository.findAtivosByPapel(PapelEnum.PUBLIC), documento, descricao,
+            avisar(usuarioRepository.findAtivosByPapel(PapelEnum.PUB_BCA), documento, descricao,
                     "O documento " + descricao + " foi aprovado e aguarda publicação.");
         }
         if (acao == AcaoDeEtapa.APROVAR_REVOGACAO) {
-            avisar(usuarioRepository.findAtivosByPapel(PapelEnum.PUBLIC), documento, descricao,
+            avisar(usuarioRepository.findAtivosByPapel(PapelEnum.PUB_BCA), documento, descricao,
                     "O documento " + descricao + " teve a revogação aprovada e aguarda a publicação da revogação.");
         }
 

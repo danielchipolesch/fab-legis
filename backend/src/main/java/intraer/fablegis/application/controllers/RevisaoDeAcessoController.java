@@ -20,7 +20,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping(value = "/v1/revisao-de-acessos", produces = MediaType.APPLICATION_JSON_VALUE)
 @Tag(name = "Revisão de acessos", description = "Revisão periódica dos papéis elevados")
-@PreAuthorize("hasRole('ADMIN')")
+@PreAuthorize("hasAnyRole('ADM_OM', 'ADM_GER')")
 @RequiredArgsConstructor
 public class RevisaoDeAcessoController {
 
