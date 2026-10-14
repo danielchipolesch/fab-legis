@@ -67,13 +67,13 @@ public record DocumentoResponseSemAnexoTextualDto(
         String omSigla,
         String omUrlDistintivo,
 
-        // Ver Documento.revisorAtribuido/publicadorAtribuido -- o frontend usa isso
+        // Ver Documento.aprovador/publicador -- o frontend usa isso
         // pra saber se O USUÁRIO ATUAL pode agir/editar neste momento (ex.: editar
-        // durante EM_REVISAO só se revisorAtribuidoId == id de quem está logado).
-        Long revisorAtribuidoId,
-        String revisorAtribuidoNome,
-        Long publicadorAtribuidoId,
-        String publicadorAtribuidoNome,
+        // durante EM_REVISAO só se aprovadorId == id de quem está logado).
+        Long aprovadorId,
+        String aprovadorNome,
+        Long publicadorId,
+        String publicadorNome,
 
         // Autor OU coautor do documento (ver DocumentoAcessoService.podeEditar) --
         // só preenchido na listagem paginada (DocumentoController.getAll), onde

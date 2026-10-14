@@ -161,10 +161,10 @@ public class CamposDeNpa implements CamposEspecificosDaEspecie {
     // ela de fato aprova (é a mesma data de aprovação da EMISSÃO); antes disso o bloco fica com a máscara de
     // CabecalhoDaNpa, para a NPA em elaboração não parecer já aprovada por alguém.
     private List<String> aprovadoPor(Documento documento) {
-        if (documento == null || documento.getRevisorAtribuido() == null || documento.getDtAprovacao() == null) {
+        if (documento == null || documento.getAprovador() == null || documento.getDtAprovacao() == null) {
             return List.of();
         }
-        return List.of(pessoa(documento.getRevisorAtribuido()));
+        return List.of(pessoa(documento.getAprovador()));
     }
 
     // "Cel FULANO DE TAL SILVA": posto ou graduação (bigrama) e o nome completo em caixa alta; sem posto (servidor civil), só o nome.

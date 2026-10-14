@@ -51,32 +51,33 @@ stateDiagram-v2
 |---|---|---|
 | `RASCUNHO → MINUTA` | minutar | — |
 | `RASCUNHO/MINUTA → CANCELADO` | cancelar o documento | — |
-| `MINUTA/EM_ALTERACAO → EM_REVISAO` | enviar para revisão (escolhe o revisor) | — |
-| `EM_REVISAO → EM_PUBLICACAO` | aprovar (escolhe o publicador) — congela a versão em tramitação | — |
+| `MINUTA/EM_ALTERACAO → EM_REVISAO` | **enviar para aprovação** (ninguém é escolhido) | — |
+| `EM_REVISAO → EM_PUBLICACAO` | aprovar (qualquer aprovador da OM) — congela a versão em tramitação | — |
 | `EM_REVISAO/EM_PUBLICACAO → MINUTA` (`NAO_PUBLICADO`) ou `→ EM_ALTERACAO` (`PUBLICADO`) | devolver | — (nunca tira um documento publicado de `PUBLICADO`) |
 | `EM_PUBLICACAO → SEM_ETAPA` | **publicar** (portaria + BCA) | `NAO_PUBLICADO → PUBLICADO` (1ª publicação); segue `PUBLICADO` numa alteração |
 | `SEM_ETAPA → EM_ALTERACAO` | iniciar alteração (só `PUBLICADO`) | — |
 | `EM_ALTERACAO → SEM_ETAPA` | **cancelar alteração** — só sem alterações pendentes (desfeitas antes, elemento a elemento) | — (segue `PUBLICADO`) |
-| `SEM_ETAPA → ANALISE_REVOGACAO` | pedir revogação (só `PUBLICADO`; escolhe o revisor) | — |
-| `ANALISE_REVOGACAO → EM_REVOGACAO` | aprovar a revogação (escolhe o publicador) | — |
+| `SEM_ETAPA → ANALISE_REVOGACAO` | pedir revogação (só `PUBLICADO`; vai a qualquer aprovador da OM) | — |
+| `ANALISE_REVOGACAO → EM_REVOGACAO` | aprovar a revogação (qualquer aprovador da OM) | — |
 | `ANALISE_REVOGACAO → SEM_ETAPA` | devolver a análise — não exige nada | — (segue `PUBLICADO`) |
 | `EM_REVOGACAO → SEM_ETAPA` | **revogar** (portaria + BCA) — a única saída de `EM_REVOGACAO` | `PUBLICADO → REVOGADO` |
 
 **Não há revogação durante uma alteração** (`EM_ALTERACAO → ANALISE_REVOGACAO` não existe): primeiro conclui-se ou cancela-se a alteração. E **`EM_REVOGACAO` nunca volta a `PUBLICADO`** — não há para onde devolver.
 
-**Atribuição pessoal, não papel genérico — cada transição tem um dono diferente:**
+**Sem atribuição pessoal — cada transição tem um dono por papel e OM:** ninguém é escolhido ao enviar nem ao aprovar; age *qualquer* aprovador da OM do documento e *qualquer* publicador (o papel só existe no CENDOC).
+
 
 | Transição | Quem pode |
 |---|---|
-| `RASCUNHO/MINUTA → CANCELADO`, `→ MINUTA`, `→ EM_REVISAO`, `SEM_ETAPA → ANALISE_REVOGACAO` | Quem já pode editar o documento (autor/coautor com papel **Editor**) — inclui **escolher pessoalmente** quem vai revisar (`revisorId`, restrito a quem tem papel **Aprovador** na mesma OM) |
-| `SEM_ETAPA → EM_ALTERACAO` | Qualquer **Aprovador** da mesma OM — única transição sem atribuição prévia (é uma iniciativa nova, não a continuação de uma fila) |
+| `RASCUNHO/MINUTA → CANCELADO`, `→ MINUTA`, `→ EM_REVISAO`, `SEM_ETAPA → ANALISE_REVOGACAO` | Quem já pode editar o documento (autor/coautor com papel **Editor**) — o envio é **"Enviar para aprovação"**, sem escolher uma pessoa: os aprovadores da OM do documento são avisados |
+| `SEM_ETAPA → EM_ALTERACAO` | Qualquer **Aprovador** da mesma OM (é uma iniciativa nova, não a continuação de uma fila) |
 | `EM_ALTERACAO → SEM_ETAPA` (cancelar alteração) | Qualquer **Aprovador** da mesma OM **ou** quem edita o documento (autor/coautor) |
-| A partir de `EM_REVISAO`/`ANALISE_REVOGACAO` (aprovar, aprovar revogação, devolver) | Só a pessoa atribuída como revisora daquele documento (`Documento.revisorAtribuido`) — ao aprovar, ela também escolhe pessoalmente quem vai publicar (`publicadorId`, papel **Publicador**) |
-| A partir de `EM_PUBLICACAO` (publicar, devolver) e `EM_REVOGACAO` (revogar — **não há devolução**) | Só a pessoa atribuída como publicadora daquele documento (`Documento.publicadorAtribuido`) |
+| A partir de `EM_REVISAO`/`ANALISE_REVOGACAO` (aprovar, aprovar revogação, devolver) | Qualquer **Aprovador da OM do documento** (`ehAprovadorDaOm`) — o de outra OM não. Ao aprovar, o documento vai para a fila de publicação do CENDOC e quem aprovou fica registrado (`Documento.aprovador`, o "Aprovado por" da NPA) |
+| A partir de `EM_PUBLICACAO` (publicar, devolver) e `EM_REVOGACAO` (revogar — **não há devolução**) | Qualquer **Publicador** (papel exclusivo do CENDOC); quem publicou fica registrado (`Documento.publicador`) |
 
-A checagem é centralizada em `DocumentoAcessoService.podeMudarStatus()`; tentativas sem a atribuição/papel adequado retornam `403`. Cada atribuição **notifica só a pessoa escolhida** (`NotificacaoService.notificarAtribuicao`), nunca uma OM inteira — ver [Autenticação e Colaboração](autenticacao.md). Devolver limpa a atribuição: a próxima vez que o documento for enviado, a pessoa pode ser outra.
+A checagem é centralizada em `DocumentoAcessoService.podeMudarStatus()`; tentativas sem o papel (ou da OM errada) retornam `403`. Quem pode agir agora é **notificado**: os aprovadores da OM ao enviar para aprovação (ou pedir a revogação), os publicadores ao aprovar — menos quem acabou de agir (`DocumentoStatusService`). Devolver (ou enviar de novo) recomeça sem aprovador nem publicador; pedir a revogação, aprová-la ou recusá-la **não** mexe em quem aprovou o texto. Ver [Autenticação e Colaboração](autenticacao.md).
 
-**Editar durante a revisão:** o Aprovador atribuído pode editar o conteúdo enquanto o documento **ainda não publicado** estiver em `EM_REVISAO`. A revisão de uma alteração de documento `PUBLICADO` é somente leitura: o texto vigente só muda por emenda, na etapa `EM_ALTERACAO`. A partir de `EM_PUBLICACAO` — e em todo o fluxo de revogação — ninguém mais edita o conteúdo, nem o autor original. Essa regra é aplicada num só lugar, `DocumentoAcessoService.podeEditar` (a checagem de todo endpoint que altera o documento: texto de cada elemento, estrutura, metadados, anexos, cabeçalho da NPA, emendas, o acesso do servidor de colaboração e o stream de presença): `RASCUNHO`, `MINUTA` e `EM_ALTERACAO` — autor e coautores com papel Editor; `EM_REVISAO` — **só** o revisor atribuído, e só em documento não publicado (nem o autor edita durante a revisão); as demais etapas — ninguém. É a mesma regra que a interface já aplicava (`podeEditarAgora`); antes, a API a aplicava só em parte (cada serviço barrava a etapa à sua maneira, e o texto de um elemento de documento aprovado ainda podia ser alterado chamando a API diretamente). Pedir a mudança de etapa (enviar para revisão, pedir a revogação, cancelar) e excluir seguem a **posse** do documento, que não depende de poder editar o conteúdo naquela etapa.
+**Editar durante a revisão:** qualquer Aprovador da OM do documento pode editar o conteúdo enquanto o documento **ainda não publicado** estiver em `EM_REVISAO`. A revisão de uma alteração de documento `PUBLICADO` é somente leitura: o texto vigente só muda por emenda, na etapa `EM_ALTERACAO`. A partir de `EM_PUBLICACAO` — e em todo o fluxo de revogação — ninguém mais edita o conteúdo, nem o autor original. Essa regra é aplicada num só lugar, `DocumentoAcessoService.podeEditar` (a checagem de todo endpoint que altera o documento: texto de cada elemento, estrutura, metadados, anexos, cabeçalho da NPA, emendas, o acesso do servidor de colaboração e o stream de presença): `RASCUNHO`, `MINUTA` e `EM_ALTERACAO` — autor e coautores com papel Editor; `EM_REVISAO` — **só** os aprovadores da OM do documento, e só em documento não publicado (nem o autor edita durante a revisão); as demais etapas — ninguém. É a mesma regra que a interface já aplicava (`podeEditarAgora`); antes, a API a aplicava só em parte (cada serviço barrava a etapa à sua maneira, e o texto de um elemento de documento aprovado ainda podia ser alterado chamando a API diretamente). Pedir a mudança de etapa (enviar para revisão, pedir a revogação, cancelar) e excluir seguem a **posse** do documento, que não depende de poder editar o conteúdo naquela etapa.
 
 **Regra de imutabilidade:** o conteúdo textual só pode ser alterado em `RASCUNHO`, `MINUTA` (edição livre) ou `EM_ALTERACAO` (só por emenda, elemento a elemento). Os **anexos** de imagem seguem a mesma regra de edição do resto do documento (`podeEditar`, acima): adicionar ou remover anexo só é permitido a quem pode editar o documento naquela etapa, e de `EM_PUBLICACAO` em diante o anexo também está congelado (`403`); o `AnexoService` ainda confere a etapa (`SituacaoLocalEnum.aceitaEdicao`) como segunda barreira. O salvamento em massa é rejeitado para qualquer documento `PUBLICADO`. Para criar uma revisão totalmente nova, use a **clonagem**, que gera um novo documento em `RASCUNHO` com novo número secundário, preservando o original como registro histórico.
 
@@ -95,18 +96,18 @@ Os arquivos armazenados são gerados **depois do commit** da mudança de etapa (
 
 ## Revogação em três etapas
 
-Revogar um ato publicado segue o mesmo padrão de atribuição pessoal do fluxo normal: o Editor envia (`SEM_ETAPA → ANALISE_REVOGACAO`, escolhendo um Aprovador), o Aprovador atribuído analisa e aprova a revogação (`ANALISE_REVOGACAO → EM_REVOGACAO`, escolhendo um Publicador) ou devolve (`ANALISE_REVOGACAO → SEM_ETAPA`: o pedido é recusado e o documento **segue `PUBLICADO`**, sem exigir nada), e o Publicador atribuído formaliza (`EM_REVOGACAO → SEM_ETAPA`, com Portaria/BCA — a Situação BCA passa a `REVOGADO`). A revogação não reabre o conteúdo do documento para edição em nenhuma etapa.
+Revogar um ato publicado segue o mesmo padrão do fluxo normal: o Editor envia (`SEM_ETAPA → ANALISE_REVOGACAO`, sem escolher ninguém), qualquer Aprovador da OM analisa e aprova a revogação (`ANALISE_REVOGACAO → EM_REVOGACAO`) ou devolve (`ANALISE_REVOGACAO → SEM_ETAPA`: o pedido é recusado e o documento **segue `PUBLICADO`**, sem exigir nada), e qualquer Publicador (CENDOC) formaliza (`EM_REVOGACAO → SEM_ETAPA`, com Portaria/BCA — a Situação BCA passa a `REVOGADO`). A revogação não reabre o conteúdo do documento para edição em nenhuma etapa.
 
 ## Fluxo da NPA (Norma Padrão de Ação)
 
-A NPA usa as mesmas etapas locais, a mesma **atribuição pessoal** (revisor com papel Aprovador, publicador com papel Publicador, ambos da mesma OM) e a mesma imutabilidade das espécies convencionais, com três diferenças: **não há alteração**, a publicação e a revogação são feitas no **Boletim Interno** (sem Portaria nem BCA) e "Devolver" leva sempre à `MINUTA`. As regras estão em `CicloDeVidaDeNpa` (coberto por `CicloDeVidaDeNpaTest`).
+A NPA usa as mesmas etapas locais, o mesmo envio **sem escolher pessoa** (qualquer aprovador da OM aprova; qualquer publicador do CENDOC publica) e a mesma imutabilidade das espécies convencionais, com três diferenças: **não há alteração**, a publicação e a revogação são feitas no **Boletim Interno** (sem Portaria nem BCA) e "Devolver" leva sempre à `MINUTA`. As regras estão em `CicloDeVidaDeNpa` (coberto por `CicloDeVidaDeNpaTest`).
 
 ```mermaid
 stateDiagram-v2
     [*] --> RASCUNHO
     RASCUNHO --> MINUTA
     RASCUNHO --> CANCELADO
-    MINUTA --> EM_REVISAO: enviar para revisão
+    MINUTA --> EM_REVISAO: enviar para aprovação
     MINUTA --> CANCELADO
     EM_REVISAO --> EM_PUBLICACAO: aprovar
     EM_REVISAO --> MINUTA: devolver
@@ -124,12 +125,12 @@ Passo a passo, com o que muda no cabeçalho do documento (prévia, PDF e HTML �
 |---|---|---|
 | **1. Criar** (`RASCUNHO`) | Editor | Informa a **Identificação** (texto livre) e o **Assunto**; a NPA nasce com a estrutura do Anexo XII. Preenche o cabeçalho (*Cabeçalho e assinaturas*: setor emissor, local, blocos de assinatura). Identificação editável até a Minuta |
 | **2. Minutar** (`MINUTA`) | Editor | Passo de organização, sem atribuição. Pode ser cancelada (`CANCELADO`) nesta etapa e na anterior |
-| **3. Enviar para revisão** (`EM_REVISAO`) | Editor | Escolhe **pessoalmente** o Aprovador. "Aprovado por" ainda leva a máscara `[POSTO] FULANO DE TAL` |
-| **4. Aprovar** (`EM_PUBLICACAO`) | Aprovador atribuído | Pode editar o texto enquanto revisa (a NPA ainda não foi publicada); ao aprovar escolhe pessoalmente o Publicador. Grava a **data de aprovação**: ela vira a EMISSÃO e o nome do aprovador passa a aparecer em "Aprovado por". Pode **devolver** (volta à `MINUTA`; a atribuição é limpa) |
-| **5. Publicar** (`SEM_ETAPA`, situação real `PUBLICADO`) | Publicador atribuído | Informa só o **número (1 a 9999) e a data do Boletim Interno** — sem Portaria, BCA nem PDF de portaria. Passa a valer a EFETIVAÇÃO (`BIO <número>` + data) e a linha "(Publicada no …)". Pode **devolver** (volta à `MINUTA`). Depois de publicada, o conteúdo e os campos do cabeçalho não mudam mais |
-| **6. Pedir revogação** (`ANALISE_REVOGACAO`) | Editor | Só de NPA `PUBLICADO`; escolhe o Aprovador que analisa |
-| **7. Aprovar a revogação** (`EM_REVOGACAO`) | Aprovador atribuído | Escolhe o Publicador. Se **devolver**, o pedido é recusado e a NPA segue `PUBLICADO` |
-| **8. Revogar** (`REVOGADO`) | Publicador atribuído | Informa o Boletim Interno da revogação, cuja data **não pode ser anterior** à da publicação. Não há devolução. A NPA revogada mantém a referência da publicação, ganha "(Revogada pelo …)" e o selo `REVOGADO` |
+| **3. Enviar para aprovação** (`EM_REVISAO`) | Editor | **Enviar para aprovação**, sem escolher ninguém (qualquer aprovador da OM age). "Aprovado por" ainda leva a máscara `[POSTO] FULANO DE TAL` |
+| **4. Aprovar** (`EM_PUBLICACAO`) | Qualquer aprovador da OM | Pode editar o texto enquanto revisa (a NPA ainda não foi publicada); ao aprovar, a NPA vai para a fila do CENDOC (sem escolher o publicador) e **quem aprovou** fica registrado. Grava a **data de aprovação**: ela vira a EMISSÃO e o nome do aprovador passa a aparecer em "Aprovado por". Pode **devolver** (volta à `MINUTA`; a atribuição é limpa) |
+| **5. Publicar** (`SEM_ETAPA`, situação real `PUBLICADO`) | Qualquer publicador (CENDOC) | Informa só o **número (1 a 9999) e a data do Boletim Interno** — sem Portaria, BCA nem PDF de portaria. Passa a valer a EFETIVAÇÃO (`BIO <número>` + data) e a linha "(Publicada no …)". Pode **devolver** (volta à `MINUTA`). Depois de publicada, o conteúdo e os campos do cabeçalho não mudam mais |
+| **6. Pedir revogação** (`ANALISE_REVOGACAO`) | Editor | Só de NPA `PUBLICADO`; vai a qualquer aprovador da OM |
+| **7. Aprovar a revogação** (`EM_REVOGACAO`) | Qualquer aprovador da OM | Se **devolver**, o pedido é recusado e a NPA segue `PUBLICADO` |
+| **8. Revogar** (`REVOGADO`) | Qualquer publicador (CENDOC) | Informa o Boletim Interno da revogação, cuja data **não pode ser anterior** à da publicação. Não há devolução. A NPA revogada mantém a referência da publicação, ganha "(Revogada pelo …)" e o selo `REVOGADO` |
 
 **Para mudar uma NPA publicada:** não existe "Iniciar Alteração", `EM_ALTERACAO`, ciclo de emenda nem comparação de versões. Cria-se outra NPA (clonando, se quiser partir da anterior — o clone é da OM de quem clona) e, depois, pede-se a revogação da antiga; a ação **Substituir** faz a cópia já ligada à NPA publicada (ver [Substituir](dominio.md#substituir)), e a revogação da antiga segue o pedido de sempre.
 
@@ -137,7 +138,7 @@ Passo a passo, com o que muda no cabeçalho do documento (prévia, PDF e HTML �
 
 > **NPA:** a [NPA](dominio.md#npa-norma-padrao-de-acao) não tem portaria nem BCA — é publicada e revogada no **Boletim Interno** da OM, e basta informar o **número** (1 a 9999) e a **data** (`numeroBoletimInterno`/`dataBoletimInterno` no pedido de status; `PublicacaoDeNpa`). A referência da publicação ("Boletim Interno Ostensivo nº 15, de 2 de abril de 2026") vai para os mesmos campos de referência que um ato normativo usa para o BCA e alimenta a EFETIVAÇÃO do cabeçalho e a linha "(Publicada no …)". A da **revogação** fica em `t_documento_npa` e **não sobrescreve** a da publicação: a NPA revogada continua mostrando onde foi publicada, e ganha "(Revogada pelo …)" e o selo `REVOGADO`. A data do Boletim da revogação não pode ser anterior à da publicação.
 
-Publicar (`EM_PUBLICACAO → SEM_ETAPA`) e revogar (`EM_REVOGACAO → SEM_ETAPA`), sempre pela pessoa atribuída como publicadora, exigem o registro de uma **Portaria** (órgão, setor, número, data) e de um **BCA** (número, data), além do upload do PDF da portaria correspondente. Esse registro é gravado como uma linha própria em `PortariaPublicacao`, nunca mesclado ao PDF do documento — cada portaria permanece um arquivo íntegro, condição necessária para uma futura assinatura digital (que cobre um intervalo de bytes exato do arquivo original; um merge invalidaria essa assinatura).
+Publicar (`EM_PUBLICACAO → SEM_ETAPA`) e revogar (`EM_REVOGACAO → SEM_ETAPA`), sempre por um Publicador (CENDOC), exigem o registro de uma **Portaria** (órgão, setor, número, data) e de um **BCA** (número, data), além do upload do PDF da portaria correspondente. Esse registro é gravado como uma linha própria em `PortariaPublicacao`, nunca mesclado ao PDF do documento — cada portaria permanece um arquivo íntegro, condição necessária para uma futura assinatura digital (que cobre um intervalo de bytes exato do arquivo original; um merge invalidaria essa assinatura).
 
 O tipo de cada registro é decidido pela **Situação BCA** do documento no momento:
 
@@ -162,7 +163,7 @@ Um ato normativo publicado não é reescrito livremente: a LC 95/1998 exige que 
 1. O documento (`PUBLICADO`, `SEM_ETAPA`) vai a `EM_ALTERACAO`.
 2. Cada elemento tocado recebe uma ação — `INCLUIR`, `ALTERAR`, `REVOGAR` ou `DESFAZER` (desiste da edição pendente) — via `PATCH /v1/documentos/{id}/emendar/{secao}/{elementoId}`. O `ElementoEmendaStatusEnum` (`INALTERADO · INCLUIDO · ALTERADO · REVOGADO`) e o texto anterior ficam guardados no próprio registro do elemento; nada é sobrescrito.
    A cláusula tem a mesma forma em todos os formatos (prévia, PDF e HTML): alteração → "*(redação dada pela Portaria X, publicada no BCA Y)*"; inclusão → "*(incluído pela ...)*"; revogação → "*(revogado pela ...)*".
-3. O documento passa por `EM_REVISAO` (Aprovador atribuído aprova) e `EM_PUBLICACAO` até a publicação da alteração (`EM_PUBLICACAO → SEM_ETAPA`, com nova Portaria/BCA — ver seção anterior), quando `EmendaService.consolidarPublicacao()` **congela** a cláusula de cada elemento alterado — ela deixa de ser recalculada e passa a valer para sempre, mesmo que o documento entre em um novo ciclo depois. O documento continua `PUBLICADO` durante todo o ciclo.
+3. O documento passa por `EM_REVISAO` (qualquer Aprovador da OM aprova) e `EM_PUBLICACAO` até a publicação da alteração (`EM_PUBLICACAO → SEM_ETAPA`, com nova Portaria/BCA — ver seção anterior), quando `EmendaService.consolidarPublicacao()` **congela** a cláusula de cada elemento alterado — ela deixa de ser recalculada e passa a valer para sempre, mesmo que o documento entre em um novo ciclo depois. O documento continua `PUBLICADO` durante todo o ciclo.
 4. **Desfazer uma alteração** é feito **por elemento**: apagar a alteração do elemento no painel lateral do editor (`DESFAZER`). **Desistir da alteração inteira** (`EM_ALTERACAO → SEM_ETAPA`) só é possível quando **não há mais alterações pendentes** (`EmendaService.temAlteracoesPendentes()`); com alguma pendente, o serviço recusa e pede para desfazê-las antes — o cancelamento nunca descarta trabalho em massa.
 5. Uma nova emenda sobre um elemento **já publicado** promove a redação vigente e reinicia o ciclo para aquele elemento — o texto anterior a essa nova emenda também fica registrado (`clausulaEmendaAnterior`), aparecendo riscado ao lado da cláusula que o descreveu originalmente.
 6. Artigos incluídos por emenda recebem sufixo de letra (`Art. 5-A`) e **nunca** voltam a consumir numeração sequencial simples, mesmo depois de alterados ou revogados — a marca `incluidoPorEmenda` é permanente e independente do status ao vivo do elemento, evitando a renumeração de todo o documento a cada novo ciclo (vedada pela técnica legislativa).

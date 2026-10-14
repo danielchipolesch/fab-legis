@@ -55,7 +55,7 @@ public class PainelController {
             @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "5") int size,
             Authentication authentication) {
         Usuario usuario = usuario(authentication);
-        return ResponseEntity.ok(comPosse(documentoService.getPainelAguardandoAcao(usuario.getId(), pagina(page, size)), usuario));
+        return ResponseEntity.ok(comPosse(documentoService.getPainelAguardandoAcao(usuario, pagina(page, size)), usuario));
     }
 
     @GetMapping("/em-tramitacao-de-outros")

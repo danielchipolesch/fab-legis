@@ -6,14 +6,14 @@
       </template>
       <q-breadcrumbs-el :to="{ name: 'home' }" icon="mdi-home" />
       <q-breadcrumbs-el label="Área de Trabalho" :to="{ name: 'home' }" />
-      <q-breadcrumbs-el label="Revisão" />
+      <q-breadcrumbs-el label="Manter Revisão de Documento" />
     </q-breadcrumbs>
 
     <div class="row items-center justify-between q-mb-xl">
       <div>
         <h1 class="text-h5 text-weight-bold text-primary q-my-none">Manter Revisão de Documento</h1>
         <p class="text-body2 text-grey-7 q-mb-none">
-          Documentos atribuídos a você para revisar ou devolver.
+          Documentos da sua OM aguardando aprovação: qualquer aprovador da OM pode aprová-los ou devolvê-los.
         </p>
       </div>
     </div>
@@ -72,21 +72,31 @@
         <template #no-data>
           <div class="full-width column items-center q-py-xl text-grey-7">
             <q-icon size="56px" class="q-mb-sm" name="mdi-inbox-outline" />
-            <p>Nenhum documento atribuído a você no momento.</p>
+            <p>Nenhum documento aguardando aprovação na sua OM no momento.</p>
           </div>
         </template>
       </q-table>
     </q-card>
 
-    <SelecionarPessoaDialog
-      v-model="dialogAprovar"
-      papel="PUBLIC"
-      :titulo="alvo?.situacao_local === 'ANALISE_REVOGACAO' ? 'Aprovar revogação' : 'Aprovar'"
-      :descricao="alvo ? `Escolha quem vai publicar ${alvo.codigo_documento}` : ''"
-      acao-label="Aprovar"
-      :enviando="enviando"
-      @confirmar="confirmarAprovacao"
-    />
+    <!-- Aprovar: ninguém é escolhido -- o documento vai para a fila de publicação do CENDOC, onde qualquer publicador age. -->
+    <q-dialog v-model="dialogAprovar" :persistent="enviando">
+      <q-card style="min-width:400px;max-width:480px">
+        <q-card-section class="row items-center q-pb-none">
+          <q-icon name="mdi-check-circle-outline" color="positive" size="24px" class="q-mr-sm" />
+          <span class="text-h6">{{ alvo?.situacao_local === 'ANALISE_REVOGACAO' ? 'Aprovar revogação' : 'Aprovar' }}</span>
+        </q-card-section>
+        <q-card-section class="q-pt-md">
+          <div class="text-weight-medium">{{ alvo?.codigo_documento }}</div>
+          <div class="text-body2 text-grey-8 q-mt-sm">
+            Ao aprovar, o documento segue para a fila de publicação do CENDOC (qualquer publicador pode publicá-lo) e o seu nome fica registrado como quem aprovou.
+          </div>
+        </q-card-section>
+        <q-card-actions align="right">
+          <q-btn flat label="Cancelar" color="grey-7" :disable="enviando" v-close-popup />
+          <q-btn unelevated label="Aprovar" color="positive" :loading="enviando" data-testid="confirmar-aprovacao" @click="confirmarAprovacao" />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
   </q-page>
 </template>
 
@@ -96,7 +106,6 @@ import { useQuasar } from 'quasar'
 import { useDocumentosStore } from '@/stores/documentos.js'
 import * as documentosApi from '@/api/documentos.js'
 import StatusBadge from '@/components/common/StatusBadge.vue'
-import SelecionarPessoaDialog from '@/components/editor/SelecionarPessoaDialog.vue'
 import { caixaAlta } from '@/utils/texto.js'
 import { destinoDeAprovacao, destinoDeDevolucao } from '@/utils/fluxoDocumento.js'
 
@@ -126,7 +135,7 @@ async function carregar() {
 }
 onMounted(carregar)
 
-// EM_REVISAO abre direto no editor -- é onde o revisor atribuído revisa E edita
+// EM_REVISAO abre direto no editor -- é onde o aprovador da OM revisa E edita
 // na mesma tela (ver isReadonly em DocumentoEditorPage.vue). ANALISE_REVOGACAO
 // não tem conteúdo editável em etapa nenhuma (a revogação nunca reabre o
 // documento), então continua indo pra visualização. As duas preservam a
@@ -146,11 +155,11 @@ function abrirAprovacao(doc) {
   dialogAprovar.value = true
 }
 
-async function confirmarAprovacao(publicadorId) {
+async function confirmarAprovacao() {
   if (!alvo.value || enviando.value) return
   enviando.value = true
   try {
-    await store.changeStatus(alvo.value.id, destinoDeAprovacao(alvo.value), { publicadorId })
+    await store.changeStatus(alvo.value.id, destinoDeAprovacao(alvo.value))
     dialogAprovar.value = false
     alvo.value = null
     await carregar()

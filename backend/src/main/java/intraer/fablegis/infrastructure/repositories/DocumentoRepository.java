@@ -25,11 +25,9 @@ public interface DocumentoRepository extends JpaRepository<Documento, Long>, Jpa
     // "Substituir" (NPA): a NPA que substitui esta -- a mais recente que não foi cancelada; vazio se ninguém a substitui.
     Optional<Documento> findFirstByDocumentoSubstituidoIdAndSituacaoLocalNotOrderByIdDesc(Long id, SituacaoLocalEnum situacao);
 
-    // Fila pessoal das telas de Revisão/Publicação (ver RevisaoPage.vue/
-    // PublicacaoPage.vue) -- sem paginação de propósito: é o que está atribuído a UMA
-    // pessoa, não o acervo inteiro, volume esperado é baixo.
-    List<Documento> findByRevisorAtribuidoIdAndSituacaoLocalIn(Long revisorId, Collection<SituacaoLocalEnum> status);
-    List<Documento> findByPublicadorAtribuidoIdAndSituacaoLocalIn(Long publicadorId, Collection<SituacaoLocalEnum> status);
+    // Filas das telas de Revisão/Publicação (ver DocumentoService): os documentos de uma OM numa das etapas, ou de todas as OMs.
+    List<Documento> findByOmIdAndSituacaoLocalIn(Long omId, Collection<SituacaoLocalEnum> status);
+    List<Documento> findBySituacaoLocalIn(Collection<SituacaoLocalEnum> status);
 //    List<Documento> findByEspecieNormativaAndAssuntoBasico(
 //            @Param("documentationTypeName") String documentationTypeAcronym,
 //            @Param("basicSubjectName") String basicSubjectName

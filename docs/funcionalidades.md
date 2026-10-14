@@ -70,7 +70,7 @@ A tela inicial (`/`, `HubPage`) é o **ponto único de acesso** aos módulos e a
 | Card | Documentos | Ação da linha |
 |---|---|---|
 | **Meus Documentos em Tramitação** | Autoria ou coautoria, em `RASCUNHO`, `MINUTA`, `EM_ALTERACAO`, `EM_REVISAO`, `EM_PUBLICACAO`, `ANALISE_REVOGACAO` ou `EM_REVOGACAO` | *Editar* (etapa de escrita e a pessoa é autora/coautora) ou *Acompanhar* (está com outra pessoa) |
-| **Aguardando Minha Ação** | Atribuídos a mim: como revisor (`EM_REVISAO`, `ANALISE_REVOGACAO`) ou como publicador (`EM_PUBLICACAO`, `EM_REVOGACAO`). Sem nenhum: "Nenhuma ação pendente" | *Revisar* (abre o documento), *Analisar revogação*, *Publicar* ou *Revogar* (tela de Publicação), sempre com o aviso ⚠ |
+| **Aguardando Minha Ação** | Como aprovador, o que aguarda aprovação na minha OM (`EM_REVISAO`, `ANALISE_REVOGACAO`); como publicador (CENDOC), o que aguarda publicação (`EM_PUBLICACAO`, `EM_REVOGACAO`). Sem nenhum: "Nenhuma ação pendente" | *Revisar* (abre o documento), *Analisar revogação*, *Publicar* ou *Revogar* (tela de Publicação), sempre com o aviso ⚠ |
 | **Documentos em Tramitação nas OMs** | O que está em tramitação (as mesmas etapas do primeiro card), **de qualquer OM**, **exceto** onde sou autor ou coautor — esses já estão no primeiro card. É o panorama do que os outros estão fazendo | Sempre *Acompanhar*: **só visualizo** — editar exige ser autor ou coautor |
 | **Publicados e Revogados** | `PUBLICADO` e `REVOGADO` **sem tramitação** (`SEM_ETAPA`), **de todas as OMs**, mais recentes primeiro | *Visualizar* |
 
@@ -110,14 +110,14 @@ Implementada com **`tsvector`/`GIN` do próprio PostgreSQL** (sem Elasticsearch)
 
 ## Revisão e Publicação
 
-Duas telas dedicadas, cada uma restrita a quem tem o papel correspondente e mostrando só a **fila pessoal** de quem está logado (documentos atribuídos a ela, nunca o acervo inteiro):
+Duas telas dedicadas, cada uma restrita a quem tem o papel correspondente e mostrando só a **fila** da etapa (nunca o acervo inteiro) — ninguém é "atribuído": a de aprovação é da OM de quem pergunta, a de publicação é do CENDOC:
 
-- **Revisão** (`/revisao`, `RevisaoPage.vue`, papel Aprovador) — tabela com **código, título, autores, situação e ações**; documentos em `EM_REVISAO`/`ANALISE_REVOGACAO` atribuídos ao usuário. Abrir (editável enquanto `EM_REVISAO`), Aprovar (escolhendo pessoalmente quem publica) e Devolver.
-- **Publicação** (`/publicacao`, `PublicacaoPage.vue`, papel Publicador) — mesma tabela; documentos em `EM_PUBLICACAO`/`EM_REVOGACAO` atribuídos ao usuário. Abrir (só leitura), Publicar/Revogar (formulário de Portaria/BCA e parte preliminar, `PublicarDialog.vue`) e Devolver (só para `EM_PUBLICACAO`; uma revogação aprovada só pode ser formalizada).
+- **Manter Revisão de Documento** (`/revisao`, `RevisaoPage.vue`, papel Aprovador) — tabela com **código, título, autores, situação e ações**; documentos em `EM_REVISAO`/`ANALISE_REVOGACAO` da **OM do usuário** (qualquer aprovador da OM age). Abrir (editável enquanto `EM_REVISAO`), Aprovar (sem escolher o publicador: segue para a fila do CENDOC) e Devolver.
+- **Manter Publicação de Documento** (`/publicacao`, `PublicacaoPage.vue`, papel Publicador, só no CENDOC) — mesma tabela; documentos em `EM_PUBLICACAO`/`EM_REVOGACAO` de todas as OMs (qualquer publicador age). Abrir (só leitura), Publicar/Revogar (formulário de Portaria/BCA e parte preliminar, `PublicarDialog.vue`) e Devolver (só para `EM_PUBLICACAO`; uma revogação aprovada só pode ser formalizada).
 
-Cada uma tem seu próprio breadcrumb (Início → Área de Trabalho → Revisão/Publicação), e um documento aberto a partir de qualquer uma delas carrega essa origem consigo (`?origem=revisao|publicacao`) — o breadcrumb do editor/visualizador então volta para a fila de onde a pessoa veio, não para o acervo do módulo.
+Cada uma tem seu próprio breadcrumb (Início → Área de Trabalho → Manter Revisão/Publicação de Documento), e um documento aberto a partir de qualquer uma delas carrega essa origem consigo (`?origem=revisao|publicacao`) — o breadcrumb do editor/visualizador então volta para a fila de onde a pessoa veio, não para o acervo do módulo.
 
-Ver [Ciclo de Vida do Documento](ciclo-de-vida.md) para o fluxo completo de atribuição pessoal.
+Ver [Ciclo de Vida do Documento](ciclo-de-vida.md) para o fluxo completo (enviar para aprovação sem escolher pessoa).
 
 ## NPA (Norma Padrão de Ação)
 

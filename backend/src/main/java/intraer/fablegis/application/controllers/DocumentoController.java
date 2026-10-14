@@ -204,17 +204,16 @@ public class DocumentoController {
                 doc, doc.getAutor().getId().equals(usuario.getId()) || coautorDe.contains(doc.getId()))));
     }
 
-    // Fila pessoal das telas de Revisão/Publicação -- ver DocumentoService.
+    // Filas das telas de Revisão (aguardando aprovação na OM de quem pergunta) e de Publicação (aguardando publicação, só o CENDOC) --
+    // ver DocumentoService. Os caminhos continuam os mesmos.
     @GetMapping("/minha-revisao")
     public ResponseEntity<List<DocumentoFilaResponseDto>> getMinhaRevisao(Authentication authentication) {
-        Usuario usuario = AutenticacaoUtil.usuarioDe(authentication);
-        return ResponseEntity.ok(documentoService.getMinhaRevisao(usuario.getId()));
+        return ResponseEntity.ok(documentoService.getFilaDeRevisao(AutenticacaoUtil.usuarioDe(authentication)));
     }
 
     @GetMapping("/minha-publicacao")
     public ResponseEntity<List<DocumentoFilaResponseDto>> getMinhaPublicacao(Authentication authentication) {
-        Usuario usuario = AutenticacaoUtil.usuarioDe(authentication);
-        return ResponseEntity.ok(documentoService.getMinhaPublicacao(usuario.getId()));
+        return ResponseEntity.ok(documentoService.getFilaDePublicacao(AutenticacaoUtil.usuarioDe(authentication)));
     }
 
     // Contagens pros badges das 4 abas e pros chips de situação da HomePage -- ver

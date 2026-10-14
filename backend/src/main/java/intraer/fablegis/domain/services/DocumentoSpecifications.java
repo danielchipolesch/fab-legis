@@ -4,6 +4,8 @@ import intraer.fablegis.domain.entities.estruturaDocumento.Documento;
 import intraer.fablegis.domain.entities.estruturaDocumento.DocumentoCompartilhamento;
 import intraer.fablegis.domain.entities.estruturaDocumento.SituacaoBcaEnum;
 import intraer.fablegis.domain.entities.estruturaDocumento.SituacaoLocalEnum;
+import intraer.fablegis.domain.entities.usuario.PapelEnum;
+import intraer.fablegis.domain.entities.usuario.Usuario;
 import intraer.fablegis.domain.regras.TipoDeEspecie;
 import jakarta.persistence.criteria.CommonAbstractCriteria;
 import jakarta.persistence.criteria.CriteriaBuilder;
@@ -29,8 +31,8 @@ public class DocumentoSpecifications {
 
     // Os três cards do hub (tela inicial) -- ver DocumentoService.getPainel*:
     //   em tramitação: etapas em que o documento ainda está em trabalho (nunca SEM_ETAPA nem CANCELADO);
-    //   revisão: etapas em que o documento espera a decisão do revisor atribuído (Documento.revisorAtribuido);
-    //   publicação: etapas em que espera o registro do publicador atribuído (Documento.publicadorAtribuido).
+    //   revisão: etapas em que o documento espera a aprovação (qualquer aprovador da OM);
+    //   publicação: etapas em que espera o registro da publicação (qualquer publicador, no CENDOC).
     public static final Set<SituacaoLocalEnum> SITUACOES_EM_TRAMITACAO = EnumSet.of(
             SituacaoLocalEnum.RASCUNHO, SituacaoLocalEnum.MINUTA, SituacaoLocalEnum.EM_ALTERACAO,
             SituacaoLocalEnum.EM_REVISAO, SituacaoLocalEnum.EM_PUBLICACAO,
@@ -57,13 +59,21 @@ public class DocumentoSpecifications {
                 cb.not(meus.toPredicate(root, query, cb)));
     }
 
-    // Card "Aguardando Minha Ação": os atribuídos a mim -- como revisor, na etapa de revisão; como publicador, na de publicação.
-    public static Specification<Documento> aguardandoAcaoDe(Long usuarioId) {
-        return (root, query, cb) -> cb.or(
-                cb.and(cb.equal(root.get("revisorAtribuido").get("id"), usuarioId),
-                        root.get("situacaoLocal").in(SITUACOES_DE_REVISAO)),
-                cb.and(cb.equal(root.get("publicadorAtribuido").get("id"), usuarioId),
-                        root.get("situacaoLocal").in(SITUACOES_DE_PUBLICACAO)));
+    // Card "Aguardando Minha Ação": o que espera a decisão de quem pergunta -- como aprovador, o que está em revisão na SUA OM (qualquer
+    // aprovador da OM age); como publicador, o que está em publicação (de qualquer OM: a publicação é do CENDOC). Sem esses papéis, nada.
+    public static Specification<Documento> aguardandoAcaoDe(Usuario usuario) {
+        return (root, query, cb) -> {
+            boolean aprovador = usuario.getPapeis().contains(PapelEnum.APROV);
+            boolean publicador = usuario.getPapeis().contains(PapelEnum.PUBLIC);
+            if (!aprovador && !publicador) return cb.disjunction();
+
+            Predicate comoAprovador = !aprovador ? null : cb.and(
+                    root.get("situacaoLocal").in(SITUACOES_DE_REVISAO),
+                    cb.equal(root.get("om").get("id"), usuario.getOm().getId()));
+            Predicate comoPublicador = !publicador ? null : root.get("situacaoLocal").in(SITUACOES_DE_PUBLICACAO);
+            if (comoPublicador == null) return comoAprovador;
+            return comoAprovador == null ? comoPublicador : cb.or(comoAprovador, comoPublicador);
+        };
     }
 
     // Card "Publicados e Revogados": os que estão (ou estiveram) em vigor, de qualquer OM, e SEM tramitação. Um

@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   destinoDeAprovacao, destinoDeDevolucao, DESTINO_DE_CONCLUSAO, ehRevogacao, ehPrimeiraPublicacao,
   ehAlteracaoPublicada, podeDevolverPublicacao, temVersaoVigente, temVersaoEmTramitacao, versaoPadrao,
-  eventoDoHistorico, exibeSeloRevogado, exibePortaria, etapasDoCiclo, podeSubstituir,
+  eventoDoHistorico, exibeSeloRevogado, exibePortaria, etapasDoCiclo, podeSubstituir, ehAprovadorDaOm,
 } from './fluxoDocumento.js'
 import {
   temEtapaEmCurso, situacaoBcaMeta, situacaoLocalMeta, SITUACAO_BCA_META, SITUACAO_LOCAL_META,
@@ -213,5 +213,19 @@ describe('podeSubstituir (NPA publicada)', () => {
   })
   it('espécie convencional nunca (ela tem o ciclo de emenda)', () => {
     expect(podeSubstituir({ situacao_local: 'SEM_ETAPA', situacao_bca: 'PUBLICADO' }, convencional)).toBe(false)
+  })
+})
+
+describe('ehAprovadorDaOm (enviar para aprovação sem escolher ninguém)', () => {
+  const documento = { om_id: '5' }
+  it('qualquer pessoa com APROV na OM do documento', () => {
+    expect(ehAprovadorDaOm(documento, { omId: 5, papeis: ['EDIT', 'APROV'] })).toBe(true)
+    expect(ehAprovadorDaOm(documento, { omId: '5', papeis: ['APROV'] })).toBe(true)
+  })
+  it('não quem é de outra OM, nem quem não tem APROV', () => {
+    expect(ehAprovadorDaOm(documento, { omId: 6, papeis: ['APROV'] })).toBe(false)
+    expect(ehAprovadorDaOm(documento, { omId: 5, papeis: ['EDIT', 'PUBLIC'] })).toBe(false)
+    expect(ehAprovadorDaOm(documento, null)).toBe(false)
+    expect(ehAprovadorDaOm(undefined, { omId: 5, papeis: ['APROV'] })).toBe(false)
   })
 })

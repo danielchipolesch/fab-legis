@@ -19,6 +19,8 @@ import intraer.fablegis.domain.entities.estruturaDocumento.ItemParteFinal;
 import intraer.fablegis.domain.entities.numeracaoDocumento.AssuntoBasico;
 import intraer.fablegis.domain.entities.numeracaoDocumento.EspecieNormativa;
 import intraer.fablegis.domain.entities.usuario.OrganizacaoMilitar;
+import intraer.fablegis.domain.entities.usuario.PapelEnum;
+import intraer.fablegis.domain.entities.usuario.Usuario;
 import intraer.fablegis.domain.handlers.exceptions.ResourceNotFoundException;
 import intraer.fablegis.domain.handlers.exceptions.enums.AssuntoBasicoException;
 import intraer.fablegis.domain.handlers.exceptions.enums.DocumentoException;
@@ -113,19 +115,20 @@ public class DocumentoService {
         return documentoRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException(DocumentoException.NOT_FOUND.getMessage()));
     }
 
-    // Fila pessoal de RevisaoPage.vue -- documentos atribuídos a ESTE usuário como
-    // revisor, tanto no fluxo normal (EM_REVISAO) quanto na revogação (ANALISE_REVOGACAO).
-    public List<DocumentoFilaResponseDto> getMinhaRevisao(Long usuarioId) {
-        return documentoRepository.findByRevisorAtribuidoIdAndSituacaoLocalIn(usuarioId,
+    // Fila da tela de Revisão (RevisaoPage.vue): o que aguarda aprovação na OM de quem pergunta -- no fluxo normal (EM_REVISAO) e na
+    // análise de revogação (ANALISE_REVOGACAO). Só quem tem o papel APROV vê a fila; qualquer aprovador da OM age.
+    public List<DocumentoFilaResponseDto> getFilaDeRevisao(Usuario usuario) {
+        if (!usuario.getPapeis().contains(PapelEnum.APROV)) return List.of();
+        return documentoRepository.findByOmIdAndSituacaoLocalIn(usuario.getOm().getId(),
                         List.copyOf(DocumentoSpecifications.SITUACOES_DE_REVISAO))
                 .stream().map(this::toFilaResponseDto).toList();
     }
 
-    // Fila pessoal de PublicacaoPage.vue -- documentos atribuídos a ESTE usuário como
-    // publicador, tanto no fluxo normal (EM_PUBLICACAO) quanto na revogação (EM_REVOGACAO).
-    public List<DocumentoFilaResponseDto> getMinhaPublicacao(Long usuarioId) {
-        return documentoRepository.findByPublicadorAtribuidoIdAndSituacaoLocalIn(usuarioId,
-                        List.copyOf(DocumentoSpecifications.SITUACOES_DE_PUBLICACAO))
+    // Fila da tela de Publicação (PublicacaoPage.vue): o que aguarda publicação, de TODAS as OMs -- a publicação é do CENDOC (o papel
+    // PUBLIC só existe lá) -- no fluxo normal (EM_PUBLICACAO) e na revogação (EM_REVOGACAO).
+    public List<DocumentoFilaResponseDto> getFilaDePublicacao(Usuario usuario) {
+        if (!usuario.getPapeis().contains(PapelEnum.PUBLIC)) return List.of();
+        return documentoRepository.findBySituacaoLocalIn(List.copyOf(DocumentoSpecifications.SITUACOES_DE_PUBLICACAO))
                 .stream().map(this::toFilaResponseDto).toList();
     }
 
@@ -180,8 +183,8 @@ public class DocumentoService {
         return documentoRepository.findAll(DocumentoSpecifications.emTramitacaoDeOutros(usuarioId), pageable);
     }
 
-    public Page<Documento> getPainelAguardandoAcao(Long usuarioId, Pageable pageable) {
-        return documentoRepository.findAll(DocumentoSpecifications.aguardandoAcaoDe(usuarioId), pageable);
+    public Page<Documento> getPainelAguardandoAcao(Usuario usuario, Pageable pageable) {
+        return documentoRepository.findAll(DocumentoSpecifications.aguardandoAcaoDe(usuario), pageable);
     }
 
     public Page<Documento> getPainelPublicadosERevogados(Pageable pageable) {

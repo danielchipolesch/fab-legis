@@ -114,7 +114,7 @@ class DocumentoStatusServiceNpaTest {
     }
 
     private static DocumentoStatusRequestDto pedido(SituacaoLocalEnum destino, Integer numeroBoletim, LocalDate dataBoletim) {
-        return new DocumentoStatusRequestDto(destino, REVISOR_ID, PUBLICADOR_ID, null, null, null, null, null, null,
+        return new DocumentoStatusRequestDto(destino, null, null, null, null, null, null,
                 null, null, null, null, null, null, numeroBoletim, dataBoletim);
     }
 
@@ -181,7 +181,7 @@ class DocumentoStatusServiceNpaTest {
         service.changeStatus(DOC_ID, pedido(MINUTA, null, null));
 
         assertThat(doc.getSituacaoLocal()).isEqualTo(MINUTA);
-        assertThat(doc.getRevisorAtribuido()).isNull();
+        assertThat(doc.getAprovador()).isNull();
     }
 
     // ─── Revogação ──────────────────────────────────────────────────────────────

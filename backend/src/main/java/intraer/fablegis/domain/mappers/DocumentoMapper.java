@@ -52,10 +52,10 @@ public class DocumentoMapper {
                 documento.getOm().getNome(),
                 documento.getOm().getSigla(),
                 documento.getOm().getUrlDistintivo(),
-                documento.getRevisorAtribuido() != null ? documento.getRevisorAtribuido().getId() : null,
-                documento.getRevisorAtribuido() != null ? documento.getRevisorAtribuido().getNome() : null,
-                documento.getPublicadorAtribuido() != null ? documento.getPublicadorAtribuido().getId() : null,
-                documento.getPublicadorAtribuido() != null ? documento.getPublicadorAtribuido().getNome() : null,
+                documento.getAprovador() != null ? documento.getAprovador().getId() : null,
+                documento.getAprovador() != null ? documento.getAprovador().getNome() : null,
+                documento.getPublicador() != null ? documento.getPublicador().getId() : null,
+                documento.getPublicador() != null ? documento.getPublicador().getNome() : null,
                 ehAutorOuCoautor,
                 documento.getEspecieNormativa().getTipoDeEspecie().name()
         );
@@ -103,10 +103,10 @@ public class DocumentoMapper {
                 documento.getOm().getNome(),
                 documento.getOm().getSigla(),
                 documento.getOm().getUrlDistintivo(),
-                documento.getRevisorAtribuido() != null ? documento.getRevisorAtribuido().getId() : null,
-                documento.getRevisorAtribuido() != null ? documento.getRevisorAtribuido().getNome() : null,
-                documento.getPublicadorAtribuido() != null ? documento.getPublicadorAtribuido().getId() : null,
-                documento.getPublicadorAtribuido() != null ? documento.getPublicadorAtribuido().getNome() : null,
+                documento.getAprovador() != null ? documento.getAprovador().getId() : null,
+                documento.getAprovador() != null ? documento.getAprovador().getNome() : null,
+                documento.getPublicador() != null ? documento.getPublicador().getId() : null,
+                documento.getPublicador() != null ? documento.getPublicador().getNome() : null,
                 documento.getEspecieNormativa().getTipoDeEspecie().name()
         );
     }

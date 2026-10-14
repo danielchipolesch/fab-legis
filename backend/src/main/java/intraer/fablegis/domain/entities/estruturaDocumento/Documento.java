@@ -150,15 +150,15 @@ public class Documento extends RepresentationModel<Documento> {
     // DocumentoAcessoService.podeMudarStatus). Reaproveitado nas duas etapas de revisão
     // (fluxo normal e revogação), sempre sobrescrito a cada novo envio.
     @ManyToOne(fetch = FetchType.EAGER)
-    @JoinColumn(name = "revisor_atribuido_id")
-    private Usuario revisorAtribuido;
+    @JoinColumn(name = "aprovador_id")
+    private Usuario aprovador;
 
     // Pessoa específica (papel PUBLIC) escolhida pelo APROV ao aprovar -- só ela pode
     // agir no documento enquanto ele estiver em EM_PUBLICACAO/EM_REVOGACAO. Mesmo
-    // padrão de revisorAtribuido, reaproveitado nas duas etapas de publicação.
+    // padrão de aprovador, reaproveitado nas duas etapas de publicação.
     @ManyToOne(fetch = FetchType.EAGER)
-    @JoinColumn(name = "publicador_atribuido_id")
-    private Usuario publicadorAtribuido;
+    @JoinColumn(name = "publicador_id")
+    private Usuario publicador;
 
     @Column(name = "dt_em_revisao")
     private Timestamp dtEmRevisao;

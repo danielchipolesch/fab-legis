@@ -30,7 +30,7 @@ O FAB Legis trata o ato normativo (ICA, NSCA, MCA, RCA, DCA, PCA, OCA, RICA, ROC
 - **numeração automática** conforme a técnica legislativa (LC 95/1998, Decreto nº 12.002/2024, NSCA 5-3), e novos documentos já nascendo com os capítulos padronizados da NSCA 5-3;
 - **edição colaborativa em tempo real** (CRDT/Yjs) por elemento, com preview lado a lado, tabelas, figuras e aviso de presença;
 - **exportação fiel em PDF e HTML**, a partir do mesmo conteúdo, e **comparação de versões** para o ciclo de emenda;
-- **fluxo de revisão e publicação** com papéis (Editor, Aprovador, Publicador, Auditor, Admin), atribuição pessoal por etapa, situação BCA × situação local, notificações e trilha de auditoria;
+- **fluxo de revisão e publicação** com papéis (Editor, Aprovador, Publicador, Auditor, Admin), envio para aprovação sem atribuição pessoal, situação BCA × situação local, notificações e trilha de auditoria;
 - **busca textual** no conteúdo de todos os documentos;
 - **autenticação OAuth2** (Authorization Code + PKCE) com login por CPF, emitida pelo próprio backend.
 

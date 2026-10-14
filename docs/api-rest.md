@@ -28,7 +28,7 @@ Endpoints padrão do Spring Authorization Server (`AuthorizationServerConfig`), 
 | `GET` | `/filtrar` | Filtra por espécie normativa e assunto básico |
 | `GET` | `/busca?q=&page=&size=` | Busca full-text no **conteúdo** dos dispositivos (`tsvector`/PostgreSQL, ver [Funcionalidades](funcionalidades.md#busca-textual)) — resultado paginado por dispositivo (não por documento), com trecho destacado |
 | `PUT` | `/{id}` | Atualiza metadados (somente Rascunho/Minuta, autor/coautor). `identificacao` (o código do documento) só é aceita numa NPA e em Rascunho/Minuta; nas convencionais um valor diferente do atual é recusado |
-| `PATCH` | `/{id}/status` | Muda a **Situação Local** (corpo: `situacaoLocal` + `revisorId`/`publicadorId` conforme a etapa; `SEM_ETAPA` = concluir a etapa em curso). Transição validada e autorizada por papel; publicar/revogar registram Portaria+BCA (a parte preliminar só na 1ª publicação) — ou, numa NPA, só `numeroBoletimInterno` + `dataBoletimInterno` e são os únicos a mudar a Situação BCA — ver [Ciclo de Vida](ciclo-de-vida.md) |
+| `PATCH` | `/{id}/status` | Muda a **Situação Local** (corpo: `situacaoLocal` (sem escolher pessoa: "enviar para aprovação" e "aprovar" valem para qualquer aprovador da OM e qualquer publicador); `SEM_ETAPA` = concluir a etapa em curso). Transição validada e autorizada por papel; publicar/revogar registram Portaria+BCA (a parte preliminar só na 1ª publicação) — ou, numa NPA, só `numeroBoletimInterno` + `dataBoletimInterno` e são os únicos a mudar a Situação BCA — ver [Ciclo de Vida](ciclo-de-vida.md) |
 | `GET` | `/{id}/pdf?versao=` | `/{id}/html?versao=` | PDF/HTML do documento. `versao=VIGENTE` (a da Situação BCA, armazenada) ou `TRAMITACAO` (a da etapa local em curso); sem o parâmetro, a em tramitação se houver, senão a vigente. `404` se a versão pedida não existe |
 | `PATCH` | `/{id}/secoes` | Salva a árvore de seções por *diff* contra o que já está persistido (checagem de versão) — nunca reescreve `conteudo` de elemento existente, criado/atualizado/excluído propagam via SSE (`event: estrutura`); resposta é `{ itens, numeracao }`, não só a árvore |
 | `PATCH` | `/{id}/elementos/{elementoId}/conteudo` | Grava só o `conteudo` de um elemento — usado pelo serviço `collab` a cada persistência da edição colaborativa |
@@ -38,7 +38,7 @@ Endpoints padrão do Spring Authorization Server (`AuthorizationServerConfig`), 
 | `GET` | `/{id}/pdf` | Gera o PDF oficial do documento sob demanda (Apache FOP) |
 | `GET` | `/{id}/html` | Gera o HTML oficial do documento sob demanda (regras da NSCA 5-3 para a versão eletrônica — ver [Exportação HTML](exportacao-pdf.md#exportacao-html)) |
 | `GET` | `/{id}/portarias` | Lista todas as portarias registradas do documento (edição, alterações numeradas, revogação) |
-| `POST` | `/{id}/portaria-pdf` | Sobe o PDF da portaria (multipart `arquivo`) antes de confirmar a publicação/revogação; só devolve a URL, não grava nada no documento. Só o **publicador atribuído**, com o documento em `EM_PUBLICACAO` ou `EM_REVOGACAO` (`403` nas demais situações) — ver [Autenticação](autenticacao.md) |
+| `POST` | `/{id}/portaria-pdf` | Sobe o PDF da portaria (multipart `arquivo`) antes de confirmar a publicação/revogação; só devolve a URL, não grava nada no documento. Só um **publicador** (CENDOC), com o documento em `EM_PUBLICACAO` ou `EM_REVOGACAO` (`403` nas demais situações) — ver [Autenticação](autenticacao.md) |
 | `DELETE` | `/{id}` | Remove o documento e seus itens em cascata (somente Rascunho/Minuta, autor/coautor) |
 | `GET`/`POST` | `/{id}/compartilhamentos` | Lista ou adiciona um coautor (só o autor) |
 | `DELETE` | `/{id}/compartilhamentos/{usuarioId}` | Remove um coautor (só o autor) |
@@ -72,7 +72,7 @@ Os quatro cards do hub, de qualquer módulo; qualquer usuário autenticado. Devo
 | Método | Rota | Descrição |
 |---|---|---|
 | `GET` | `/minhas-em-tramitacao` | Meus documentos (autoria ou coautoria) em etapa de trabalho |
-| `GET` | `/aguardando-acao` | Documentos atribuídos a mim como revisor (`EM_REVISAO`, `ANALISE_REVOGACAO`) ou publicador (`EM_PUBLICACAO`, `EM_REVOGACAO`) |
+| `GET` | `/aguardando-acao` | O que espera a minha decisão: como aprovador, o que está em revisão (`EM_REVISAO`, `ANALISE_REVOGACAO`) **na minha OM**; como publicador, o que está em publicação (`EM_PUBLICACAO`, `EM_REVOGACAO`) de qualquer OM |
 | `GET` | `/em-tramitacao-de-outros` | Documentos em etapa de trabalho, de qualquer OM, dos quais não sou autor nem coautor (só visualização) |
 | `GET` | `/publicados-e-revogados` | `PUBLICADO` e `REVOGADO` sem tramitação (`SEM_ETAPA`), de todas as OMs |
 
@@ -118,7 +118,6 @@ Duas rotas sob `/v1/usuarios` sobrescrevem a restrição de Admin da classe (`is
 
 | Método | Rota | Descrição |
 |---|---|---|
-| `GET` | `/elegiveis?papel=&q=` | Candidatos a revisor/publicador — escopado à OM de quem chama; `q` opcional filtra por nome/nome de guerra |
 | `GET` | `/buscar?q=` | Candidatos a coautor — **sem** filtro de OM/papel (coautoria não é restrita a isso); exige 2+ caracteres |
 
 ## Organizações militares — `/v1/organizacoes-militares`

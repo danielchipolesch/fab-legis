@@ -311,6 +311,7 @@ import { useQuasar } from 'quasar'
 import { useEditorStore } from '@/stores/editor.js'
 import { useDocumentosStore } from '@/stores/documentos.js'
 import { useAuthStore } from '@/stores/auth.js'
+import { ehAprovadorDaOm } from '@/utils/fluxoDocumento.js'
 import { formatLabel, elementIcon } from '@/utils/numbering.js'
 import { perfilDoDocumento, renumerarElementos, moduloDoDocumento } from '@/perfis/index.js'
 import { gerarPdf, gerarHtml } from '@/services/pdfService.js'
@@ -505,8 +506,8 @@ const selectedElement = computed(() => editorStore.selectedElement)
 
 const isEmAlteracao = computed(() => documento.value?.situacao_local === 'EM_ALTERACAO')
 
-// Editável por posse (RASCUNHO/MINUTA/EM_ALTERACAO) OU por quem foi atribuído como revisor
-// enquanto o documento (ainda NÃO publicado) estiver EM_REVISAO (ver Documento.revisorAtribuido
+// Editável por posse (RASCUNHO/MINUTA/EM_ALTERACAO) OU por qualquer aprovador da OM do documento
+// enquanto o documento (ainda NÃO publicado) estiver EM_REVISAO (ver DocumentoAcessoService.podeEditar
 // no backend). Todas as demais etapas (publicação/revogação em andamento, sem etapa,
 // cancelado) e a revisão de uma alteração de documento PUBLICADO são somente-leitura: o texto
 // vigente só muda por emenda, na etapa EM_ALTERACAO.
@@ -514,7 +515,7 @@ function podeEditarAgora(doc) {
   if (!doc) return false
   const local = doc.situacao_local
   if (local === 'EM_REVISAO') {
-    return doc.situacao_bca !== 'PUBLICADO' && doc.revisor_atribuido_id === String(auth.usuario?.id)
+    return doc.situacao_bca !== 'PUBLICADO' && ehAprovadorDaOm(doc, auth.usuario)
   }
   return ['RASCUNHO', 'MINUTA', 'EM_ALTERACAO'].includes(local)
 }
@@ -629,12 +630,12 @@ const groupingLabel = computed(() => {
 const perfil = computed(() => perfilDoDocumento(documento.value))
 
 // "Elaborado por" (autor e coautores) e "Aprovado por" (quem aprovou) saem do documento: refaz a leitura quando a coautoria
-// muda (ao fechar o diálogo de compartilhamento) e quando a etapa ou a pessoa escolhida para revisar mudam.
+// muda (ao fechar o diálogo de compartilhamento) e quando a etapa ou quem aprovou mudam.
 watch(compartilharDialogOpen, (aberto) => {
   if (!aberto && perfil.value.ehNpa && documentoId.value) carregarCamposNpa()
 })
 watch(
-  () => [documento.value?.situacao_local, documento.value?.revisor_atribuido_id, documento.value?.data_aprovacao],
+  () => [documento.value?.situacao_local, documento.value?.aprovador_id, documento.value?.data_aprovacao],
   () => { if (perfil.value.ehNpa && documentoId.value) carregarCamposNpa() },
 )
 

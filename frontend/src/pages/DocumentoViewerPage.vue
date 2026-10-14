@@ -424,7 +424,7 @@ import { perfilDoDocumento, moduloDoDocumento } from '@/perfis/index.js'
 import { getSubstituicao } from '@/api/documentos.js'
 import { itensRenumeracaoUnico } from '@/utils/numbering.js'
 import {
-  ehAlteracaoPublicada, temVersaoVigente, temVersaoEmTramitacao, versaoPadrao, eventoDoHistorico, podeSubstituir,
+  ehAlteracaoPublicada, temVersaoVigente, temVersaoEmTramitacao, versaoPadrao, eventoDoHistorico, podeSubstituir, ehAprovadorDaOm,
 } from '@/utils/fluxoDocumento.js'
 
 const route    = useRoute()
@@ -498,7 +498,7 @@ const docLabel = computed(() => {
 })
 
 // Rascunho/Minuta oferecem o atalho de voltar para o editor pelo breadcrumb
-// por posse; EM_REVISAO oferece o mesmo atalho só para o revisor atribuído
+// por posse; EM_REVISAO oferece o mesmo atalho para qualquer aprovador da OM
 // (ver DocumentoAcessoService.podeEditar/isReadonly em DocumentoEditorPage.vue)
 // -- as demais situações não têm edição direta de conteúdo (ver "Regra de
 // imutabilidade" no README).
@@ -506,7 +506,7 @@ const podeEditar = computed(() => {
   const doc = documento.value
   if (!doc) return false
   if (doc.situacao_local === 'EM_REVISAO') {
-    return doc.situacao_bca !== 'PUBLICADO' && doc.revisor_atribuido_id === String(auth.usuario?.id)
+    return doc.situacao_bca !== 'PUBLICADO' && ehAprovadorDaOm(doc, auth.usuario)
   }
   return ['RASCUNHO', 'MINUTA'].includes(doc.situacao_local)
 })

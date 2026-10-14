@@ -42,7 +42,7 @@ class DocumentoControllerAcessoTest {
     }
 
     @Test
-    void oPdfDaPortariaEDoPublicadorAtribuidoNaoDeQuemEdita() {
+    void oPdfDaPortariaEDoPublicadorNaoDeQuemEdita() {
         assertThat(regraDe(DocumentoController.class, "uploadPortariaPdf"))
                 .isEqualTo("@documentoAcessoService.podeEnviarPortaria(#id, authentication)");
     }

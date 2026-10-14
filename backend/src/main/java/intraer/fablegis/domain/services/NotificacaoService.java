@@ -51,17 +51,6 @@ public class NotificacaoService {
         agendarPushAposCommit(destinatario.getId(), salva);
     }
 
-    // Notifica a pessoa especificamente atribuída (revisor ou publicador, ver
-    // Documento.revisorAtribuido/publicadorAtribuido) quando o documento passa a
-    // depender de uma ação dela -- o modelo de atribuição pessoal (ver PapelEnum)
-    // substitui o antigo aviso pra toda a OM.
-    @Transactional
-    public void notificarAtribuicao(Long destinatarioId, Long documentoId, String documentoDescricao, String mensagem) {
-        Usuario destinatario = usuarioRepository.findById(destinatarioId)
-                .orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado."));
-        criar(destinatario, TipoNotificacaoEnum.APROVACAO_PENDENTE, mensagem, documentoId, documentoDescricao);
-    }
-
     private void agendarPushAposCommit(Long destinatarioId, Notificacao notificacao) {
         if (!TransactionSynchronizationManager.isSynchronizationActive()) {
             emitterRegistry.enviar(destinatarioId, NotificacaoResponseDto.from(notificacao));

@@ -68,7 +68,7 @@ public class AnexoService {
         if (documento.getSituacaoLocal() == SituacaoLocalEnum.RASCUNHO) {
             documentoStatusService.changeStatus(documentoId, new DocumentoStatusRequestDto(
                     SituacaoLocalEnum.MINUTA, null, null, null, null, null, null,
-                    null, null, null, null, null, null, null, null));
+                    null, null, null, null, null, null));
         }
 
         return resultado;

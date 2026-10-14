@@ -153,7 +153,7 @@ O cabeçalho da NPA é uma tabela de campos, não uma parte preliminar. Os campo
 | **Local** | `CamposDaNpa.local` — do fecho "Local, dd de mês de aaaa"; a data é a da aprovação |
 | **Assinaturas** | `CamposDaNpa.assinaturas` — blocos em **texto livre**: um rótulo ("Visto", "Proposto por", "Ciente"…) e até 6 linhas abaixo dele; até 10 blocos. Os rótulos "Elaborado por" e "Aprovado por" **não podem ser escritos**: esses dois blocos saem do documento (abaixo) |
 | **Elaborado por** | automático — o **autor e todos os coautores** (`DocumentoCompartilhamento`), um por linha, no formato `Cel FULANO DE TAL` (bigrama do posto + nome completo em caixa alta); vem **primeiro** entre as assinaturas |
-| **Aprovado por** | automático — quem **aprovou** o documento (a pessoa com papel APROV escolhida ao enviá-lo para revisão, `Documento.revisorAtribuido`); vem **por último**. O nome só aparece **depois da aprovação** (`dtAprovacao`, a mesma data da EMISSÃO); antes, o bloco leva a máscara `[POSTO] FULANO DE TAL`, para uma NPA em elaboração não parecer já aprovada por alguém |
+| **Aprovado por** | automático — quem **aprovou** o documento (a pessoa com papel APROV que o aprovou, registrada na aprovação, `Documento.aprovador`); vem **por último**. O nome só aparece **depois da aprovação** (`dtAprovacao`, a mesma data da EMISSÃO); antes, o bloco leva a máscara `[POSTO] FULANO DE TAL`, para uma NPA em elaboração não parecer já aprovada por alguém |
 | **Assunto** | título do documento |
 | **Distribuição** | sempre **OSTENSIVA** (constante das regras da NPA) |
 | **Emissão / Efetivação** | data da aprovação e `BIO <número>` + data do Boletim Interno, no formato militar (`08 NOV 2026`) |

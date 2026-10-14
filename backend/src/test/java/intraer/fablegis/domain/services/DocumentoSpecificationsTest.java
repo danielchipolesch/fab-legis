@@ -3,6 +3,9 @@ package intraer.fablegis.domain.services;
 import intraer.fablegis.domain.entities.estruturaDocumento.Documento;
 import intraer.fablegis.domain.entities.estruturaDocumento.SituacaoBcaEnum;
 import intraer.fablegis.domain.entities.estruturaDocumento.SituacaoLocalEnum;
+import intraer.fablegis.domain.entities.usuario.OrganizacaoMilitar;
+import intraer.fablegis.domain.entities.usuario.PapelEnum;
+import intraer.fablegis.domain.entities.usuario.Usuario;
 import intraer.fablegis.domain.regras.TipoDeEspecie;
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.CriteriaQuery;
@@ -129,39 +132,74 @@ class DocumentoSpecificationsTest {
         assertThat(predicado).isSameAs(resultado);
     }
 
+    // ─── Aguardando minha ação: sem atribuição pessoal ─────────────────────────
+
+    private static Usuario pessoa(Long omId, PapelEnum... papeis) {
+        var om = new OrganizacaoMilitar();
+        om.setId(omId);
+        var u = new Usuario();
+        u.setId(7L);
+        u.setOm(om);
+        var conjunto = EnumSet.noneOf(PapelEnum.class);
+        conjunto.addAll(java.util.List.of(papeis));
+        u.setPapeis(conjunto);
+        return u;
+    }
+
     @SuppressWarnings("unchecked")
+    private static class Cena {
+        final Root<Documento> root = mock(Root.class);
+        final Path<Object> situacao = mock(Path.class);
+        final CriteriaBuilder cb = mock(CriteriaBuilder.class);
+        final Predicate naRevisao = mock(Predicate.class);
+        final Predicate naPublicacao = mock(Predicate.class);
+        final Predicate naOmDeQuemPergunta = mock(Predicate.class);
+        final Predicate comoAprovador = mock(Predicate.class);
+        final Predicate ninguem = mock(Predicate.class);
+        final Predicate ambos = mock(Predicate.class);
+
+        Cena() {
+            Path<Object> om = mock(Path.class);
+            Path<Object> omId = mock(Path.class);
+            when(root.get("situacaoLocal")).thenReturn(situacao);
+            when(root.get("om")).thenReturn(om);
+            when(om.get("id")).thenReturn(omId);
+            when(situacao.in(DocumentoSpecifications.SITUACOES_DE_REVISAO)).thenReturn(naRevisao);
+            when(situacao.in(DocumentoSpecifications.SITUACOES_DE_PUBLICACAO)).thenReturn(naPublicacao);
+            when(cb.equal(omId, 1L)).thenReturn(naOmDeQuemPergunta);
+            when(cb.and(naRevisao, naOmDeQuemPergunta)).thenReturn(comoAprovador);
+            when(cb.disjunction()).thenReturn(ninguem);
+            when(cb.or(comoAprovador, naPublicacao)).thenReturn(ambos);
+        }
+
+        Predicate para(Usuario usuario) {
+            return DocumentoSpecifications.aguardandoAcaoDe(usuario).toPredicate(root, mock(CriteriaQuery.class), cb);
+        }
+    }
+
+    // Aprovador: o que está em revisão na SUA OM (qualquer aprovador da OM age); ninguém é "atribuído".
     @Test
-    void aguardandoMinhaAcaoEOAtribuidoAMimComoRevisorNaRevisaoOuComoPublicadorNaPublicacao() {
-        Root<Documento> root = mock(Root.class);
-        Path<Object> revisor = mock(Path.class);
-        Path<Object> revisorId = mock(Path.class);
-        Path<Object> publicador = mock(Path.class);
-        Path<Object> publicadorId = mock(Path.class);
-        Path<Object> situacao = mock(Path.class);
-        when(root.get("revisorAtribuido")).thenReturn(revisor);
-        when(revisor.get("id")).thenReturn(revisorId);
-        when(root.get("publicadorAtribuido")).thenReturn(publicador);
-        when(publicador.get("id")).thenReturn(publicadorId);
-        when(root.get("situacaoLocal")).thenReturn(situacao);
+    void oAprovadorVeOQueAguardaAprovacaoNaPropriaOm() {
+        var c = new Cena();
+        assertThat(c.para(pessoa(1L, PapelEnum.EDIT, PapelEnum.APROV))).isSameAs(c.comoAprovador);
+    }
 
-        CriteriaBuilder cb = mock(CriteriaBuilder.class);
-        Predicate ehORevisor = mock(Predicate.class);
-        Predicate ehOPublicador = mock(Predicate.class);
-        Predicate naRevisao = mock(Predicate.class);
-        Predicate naPublicacao = mock(Predicate.class);
-        Predicate comoRevisor = mock(Predicate.class);
-        Predicate comoPublicador = mock(Predicate.class);
-        Predicate resultado = mock(Predicate.class);
-        when(cb.equal(revisorId, 7L)).thenReturn(ehORevisor);
-        when(cb.equal(publicadorId, 7L)).thenReturn(ehOPublicador);
-        when(situacao.in(DocumentoSpecifications.SITUACOES_DE_REVISAO)).thenReturn(naRevisao);
-        when(situacao.in(DocumentoSpecifications.SITUACOES_DE_PUBLICACAO)).thenReturn(naPublicacao);
-        when(cb.and(ehORevisor, naRevisao)).thenReturn(comoRevisor);
-        when(cb.and(ehOPublicador, naPublicacao)).thenReturn(comoPublicador);
-        when(cb.or(comoRevisor, comoPublicador)).thenReturn(resultado);
+    // Publicador (só existe no CENDOC): o que está em publicação, de qualquer OM.
+    @Test
+    void oPublicadorVeOQueAguardaPublicacaoDeQualquerOm() {
+        var c = new Cena();
+        assertThat(c.para(pessoa(1L, PapelEnum.EDIT, PapelEnum.PUBLIC))).isSameAs(c.naPublicacao);
+    }
 
-        var predicado = DocumentoSpecifications.aguardandoAcaoDe(7L).toPredicate(root, mock(CriteriaQuery.class), cb);
+    @Test
+    void quemEAprovadorEPublicadorVeAsDuasFilas() {
+        var c = new Cena();
+        assertThat(c.para(pessoa(1L, PapelEnum.APROV, PapelEnum.PUBLIC))).isSameAs(c.ambos);
+    }
 
-        assertThat(predicado).isSameAs(resultado);
+    @Test
+    void semPapelDeAprovadorNemDePublicadorNadaAguardaAPessoa() {
+        var c = new Cena();
+        assertThat(c.para(pessoa(1L, PapelEnum.EDIT))).isSameAs(c.ninguem);
     }
 }

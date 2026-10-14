@@ -13,7 +13,7 @@
       <div>
         <h1 class="text-h5 text-weight-bold text-primary q-my-none">Manter Publicação de Documento</h1>
         <p class="text-body2 text-grey-7 q-mb-none">
-          Documentos atribuídos a você para publicar, revogar ou devolver.
+          Documentos aprovados aguardando publicação: qualquer publicador do CENDOC pode publicá-los, revogá-los ou devolvê-los.
         </p>
       </div>
     </div>
@@ -73,7 +73,7 @@
         <template #no-data>
           <div class="full-width column items-center q-py-xl text-grey-7">
             <q-icon size="56px" class="q-mb-sm" name="mdi-inbox-outline" />
-            <p>Nenhum documento atribuído a você no momento.</p>
+            <p>Nenhum documento aguardando publicação no momento.</p>
           </div>
         </template>
       </q-table>

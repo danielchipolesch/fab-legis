@@ -3,7 +3,7 @@
 //
 // Os três cards são por trabalho da pessoa, não por espécie -- cada linha se identifica pelo módulo dela (perfis/index.js):
 //   minhas_em_tramitacao    : meus documentos (autoria ou coautoria) ainda em trabalho
-//   aguardando              : documentos atribuídos a mim como revisor ou publicador
+//   aguardando              : o que espera a minha decisão: aprovação (aprovador, na minha OM) ou publicação (publicador, CENDOC)
 //   em_tramitacao_de_outros : em tramitação, de qualquer OM, dos quais não sou autor nem coautor (só visualizo)
 //   publicados              : publicados e revogados, de qualquer OM, sem tramitação em curso
 import { moduloDoDocumento } from '@/perfis/index.js'
@@ -50,8 +50,8 @@ export function acaoDaLinha(cartao, doc) {
 }
 
 const ESPERA_DE_VOCE = {
-  EM_REVISAO: 'Revisar o documento e aprová-lo ou devolvê-lo',
-  ANALISE_REVOGACAO: 'Analisar o pedido de revogação e aprová-lo ou devolvê-lo',
+  EM_REVISAO: 'Aprovar o documento ou devolvê-lo',
+  ANALISE_REVOGACAO: 'Analisar o pedido de revogação e aprová-lo ou recusá-lo',
   EM_PUBLICACAO: 'Registrar a publicação do documento',
   EM_REVOGACAO: 'Registrar a revogação do documento',
 }
@@ -60,9 +60,9 @@ const ESPERA_DE_VOCE = {
 function comQuem(doc) {
   switch (doc.situacao_local) {
     case 'EM_REVISAO':
-    case 'ANALISE_REVOGACAO':  return doc.revisor_atribuido_nome ?? 'Revisor ainda não escolhido'
+    case 'ANALISE_REVOGACAO':  return 'Aprovadores da OM'
     case 'EM_PUBLICACAO':
-    case 'EM_REVOGACAO':       return doc.publicador_atribuido_nome ?? 'Publicador ainda não escolhido'
+    case 'EM_REVOGACAO':       return 'Publicadores (CENDOC)'
     default:                   return 'Autor e coautores'
   }
 }

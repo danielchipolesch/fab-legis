@@ -51,7 +51,7 @@ public class DocumentoAcessoService {
 
         Usuario usuario = usuarioDe(auth);
         if (doc.getSituacaoLocal() == SituacaoLocalEnum.EM_REVISAO) {
-            return doc.getSituacaoBca() != SituacaoBcaEnum.PUBLICADO && ehRevisorAtribuido(doc, usuario);
+            return doc.getSituacaoBca() != SituacaoBcaEnum.PUBLICADO && ehAprovadorDaOm(doc, usuario);
         }
         return usuario.getPapeis().contains(PapelEnum.EDIT)
                 && (ehAutor(doc, usuario) || compartilhamentoRepository.existsByDocumentoIdAndUsuarioId(documentoId, usuario.getId()));
@@ -67,11 +67,12 @@ public class DocumentoAcessoService {
             return false;
         }
         Usuario usuario = usuarioDe(auth);
-        return doc.getPublicadorAtribuido() != null && doc.getPublicadorAtribuido().getId().equals(usuario.getId());
+        return ehPublicador(usuario);
     }
 
-    private boolean ehRevisorAtribuido(Documento doc, Usuario usuario) {
-        return doc.getRevisorAtribuido() != null && doc.getRevisorAtribuido().getId().equals(usuario.getId());
+    // Publicador: qualquer pessoa com o papel PUBLIC -- e esse papel só existe no CENDOC (EscopoDeAcesso), que publica no BCA.
+    private boolean ehPublicador(Usuario usuario) {
+        return usuario.getPapeis().contains(PapelEnum.PUBLIC);
     }
 
     // Posse do documento, SEM olhar a etapa: autor/coautor com papel EDIT ou, durante EM_REVISAO, a pessoa atribuída
@@ -83,9 +84,7 @@ public class DocumentoAcessoService {
         Documento doc = documentoRepository.findById(documentoId).orElse(null);
         if (doc == null) return false;
 
-        if (doc.getSituacaoLocal() == SituacaoLocalEnum.EM_REVISAO
-                && doc.getRevisorAtribuido() != null
-                && doc.getRevisorAtribuido().getId().equals(usuario.getId())) {
+        if (doc.getSituacaoLocal() == SituacaoLocalEnum.EM_REVISAO && ehAprovadorDaOm(doc, usuario)) {
             return true;
         }
 
@@ -153,14 +152,14 @@ public class DocumentoAcessoService {
         // próximo passo (aprovar, aprovar revogação ou devolver).
         if (atual == SituacaoLocalEnum.EM_REVISAO || atual == SituacaoLocalEnum.ANALISE_REVOGACAO) {
             if (!DESTINOS_ACAO_REVISOR.contains(destino)) return false;
-            return doc.getRevisorAtribuido() != null && doc.getRevisorAtribuido().getId().equals(usuario.getId());
+            return ehAprovadorDaOm(doc, usuario);
         }
 
         // A partir de EM_PUBLICACAO/EM_REVOGACAO, só quem foi atribuído como publicador decide o
         // próximo passo (publicar, revogar ou devolver).
         if (atual == SituacaoLocalEnum.EM_PUBLICACAO || atual == SituacaoLocalEnum.EM_REVOGACAO) {
             if (!DESTINOS_ACAO_PUBLICADOR.contains(destino)) return false;
-            return doc.getPublicadorAtribuido() != null && doc.getPublicadorAtribuido().getId().equals(usuario.getId());
+            return ehPublicador(usuario);
         }
 
         // Demais transições (ex.: RASCUNHO/MINUTA -> CANCELADO) seguem a mesma posse de editar --
