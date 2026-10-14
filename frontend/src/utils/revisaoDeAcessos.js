@@ -4,7 +4,7 @@ import { nomeDoPapel, papeisElevados } from '@/utils/papeis.js'
 // o servidor devolve, em cada usuário, o `motivoDaRevisao` e se quem pergunta o revisa (`revisavel`).
 export const MOTIVO = {
   NENHUM:          { label: 'Em dia',                color: 'green-2',  textColor: 'green-10',  explicacao: '' },
-  TROCA_DE_OM:     { label: 'Trocou de OM',          color: 'orange-3', textColor: 'orange-10', explicacao: 'A pessoa mudou de OM: reconfirme os papéis dela.' },
+  TROCA_DE_OM:     { label: 'Trocou de OM',          color: 'orange-3', textColor: 'orange-10', explicacao: 'A pessoa mudou de OM: reconfirme os perfis dela.' },
   REVISAO_VENCIDA: { label: 'Revisão vencida',       color: 'red-2',    textColor: 'red-10',    explicacao: 'Passaram-se 6 meses desde a última revisão.' },
   CONTA_DORMENTE:  { label: 'Sem entrar há 6 meses', color: 'amber-3',  textColor: 'amber-10',  explicacao: 'A conta não entra no sistema há mais de 180 dias.' },
 }

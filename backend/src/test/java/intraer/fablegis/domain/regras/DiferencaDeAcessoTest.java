@@ -29,7 +29,7 @@ class DiferencaDeAcessoTest {
 
         assertThat(eventos).hasSize(1);
         assertThat(eventos.get(0).acao()).isEqualTo(AcaoDeAcessoEnum.ALTEROU_PAPEIS);
-        assertThat(eventos.get(0).detalhe()).contains("Concedido(s): APR_OM").doesNotContain("Retirado").endsWith("Papéis agora: APR_OM, ELB");
+        assertThat(eventos.get(0).detalhe()).contains("Concedido(s): APR_OM").doesNotContain("Retirado").endsWith("Perfis agora: APR_OM, ELB");
     }
 
     @Test

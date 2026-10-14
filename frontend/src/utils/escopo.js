@@ -23,6 +23,7 @@ export function papeisConcediveis(siglaDoAtor, siglaDaOmDeDestino) {
     elaborador: true,
     aprovador: true,
     auditor: true,
+    gestor: true,
     admin: geral,
     publicador: geral && ehOmGeral(siglaDaOmDeDestino),
   }

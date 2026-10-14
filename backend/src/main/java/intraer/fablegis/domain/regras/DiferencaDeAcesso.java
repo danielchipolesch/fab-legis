@@ -11,7 +11,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-// O que mudou no acesso de um usuário entre dois estados -- papéis, situação (ativo) e OM --, em eventos de auditoria prontos
+// O que mudou no acesso de um usuário entre dois estados -- perfis, situação (ativo) e OM --, em eventos de auditoria prontos
 // (um por tipo de mudança, com o detalhe legível). Regra pura: quem grava é a AuditoriaDeAcessoService, na transação da mudança.
 public final class DiferencaDeAcesso {
 
@@ -36,7 +36,7 @@ public final class DiferencaDeAcesso {
             if (!concedidos.isEmpty()) partes.add("Concedido(s): " + lista(concedidos));
             if (!retirados.isEmpty()) partes.add("Retirado(s): " + lista(retirados));
             eventos.add(new Evento(AcaoDeAcessoEnum.ALTEROU_PAPEIS,
-                    String.join(". ", partes) + ". Papéis agora: " + lista(depois.papeis())));
+                    String.join(". ", partes) + ". Perfis agora: " + lista(depois.papeis())));
         }
 
         if (antes.ativo() != depois.ativo()) {
@@ -49,7 +49,7 @@ public final class DiferencaDeAcesso {
         return eventos;
     }
 
-    // Os papéis em ordem alfabética, ou "nenhum".
+    // Os perfis em ordem alfabética, ou "nenhum".
     public static String lista(Set<PapelEnum> papeis) {
         if (papeis == null || papeis.isEmpty()) return "nenhum";
         return papeis.stream().sorted(Comparator.comparing(Enum::name)).map(Enum::name).collect(Collectors.joining(", "));

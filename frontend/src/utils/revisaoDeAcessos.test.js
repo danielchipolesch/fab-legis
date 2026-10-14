@@ -10,12 +10,12 @@ describe('revisão de acessos (dentro de Manter Usuários)', () => {
     expect(motivoDaRevisao(undefined).label).toBe('Em dia')
   })
 
-  it('rótulos dos papéis elevados', () => {
+  it('rótulos dos perfis elevados', () => {
     expect(rotuloDoPapel('APR_OM')).toBe('Aprovador da OM')
     expect(rotuloDoPapel('XYZ')).toBe('XYZ')
   })
 
-  it('papéis elevados são todos menos o Editor', () => {
+  it('perfis elevados são todos menos o Editor', () => {
     expect(papeisElevadosDe({ papeis: ['ELB', 'PUB_BCA', 'APR_OM'] })).toEqual(['APR_OM', 'PUB_BCA'])
     expect(papeisElevadosDe({ papeis: ['ELB'] })).toEqual([])
     expect(papeisElevadosDe(undefined)).toEqual([])

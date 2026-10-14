@@ -131,14 +131,14 @@ frontend/src
 ├── utils/          ← numbering (regras legislativas), cpf (validação/máscara),
 │                      textoSugeridoPortaria (geração do texto sugerido da portaria)
 ├── services/       ← pdfService (geração e download de PDF server-side)
-└── router/         ← Rotas SPA, com guarda de autenticação e de papel (admin/auditor)
+└── router/         ← Rotas SPA, com guarda de autenticação e de perfil (admin/auditor)
 ```
 
 **Perfis por espécie no frontend.** `perfis/index.js` entrega, para o `tipo_de_especie` de um documento, o perfil com o que a tela precisa decidir: `filhosPermitidos(tipoPai)` (menu "adicionar"), `rotuloDoAnexo(ordem)` (o rótulo do anexo: ANEXO II… nas convencionais, ANEXO A… na NPA; usado na barra lateral), `renumerar(elementos, documento)`, se admite promover/rebaixar, alteração e a ordem livre entre irmãos. `convencional.js` envolve `utils/numbering.js`; `npa.js` espelha `HierarquiaDeNpa`, `NumeracaoDeNpa` e `CabecalhoDaNpa` do backend — com os **mesmos cenários de teste** (`npa.test.js`), como já é a regra da numeração dos atos. Tela nenhuma testa a sigla da espécie.
 
 **Estado com Pinia — três stores complementares:**
 
-- **`auth`** — sessão. Guarda o access token e o usuário logado (persistidos em `localStorage`), expõe getters de papel (`isEditor`/`isAprovador`/`isPublicador`/`isAdmin`/`isAuditor`, todos independentes entre si — nenhum papel implica outro) e a renovação silenciosa do token (`refresh()`, reautorização por iframe oculto), chamada automaticamente pelo `client.js` num 401.
+- **`auth`** — sessão. Guarda o access token e o usuário logado (persistidos em `localStorage`), expõe getters de perfil (`isEditor`/`isAprovador`/`isPublicador`/`isAdmin`/`isAuditor`, todos independentes entre si — nenhum perfil implica outro) e a renovação silenciosa do token (`refresh()`, reautorização por iframe oculto), chamada automaticamente pelo `client.js` num 401.
 - **`documents`** — o acervo. Busca, cria, clona, salva e transiciona documentos; gera o *template* inicial de seções ao criar um novo ato; também busca as portarias e o mapa de alteração de um documento.
 - **`editor`** — o documento aberto. Mantém uma cópia profunda para edição isolada, controla o elemento selecionado, o flag `isDirty` (salvamento automático), a versão esperada para o bloqueio otimista e todas as operações de árvore, disparando a renumeração após cada mutação. `reload()` sempre busca a versão real no servidor (nunca do cache local) — importante após um `409` de conflito de edição. `aplicarEventosEstrutura()` faz o mesmo tipo de mutação de árvore, mas a partir de eventos recebidos via SSE (mudança feita por outra pessoa, ver [Autenticação e Colaboração](autenticacao.md)) — sempre um *patch* incremental (criar/reparentear/renomear/excluir um nó), nunca um `reload()`, porque isso preservaria a identidade local de todo elemento já aberto por quem estiver editando ao vivo no momento.
 

@@ -33,7 +33,7 @@ public final class RevisaoDeAcesso {
 
     private RevisaoDeAcesso() {}
 
-    // Os papéis que exigem revisão: todos menos o Editor.
+    // Os perfis que exigem revisão: todos menos o Editor.
     public static Set<PapelEnum> papeisElevados(Set<PapelEnum> papeis) {
         var elevados = EnumSet.noneOf(PapelEnum.class);
         if (papeis != null) {

@@ -60,7 +60,7 @@ public class DocumentoSpecifications {
     }
 
     // Card "Aguardando Minha Ação": o que espera a decisão de quem pergunta -- como aprovador, o que está em revisão na SUA OM (qualquer
-    // aprovador da OM age); como publicador, o que está em publicação (de qualquer OM: a publicação é do CENDOC). Sem esses papéis, nada.
+    // aprovador da OM age); como publicador, o que está em publicação (de qualquer OM: a publicação é do CENDOC). Sem esses perfis, nada.
     public static Specification<Documento> aguardandoAcaoDe(Usuario usuario) {
         return (root, query, cb) -> {
             boolean aprovador = usuario.getPapeis().contains(PapelEnum.APR_OM);

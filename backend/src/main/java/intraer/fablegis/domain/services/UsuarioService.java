@@ -109,7 +109,7 @@ public class UsuarioService {
                 papeisDepois.contains(PapelEnum.ADM_GER) && request.ativo(),
                 usuarioRepository.contarAtivosComPapel(PapelEnum.ADM_GER));
 
-        // O estado de acesso ANTES da mudança, para a auditoria registrar só o que de fato mudou (papéis, situação, OM).
+        // O estado de acesso ANTES da mudança, para a auditoria registrar só o que de fato mudou (perfis, situação, OM).
         var antes = new DiferencaDeAcesso.Estado(EnumSet.copyOf(papeisOuVazio(usuario.getPapeis())), usuario.isAtivo(), siglaDa(usuario.getOm()));
 
         usuario.setNome(request.nome());

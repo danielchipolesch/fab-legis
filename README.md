@@ -30,7 +30,7 @@ O FAB Legis trata o ato normativo (ICA, NSCA, MCA, RCA, DCA, PCA, OCA, RICA, ROC
 - **numeração automática** conforme a técnica legislativa (LC 95/1998, Decreto nº 12.002/2024, NSCA 5-3), e novos documentos já nascendo com os capítulos padronizados da NSCA 5-3;
 - **edição colaborativa em tempo real** (CRDT/Yjs) por elemento, com preview lado a lado, tabelas, figuras e aviso de presença;
 - **exportação fiel em PDF e HTML**, a partir do mesmo conteúdo, e **comparação de versões** para o ciclo de emenda;
-- **fluxo de revisão e publicação** com papéis (Editor, Aprovador, Publicador, Auditor, Admin), envio para aprovação sem atribuição pessoal, situação BCA × situação local, notificações e trilha de auditoria;
+- **fluxo de revisão e publicação** com perfis (Editor, Aprovador, Publicador, Auditor, Admin), envio para aprovação sem atribuição pessoal, situação BCA × situação local, notificações e trilha de auditoria;
 - **busca textual** no conteúdo de todos os documentos;
 - **autenticação OAuth2** (Authorization Code + PKCE) com login por CPF, emitida pelo próprio backend.
 
@@ -86,7 +86,7 @@ O `.env` na raiz (fora do git, só o `.env.example` é versionado) é lido autom
 
 **Habilitação de documentos:** só o GABAER e o CENDOC criam as espécies convencionais no primeiro boot (a NPA, qualquer OM); o administrador habilita as demais OMs na tela *Manter Habilitação de Espécies Normativas por OM*. O administrador padrão nasce na OM do CENDOC, por isso já cria documentos. A antiga OM provisória "SISTEMA" deixou de existir (migração `V15`: quem estava nela foi para o CENDOC).
 
-**Usuário administrador padrão** — criado automaticamente pelo `DataSeeder` no primeiro boot, só se nenhum usuário real ainda existir. CPF `111.444.777-35` (dígitos: `11144477735`), senha `Admin@123`, posto CP, nome de guerra CHIPOLESCH, e-mail `chipoleschdaca@fab.mil.br`, na OM CENDOC, perfis **Administrador Geral (`ADM_GER`) + Elaborador (`ELB`)** (o suficiente para gerenciar usuários e já criar o primeiro documento, sem precisar se auto-conceder um perfil antes de usar o sistema — ver [Autenticação e Colaboração](docs/autenticacao.md#perfis-papeis-e-posse-de-documento) sobre por que o administrador sozinho não bastaria). Troque a senha (ou os valores de `APP_ADMIN_CPF`/`APP_ADMIN_SENHA` antes do primeiro boot) assim que possível em qualquer ambiente que não seja local.
+**Usuário administrador padrão** — criado automaticamente pelo `DataSeeder` no primeiro boot, só se nenhum usuário real ainda existir. CPF `111.444.777-35` (dígitos: `11144477735`), senha `Admin@123`, posto CP, nome de guerra CHIPOLESCH, e-mail `chipoleschdaca@fab.mil.br`, na OM CENDOC, perfis **Administrador Geral (`ADM_GER`) + Elaborador (`ELB`) + Gestor Geral (`GES_GER`, o Painel Gerencial de todas as OMs)** (o suficiente para gerenciar usuários e já criar o primeiro documento, sem precisar se auto-conceder um perfil antes de usar o sistema — ver [Autenticação e Colaboração](docs/autenticacao.md#perfis-e-posse-de-documento) sobre por que o administrador sozinho não bastaria). Troque a senha (ou os valores de `APP_ADMIN_CPF`/`APP_ADMIN_SENHA` antes do primeiro boot) assim que possível em qualquer ambiente que não seja local.
 
 ### Caminho B — backend e frontend fora do Docker
 
@@ -207,7 +207,7 @@ O bloco **preserva o `Host`** (`proxy_set_header Host $http_host`): a assinatura
 
 Em desenvolvimento, o proxy do Vite (`server.proxy` em `frontend/vite.config.js`) faz `/oauth2/**`, `/login`, `/logout` e `/.well-known/**` parecerem, para o navegador, a mesma origem do frontend — é isso que faz o cookie de sessão sobreviver ao login. O frontend de produção tem o **equivalente no próprio Nginx, versionado no repositório**: não há arquivo para criar nem editar no deploy. O que muda de um ambiente para outro é só o `.env`. Assim como o `.env`, o Nginx tem um **arquivo real por ambiente, fora do git** (`nginx/nginx.conf`), criado a partir de um modelo versionado (`nginx/nginx.conf.example`) — o mesmo padrão de `.env.example` → `.env`. Já vem com o proxy pronto: nada a escrever, só copiar e, se o ambiente exigir (hosts diferentes, TLS), ajustar.
 
-| Arquivo | Papel |
+| Arquivo | Perfil |
 |---|---|
 | `nginx/comum.conf` | O que é comum a qualquer ambiente (versionado): serve a SPA e faz o proxy reverso para o backend (`backend:8081`) e o `collab` (`collab:1234`), na rede do Compose |
 | `nginx/nginx.conf.example` / `nginx/nginx.https.conf.example` | **Modelos** da configuração do ambiente: só HTTP (TLS terminado fora) ou com HTTPS direto no Nginx. Ambos incluem o `comum.conf` |

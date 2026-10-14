@@ -15,7 +15,7 @@
     </div>
 
     <!-- Revisão periódica de acessos (docs/autenticacao.md): automática -- o sistema aponta quem precisa de revisão; o admin só
-         confere (Manter acesso / Retirar papéis…). Ninguém precisa pedir nada e nada é retirado sozinho: por ora só avisa. -->
+         confere (Manter acesso / Retirar perfis…). Ninguém precisa pedir nada e nada é retirado sozinho: por ora só avisa. -->
     <q-banner v-if="pendentes" rounded class="bg-amber-1 text-amber-10 q-mb-md" data-testid="aviso-de-pendencias">
       <template #avatar><q-icon name="mdi-account-alert-outline" /></template>
       {{ pendentes }} {{ pendentes === 1 ? 'acesso precisa' : 'acessos precisam' }} de revisão.
@@ -102,11 +102,11 @@
             <div class="row justify-center no-wrap" style="gap:4px">
               <q-btn v-if="props.row.revisavel" icon="mdi-check" size="sm" flat round dense color="positive"
                      :loading="revisando === props.row.id" :data-testid="`manter-acesso-${props.row.cpf}`" @click="manterAcesso(props.row)">
-                <q-tooltip anchor="top middle" self="bottom middle">Manter acesso (reconfirma os papéis)</q-tooltip>
+                <q-tooltip anchor="top middle" self="bottom middle">Manter acesso (reconfirma os perfis)</q-tooltip>
               </q-btn>
               <q-btn v-if="props.row.revisavel" icon="mdi-account-minus-outline" size="sm" flat round dense color="negative"
                      :disable="revisando === props.row.id" :data-testid="`retirar-papeis-${props.row.cpf}`" @click="abrirRetirada(props.row)">
-                <q-tooltip anchor="top middle" self="bottom middle">Retirar papéis…</q-tooltip>
+                <q-tooltip anchor="top middle" self="bottom middle">Retirar perfis…</q-tooltip>
               </q-btn>
               <q-btn v-if="podeAdministrarEste(props.row)" icon="mdi-pencil-outline" size="sm" flat round dense color="primary" @click="abrirEdicao(props.row)">
                 <q-tooltip anchor="top middle" self="bottom middle">Editar</q-tooltip>
@@ -239,6 +239,9 @@
                   <q-tooltip>Só o Administrador Geral (CENDOC) concede o perfil de administrador.</q-tooltip>
                 </q-checkbox>
                 <q-checkbox v-model="form.auditor" :label="nomeDoPapel(papelDeAuditor(siglaDaOmDeDestino))" :disable="salvando || !concediveis.auditor" />
+                <q-checkbox v-model="form.gestor" :label="nomeDoPapel(papelDeGestor(siglaDaOmDeDestino))" :disable="salvando || !concediveis.gestor">
+                  <q-tooltip>Acesso ao Painel Gerencial: o Gestor Geral (CENDOC) vê todas as OMs; o Gestor da OM, só a própria.</q-tooltip>
+                </q-checkbox>
               </div>
             </div>
 
@@ -264,12 +267,12 @@
       </q-card>
     </q-dialog>
 
-    <!-- Retirar papéis (revisão de acesso): desmarque o que a pessoa deixa de ter; o que continuar marcado é mantido. -->
+    <!-- Retirar perfis (revisão de acesso): desmarque o que a pessoa deixa de ter; o que continuar marcado é mantido. -->
     <q-dialog v-model="retirada.aberta" persistent>
       <q-card style="min-width:400px">
         <q-card-section class="row items-center q-pb-none">
           <q-icon name="mdi-account-minus-outline" color="negative" size="24px" class="q-mr-sm" />
-          <span class="text-h6">Retirar papéis</span>
+          <span class="text-h6">Retirar perfis</span>
         </q-card-section>
         <q-card-section v-if="retirada.usuario" class="q-pt-md">
           <div class="text-weight-medium q-mb-sm">{{ caixaAlta(retirada.usuario.nome) }}</div>
@@ -338,7 +341,7 @@ import { caixaAlta, normalizarBusca } from '@/utils/texto.js'
 import { useAuthStore } from '@/stores/auth.js'
 import { emailInstitucional } from '@/utils/email.js'
 import { omsDoEscopo, papeisConcediveis, podeAdministrar } from '@/utils/escopo.js'
-import { PAPEIS, nomeDoPapel, ehAdmin, ehAuditor, papelDeAdmin, papelDeAuditor } from '@/utils/papeis.js'
+import { PAPEIS, nomeDoPapel, ehAdmin, ehAuditor, ehGestor, papelDeAdmin, papelDeAuditor, papelDeGestor } from '@/utils/papeis.js'
 import { motivoDaRevisao, rotuloDoPapel, contarPendentes, precisaDeRevisao, temPapelElevado, papeisElevadosDe } from '@/utils/revisaoDeAcessos.js'
 
 const $q = useQuasar()
@@ -383,7 +386,7 @@ const postoOptions = computed(() => postos.value.map(p => ({ label: `${p.bigrama
 
 // ── Revisão periódica de acessos ─────────────────────────────────────────────
 // Automática: o servidor diz, para cada usuário, se o acesso precisa de revisão (motivoDaRevisao) e se QUEM está logado é quem o
-// revisa (revisavel). O admin só confere: Manter acesso (reconfirma) ou Retirar papéis…; nada é retirado sozinho, por ora só avisa.
+// revisa (revisavel). O admin só confere: Manter acesso (reconfirma) ou Retirar perfis…; nada é retirado sozinho, por ora só avisa.
 const soPendentes = ref(false)
 const revisando = ref(null)
 const retirada = reactive({ aberta: false, usuario: null, mantidos: {} })
@@ -470,7 +473,7 @@ const mostrarSenha = ref(false)
 // que vier daqui (mesma regra em duas camadas, não só decoração de tela).
 const form = reactive({
   nome: '', nomeGuerra: '', cpf: '', email: '', postoGraduacaoId: null, senha: '',
-  omId: null, editor: true, aprovador: false, publicador: false, admin: false, auditor: false, ativo: true,
+  omId: null, editor: true, aprovador: false, publicador: false, admin: false, auditor: false, gestor: false, ativo: true,
 })
 
 // Escopo (utils/escopo.js): o admin local só gerencia a própria OM e não concede Administrador nem Publicador; o geral (CENDOC) gerencia
@@ -478,7 +481,7 @@ const form = reactive({
 const siglaDaOmDeDestino = computed(() => oms.value.find(o => o.id === form.omId)?.sigla)
 const concediveis = computed(() => papeisConcediveis(auth.usuario?.omSigla, siglaDaOmDeDestino.value))
 const podeAdministrarEste = (usuario) => podeAdministrar(auth.usuario?.omSigla, usuario)
-// Trocar a OM de destino para uma que não admite o papel desmarca o que deixou de valer (ex.: Publicador fora do CENDOC).
+// Trocar a OM de destino para uma que não admite o perfil desmarca o que deixou de valer (ex.: Publicador fora do CENDOC).
 watch(concediveis, (c) => {
   if (!c.publicador) form.publicador = false
   if (!c.admin) form.admin = false
@@ -487,7 +490,7 @@ watch(concediveis, (c) => {
 function resetForm() {
   Object.assign(form, {
     nome: '', nomeGuerra: '', cpf: '', email: '', postoGraduacaoId: null, senha: '',
-    omId: null, editor: true, aprovador: false, publicador: false, admin: false, auditor: false, ativo: true,
+    omId: null, editor: true, aprovador: false, publicador: false, admin: false, auditor: false, gestor: false, ativo: true,
   })
   formRef.value?.resetValidation()
 }
@@ -515,6 +518,7 @@ function abrirEdicao(usuario) {
     publicador: usuario.papeis.includes('PUB_BCA'),
     admin: ehAdmin(usuario.papeis),
     auditor: ehAuditor(usuario.papeis),
+    gestor: ehGestor(usuario.papeis),
     ativo: usuario.ativo,
   })
   formRef.value?.resetValidation()
@@ -529,6 +533,7 @@ function papeisSelecionados() {
   // Administrador e Auditor existem em duas versões; vale a da lotação de destino (CENDOC = geral).
   if (form.admin) papeis.push(papelDeAdmin(siglaDaOmDeDestino.value))
   if (form.auditor) papeis.push(papelDeAuditor(siglaDaOmDeDestino.value))
+  if (form.gestor) papeis.push(papelDeGestor(siglaDaOmDeDestino.value))
   return papeis
 }
 

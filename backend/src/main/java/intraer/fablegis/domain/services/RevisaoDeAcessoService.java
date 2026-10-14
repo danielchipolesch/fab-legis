@@ -22,7 +22,7 @@ import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.Set;
 
-// Revisão periódica de acessos (RevisaoDeAcesso). Quem revisa mantém os papéis elevados de quem lhe cabe ou retira alguns; nunca
+// Revisão periódica de acessos (RevisaoDeAcesso). Quem revisa mantém os perfis elevados de quem lhe cabe ou retira alguns; nunca
 // concede (conceder é a tela de usuários). Cada revisão vai para a auditoria de acessos, na mesma transação.
 @Service
 @RequiredArgsConstructor
@@ -46,7 +46,7 @@ public class RevisaoDeAcessoService {
         var elevadosAntes = RevisaoDeAcesso.papeisElevados(antes);
         var elevadosMantidos = RevisaoDeAcesso.papeisElevados(papeisMantidos);
         if (!elevadosAntes.containsAll(elevadosMantidos)) {
-            throw new InvalidInputException("A revisão só mantém ou retira papéis; para conceder um papel use Manter Usuários.");
+            throw new InvalidInputException("A revisão só mantém ou retira perfis; para conceder um papel use Manter Usuários.");
         }
 
         var depois = EnumSet.of(PapelEnum.ELB);

@@ -19,8 +19,8 @@ public final class EscopoDeAcesso {
     public static final String OM_GERAL = "CENDOC";
 
     // Perfis que só existem lotados no CENDOC, e os que só existem fora dele.
-    public static final Set<PapelEnum> SO_NO_CENDOC = EnumSet.of(PapelEnum.PUB_BCA, PapelEnum.ADM_GER, PapelEnum.AUD_GER);
-    public static final Set<PapelEnum> SO_FORA_DO_CENDOC = EnumSet.of(PapelEnum.ADM_OM, PapelEnum.AUD_OM);
+    public static final Set<PapelEnum> SO_NO_CENDOC = EnumSet.of(PapelEnum.PUB_BCA, PapelEnum.ADM_GER, PapelEnum.AUD_GER, PapelEnum.GES_GER);
+    public static final Set<PapelEnum> SO_FORA_DO_CENDOC = EnumSet.of(PapelEnum.ADM_OM, PapelEnum.AUD_OM, PapelEnum.GES_OM);
 
     private EscopoDeAcesso() {}
 
@@ -89,9 +89,18 @@ public final class EscopoDeAcesso {
             }
             if (cendoc && SO_FORA_DO_CENDOC.contains(papel)) {
                 throw new OperacaoNaoAutorizadaException("No CENDOC não existe o perfil " + papel.nome() + ": use "
-                        + (papel == PapelEnum.ADM_OM ? PapelEnum.ADM_GER : PapelEnum.AUD_GER).nome() + ".");
+                        + geralCorrespondente(papel).nome() + ".");
             }
         }
+    }
+
+    // O perfil geral que corresponde ao da OM (no CENDOC não existem os da OM).
+    private static PapelEnum geralCorrespondente(PapelEnum papelDaOm) {
+        return switch (papelDaOm) {
+            case ADM_OM -> PapelEnum.ADM_GER;
+            case AUD_OM -> PapelEnum.AUD_GER;
+            default -> PapelEnum.GES_GER;
+        };
     }
 
     // Valida uma criação (alvo == null) ou alteração de usuário -- OM de destino e perfis que ele passa a ter. Lança

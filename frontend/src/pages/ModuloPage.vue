@@ -771,7 +771,7 @@ function canDelete(doc) {
 }
 
 // Mesmo critério que decide o que aparece dentro do menu "⋮" -- se nada
-// aparecer (nenhuma transição de status disponível pro papel do usuário nem
+// aparecer (nenhuma transição de status disponível pro perfil do usuário nem
 // exclusão), o botão fica desabilitado em vez de abrir um menu vazio.
 function temAcoesExtras(doc) {
   return statusActions(doc).length > 0 || canDelete(doc)
@@ -784,7 +784,7 @@ function docRoute(doc) {
 }
 
 // Só as ações que o Editor conduz sozinho (sem escolher pessoa) ou a única
-// exceção sem atribuição prévia (Iniciar Alteração, papel APROV da própria OM --
+// exceção sem atribuição prévia (Iniciar Alteração, perfil APR_OM da própria OM --
 // ver DocumentoAcessoService.podeMudarStatus). Revisar/aprovar/publicar/revogar
 // de fato viraram telas dedicadas (RevisaoPage.vue/PublicacaoPage.vue), cada
 // uma restrita a quem tem a atribuição pessoal daquela etapa -- por isso não

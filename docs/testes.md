@@ -21,7 +21,7 @@ MSYS_NO_PATHCONV=1 docker run --rm -v "$(pwd -W)/backend:/app" -v fab-legis-m2-c
 
 Com JDK e Maven locais, basta `mvn test` dentro de `backend/`. Para rodar só uma classe: `mvn test -Dtest=NumeracaoServiceTest`.
 
-`mvn test` roda **apenas os testes unitários**. Os **testes de integração** (`@Tag("integration")`) sobem o contexto inteiro do Spring sobre um **PostgreSQL de verdade num container (Testcontainers)** — migrations do Flyway, segurança por papel, validação e JPA, com MockMvc — e por isso **precisam de Docker**; ficam de fora do `mvn test` padrão. Para incluí-los: `mvn test -DexcludedGroups=nenhum`. Rodando o Maven num container (como acima), o container precisa falar com o Docker do host:
+`mvn test` roda **apenas os testes unitários**. Os **testes de integração** (`@Tag("integration")`) sobem o contexto inteiro do Spring sobre um **PostgreSQL de verdade num container (Testcontainers)** — migrations do Flyway, segurança por perfil, validação e JPA, com MockMvc — e por isso **precisam de Docker**; ficam de fora do `mvn test` padrão. Para incluí-los: `mvn test -DexcludedGroups=nenhum`. Rodando o Maven num container (como acima), o container precisa falar com o Docker do host:
 
 ```bash
 # Linux / macOS / CI (o socket do Docker; sem Ryuk, que não funciona de dentro de um container)

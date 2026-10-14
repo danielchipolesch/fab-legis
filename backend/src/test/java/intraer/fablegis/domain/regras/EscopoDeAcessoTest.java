@@ -130,7 +130,7 @@ class EscopoDeAcessoTest {
 
     @Test
     void osPerfisDoCendocSoExistemNele() {
-        for (var papel : EnumSet.of(PapelEnum.ADM_GER, PapelEnum.AUD_GER, PapelEnum.PUB_BCA)) {
+        for (var papel : EnumSet.of(PapelEnum.ADM_GER, PapelEnum.AUD_GER, PapelEnum.PUB_BCA, PapelEnum.GES_GER)) {
             assertThatThrownBy(() -> EscopoDeAcesso.exigirPerfisDaLotacao("BAGL", EnumSet.of(PapelEnum.ELB, papel)))
                     .as(papel.name()).isInstanceOf(OperacaoNaoAutorizadaException.class).hasMessageContaining("exclusivo do CENDOC");
             assertThatCode(() -> EscopoDeAcesso.exigirPerfisDaLotacao("CENDOC", EnumSet.of(PapelEnum.ELB, papel))).doesNotThrowAnyException();
@@ -152,5 +152,22 @@ class EscopoDeAcessoTest {
         var geral = usuario("CENDOC", PapelEnum.ADM_GER);
         assertThatThrownBy(() -> EscopoDeAcesso.exigirPodeGerenciar(geral, null, "BAGL", EnumSet.of(PapelEnum.ELB, PapelEnum.ADM_GER)))
                 .isInstanceOf(OperacaoNaoAutorizadaException.class).hasMessageContaining("exclusivo do CENDOC");
+    }
+
+    @Test
+    void oGestorGeralSoNoCendocEODaOmNuncaNele() {
+        assertThatThrownBy(() -> EscopoDeAcesso.exigirPerfisDaLotacao("BAGL", EnumSet.of(PapelEnum.ELB, PapelEnum.GES_GER)))
+                .isInstanceOf(OperacaoNaoAutorizadaException.class).hasMessageContaining("exclusivo do CENDOC");
+        assertThatThrownBy(() -> EscopoDeAcesso.exigirPerfisDaLotacao("CENDOC", EnumSet.of(PapelEnum.ELB, PapelEnum.GES_OM)))
+                .isInstanceOf(OperacaoNaoAutorizadaException.class).hasMessageContaining("use Gestor Geral");
+        assertThatCode(() -> EscopoDeAcesso.exigirPerfisDaLotacao("CENDOC", EnumSet.of(PapelEnum.ELB, PapelEnum.GES_GER))).doesNotThrowAnyException();
+        assertThatCode(() -> EscopoDeAcesso.exigirPerfisDaLotacao("BAGL", EnumSet.of(PapelEnum.ELB, PapelEnum.GES_OM))).doesNotThrowAnyException();
+    }
+
+    @Test
+    void oAdminDaOmConcedeGestorDaOmNaPropriaOm() {
+        var local = usuario("BAGL", PapelEnum.ADM_OM);
+        assertThatCode(() -> EscopoDeAcesso.exigirPodeGerenciar(local, null, "BAGL", EnumSet.of(PapelEnum.ELB, PapelEnum.GES_OM)))
+                .doesNotThrowAnyException();
     }
 }

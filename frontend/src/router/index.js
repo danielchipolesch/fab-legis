@@ -22,6 +22,13 @@ const routes = [
     component: () => import('@/pages/HubPage.vue'),
     meta: { title: 'Área de Trabalho' },
   },
+  // Painel Gerencial: o módulo dos indicadores, só para quem tem o perfil Gestor (da OM ou Geral).
+  {
+    path: '/painel-gerencial',
+    name: 'painel-gerencial',
+    component: () => import('@/pages/PainelGerencialPage.vue'),
+    meta: { title: 'Painel Gerencial', requiresGestor: true },
+  },
   // A tela inicial de cada módulo (perfis/index.js): a mesma tela, configurada pelo tipo de espécie.
   ...MODULOS.map(modulo => ({
     path: modulo.caminho,
@@ -113,6 +120,9 @@ router.beforeEach((to) => {
     return { name: 'login', query: { redirect: to.fullPath } }
   }
   if (to.meta.requiresAdminGeral && !auth.isAdminGeral) {
+    return { name: 'home' }
+  }
+  if (to.meta.requiresGestor && !auth.temAcessoAoPainel) {
     return { name: 'home' }
   }
   if (to.meta.requiresAdmin && !auth.isAdmin) {

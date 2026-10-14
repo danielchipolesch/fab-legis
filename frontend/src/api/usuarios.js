@@ -55,7 +55,7 @@ export async function listPostosGraduacoes() {
 }
 
 // Revisão periódica de acessos (docs/autenticacao.md): o resultado da revisão feita por quem a confere (o aviso de quem precisa de
-// revisão vem na própria lista de usuários, `motivoDaRevisao`). `papeis`: os papéis que a pessoa MANTÉM (os elevados que não
+// revisão vem na própria lista de usuários, `motivoDaRevisao`). `papeis`: os perfis que a pessoa MANTÉM (os elevados que não
 // vierem são retirados; nunca concede). Devolve o usuário atualizado.
 export async function revisarAcesso(usuarioId, papeis) {
   return http.post(`/revisao-de-acessos/${usuarioId}`, { papeis })

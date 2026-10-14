@@ -95,6 +95,15 @@
     <!-- Cada módulo é o seu próprio card quadrado, centralizado: ocupam só o espaço de que precisam (quebram de linha se um dia
          entrarem mais). O q-btn ocupa o card inteiro, para o card todo ser um link (teclado e foco incluídos). -->
     <div class="row justify-center q-gutter-md">
+      <!-- Painel Gerencial: o primeiro do Acesso Rápido, e só para quem tem o perfil Gestor. -->
+      <q-card v-if="auth.temAcessoAoPainel" flat bordered class="tile-modulo">
+        <q-btn :to="{ name: 'painel-gerencial' }" stack flat no-caps class="tile-botao full-width full-height" data-testid="tile-painel-gerencial">
+          <q-icon name="mdi-chart-box-outline" size="48px" color="primary" />
+          <div class="text-subtitle1 text-weight-medium text-grey-9 q-mt-sm">Painel Gerencial</div>
+          <div class="text-caption text-grey-7">Indicadores da gestão normativa</div>
+          <q-tooltip>Acessar o Painel Gerencial</q-tooltip>
+        </q-btn>
+      </q-card>
       <q-card v-for="m in MODULOS" :key="m.rota" flat bordered class="tile-modulo">
         <q-btn
           :to="{ name: m.rota }"

@@ -98,26 +98,49 @@ O administrador gerencia na tela **Manter Habilitação de Espécies Normativas 
 
 A tela inicial de cada módulo (`ModuloPage`) organiza o acervo do módulo em quatro abas — **Meus Documentos**, **Documentos da Minha OM**, **Documentos de Outras OMs** e **Documentos Revogados** — cada uma com paginação e busca próprias e um contador de quantos documentos do módulo ela contém; a visualização em si é universal (qualquer usuário autenticado vê e baixa qualquer documento, independente de autoria, OM ou situação — ver [Autenticação e Colaboração](autenticacao.md)), as abas são só uma forma de navegar esse mesmo conjunto.
 
-Dentro de cada aba: visão em tabela (ordenada por data de criação decrescente por padrão) ou cards, filtros por espécie (siglas do catálogo real de `EspecieNormativa`, não uma lista fixa), **situação BCA** e **situação local** (filtros e contagens separados), busca textual; a tabela mostra as duas situações em **colunas próprias** ("Situação BCA" e "Situação Local", cada uma ordenável), resumo quantitativo por situação e ações contextuais — editar (Rascunho/Minuta/Em Alteração), clonar e exportar em PDF. O botão de comparar versões não fica na tabela principal: está na página de comparação (ver seção seguinte). As transições de situação que dependem só de posse (enviar para Minuta, enviar para aprovação e para revogação (sem escolher pessoa), cancelar) ficam aqui, atrás de um menu "⋮" que só fica habilitado quando existe alguma ação disponível para a situação atual; revisar, aprovar, publicar e revogar acontecem nas telas dedicadas abaixo — ver [Papéis e posse de documento](autenticacao.md#perfis-papeis-e-posse-de-documento).
+Dentro de cada aba: visão em tabela (ordenada por data de criação decrescente por padrão) ou cards, filtros por espécie (siglas do catálogo real de `EspecieNormativa`, não uma lista fixa), **situação BCA** e **situação local** (filtros e contagens separados), busca textual; a tabela mostra as duas situações em **colunas próprias** ("Situação BCA" e "Situação Local", cada uma ordenável), resumo quantitativo por situação e ações contextuais — editar (Rascunho/Minuta/Em Alteração), clonar e exportar em PDF. O botão de comparar versões não fica na tabela principal: está na página de comparação (ver seção seguinte). As transições de situação que dependem só de posse (enviar para Minuta, enviar para aprovação e para revogação (sem escolher pessoa), cancelar) ficam aqui, atrás de um menu "⋮" que só fica habilitado quando existe alguma ação disponível para a situação atual; revisar, aprovar, publicar e revogar acontecem nas telas dedicadas abaixo — ver [Perfis e posse de documento](autenticacao.md#perfis-e-posse-de-documento).
 
 **Excluir** só aparece no menu de ações para documentos próprios (ou compartilhados) em Rascunho ou Minuta — outras combinações já são bloqueadas no backend (`DocumentoAcessoService.podeExcluir()`), e a opção nem é oferecida na interface.
 
 ## Busca Textual
 
-A `BuscaPage` (`/busca`, aberta pelo botão **"Busca no conteúdo"** no card de filtros da tela do módulo, ao lado de "Limpar" e dos botões de lista/cards — sem papel específico, mesma regra de visualização universal do acervo) procura **dentro do texto** dos dispositivos de **todos os documentos, de qualquer aba** (o campo da tela do módulo filtra só a aba atual, por assunto ou número). O botão leva o **termo já digitado** no campo da tela do módulo: a busca abre com ele preenchido (`?q=`) e já executada. Os dispositivos são Artigo, Parágrafo, Inciso, Cláusula..., não só metadado do documento como na busca da tela do módulo. Cada resultado é um dispositivo específico, com o trecho onde o termo foi encontrado já destacado, e um clique abre o documento correspondente na tela de visualização.
+A `BuscaPage` (`/busca`, aberta pelo botão **"Busca no conteúdo"** no card de filtros da tela do módulo, ao lado de "Limpar" e dos botões de lista/cards — sem perfil específico, mesma regra de visualização universal do acervo) procura **dentro do texto** dos dispositivos de **todos os documentos, de qualquer aba** (o campo da tela do módulo filtra só a aba atual, por assunto ou número). O botão leva o **termo já digitado** no campo da tela do módulo: a busca abre com ele preenchido (`?q=`) e já executada. Os dispositivos são Artigo, Parágrafo, Inciso, Cláusula..., não só metadado do documento como na busca da tela do módulo. Cada resultado é um dispositivo específico, com o trecho onde o termo foi encontrado já destacado, e um clique abre o documento correspondente na tela de visualização.
 
 Implementada com **`tsvector`/`GIN` do próprio PostgreSQL** (sem Elasticsearch): uma coluna gerada (`STORED`, recalculada automaticamente pelo banco a cada gravação, sem trigger) indexa `tx_conteudo_completo` — o texto puro de cada elemento, já mantido separadamente do JSON TipTap bruto (`DocumentoParteNormativaService.gerarFullTextContent`/`TipTapPlainTextExtractor`) — nas três tabelas de item (parte preliminar/normativa/final). Consulta via `websearch_to_tsquery` (sintaxe de caixa de busca comum: `"frase exata"`, `-excluir`) numa configuração de busca própria (`portuguese_unaccent`) que combina o *stemmer* `portuguese` com o dicionário `unaccent`, para que "publicacao" ache "publicação". Sem checagem de posse: como visualizar já é liberado a qualquer autenticado, a busca não é mais restritiva que abrir o documento diretamente.
 
 ## Revisão e Publicação
 
-Duas telas dedicadas, cada uma restrita a quem tem o papel correspondente e mostrando só a **fila** da etapa (nunca o acervo inteiro) — ninguém é "atribuído": a de aprovação é da OM de quem pergunta, a de publicação é do CENDOC:
+Duas telas dedicadas, cada uma restrita a quem tem o perfil correspondente e mostrando só a **fila** da etapa (nunca o acervo inteiro) — ninguém é "atribuído": a de aprovação é da OM de quem pergunta, a de publicação é do CENDOC:
 
-- **Manter Revisão de Documento** (`/revisao`, `RevisaoPage.vue`, papel Aprovador) — tabela com **código, título, autores, situação e ações**; documentos em `EM_REVISAO`/`ANALISE_REVOGACAO` da **OM do usuário** (qualquer aprovador da OM age). Abrir (editável enquanto `EM_REVISAO`), Aprovar (sem escolher o publicador: segue para a fila do CENDOC) e Devolver.
-- **Manter Publicação de Documento** (`/publicacao`, `PublicacaoPage.vue`, papel Publicador, só no CENDOC) — mesma tabela; documentos em `EM_PUBLICACAO`/`EM_REVOGACAO` de todas as OMs (qualquer publicador age). Abrir (só leitura), Publicar/Revogar (formulário de Portaria/BCA e parte preliminar, `PublicarDialog.vue`) e Devolver (só para `EM_PUBLICACAO`; uma revogação aprovada só pode ser formalizada).
+- **Manter Revisão de Documento** (`/revisao`, `RevisaoPage.vue`, perfil Aprovador) — tabela com **código, título, autores, situação e ações**; documentos em `EM_REVISAO`/`ANALISE_REVOGACAO` da **OM do usuário** (qualquer aprovador da OM age). Abrir (editável enquanto `EM_REVISAO`), Aprovar (sem escolher o publicador: segue para a fila do CENDOC) e Devolver.
+- **Manter Publicação de Documento** (`/publicacao`, `PublicacaoPage.vue`, perfil Publicador, só no CENDOC) — mesma tabela; documentos em `EM_PUBLICACAO`/`EM_REVOGACAO` de todas as OMs (qualquer publicador age). Abrir (só leitura), Publicar/Revogar (formulário de Portaria/BCA e parte preliminar, `PublicarDialog.vue`) e Devolver (só para `EM_PUBLICACAO`; uma revogação aprovada só pode ser formalizada).
 
 Cada uma tem seu próprio breadcrumb (Início → Área de Trabalho → Manter Revisão/Publicação de Documento), e um documento aberto a partir de qualquer uma delas carrega essa origem consigo (`?origem=revisao|publicacao`) — o breadcrumb do editor/visualizador então volta para a fila de onde a pessoa veio, não para o acervo do módulo.
 
 Ver [Ciclo de Vida do Documento](ciclo-de-vida.md) para o fluxo completo (enviar para aprovação sem escolher pessoa).
+
+## Painel Gerencial
+
+O **Painel Gerencial** é o terceiro módulo do sistema (`/painel-gerencial`, `PainelGerencialPage.vue`), ao lado de *Espécies Convencionais* e *NPA*: indicadores da gestão normativa, calculados na hora a partir do que o sistema já registra (documentos, a data de cada etapa e o histórico) — nada é digitado. Fica **primeiro** no *Acesso Rápido* da Área de Trabalho e **só aparece** para quem tem o perfil **Gestor**.
+
+| Perfil | O que vê |
+|---|---|
+| **Gestor Geral** (`GES_GER`, só no CENDOC) | Os indicadores de **todas as OMs**, com filtro por OM (e a tabela *Por OM*) |
+| **Gestor da OM** (`GES_OM`) | Só os da **própria OM**, filtrados **automaticamente** — não há campo de OM nem visão geral. O servidor fixa a OM (`EscopoDoPainel`): pedir outra responde `403` |
+
+O usuário padrão do sistema (o administrador do primeiro boot) já nasce com o Gestor Geral.
+
+**Filtros:** período (abre nos últimos 12 meses), espécie e — só o Gestor Geral — OM.
+
+**O que mostra:**
+- **Resumo:** criados, publicados, revogados e devolvidos *no período*; em tramitação e vigentes *agora*. Devolvido = voltou à minuta/alteração a partir da aprovação ou da publicação.
+- **Documentos por mês** (criados e publicados) e **criados por espécie**.
+- **Tempo em cada etapa:** mediana e "90% até" (percentil 90), em dias, para elaboração (criação → envio para aprovação), aprovação (envio → aprovação) e publicação (aprovação → publicação), entre os documentos criados no período que cumpriram a etapa. Mediana e percentil, não média, porque poucos casos muito lentos distorcem a média. As datas são as do ciclo mais recente do documento.
+- **Esperando agora:** quantos aguardam aprovação e quantos aguardam publicação.
+- **Situação atual** de todos os documentos e **Parados há mais tempo** (os dez mais antigos na aprovação ou na publicação, com link para o documento).
+- **Por OM** (só a visão geral): as OMs com mais documentos criados no período.
+
+Detalhes e endpoint em [API REST](api-rest.md#painel-gerencial-v1painel-gerencial-gestor).
 
 ## NPA (Norma Padrão de Ação)
 

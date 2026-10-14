@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest'
-import { PAPEIS, nomeDoPapel, ehAdmin, ehAdminGeral, ehAuditor, papelDeAdmin, papelDeAuditor, papeisElevados } from './papeis.js'
+import { PAPEIS, nomeDoPapel, ehAdmin, ehAdminGeral, ehAuditor, ehGestor, ehGestorGeral, papelDeAdmin, papelDeAuditor, papelDeGestor, papeisElevados } from './papeis.js'
 
-describe('perfis (papéis)', () => {
+describe('perfis (perfis)', () => {
   it('cada perfil tem código e nome por extenso (o mesmo de PapelEnum e da tabela t_papel)', () => {
-    expect(Object.keys(PAPEIS).sort()).toEqual(['ADM_GER', 'ADM_OM', 'APR_OM', 'AUD_GER', 'AUD_OM', 'ELB', 'PUB_BCA'])
+    expect(Object.keys(PAPEIS).sort()).toEqual(['ADM_GER', 'ADM_OM', 'APR_OM', 'AUD_GER', 'AUD_OM', 'ELB', 'GES_GER', 'GES_OM', 'PUB_BCA'])
     expect(nomeDoPapel('ELB')).toBe('Elaborador')
     expect(nomeDoPapel('APR_OM')).toBe('Aprovador da OM')
     expect(nomeDoPapel('PUB_BCA')).toBe('Publicador do BCA')
@@ -11,6 +11,8 @@ describe('perfis (papéis)', () => {
     expect(nomeDoPapel('AUD_GER')).toBe('Auditor Geral')
     expect(nomeDoPapel('ADM_OM')).toBe('Administrador da OM')
     expect(nomeDoPapel('ADM_GER')).toBe('Administrador Geral')
+    expect(nomeDoPapel('GES_OM')).toBe('Gestor da OM')
+    expect(nomeDoPapel('GES_GER')).toBe('Gestor Geral')
     expect(nomeDoPapel('XYZ')).toBe('XYZ')
     for (const [codigo, papel] of Object.entries(PAPEIS)) expect(papel.codigo).toBe(codigo)
   })
@@ -39,5 +41,20 @@ describe('perfis (papéis)', () => {
     expect(papeisElevados(['ELB', 'PUB_BCA', 'APR_OM'])).toEqual(['APR_OM', 'PUB_BCA'])
     expect(papeisElevados(['ELB'])).toEqual([])
     expect(papeisElevados(undefined)).toEqual([])
+  })
+})
+
+describe('Gestor (Painel Gerencial)', () => {
+  it('o perfil de gestor depende da lotação', () => {
+    expect(papelDeGestor('CENDOC')).toBe('GES_GER')
+    expect(papelDeGestor('BAGL')).toBe('GES_OM')
+  })
+
+  it('gestor de qualquer escopo e o geral', () => {
+    expect(ehGestor(['ELB', 'GES_OM'])).toBe(true)
+    expect(ehGestor(['ELB', 'GES_GER'])).toBe(true)
+    expect(ehGestor(['ELB', 'ADM_GER', 'AUD_GER'])).toBe(false)
+    expect(ehGestorGeral(['GES_GER'])).toBe(true)
+    expect(ehGestorGeral(['GES_OM'])).toBe(false)
   })
 })

@@ -1,7 +1,7 @@
 import { defineStore, getActivePinia } from 'pinia'
 import { limparCachesDaSessao } from '@/utils/limparSessao.js'
 import { temEscopoGeral } from '@/utils/escopo.js'
-import { ehAdmin, ehAdminGeral, ehAuditor } from '@/utils/papeis.js'
+import { ehAdmin, ehAdminGeral, ehAuditor, ehGestor, ehGestorGeral } from '@/utils/papeis.js'
 import { podeCriarNoModulo, podeCriarEspecie } from '@/utils/habilitacao.js'
 import { listMinhasEspeciesCriaveis } from '@/api/habilitacao.js'
 import { setAuthTokenGetter, setUnauthorizedHandler, setRefreshHandler } from '@/api/client.js'
@@ -109,6 +109,9 @@ export const useAuthStore = defineStore('auth', {
     // Espelha o backend (hasAnyRole('AUD_OM', 'AUD_GER') -- ver AuditoriaController): perfil
     // independente de ADMIN, precisa estar marcado no próprio cadastro.
     isAuditor: (state) => ehAuditor(state.usuario?.papeis),
+    // Painel Gerencial (módulo): só para quem tem o perfil Gestor; o Gestor Geral (CENDOC) também filtra por OM.
+    temAcessoAoPainel: (state) => ehGestor(state.usuario?.papeis),
+    isGestorGeral: (state) => ehGestorGeral(state.usuario?.papeis),
     // Criar documento = ter o perfil Elaborador (ELB) E a OM habilitada para a espécie (a NPA, toda OM). Consultar e ser coautor independem disso.
     podeCriarNoModulo: (state) => (tipoDeEspecie) => podeCriarNoModulo(state.especiesCriaveis, tipoDeEspecie),
     podeCriarEspecie: (state) => (sigla) => podeCriarEspecie(state.especiesCriaveis, sigla),

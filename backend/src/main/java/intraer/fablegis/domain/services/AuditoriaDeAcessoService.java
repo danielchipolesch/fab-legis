@@ -30,7 +30,7 @@ public class AuditoriaDeAcessoService {
     @Transactional
     public void registrarCriacao(Usuario alvo) {
         gravar(alvo, AcaoDeAcessoEnum.CRIOU_USUARIO,
-                "Papéis: " + DiferencaDeAcesso.lista(alvo.getPapeis()) + (alvo.isAtivo() ? "" : ". Criado inativo"));
+                "Perfis: " + DiferencaDeAcesso.lista(alvo.getPapeis()) + (alvo.isAtivo() ? "" : ". Criado inativo"));
     }
 
     @Transactional

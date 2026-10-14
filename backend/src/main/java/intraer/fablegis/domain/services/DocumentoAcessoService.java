@@ -22,7 +22,7 @@ import java.util.Set;
 // Só editar, compartilhar e excluir precisam de posse -- e editar depende também da ETAPA do documento (podeEditar):
 // conteúdo congelado não é editado por ninguém, nem pelo autor.
 //
-// ADMIN nunca aparece aqui como bypass: sob o modelo atual de papéis, Admin é
+// ADMIN nunca aparece aqui como bypass: sob o modelo atual de perfis, Admin é
 // puramente administrativo (usuários/OMs) e não tem poder nenhum sobre o
 // ciclo de vida de um documento -- ver PapelEnum.
 @Service

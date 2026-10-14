@@ -6,7 +6,7 @@ describe('auditoria de acessos', () => {
     for (const acao of ['CRIOU_USUARIO', 'ALTEROU_PAPEIS', 'ATIVOU_USUARIO', 'DESATIVOU_USUARIO', 'TROCOU_OM', 'REDEFINIU_SENHA', 'REVISOU_ACESSO']) {
       expect(ACAO_DE_ACESSO[acao]).toBeTruthy()
     }
-    expect(acaoDeAcessoLabel('ALTEROU_PAPEIS')).toBe('Alterou papéis')
+    expect(acaoDeAcessoLabel('ALTEROU_PAPEIS')).toBe('Alterou perfis')
     expect(acaoDeAcessoLabel('NOVA')).toBe('NOVA')
     expect(acaoDeAcessoCor('NOVA')).toBe('grey')
   })

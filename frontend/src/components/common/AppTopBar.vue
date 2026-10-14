@@ -79,7 +79,7 @@
               </q-item-section>
             </q-item>
 
-            <!-- Navegação: Início é sempre visível -- Usuários/Auditoria exigem o papel
+            <!-- Navegação: Início é sempre visível -- Usuários/Auditoria exigem o perfil
                  correspondente (ver stores/auth.js). A Busca Textual saiu deste menu: o acesso é
                  o botão "Busca no conteúdo" do card de filtros da homepage (a rota não tem
                  requiresX nenhum porque visualizar já é liberado a qualquer autenticado, de

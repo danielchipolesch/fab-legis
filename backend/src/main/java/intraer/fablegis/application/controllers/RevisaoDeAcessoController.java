@@ -19,14 +19,14 @@ import org.springframework.web.bind.annotation.RestController;
 // própria OM -- ver RevisaoDeAcesso. O servico decide quem revisa quem; aqui só se exige ser administrador.
 @RestController
 @RequestMapping(value = "/v1/revisao-de-acessos", produces = MediaType.APPLICATION_JSON_VALUE)
-@Tag(name = "Revisão de acessos", description = "Revisão periódica dos papéis elevados")
+@Tag(name = "Revisão de acessos", description = "Revisão periódica dos perfis elevados")
 @PreAuthorize("hasAnyRole('ADM_OM', 'ADM_GER')")
 @RequiredArgsConstructor
 public class RevisaoDeAcessoController {
 
     private final RevisaoDeAcessoService revisaoDeAcessoService;
 
-    // "Manter" (os mesmos papéis) ou "retirar" (um subconjunto): grava a data da revisão e registra na auditoria de acessos.
+    // "Manter" (os mesmos perfis) ou "retirar" (um subconjunto): grava a data da revisão e registra na auditoria de acessos.
     @PostMapping("/{usuarioId}")
     public ResponseEntity<UsuarioResponseDto> revisar(@PathVariable Long usuarioId,
                                                               @RequestBody @Valid RevisaoDeAcessoRequestDto pedido) {
