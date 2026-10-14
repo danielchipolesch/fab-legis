@@ -17,12 +17,18 @@ import intraer.fablegis.infrastructure.repositories.ItemParteFinalRepository;
 import intraer.fablegis.infrastructure.repositories.ItemPartePreliminarRepository;
 import intraer.fablegis.infrastructure.repositories.UsuarioRepository;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
+import intraer.fablegis.domain.entities.notificacao.TipoNotificacaoEnum;
+import intraer.fablegis.domain.entities.usuario.PapelEnum;
+import intraer.fablegis.infrastructure.security.UsuarioPrincipal;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
@@ -40,6 +46,7 @@ import org.mockito.quality.Strictness;
 
 import java.sql.Timestamp;
 import java.time.LocalDate;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
@@ -147,27 +154,27 @@ class DocumentoStatusServiceTest {
     // transição válida nunca falha por dado faltando, e uma inválida só pode falhar pela regra
     // de transição.
     private static DocumentoStatusRequestDto pedidoCompleto(SituacaoLocalEnum destino) {
-        return new DocumentoStatusRequestDto(destino, REVISOR_ID, PUBLICADOR_ID,
+        return new DocumentoStatusRequestDto(destino,
                 "COMAER", "DIRAP", "123", LocalDate.of(2026, 3, 5), 12, LocalDate.of(2026, 3, 6),
                 "{}", "{}", "{}", "{}", "{}", "https://minio/portaria.pdf");
     }
 
     private static DocumentoStatusRequestDto apenas(SituacaoLocalEnum destino) {
-        return new DocumentoStatusRequestDto(destino, null, null, null, null, null, null, null, null,
+        return new DocumentoStatusRequestDto(destino, null, null, null, null, null, null,
                 null, null, null, null, null, null);
     }
 
     // Portaria + BCA + PDF, sem a parte preliminar -- é tudo que uma ALTERAÇÃO ou uma REVOGAÇÃO
     // exigem (a parte preliminar é só da primeira publicação).
     private static DocumentoStatusRequestDto somentePortariaEBca(SituacaoLocalEnum destino) {
-        return new DocumentoStatusRequestDto(destino, null, null,
+        return new DocumentoStatusRequestDto(destino,
                 "COMAER", "DIRAP", "123", LocalDate.of(2026, 3, 5), 12, LocalDate.of(2026, 3, 6),
                 null, null, null, null, null, "https://minio/portaria.pdf");
     }
 
     private static DocumentoStatusRequestDto publicacaoCom(String orgao, String setor, String numero, LocalDate dataPortaria,
                                                             Integer numeroBca, LocalDate dataBca, String epigrafe, String pdf) {
-        return new DocumentoStatusRequestDto(SEM_ETAPA, null, null, orgao, setor, numero, dataPortaria, numeroBca, dataBca,
+        return new DocumentoStatusRequestDto(SEM_ETAPA, orgao, setor, numero, dataPortaria, numeroBca, dataBca,
                 epigrafe, "{}", "{}", "{}", "{}", pdf);
     }
 
@@ -267,13 +274,15 @@ class DocumentoStatusServiceTest {
     void devolverUmaAnaliseDeRevogacaoMantemODocumentoPublicadoESemExigirNada() {
         var doc = documentoEm(PUBLICADO, ANALISE_REVOGACAO);
         var dataPublicacao = doc.getDtPublicacao();
-        doc.setRevisorAtribuido(usuario(REVISOR_ID, "Revisor"));
+        var quemAprovou = usuario(REVISOR_ID, "Quem aprovou o texto");
+        doc.setAprovador(quemAprovou);
 
         assertThatCode(() -> service.changeStatus(DOC_ID, apenas(SEM_ETAPA))).doesNotThrowAnyException();
 
         assertThat(doc.getSituacaoBca()).isEqualTo(PUBLICADO);
         assertThat(doc.getSituacaoLocal()).isEqualTo(SEM_ETAPA);
-        assertThat(doc.getRevisorAtribuido()).isNull();
+        // A análise de revogação encerrou, mas o texto continua aprovado por quem o aprovou.
+        assertThat(doc.getAprovador()).isSameAs(quemAprovou);
         assertThat(doc.getDtPublicacao()).isEqualTo(dataPublicacao);
         verify(portariaPublicacaoService, never()).registrar(any(), any(), any(), any(), any(), any(), any(), any(), any());
         verify(documentoParteNormativaService, never()).salvarItensPreliminares(any(), any());
@@ -317,7 +326,7 @@ class DocumentoStatusServiceTest {
     @Test
     void formalizarARevogacaoTornaODocumentoRevogado() {
         var doc = documentoEm(PUBLICADO, EM_REVOGACAO);
-        doc.setPublicadorAtribuido(usuario(PUBLICADOR_ID, "Publicador"));
+        doc.setPublicador(usuario(PUBLICADOR_ID, "Publicador"));
 
         service.changeStatus(DOC_ID, somentePortariaEBca(SEM_ETAPA));
 
@@ -415,84 +424,116 @@ class DocumentoStatusServiceTest {
         assertThat(doc.getSituacaoBca()).isEqualTo(NAO_PUBLICADO);
     }
 
-    // ─── Atribuição pessoal (revisor / publicador) ───────────────────────────────
+    // ─── Sem atribuição pessoal: qualquer aprovador da OM, qualquer publicador ─────────────────
 
-    @Test
-    void enviarParaRevisaoExigeEscolherORevisor() {
-        documentoEm(NAO_PUBLICADO, MINUTA);
+    private static Usuario comPapel(long id, String nome, PapelEnum papel) {
+        var u = usuario(id, nome);
+        u.setPapeis(EnumSet.of(papel));
+        return u;
+    }
 
-        assertThatThrownBy(() -> service.changeStatus(DOC_ID, apenas(EM_REVISAO)))
-                .isInstanceOf(StatusCannotBeUpdatedException.class)
-                .hasMessage("É obrigatório escolher quem vai revisar.");
+    private void autenticarComo(Usuario u) {
+        var principal = new UsuarioPrincipal(u);
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken(principal, null, principal.getAuthorities()));
+    }
+
+    @AfterEach
+    void limparContexto() {
+        SecurityContextHolder.clearContext();
     }
 
     @Test
-    void enviarParaRevisaoAtribuiONotificaSoAPessoaEscolhida() {
+    void enviarParaAprovacaoNaoEscolheNinguemEAvisaOsAprovadoresDaOm() {
         var doc = documentoEm(NAO_PUBLICADO, MINUTA);
+        var a1 = comPapel(10L, "Aprovador 1", PapelEnum.APR_OM);
+        var a2 = comPapel(11L, "Aprovador 2", PapelEnum.APR_OM);
+        when(usuarioRepository.findByOmIdAndPapel(1L, PapelEnum.APR_OM)).thenReturn(List.of(a1, a2));
 
-        service.changeStatus(DOC_ID, pedidoCompleto(EM_REVISAO));
+        service.changeStatus(DOC_ID, apenas(EM_REVISAO));
 
-        assertThat(doc.getRevisorAtribuido().getId()).isEqualTo(REVISOR_ID);
-        verify(notificacaoService).notificarAtribuicao(eq(REVISOR_ID), eq(DOC_ID), eq("ICA 5-3"), contains("revisão"));
-        verify(notificacaoService, times(1)).notificarAtribuicao(anyLong(), anyLong(), any(), any());
+        assertThat(doc.getSituacaoLocal()).isEqualTo(EM_REVISAO);
+        assertThat(doc.getAprovador()).isNull();
+        verify(notificacaoService).criar(eq(a1), eq(TipoNotificacaoEnum.APROVACAO_PENDENTE), contains("aprovação"), eq(DOC_ID), eq("ICA 5-3"));
+        verify(notificacaoService).criar(eq(a2), eq(TipoNotificacaoEnum.APROVACAO_PENDENTE), contains("aprovação"), eq(DOC_ID), eq("ICA 5-3"));
     }
 
     @Test
-    void pedirAnaliseDeRevogacaoExigeEAtribuiORevisor() {
-        var doc = documentoEm(PUBLICADO, SEM_ETAPA);
-
-        assertThatThrownBy(() -> service.changeStatus(DOC_ID, apenas(ANALISE_REVOGACAO)))
-                .hasMessage("É obrigatório escolher quem vai revisar.");
-
-        service.changeStatus(DOC_ID, pedidoCompleto(ANALISE_REVOGACAO));
-        assertThat(doc.getRevisorAtribuido().getId()).isEqualTo(REVISOR_ID);
-        assertThat(doc.getSituacaoBca()).isEqualTo(PUBLICADO);
-    }
-
-    @Test
-    void revisorInexistenteEhRejeitado() {
+    void quemEnviouNaoEAvisadoDeSuaPropriaAcao() {
         documentoEm(NAO_PUBLICADO, MINUTA);
-        when(usuarioRepository.findById(99L)).thenReturn(Optional.empty());
-        var pedido = new DocumentoStatusRequestDto(EM_REVISAO, 99L, null, null, null, null, null, null, null,
-                null, null, null, null, null, null);
+        var eu = comPapel(10L, "Autor e aprovador", PapelEnum.APR_OM);
+        var outro = comPapel(11L, "Outro aprovador", PapelEnum.APR_OM);
+        when(usuarioRepository.findByOmIdAndPapel(1L, PapelEnum.APR_OM)).thenReturn(List.of(eu, outro));
+        autenticarComo(eu);
 
-        assertThatThrownBy(() -> service.changeStatus(DOC_ID, pedido))
-                .isInstanceOf(StatusCannotBeUpdatedException.class)
-                .hasMessage("Usuário escolhido não encontrado.");
+        service.changeStatus(DOC_ID, apenas(EM_REVISAO));
+
+        verify(notificacaoService, never()).criar(eq(eu), any(), any(), anyLong(), any());
+        verify(notificacaoService).criar(eq(outro), any(), any(), eq(DOC_ID), any());
     }
 
     @Test
-    void aprovarExigeEscolherOPublicador() {
-        documentoEm(NAO_PUBLICADO, EM_REVISAO);
+    void pedirAnaliseDeRevogacaoTambemVaiParaQualquerAprovadorENaoMudaQuemAprovouOTexto() {
+        var doc = documentoEm(PUBLICADO, SEM_ETAPA);
+        var quemAprovou = usuario(30L, "Quem aprovou o texto");
+        doc.setAprovador(quemAprovou);
+        when(usuarioRepository.findByOmIdAndPapel(1L, PapelEnum.APR_OM)).thenReturn(List.of(comPapel(10L, "Aprovador", PapelEnum.APR_OM)));
 
-        assertThatThrownBy(() -> service.changeStatus(DOC_ID, apenas(EM_PUBLICACAO)))
-                .hasMessage("É obrigatório escolher quem vai publicar.");
+        service.changeStatus(DOC_ID, apenas(ANALISE_REVOGACAO));
+
+        assertThat(doc.getSituacaoLocal()).isEqualTo(ANALISE_REVOGACAO);
+        assertThat(doc.getSituacaoBca()).isEqualTo(PUBLICADO);
+        assertThat(doc.getAprovador()).isSameAs(quemAprovou);
+        verify(notificacaoService).criar(any(), eq(TipoNotificacaoEnum.APROVACAO_PENDENTE), contains("aprovação"), eq(DOC_ID), any());
     }
 
     @Test
-    void aprovarVaiDiretoParaEmPublicacaoENotificaOPublicador() {
+    void aprovarRegistraQuemAprovouEAvisaOsPublicadoresDoCendoc() {
         var doc = documentoEm(NAO_PUBLICADO, EM_REVISAO);
+        var aprovador = comPapel(10L, "Aprovador", PapelEnum.APR_OM);
+        var p1 = comPapel(20L, "Publicador 1", PapelEnum.PUB_BCA);
+        var p2 = comPapel(21L, "Publicador 2", PapelEnum.PUB_BCA);
+        when(usuarioRepository.findAtivosByPapel(PapelEnum.PUB_BCA)).thenReturn(List.of(p1, p2));
+        autenticarComo(aprovador);
 
-        service.changeStatus(DOC_ID, pedidoCompleto(EM_PUBLICACAO));
+        service.changeStatus(DOC_ID, apenas(EM_PUBLICACAO));
 
         assertThat(doc.getSituacaoLocal()).isEqualTo(EM_PUBLICACAO);
-        assertThat(doc.getPublicadorAtribuido().getId()).isEqualTo(PUBLICADOR_ID);
+        assertThat(doc.getAprovador()).isSameAs(aprovador);
+        assertThat(doc.getDtAprovacao()).isNotNull();
         verify(documentoHistoricoService).registrar(doc, TipoAlteracaoEnum.ALTERACAO_STATUS,
                 "EM_REVISAO → EM_PUBLICACAO", EM_REVISAO, EM_PUBLICACAO);
-        verify(notificacaoService).notificarAtribuicao(eq(PUBLICADOR_ID), eq(DOC_ID), eq("ICA 5-3"), contains("publicação"));
+        verify(notificacaoService).criar(eq(p1), eq(TipoNotificacaoEnum.APROVACAO_PENDENTE), contains("publicação"), eq(DOC_ID), any());
+        verify(notificacaoService).criar(eq(p2), eq(TipoNotificacaoEnum.APROVACAO_PENDENTE), contains("publicação"), eq(DOC_ID), any());
     }
 
     @Test
-    void aprovarARevogacaoExigeEscolherOPublicador() {
+    void aprovarARevogacaoAvisaOsPublicadoresEPreservaQuemAprovouOTexto() {
         var doc = documentoEm(PUBLICADO, ANALISE_REVOGACAO);
+        var quemAprovou = usuario(30L, "Quem aprovou o texto");
+        doc.setAprovador(quemAprovou);
+        var p1 = comPapel(20L, "Publicador", PapelEnum.PUB_BCA);
+        when(usuarioRepository.findAtivosByPapel(PapelEnum.PUB_BCA)).thenReturn(List.of(p1));
+        autenticarComo(comPapel(10L, "Aprovador da revogação", PapelEnum.APR_OM));
 
-        assertThatThrownBy(() -> service.changeStatus(DOC_ID, apenas(EM_REVOGACAO)))
-                .hasMessage("É obrigatório escolher quem vai publicar a revogação.");
+        service.changeStatus(DOC_ID, apenas(EM_REVOGACAO));
 
-        service.changeStatus(DOC_ID, pedidoCompleto(EM_REVOGACAO));
-        assertThat(doc.getPublicadorAtribuido().getId()).isEqualTo(PUBLICADOR_ID);
+        assertThat(doc.getSituacaoLocal()).isEqualTo(EM_REVOGACAO);
+        assertThat(doc.getAprovador()).isSameAs(quemAprovou);
         assertThat(doc.getDtEmRevogacao()).isNotNull();
-        verify(notificacaoService).notificarAtribuicao(eq(PUBLICADOR_ID), eq(DOC_ID), eq("ICA 5-3"), contains("revogação"));
+        verify(notificacaoService).criar(eq(p1), eq(TipoNotificacaoEnum.APROVACAO_PENDENTE), contains("revogação"), eq(DOC_ID), any());
+    }
+
+    @Test
+    void publicarRegistraQuemPublicou() {
+        var doc = documentoEm(NAO_PUBLICADO, EM_PUBLICACAO);
+        var publicador = comPapel(20L, "Publicador", PapelEnum.PUB_BCA);
+        autenticarComo(publicador);
+
+        service.changeStatus(DOC_ID, publicacaoValida());
+
+        assertThat(doc.getSituacaoBca()).isEqualTo(PUBLICADO);
+        assertThat(doc.getPublicador()).isSameAs(publicador);
     }
 
     static Stream<Arguments> devolucoes() {
@@ -500,22 +541,34 @@ class DocumentoStatusServiceTest {
                 Arguments.of(NAO_PUBLICADO, EM_REVISAO, MINUTA),
                 Arguments.of(NAO_PUBLICADO, EM_PUBLICACAO, MINUTA),
                 Arguments.of(PUBLICADO, EM_REVISAO, EM_ALTERACAO),
-                Arguments.of(PUBLICADO, EM_PUBLICACAO, EM_ALTERACAO),
-                Arguments.of(PUBLICADO, ANALISE_REVOGACAO, SEM_ETAPA));
+                Arguments.of(PUBLICADO, EM_PUBLICACAO, EM_ALTERACAO));
     }
 
-    @ParameterizedTest(name = "devolver {0}+{1} → {2} limpa a atribuição")
+    @ParameterizedTest(name = "devolver {0}+{1} → {2} recomeça sem aprovador nem publicador")
     @MethodSource("devolucoes")
-    void devolverLimpaRevisorEPublicador(SituacaoBcaEnum bca, SituacaoLocalEnum de, SituacaoLocalEnum para) {
+    void devolverLimpaAprovadorEPublicador(SituacaoBcaEnum bca, SituacaoLocalEnum de, SituacaoLocalEnum para) {
         var doc = documentoEm(bca, de);
-        doc.setRevisorAtribuido(usuario(REVISOR_ID, "Revisor"));
-        doc.setPublicadorAtribuido(usuario(PUBLICADOR_ID, "Publicador"));
+        doc.setAprovador(usuario(REVISOR_ID, "Aprovador"));
+        doc.setPublicador(usuario(PUBLICADOR_ID, "Publicador"));
 
         service.changeStatus(DOC_ID, apenas(para));
 
         assertThat(doc.getSituacaoLocal()).isEqualTo(para);
-        assertThat(doc.getRevisorAtribuido()).isNull();
-        assertThat(doc.getPublicadorAtribuido()).isNull();
+        assertThat(doc.getAprovador()).isNull();
+        assertThat(doc.getPublicador()).isNull();
+    }
+
+    // Devolver o PEDIDO de revogação encerra a análise, mas não desfaz a aprovação do texto: a NPA segue dizendo quem a aprovou.
+    @Test
+    void devolverUmaAnaliseDeRevogacaoNaoMexeEmQuemAprovouOTexto() {
+        var doc = documentoEm(PUBLICADO, ANALISE_REVOGACAO);
+        var quemAprovou = usuario(30L, "Quem aprovou o texto");
+        doc.setAprovador(quemAprovou);
+
+        service.changeStatus(DOC_ID, apenas(SEM_ETAPA));
+
+        assertThat(doc.getSituacaoLocal()).isEqualTo(SEM_ETAPA);
+        assertThat(doc.getAprovador()).isSameAs(quemAprovou);
     }
 
     // ─── Publicar: primeira vez x alteração, e a parte preliminar ────────────────
@@ -574,7 +627,7 @@ class DocumentoStatusServiceTest {
             for (var motivo : new String[]{null, "  "}) {
                 var c = new String[]{"{}", "{}", "{}", "{}", "{}"};
                 c[faltante] = motivo;
-                lista.add(new DocumentoStatusRequestDto(SEM_ETAPA, null, null, "COMAER", "DIRAP", "123", d, 12, d,
+                lista.add(new DocumentoStatusRequestDto(SEM_ETAPA, "COMAER", "DIRAP", "123", d, 12, d,
                         c[0], c[1], c[2], c[3], c[4], "u"));
             }
         }

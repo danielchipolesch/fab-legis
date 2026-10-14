@@ -1,5 +1,6 @@
 package intraer.fablegis.domain.services;
 
+import lombok.RequiredArgsConstructor;
 import intraer.fablegis.domain.regras.ElementoNumeracao;
 import intraer.fablegis.application.dtos.anexoDtos.AnexoResponseDto;
 import intraer.fablegis.application.dtos.itemAnexoParteNormativaDtos.ItemAnexoParteNormativaResponseDto;
@@ -9,6 +10,7 @@ import intraer.fablegis.domain.entities.estruturaDocumento.VersaoDocumentoEnum;
 import intraer.fablegis.domain.entities.estruturaDocumento.SituacaoBcaEnum;
 import intraer.fablegis.domain.entities.estruturaDocumento.ElementoEmendaStatusEnum;
 import intraer.fablegis.domain.entities.estruturaDocumento.ItemAnexoParteNormativaTipoEnum;
+import intraer.fablegis.domain.handlers.exceptions.FalhaNaRenderizacaoException;
 import intraer.fablegis.domain.handlers.exceptions.ResourceNotFoundException;
 import intraer.fablegis.domain.regras.RegrasDasEspecies;
 import intraer.fablegis.domain.handlers.exceptions.enums.DocumentoException;
@@ -18,7 +20,6 @@ import intraer.fablegis.infrastructure.repositories.AnexoRepository;
 import intraer.fablegis.infrastructure.repositories.DocumentoRepository;
 import tools.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -43,23 +44,21 @@ import java.util.Set;
 import java.util.regex.Pattern;
 
 @Service
+@RequiredArgsConstructor
 public class DocumentoHtmlService {
 
-    @Autowired
-    private DocumentoRepository documentoRepository;
+    private final DocumentoRepository documentoRepository;
 
-    @Autowired
-    private DocumentoParteNormativaService documentoParteNormativaService;
+    private final DocumentoParteNormativaService documentoParteNormativaService;
 
-    @Autowired
-    private AnexoRepository anexoRepository;
+    private final AnexoRepository anexoRepository;
 
-    @Autowired
-    private ImagemService imagemService;
+    private final ImagemService imagemService;
 
     // O layout do HTML é regra da espécie do documento (ver RegrasDasEspecies).
-    @Autowired
-    private RegrasDasEspecies regras;
+    private final RegrasDasEspecies regras;
+
+    private final DocumentoRenderCacheService renderCacheService;
 
     public String gerarHtml(
             Documento doc,
@@ -95,7 +94,16 @@ public class DocumentoHtmlService {
             // URL presente mas não recuperável (objeto removido/inconsistência): recai
             // na renderização ao vivo em vez de falhar a exportação.
         }
+        // Documento em tramitação sem cópia congelada: mesmo cache do PDF (DocumentoRenderCacheService),
+        // pela mesma regra de consistência entre os dois formatos.
+        var doCache = renderCacheService.buscar(doc, DocumentoRenderCacheService.TipoDeRenderizacao.HTML);
+        if (doCache.isPresent()) {
+            byte[] cacheado = doCache.get();
+            return outputStream -> outputStream.write(cacheado);
+        }
+
         byte[] renderizado = renderHtml(doc).getBytes(StandardCharsets.UTF_8);
+        renderCacheService.salvar(doc, DocumentoRenderCacheService.TipoDeRenderizacao.HTML, renderizado);
         return outputStream -> outputStream.write(renderizado);
     }
 
@@ -110,7 +118,7 @@ public class DocumentoHtmlService {
             String filename = "documento-" + documento.getId() + "-" + Instant.now().toEpochMilli() + ".html";
             return imagemService.uploadHtml(htmlBytes, filename);
         } catch (Exception e) {
-            throw new RuntimeException("Erro ao gerar/armazenar HTML: " + e.getMessage(), e);
+            throw new FalhaNaRenderizacaoException("Erro ao gerar/armazenar HTML: " + e.getMessage(), e);
         }
     }
 

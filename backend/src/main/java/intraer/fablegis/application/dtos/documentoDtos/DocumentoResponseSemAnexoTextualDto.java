@@ -65,14 +65,15 @@ public record DocumentoResponseSemAnexoTextualDto(
         Long omId,
         String omNome,
         String omSigla,
+        String omUrlDistintivo,
 
-        // Ver Documento.revisorAtribuido/publicadorAtribuido -- o frontend usa isso
+        // Ver Documento.aprovador/publicador -- o frontend usa isso
         // pra saber se O USUÁRIO ATUAL pode agir/editar neste momento (ex.: editar
-        // durante EM_REVISAO só se revisorAtribuidoId == id de quem está logado).
-        Long revisorAtribuidoId,
-        String revisorAtribuidoNome,
-        Long publicadorAtribuidoId,
-        String publicadorAtribuidoNome,
+        // durante EM_REVISAO só se aprovadorId == id de quem está logado).
+        Long aprovadorId,
+        String aprovadorNome,
+        Long publicadorId,
+        String publicadorNome,
 
         // Autor OU coautor do documento (ver DocumentoAcessoService.podeEditar) --
         // só preenchido na listagem paginada (DocumentoController.getAll), onde
@@ -84,7 +85,7 @@ public record DocumentoResponseSemAnexoTextualDto(
         // (e não deveria ser) sobre pertencer à mesma OM, ver docs/autenticacao.md.
         Boolean ehAutorOuCoautor,
 
-        // Qual conjunto de regras a espécie segue (CONVENCIONAL, COMUNICACAO_OFICIAL_PADRONIZADA) -- o frontend escolhe o perfil de edição,
+        // Qual conjunto de regras a espécie segue (CONVENCIONAL, COMUNICACAO_OFICIAL_PADRONIZADA) -- o frontend escolhe o papel de edição,
         // prévia e publicação por aqui, nunca pela sigla da espécie.
         String tipoDeEspecie
 ) {

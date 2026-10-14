@@ -2,6 +2,7 @@ package intraer.fablegis.domain.services;
 
 import intraer.fablegis.application.dtos.itemPartePreliminarDtos.ItemPartePreliminarResponseDto;
 import intraer.fablegis.domain.entities.estruturaDocumento.Documento;
+import intraer.fablegis.domain.entities.estruturaDocumento.OrientacaoDoAnexo;
 import intraer.fablegis.domain.entities.estruturaDocumento.SituacaoLocalEnum;
 import intraer.fablegis.domain.entities.estruturaDocumento.ItemAnexoParteNormativaTipoEnum;
 import intraer.fablegis.domain.util.tiptap.TipTapNode;
@@ -64,6 +65,14 @@ final class DocumentoFoContext {
     // flowName: região onde a marca d'água é ancorada ("wm" na maioria das páginas; "wm-continuacao"
     // nas páginas 2+ de um anexo -- ver o master a4-continuacao).
     String buildStaticContentWatermark(String flowName) {
+        return buildStaticContentWatermark(flowName, OrientacaoDoAnexo.RETRATO);
+    }
+
+    // orientacao: a da página em que a marca d'água é desenhada. As coordenadas abaixo são para o centro do A4 retrato
+    // (297 x 421 pt); em paisagem o centro é 421 x 297 pt, então a marca desloca-se (+124 pt à esquerda, -124 pt no topo).
+    String buildStaticContentWatermark(String flowName, OrientacaoDoAnexo orientacao) {
+        String top  = orientacao == OrientacaoDoAnexo.PAISAGEM ? "421pt" : "545pt";
+        String left = orientacao == OrientacaoDoAnexo.PAISAGEM ? "211pt" : "87pt";
         String open  = "<fo:static-content flow-name=\"" + flowName + "\">\n";
         String close = "</fo:static-content>\n";
         // A marca d'água descreve a ETAPA LOCAL da versão em tramitação. A versão VIGENTE (a que
@@ -95,7 +104,7 @@ final class DocumentoFoContext {
         var sb = new StringBuilder();
         sb.append(open);
         sb.append("  <fo:block-container absolute-position=\"fixed\"");
-        sb.append(" top=\"545pt\" left=\"87pt\" width=\"500pt\" height=\"150pt\"");
+        sb.append(" top=\"").append(top).append("\" left=\"").append(left).append("\" width=\"500pt\" height=\"150pt\"");
         sb.append(" overflow=\"visible\"");
         sb.append(" fox:transform=\"rotate(-45)\">\n");
         sb.append("    <fo:block font-size=\"62pt\" font-weight=\"bold\" color=\"").append(color).append("\"");

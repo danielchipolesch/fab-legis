@@ -35,4 +35,11 @@ public class CicloDeVidaDeNpa implements RegrasDoCicloDeVidaDoDocumento {
             case EM_ALTERACAO, CANCELADO -> null;
         });
     }
+
+    // Só uma NPA já publicada e parada (sem etapa em curso: nem pedido de revogação, nem revogação) pode ser substituída.
+    // Já revogada, não: não há mais o que substituir. Em elaboração, edita-se a própria NPA.
+    @Override
+    public boolean podeSerSubstituido(SituacaoLocalEnum atual, SituacaoBcaEnum bca) {
+        return atual == SEM_ETAPA && bca == SituacaoBcaEnum.PUBLICADO;
+    }
 }

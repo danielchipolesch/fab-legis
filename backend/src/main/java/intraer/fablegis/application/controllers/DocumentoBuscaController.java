@@ -1,9 +1,9 @@
 package intraer.fablegis.application.controllers;
 
+import lombok.RequiredArgsConstructor;
 import intraer.fablegis.application.dtos.buscaDtos.ItemBuscaResponseDto;
 import intraer.fablegis.domain.services.DocumentoBuscaService;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.MediaType;
@@ -21,10 +21,10 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping(value = "/v1/documentos/busca", produces = MediaType.APPLICATION_JSON_VALUE)
 @Tag(name = "Busca")
+@RequiredArgsConstructor
 public class DocumentoBuscaController {
 
-    @Autowired
-    private DocumentoBuscaService documentoBuscaService;
+    private final DocumentoBuscaService documentoBuscaService;
 
     @GetMapping
     public Page<ItemBuscaResponseDto> buscar(

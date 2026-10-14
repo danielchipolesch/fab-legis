@@ -8,7 +8,6 @@ import intraer.fablegis.infrastructure.repositories.ItemAnexoParteNormativaRepos
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
-import org.springframework.test.util.ReflectionTestUtils;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
@@ -26,7 +25,7 @@ class CapitulosPadronizadosServiceTest {
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
-    private final CapitulosPadronizadosService service = new CapitulosPadronizadosService();
+    private CapitulosPadronizadosService service;
     private final List<ItemAnexoParteNormativa> salvos = new ArrayList<>();
 
     @BeforeEach
@@ -37,8 +36,7 @@ class CapitulosPadronizadosServiceTest {
             salvos.add(item);
             return item;
         });
-        ReflectionTestUtils.setField(service, "itemAnexoParteNormativaRepository", repositorio);
-        ReflectionTestUtils.setField(service, "objectMapper", MAPPER);
+        service = new CapitulosPadronizadosService(repositorio, MAPPER);
 
         var especie = new EspecieNormativa();
         especie.setSigla("ICA");

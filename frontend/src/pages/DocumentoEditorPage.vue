@@ -50,7 +50,7 @@
 
     <!-- Cabeçalho e assinaturas da NPA (setor emissor, local do fecho, blocos de assinatura em texto livre) -->
     <CamposDaNpaDialog
-      v-if="perfil.ehNpa"
+      v-if="regras.ehNpa"
       v-model="camposNpaDialogOpen"
       :campos="camposNpa"
       :salvando="camposNpaSalvando"
@@ -102,12 +102,12 @@
 
         <q-space />
 
-        <q-btn v-if="perfil.ehNpa" outline color="primary" @click="camposNpaDialogOpen = true">
+        <q-btn v-if="regras.ehNpa" outline color="primary" @click="camposNpaDialogOpen = true">
           <q-icon left name="mdi-table-headers-eye" />
           Cabeçalho e assinaturas
         </q-btn>
 
-        <q-btn v-if="!perfil.ehNpa" round flat color="primary" @click="lc95DialogOpen = true">
+        <q-btn v-if="!regras.ehNpa" round flat color="primary" @click="lc95DialogOpen = true">
           <q-icon name="mdi-help-circle-outline" size="22px" />
           <q-tooltip anchor="bottom middle" self="top middle">Técnica legislativa (LC 95/1998)</q-tooltip>
         </q-btn>
@@ -119,7 +119,7 @@
         </q-btn>
 
         <q-btn
-          v-if="perfil.permiteAlteracao"
+          v-if="regras.permiteAlteracao"
           outline
           color="primary"
           :to="{ name: 'documento-comparar', params: { id: documentoId } }"
@@ -225,7 +225,7 @@
                 @update:model-value="onTituloUpdate"
               />
               <p class="text-caption text-grey-7 q-mt-xs">
-                {{ perfil.ehNpa ? 'O título do capítulo aparece em maiúsculas e o da seção, sublinhado.' : 'O título aparecerá em maiúsculas no documento (NSCA 5-3).' }}
+                {{ regras.ehNpa ? 'O título do capítulo aparece em maiúsculas e o da seção, sublinhado.' : 'O título aparecerá em maiúsculas no documento (NSCA 5-3).' }}
               </p>
             </template>
 
@@ -281,7 +281,7 @@
         <!-- PDF Preview panel -->
         <div class="preview-panel" style="overflow-y:auto; position:relative">
           <NpaPreview
-            v-if="previewMounted && documento && perfil.ehNpa"
+            v-if="previewMounted && documento && regras.ehNpa"
             :documento="documento"
             :campos="camposNpa"
             :selected-element-id="editorStore.selectedElementId"
@@ -311,8 +311,9 @@ import { useQuasar } from 'quasar'
 import { useEditorStore } from '@/stores/editor.js'
 import { useDocumentosStore } from '@/stores/documentos.js'
 import { useAuthStore } from '@/stores/auth.js'
+import { ehAprovadorDaOm } from '@/utils/fluxoDocumento.js'
 import { formatLabel, elementIcon } from '@/utils/numbering.js'
-import { perfilDoDocumento, renumerarElementos, moduloDoDocumento } from '@/perfis/index.js'
+import { regrasDoDocumento, renumerarElementos, moduloDoDocumento } from '@/regras/index.js'
 import { gerarPdf, gerarHtml } from '@/services/pdfService.js'
 import EditorSidebar from '@/components/editor/EditorSidebar.vue'
 import WysiwygEditor from '@/components/editor/WysiwygEditor.vue'
@@ -505,8 +506,8 @@ const selectedElement = computed(() => editorStore.selectedElement)
 
 const isEmAlteracao = computed(() => documento.value?.situacao_local === 'EM_ALTERACAO')
 
-// Editável por posse (RASCUNHO/MINUTA/EM_ALTERACAO) OU por quem foi atribuído como revisor
-// enquanto o documento (ainda NÃO publicado) estiver EM_REVISAO (ver Documento.revisorAtribuido
+// Editável por posse (RASCUNHO/MINUTA/EM_ALTERACAO) OU por qualquer aprovador da OM do documento
+// enquanto o documento (ainda NÃO publicado) estiver EM_REVISAO (ver DocumentoAcessoService.podeEditar
 // no backend). Todas as demais etapas (publicação/revogação em andamento, sem etapa,
 // cancelado) e a revisão de uma alteração de documento PUBLICADO são somente-leitura: o texto
 // vigente só muda por emenda, na etapa EM_ALTERACAO.
@@ -514,7 +515,7 @@ function podeEditarAgora(doc) {
   if (!doc) return false
   const local = doc.situacao_local
   if (local === 'EM_REVISAO') {
-    return doc.situacao_bca !== 'PUBLICADO' && doc.revisor_atribuido_id === String(auth.usuario?.id)
+    return doc.situacao_bca !== 'PUBLICADO' && ehAprovadorDaOm(doc, auth.usuario)
   }
   return ['RASCUNHO', 'MINUTA', 'EM_ALTERACAO'].includes(local)
 }
@@ -587,8 +588,8 @@ async function onReordenarIncluido(elementoId, direcao) {
 // volta pra lá em vez de pro acervo geral -- é de lá que quem está revisando/
 // publicando veio, e é pra lá que faz sentido voltar.
 const ORIGEM_CRUMB = {
-  revisao:    { label: 'Revisão',    to: { name: 'revisao' } },
-  publicacao: { label: 'Publicação', to: { name: 'publicacao' } },
+  revisao:    { label: 'Manter Revisão de Documento',    to: { name: 'revisao' } },
+  publicacao: { label: 'Manter Publicação de Documento', to: { name: 'publicacao' } },
 }
 // Sem origem, o crumb do meio é o módulo a que o documento pertence (a tela inicial dele).
 const moduloCrumb = computed(() => {
@@ -625,23 +626,23 @@ const groupingLabel = computed(() => {
   }
 })
 
-// O que cabe dentro de cada elemento é regra da espécie do documento (perfis/index.js).
-const perfil = computed(() => perfilDoDocumento(documento.value))
+// O que cabe dentro de cada elemento é regra da espécie do documento (regras/index.js).
+const regras = computed(() => regrasDoDocumento(documento.value))
 
 // "Elaborado por" (autor e coautores) e "Aprovado por" (quem aprovou) saem do documento: refaz a leitura quando a coautoria
-// muda (ao fechar o diálogo de compartilhamento) e quando a etapa ou a pessoa escolhida para revisar mudam.
+// muda (ao fechar o diálogo de compartilhamento) e quando a etapa ou quem aprovou mudam.
 watch(compartilharDialogOpen, (aberto) => {
-  if (!aberto && perfil.value.ehNpa && documentoId.value) carregarCamposNpa()
+  if (!aberto && regras.value.ehNpa && documentoId.value) carregarCamposNpa()
 })
 watch(
-  () => [documento.value?.situacao_local, documento.value?.revisor_atribuido_id, documento.value?.data_aprovacao],
-  () => { if (perfil.value.ehNpa && documentoId.value) carregarCamposNpa() },
+  () => [documento.value?.situacao_local, documento.value?.aprovador_id, documento.value?.data_aprovacao],
+  () => { if (regras.value.ehNpa && documentoId.value) carregarCamposNpa() },
 )
 
 
 const childOptions = computed(() => {
   const el = selectedElement.value
-  return el ? perfil.value.filhosPermitidos(el.tipo) : []
+  return el ? regras.value.filhosPermitidos(el.tipo) : []
 })
 
 onMounted(async () => {
@@ -684,7 +685,7 @@ onMounted(async () => {
     if (primeiro) editorStore.selectElement(primeiro.id)
 
     iniciarPresenca()
-    if (perfilDoDocumento(doc).ehNpa) await carregarCamposNpa()
+    if (regrasDoDocumento(doc).ehNpa) await carregarCamposNpa()
   } else {
     editorStore.loadNew()
   }

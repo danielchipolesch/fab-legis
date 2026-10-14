@@ -1,9 +1,9 @@
 package intraer.fablegis.domain.services;
 
+import lombok.RequiredArgsConstructor;
 import intraer.fablegis.domain.entities.estruturaDocumento.Documento;
 import intraer.fablegis.domain.handlers.exceptions.ConflitoEdicaoException;
 import intraer.fablegis.infrastructure.repositories.DocumentoRepository;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.sql.Timestamp;
@@ -26,10 +26,10 @@ import java.time.Instant;
 // (versaoEsperada); se não bater mais com o banco, outra pessoa já salvou
 // primeiro -- 409, front recarrega em vez de sobrescrever silenciosamente.
 @Service
+@RequiredArgsConstructor
 public class DocumentoConcorrenciaService {
 
-    @Autowired
-    private DocumentoRepository documentoRepository;
+    private final DocumentoRepository documentoRepository;
 
     public void checarEAtualizarVersao(Documento documento, Integer versaoEsperada) {
         if (versaoEsperada != null && !versaoEsperada.equals(documento.getVersao())) {

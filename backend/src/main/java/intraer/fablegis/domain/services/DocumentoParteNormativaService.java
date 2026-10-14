@@ -1,5 +1,6 @@
 package intraer.fablegis.domain.services;
 
+import lombok.RequiredArgsConstructor;
 import intraer.fablegis.application.dtos.documentoDtos.DocumentoResponseComAnexoTextualDto;
 import intraer.fablegis.application.dtos.itemAnexoParteNormativaDtos.EventoEstruturaDto;
 import intraer.fablegis.application.dtos.itemAnexoParteNormativaDtos.ItemAnexoParteNormativaRequestDto;
@@ -13,6 +14,7 @@ import intraer.fablegis.domain.entities.estruturaDocumento.*;
 import intraer.fablegis.domain.entities.estruturaDocumento.SituacaoBcaEnum;
 import intraer.fablegis.domain.entities.estruturaDocumento.TipoAlteracaoEnum;
 import intraer.fablegis.domain.handlers.exceptions.InvalidInputException;
+import intraer.fablegis.domain.handlers.exceptions.RegraDeNegocioException;
 import intraer.fablegis.domain.handlers.exceptions.ResourceNotFoundException;
 import intraer.fablegis.domain.mappers.DocumentoMapper;
 import intraer.fablegis.domain.regras.RegrasDasEspecies;
@@ -23,7 +25,6 @@ import intraer.fablegis.infrastructure.repositories.DocumentoRepository;
 import intraer.fablegis.infrastructure.repositories.ItemAnexoParteNormativaRepository;
 import intraer.fablegis.infrastructure.repositories.ItemParteFinalRepository;
 import intraer.fablegis.infrastructure.repositories.ItemPartePreliminarRepository;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -37,35 +38,27 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
+@RequiredArgsConstructor
 public class DocumentoParteNormativaService {
 
-    @Autowired
-    DocumentoRepository documentoRepository;
+    final DocumentoRepository documentoRepository;
 
-    @Autowired
-    ItemAnexoParteNormativaRepository itemAnexoParteNormativaRepository;
+    final ItemAnexoParteNormativaRepository itemAnexoParteNormativaRepository;
 
-    @Autowired
-    ItemPartePreliminarRepository itemPartePreliminarRepository;
+    final ItemPartePreliminarRepository itemPartePreliminarRepository;
 
-    @Autowired
-    ItemParteFinalRepository itemParteFinalRepository;
+    final ItemParteFinalRepository itemParteFinalRepository;
 
-    @Autowired
-    DocumentoHistoricoService documentoHistoricoService;
+    final DocumentoHistoricoService documentoHistoricoService;
 
     // A numeração é regra da espécie do documento (ver RegrasDasEspecies).
-    @Autowired
-    RegrasDasEspecies regras;
+    final RegrasDasEspecies regras;
 
-    @Autowired
-    DocumentoConcorrenciaService concorrenciaService;
+    final DocumentoConcorrenciaService concorrenciaService;
 
-    @Autowired
-    DocumentoPresencaEmitterRegistry presencaEmitterRegistry;
+    final DocumentoPresencaEmitterRegistry presencaEmitterRegistry;
 
-    @Autowired
-    tools.jackson.databind.ObjectMapper objectMapper;
+    final tools.jackson.databind.ObjectMapper objectMapper;
 
     // ─── Carregamento ────────────────────────────────────────────────────────────
 
@@ -104,7 +97,7 @@ public class DocumentoParteNormativaService {
     public List<NumeracaoElementoResponseDto> listarNumeracao(Long documentoId) {
         List<ItemAnexoParteNormativaResponseDto> normativos = getItensNormativosByDocumento(documentoId)
                 .stream().map(ItemAnexoParteNormativaResponseDto::from).toList();
-        return calcularNumeracao(documentoRepository.findById(documentoId).orElseThrow(() -> new RuntimeException("Documento não encontrado")), normativos);
+        return calcularNumeracao(documentoRepository.findById(documentoId).orElseThrow(() -> new ResourceNotFoundException("Documento não encontrado")), normativos);
     }
 
     // Mesmo cálculo acima, mas a partir de uma lista já carregada -- usado por
@@ -121,7 +114,7 @@ public class DocumentoParteNormativaService {
 
     public DocumentoResponseComAnexoTextualDto getDocumentoComAnexoTextualDtoById(Long documentoId) {
         Documento documento = documentoRepository.findById(documentoId)
-                .orElseThrow(() -> new RuntimeException("Documento não encontrado"));
+                .orElseThrow(() -> new ResourceNotFoundException("Documento não encontrado"));
 
         List<ItemPartePreliminarResponseDto> preliminares = getItensPreliminaresByDocumento(documentoId)
                 .stream().map(ItemPartePreliminarResponseDto::from).toList();
@@ -142,14 +135,14 @@ public class DocumentoParteNormativaService {
     @Transactional
     public void salvarSecoes(Long documentoId, SecoesSaveRequestDto request, String clientId) {
         Documento documento = documentoRepository.findById(documentoId)
-                .orElseThrow(() -> new RuntimeException("Documento não encontrado"));
+                .orElseThrow(() -> new ResourceNotFoundException("Documento não encontrado"));
 
         // Um documento PUBLICADO (situação BCA) nunca é reescrito em massa, em nenhuma etapa
         // local (alteração em elaboração, revisão da alteração, aguardando publicação): o texto
         // vigente só muda por emenda, elemento a elemento -- é o que preserva a redação anterior
         // riscada e a numeração (LC 95/1998).
         if (documento.getSituacaoBca() == SituacaoBcaEnum.PUBLICADO) {
-            throw new IllegalStateException(
+            throw new RegraDeNegocioException(
                     "Documento publicado: utilize os endpoints de emenda para modificar elementos "
                     + "individualmente, nunca o salvamento em massa.");
         }
@@ -347,7 +340,7 @@ public class DocumentoParteNormativaService {
 
     public DocumentoResponseComAnexoTextualDto adicionarItemAoDocumento(Long idDocumento, ItemAnexoParteNormativaRequestDto dto) {
         Documento documento = documentoRepository.findById(idDocumento)
-                .orElseThrow(() -> new RuntimeException("Documento não encontrado"));
+                .orElseThrow(() -> new ResourceNotFoundException("Documento não encontrado"));
 
         ItemAnexoParteNormativa novoItem = new ItemAnexoParteNormativa();
         novoItem.setDocumento(documento);
@@ -357,9 +350,9 @@ public class DocumentoParteNormativaService {
 
         if (dto.parentId() != null) {
             ItemAnexoParteNormativa parent = itemAnexoParteNormativaRepository.findById(dto.parentId())
-                    .orElseThrow(() -> new RuntimeException("Item pai não encontrado"));
+                    .orElseThrow(() -> new ResourceNotFoundException("Item pai não encontrado"));
             if (!parent.getDocumento().getId().equals(documento.getId())) {
-                throw new RuntimeException("O item pai não pertence ao mesmo documento!");
+                throw new RegraDeNegocioException("O item pai não pertence ao mesmo documento.");
             }
             novoItem.setParent(parent);
         }

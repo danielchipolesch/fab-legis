@@ -8,6 +8,7 @@ import jakarta.persistence.*;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
+import lombok.ToString;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.springframework.hateoas.RepresentationModel;
@@ -137,20 +138,27 @@ public class Documento extends RepresentationModel<Documento> {
     @JoinColumn(name = "om_id", nullable = false)
     private OrganizacaoMilitar om;
 
+    // Só numa NPA: a NPA publicada que este documento substitui (ação "Substituir"; ver DocumentoService.substituir).
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "substitui_documento_id")
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
+    private Documento documentoSubstituido;
+
     // Pessoa específica (papel APROV) escolhida por quem enviou para revisão -- só ela
     // pode agir no documento enquanto ele estiver em EM_REVISAO/ANALISE_REVOGACAO (ver
     // DocumentoAcessoService.podeMudarStatus). Reaproveitado nas duas etapas de revisão
     // (fluxo normal e revogação), sempre sobrescrito a cada novo envio.
     @ManyToOne(fetch = FetchType.EAGER)
-    @JoinColumn(name = "revisor_atribuido_id")
-    private Usuario revisorAtribuido;
+    @JoinColumn(name = "aprovador_id")
+    private Usuario aprovador;
 
     // Pessoa específica (papel PUBLIC) escolhida pelo APROV ao aprovar -- só ela pode
     // agir no documento enquanto ele estiver em EM_PUBLICACAO/EM_REVOGACAO. Mesmo
-    // padrão de revisorAtribuido, reaproveitado nas duas etapas de publicação.
+    // padrão de aprovador, reaproveitado nas duas etapas de publicação.
     @ManyToOne(fetch = FetchType.EAGER)
-    @JoinColumn(name = "publicador_atribuido_id")
-    private Usuario publicadorAtribuido;
+    @JoinColumn(name = "publicador_id")
+    private Usuario publicador;
 
     @Column(name = "dt_em_revisao")
     private Timestamp dtEmRevisao;

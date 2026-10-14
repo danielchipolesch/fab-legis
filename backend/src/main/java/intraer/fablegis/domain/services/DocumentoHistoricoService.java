@@ -1,22 +1,22 @@
 package intraer.fablegis.domain.services;
 
+import lombok.RequiredArgsConstructor;
 import intraer.fablegis.application.dtos.documentoDtos.DocumentoHistoricoResponseDto;
 import intraer.fablegis.domain.entities.estruturaDocumento.Documento;
 import intraer.fablegis.domain.entities.estruturaDocumento.DocumentoHistorico;
 import intraer.fablegis.domain.entities.estruturaDocumento.SituacaoLocalEnum;
 import intraer.fablegis.domain.entities.estruturaDocumento.TipoAlteracaoEnum;
 import intraer.fablegis.infrastructure.repositories.DocumentoHistoricoRepository;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
 @Service
+@RequiredArgsConstructor
 public class DocumentoHistoricoService {
 
-    @Autowired
-    private DocumentoHistoricoRepository historicoRepository;
+    private final DocumentoHistoricoRepository historicoRepository;
 
     @Transactional
     public void registrar(Documento documento,

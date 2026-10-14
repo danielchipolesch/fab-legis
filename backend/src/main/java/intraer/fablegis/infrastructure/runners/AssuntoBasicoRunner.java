@@ -1,17 +1,17 @@
 package intraer.fablegis.infrastructure.runners;
 
+import lombok.RequiredArgsConstructor;
 import intraer.fablegis.domain.entities.numeracaoDocumento.AssuntoBasico;
 import intraer.fablegis.infrastructure.enums.AssuntoBasicoEnum;
 import intraer.fablegis.infrastructure.repositories.AssuntoBasicoRepository;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 
 @Component
+@RequiredArgsConstructor
 public class AssuntoBasicoRunner implements CommandLineRunner {
 
-    @Autowired
-    AssuntoBasicoRepository assuntoBasicoRepository;
+    final AssuntoBasicoRepository assuntoBasicoRepository;
 
     @Override
     public void run(String... args) throws Exception {

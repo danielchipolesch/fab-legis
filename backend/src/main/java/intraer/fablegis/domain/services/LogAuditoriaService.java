@@ -1,5 +1,6 @@
 package intraer.fablegis.domain.services;
 
+import lombok.RequiredArgsConstructor;
 import intraer.fablegis.application.dtos.auditoriaDtos.LogAuditoriaResponseDto;
 import intraer.fablegis.domain.entities.auditoria.AcaoAuditoriaEnum;
 import intraer.fablegis.domain.entities.auditoria.LogAuditoria;
@@ -7,7 +8,6 @@ import intraer.fablegis.infrastructure.repositories.LogAuditoriaRepository;
 import intraer.fablegis.infrastructure.security.AutenticacaoUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -22,12 +22,12 @@ import java.sql.Timestamp;
 // services. Nunca lança: uma falha ao gravar auditoria não pode derrubar a
 // ação de negócio que está sendo auditada.
 @Service
+@RequiredArgsConstructor
 public class LogAuditoriaService {
 
     private static final Logger log = LoggerFactory.getLogger(LogAuditoriaService.class);
 
-    @Autowired
-    private LogAuditoriaRepository logAuditoriaRepository;
+    private final LogAuditoriaRepository logAuditoriaRepository;
 
     // Nunca lança de verdade: a ação de negócio já foi commitada (própria
     // transação, separada desta) antes de cada chamador chegar aqui -- se a
@@ -52,10 +52,14 @@ public class LogAuditoriaService {
 
     public Page<LogAuditoriaResponseDto> filtrar(
             Long documentoId, Long usuarioId, AcaoAuditoriaEnum acao,
-            Timestamp dataInicio, Timestamp dataFim, Pageable pageable) {
+            Timestamp dataInicio, Timestamp dataFim, Long omIdDoEscopo, Pageable pageable) {
         // Predicate nulo == "sem restrição" pro JPA Criteria API -- substitui
         // Specification.where(null), removido no Spring Data JPA 4/Boot 4.
         Specification<LogAuditoria> spec = (root, query, cb) -> null;
+        // Auditor LOCAL: só as ações de quem é da própria OM (omIdDoEscopo); o geral (CENDOC) passa nulo e vê tudo.
+        if (omIdDoEscopo != null) {
+            spec = spec.and((root, query, cb) -> cb.equal(root.get("usuario").get("om").get("id"), omIdDoEscopo));
+        }
         if (documentoId != null) {
             spec = spec.and((root, query, cb) -> cb.equal(root.get("documentoId"), documentoId));
         }

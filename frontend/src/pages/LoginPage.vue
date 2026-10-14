@@ -21,13 +21,14 @@
              que UsuarioDetailsService.loadUserByUsername espera. -->
         <form :action="`${OAUTH2_BASE_URL}/login`" method="POST" @submit="aoEnviar">
           <input type="hidden" name="username" :value="onlyDigits(cpf)" />
-          <input type="hidden" name="password" :value="senha" />
 
           <div class="column" style="gap:4px">
             <q-input
               :model-value="cpf"
               @update:model-value="val => cpf = mascaraCpf(val)"
               label="CPF"
+              autocomplete="username"
+              inputmode="numeric"
               outlined
               dense
               :rules="[v => !!onlyDigits(v) || 'Informe o CPF', v => validarCpf(v) || 'CPF inválido']"
@@ -41,6 +42,8 @@
             <q-input
               v-model="senha"
               label="Senha"
+              name="password"
+              autocomplete="current-password"
               outlined
               dense
               :type="mostrarSenha ? 'text' : 'password'"
@@ -72,7 +75,14 @@
           </div>
         </form>
       </q-card-section>
+      <q-separator />
+      <q-card-section class="text-center q-py-sm">
+        <router-link :to="{ name: 'manual' }" class="link-manual" data-testid="link-manual">
+          <q-icon name="mdi-book-open-page-variant-outline" size="16px" class="q-mr-xs" />Manual do usuário
+        </router-link>
+      </q-card-section>
     </q-card>
+    <div v-if="versao" class="text-caption text-grey-6 q-mt-sm" data-testid="versao-do-sistema">v{{ versao }}</div>
   </q-page>
 </template>
 
@@ -81,6 +91,7 @@ import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore, OAUTH2_BASE_URL } from '@/stores/auth.js'
 import { validarCpf, mascaraCpf, onlyDigits } from '@/utils/cpf.js'
+import { getVersao } from '@/api/versao.js'
 
 const route = useRoute()
 const auth = useAuthStore()
@@ -107,7 +118,10 @@ const erro = ref(route.query.erro ? 'CPF ou senha inválidos.' : null)
 // "code" nenhum (bug real, já observado em produção local).
 const redirecionando = ref(!route.query.erro && route.query.continuar !== '1')
 
+const versao = ref(null)
+
 onMounted(async () => {
+  getVersao().then(v => { versao.value = v })
   if (!redirecionando.value) return
   // Falsete de segurança: se a navegação de verdade (window.location.href,
   // dentro de iniciarLogin) travar por algum motivo que não lança exceção
@@ -123,7 +137,7 @@ onMounted(async () => {
     // iniciarLogin normalmente NUNCA resolve de fato -- ela navega a página
     // inteira pra fora daqui (window.location.href) antes de retornar. Só
     // chega neste ponto se, por algum motivo, a navegação não aconteceu.
-  } catch (e) {
+  } catch {
     // Sem isso, qualquer falha aqui (ex.: crypto.subtle indisponível no
     // navegador, backend fora do ar) deixava o spinner girando pra sempre,
     // sem nenhum sinal do que deu errado -- exatamente o tipo de falha
@@ -153,16 +167,14 @@ function aoEnviar(event) {
     return
   }
 
-  // Escreve direto nos campos ocultos que realmente são submetidos -- não só
+  // Escreve direto no campo oculto do username (o CPF só com dígitos) que realmente é submetido -- não só
   // via cpf.value/senha.value (a reatividade do Vue só atualiza o DOM no
   // próximo tick, tarde demais: o navegador já estaria submetendo o form com
   // o valor hidden antigo). Isso garante que, mesmo se cpf.value/senha.value
   // estavam desincronizados por causa do autofill, o valor certo (lido do
   // campo visível agora mesmo) é o que efetivamente viaja no POST.
   const hiddenUsername = form.querySelector('input[name=username]')
-  const hiddenPassword = form.querySelector('input[name=password]')
   hiddenUsername.value = cpfDigits
-  hiddenPassword.value = senhaValor
 
   enviando.value = true
   // Sem preventDefault daqui em diante -- o <form> segue com o POST normal
@@ -175,5 +187,13 @@ function aoEnviar(event) {
 .login-page {
   background: var(--color-background, #F4F6FA);
   min-height: 100vh;
+}
+.link-manual {
+  font-size: 13px;
+  color: var(--q-primary);
+  text-decoration: none;
+}
+.link-manual:hover {
+  text-decoration: underline;
 }
 </style>

@@ -1,6 +1,7 @@
 package intraer.fablegis.domain.regras.comunicacaooficialpadronizada;
 
 import intraer.fablegis.domain.regras.CalculadoraDeNumeracaoDosElementos;
+import intraer.fablegis.domain.regras.RegraDeHabilitacaoDaOm;
 import intraer.fablegis.domain.regras.CamposEspecificosDaEspecie;
 import intraer.fablegis.domain.regras.EstruturaInicialDeNovoDocumento;
 import intraer.fablegis.domain.regras.LeiauteDoHtml;
@@ -59,4 +60,6 @@ public class RegrasDeComunicacaoOficialPadronizada implements RegrasDaEspecieNor
     @Override public LeiauteDoPdf leiauteDoPdf() { return leiauteDoPdf; }
     @Override public LeiauteDoHtml leiauteDoHtml() { return leiauteDoHtml; }
     @Override public RegrasDoCicloDeVidaDoDocumento cicloDeVida() { return cicloDeVida; }
+    // Toda OM cria NPA (ver RegraDeHabilitacaoDaOm).
+    @Override public RegraDeHabilitacaoDaOm habilitacao() { return () -> false; }
 }

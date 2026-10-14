@@ -6,6 +6,7 @@
       <span class="figura-prefix">Figura N —&nbsp;</span>
       <input
         class="figura-titulo-input"
+        aria-label="Título da figura"
         :value="node.attrs.titulo"
         placeholder="Descrição da figura"
         @input="updateAttributes({ titulo: $event.target.value })"
@@ -25,6 +26,7 @@
       <span class="figura-prefix">Fonte:&nbsp;</span>
       <input
         class="figura-fonte-input"
+        aria-label="Fonte da figura"
         :value="node.attrs.fonte"
         placeholder="nome/órgão/ano"
         @input="updateAttributes({ fonte: $event.target.value })"

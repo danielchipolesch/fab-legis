@@ -10,9 +10,16 @@
     </parent>
     <groupId>intraer.fablegis</groupId>
     <artifactId>fab-legis</artifactId>
-    <version>0.0.1-SNAPSHOT</version>
+    <version>0.1.0</version> <!-- x-release-please-version -->
     <name>FAB Legis</name>
     <description>Spring Boot project to generate standard documents in HTML and PDF</description>
+    <licenses>
+        <license>
+            <name>GNU General Public License v3.0 or later</name>
+            <url>https://www.gnu.org/licenses/gpl-3.0.txt</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
     <properties>
         <java.version>25</java.version>
         <maven.compiler.source>25</maven.compiler.source>
@@ -77,6 +84,33 @@
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
         </dependency>
+        <!-- Testes de integração (@Tag("integration"), fora do `mvn test` padrão): PostgreSQL real num container
+             (Testcontainers) e MockMvc com a segurança do Spring. Precisam de Docker (ver docs/testes.md). -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-webmvc-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-testcontainers</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>testcontainers-junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>testcontainers-postgresql</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-test</artifactId>
+            <scope>test</scope>
+        </dependency>
         <dependency>
             <groupId>org.springdoc</groupId>
             <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
@@ -99,7 +133,7 @@
         <!-- Observabilidade: /actuator/health corrige o healthcheck que faltava
              pro backend no docker-compose.yml; /actuator/prometheus deixa métricas
              prontas pra qualquer coletor externo Prometheus-compatible, sem acoplar
-             o projeto a um fornecedor (ver docs/instalacao.md, seção "Deploy em
+             o projeto a um fornecedor (ver README.md, seção "Instalação em
              produção"). Nenhum coletor/visualizador (Prometheus/Grafana) sobe como
              parte deste repositório: decisão de infraestrutura de quem hospeda. -->
         <dependency>
@@ -152,6 +186,19 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <goals><goal>build-info</goal></goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <!-- Análise estática (achar bug, não estilo; ver CLAUDE.md/docs/testes.md). Sem <executions>: não roda
+                 dentro de `mvn test`, só quando chamado explicitamente (`mvn spotbugs:spotbugs`) ou pelo CI. Sempre
+                 gera o relatório, nunca falha o build: é o passo "reporta, não bloqueia" combinado com o usuário. -->
+            <plugin>
+                <groupId>com.github.spotbugs</groupId>
+                <artifactId>spotbugs-maven-plugin</artifactId>
+                <version>4.10.4.1</version>
             </plugin>
         </plugins>
     </build>

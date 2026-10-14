@@ -5,6 +5,7 @@
       ref="fileInputRef"
       type="file"
       accept="image/png,image/jpeg,image/gif,image/webp"
+      aria-label="Escolher imagem para inserir no texto"
       style="display:none"
       @change="onFileSelected"
     />
@@ -76,55 +77,19 @@
 
       <q-separator vertical class="q-mx-xs" style="height:24px" />
 
-      <!-- Table insertion -->
+      <!-- Inserção de tabela: abre o diálogo (linhas, colunas e cabeçalho). A edição da tabela já inserida
+           (linhas, colunas, mesclar/dividir, cabeçalho, excluir) fica no menu flutuante abaixo. -->
       <q-btn
         outline
         size="sm"
         color="primary"
-        @click="editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()"
+        :disable="props.readonly"
+        @click="abrirDialogoTabela"
       >
         <q-icon left name="mdi-table-plus" />
         Tabela
+        <q-tooltip anchor="top middle" self="bottom middle">Inserir tabela</q-tooltip>
       </q-btn>
-
-      <!-- Edição de estrutura da tabela: só aparece com o cursor dentro de uma
-           tabela -- os comandos (addRowAfter, deleteTable etc.) são nativos do
-           @tiptap/extension-table, a UI é a única parte que faltava. Também
-           checa !readonly explicitamente (os outros botões da toolbar não
-           checam, um gap pré-existente fora do escopo desta mudança) porque
-           comandos do editor rodam mesmo com a view não-editável -- `editable`
-           só bloqueia digitação/clique nativos no ProseMirror, não uma
-           chamada direta a editor.commands.*, então sem isto alguém em modo
-           leitura conseguiria excluir linha/coluna/tabela pela toolbar. -->
-      <template v-if="editor.isActive('table') && !props.readonly">
-        <q-btn-group outline>
-          <q-btn outline color="primary" size="sm" icon="mdi-table-row-plus-before" @click="editor.chain().focus().addRowBefore().run()" :disable="!editor.can().addRowBefore()">
-            <q-tooltip anchor="top middle" self="bottom middle">Inserir linha acima</q-tooltip>
-          </q-btn>
-          <q-btn outline color="primary" size="sm" icon="mdi-table-row-plus-after" @click="editor.chain().focus().addRowAfter().run()" :disable="!editor.can().addRowAfter()">
-            <q-tooltip anchor="top middle" self="bottom middle">Inserir linha abaixo</q-tooltip>
-          </q-btn>
-          <q-btn outline color="negative" size="sm" icon="mdi-table-row-remove" @click="editor.chain().focus().deleteRow().run()" :disable="!editor.can().deleteRow()">
-            <q-tooltip anchor="top middle" self="bottom middle">Excluir linha</q-tooltip>
-          </q-btn>
-        </q-btn-group>
-
-        <q-btn-group outline>
-          <q-btn outline color="primary" size="sm" icon="mdi-table-column-plus-before" @click="editor.chain().focus().addColumnBefore().run()" :disable="!editor.can().addColumnBefore()">
-            <q-tooltip anchor="top middle" self="bottom middle">Inserir coluna à esquerda</q-tooltip>
-          </q-btn>
-          <q-btn outline color="primary" size="sm" icon="mdi-table-column-plus-after" @click="editor.chain().focus().addColumnAfter().run()" :disable="!editor.can().addColumnAfter()">
-            <q-tooltip anchor="top middle" self="bottom middle">Inserir coluna à direita</q-tooltip>
-          </q-btn>
-          <q-btn outline color="negative" size="sm" icon="mdi-table-column-remove" @click="editor.chain().focus().deleteColumn().run()" :disable="!editor.can().deleteColumn()">
-            <q-tooltip anchor="top middle" self="bottom middle">Excluir coluna</q-tooltip>
-          </q-btn>
-        </q-btn-group>
-
-        <q-btn outline color="negative" size="sm" icon="mdi-table-remove" @click="editor.chain().focus().deleteTable().run()">
-          <q-tooltip anchor="top middle" self="bottom middle">Excluir tabela</q-tooltip>
-        </q-btn>
-      </template>
 
       <q-separator vertical class="q-mx-xs" style="height:24px" />
 
@@ -141,6 +106,118 @@
         <q-tooltip anchor="top middle" self="bottom middle">Inserir imagem (PNG, JPEG, GIF, WebP)</q-tooltip>
       </q-btn>
     </div>
+
+    <!-- Menu flutuante da tabela: aparece junto ao cursor quando ele está dentro de uma tabela. Checa !readonly
+         explicitamente porque os comandos do editor rodam mesmo com a view não-editável (`editable` só bloqueia a
+         digitação/clique nativos, não uma chamada direta a editor.commands.*). Os comandos são nativos do
+         @tiptap/extension-table. -->
+    <bubble-menu
+      v-if="editor && !props.readonly"
+      :editor="editor"
+      plugin-key="menuDaTabela"
+      :should-show="({ editor: ed }) => ed.isEditable && ed.isActive('table')"
+      :tippy-options="{ placement: 'top', maxWidth: 'none', duration: 100, getReferenceClientRect: retanguloDaTabela }"
+      class="menu-tabela"
+    >
+      <q-btn-group flat>
+        <q-btn flat dense size="sm" icon="mdi-table-row-plus-before" @click="editor.chain().focus().addRowBefore().run()" :disable="!editor.can().addRowBefore()">
+          <q-tooltip>Inserir linha acima</q-tooltip>
+        </q-btn>
+        <q-btn flat dense size="sm" icon="mdi-table-row-plus-after" @click="editor.chain().focus().addRowAfter().run()" :disable="!editor.can().addRowAfter()">
+          <q-tooltip>Inserir linha abaixo</q-tooltip>
+        </q-btn>
+        <q-btn flat dense size="sm" color="negative" icon="mdi-table-row-remove" @click="editor.chain().focus().deleteRow().run()" :disable="!editor.can().deleteRow()">
+          <q-tooltip>Excluir linha</q-tooltip>
+        </q-btn>
+      </q-btn-group>
+      <q-btn-group flat>
+        <q-btn flat dense size="sm" icon="mdi-table-column-plus-before" @click="editor.chain().focus().addColumnBefore().run()" :disable="!editor.can().addColumnBefore()">
+          <q-tooltip>Inserir coluna à esquerda</q-tooltip>
+        </q-btn>
+        <q-btn flat dense size="sm" icon="mdi-table-column-plus-after" @click="editor.chain().focus().addColumnAfter().run()" :disable="!editor.can().addColumnAfter()">
+          <q-tooltip>Inserir coluna à direita</q-tooltip>
+        </q-btn>
+        <q-btn flat dense size="sm" color="negative" icon="mdi-table-column-remove" @click="editor.chain().focus().deleteColumn().run()" :disable="!editor.can().deleteColumn()">
+          <q-tooltip>Excluir coluna</q-tooltip>
+        </q-btn>
+      </q-btn-group>
+      <q-btn-group flat>
+        <q-btn flat dense size="sm" icon="mdi-table-merge-cells" @click="editor.chain().focus().mergeCells().run()" :disable="!editor.can().mergeCells()">
+          <q-tooltip>Mesclar células (selecione várias arrastando)</q-tooltip>
+        </q-btn>
+        <q-btn flat dense size="sm" icon="mdi-table-split-cell" @click="editor.chain().focus().splitCell().run()" :disable="!editor.can().splitCell()">
+          <q-tooltip>Dividir célula mesclada</q-tooltip>
+        </q-btn>
+      </q-btn-group>
+      <q-btn-group flat>
+        <q-btn flat dense size="sm" icon="mdi-table-row" @click="editor.chain().focus().toggleHeaderRow().run()" :disable="!editor.can().toggleHeaderRow()">
+          <q-tooltip>Linha de cabeçalho (liga/desliga a primeira linha)</q-tooltip>
+        </q-btn>
+        <q-btn flat dense size="sm" icon="mdi-table-column" @click="editor.chain().focus().toggleHeaderColumn().run()" :disable="!editor.can().toggleHeaderColumn()">
+          <q-tooltip>Coluna de cabeçalho (liga/desliga a primeira coluna)</q-tooltip>
+        </q-btn>
+        <q-btn flat dense size="sm" icon="mdi-table-headers-eye" @click="editor.chain().focus().toggleHeaderCell().run()" :disable="!editor.can().toggleHeaderCell()">
+          <q-tooltip>Célula de cabeçalho (liga/desliga a célula selecionada)</q-tooltip>
+        </q-btn>
+      </q-btn-group>
+      <q-btn-group flat>
+        <q-btn-dropdown flat dense size="sm" icon="mdi-table-large" auto-close>
+          <q-tooltip>Estilo da tabela</q-tooltip>
+          <q-list dense style="min-width: 220px">
+            <q-item-label header>Estilo</q-item-label>
+            <q-item v-for="e in ESTILOS_DE_TABELA" :key="e.valor" clickable
+                    :active="editor.getAttributes('table').estilo === e.valor"
+                    @click="editor.chain().focus().updateAttributes('table', { estilo: e.valor }).run()">
+              <q-item-section>{{ e.rotulo }}</q-item-section>
+            </q-item>
+            <q-separator />
+            <q-item-label header>Cor</q-item-label>
+            <q-item v-for="c in CORES_DE_TABELA" :key="c.valor" clickable
+                    :active="editor.getAttributes('table').cor === c.valor"
+                    @click="editor.chain().focus().updateAttributes('table', { cor: c.valor }).run()">
+              <q-item-section avatar>
+                <span class="amostra-cor" :style="{ background: c.cabecalho, borderColor: c.borda }" />
+              </q-item-section>
+              <q-item-section>{{ c.rotulo }}</q-item-section>
+            </q-item>
+          </q-list>
+        </q-btn-dropdown>
+        <q-btn flat dense size="sm" icon="mdi-format-color-fill">
+          <q-tooltip>Cor de fundo da célula (selecione as células)</q-tooltip>
+          <q-popup-proxy>
+            <q-color :model-value="fundoDaCelula()" no-header-tabs format-model="hex" default-view="palette"
+                     @change="v => editor.chain().focus().setCellAttribute('fundo', v).run()" />
+            <q-btn flat dense label="Sem cor" class="full-width" @click="editor.chain().focus().setCellAttribute('fundo', null).run()" v-close-popup />
+          </q-popup-proxy>
+        </q-btn>
+        <q-btn v-for="a in ALINHAMENTOS_VERTICAIS" :key="a.valor" flat dense size="sm" :icon="a.icone"
+               :color="alinhamentoVerticalDaCelula() === a.valor ? 'primary' : undefined"
+               @click="editor.chain().focus().setCellAttribute('alinhamentoVertical', a.valor).run()">
+          <q-tooltip>Alinhar {{ a.rotulo.toLowerCase() }} na célula</q-tooltip>
+        </q-btn>
+      </q-btn-group>
+      <q-btn flat dense size="sm" color="negative" icon="mdi-table-remove" @click="editor.chain().focus().deleteTable().run()">
+        <q-tooltip>Excluir tabela</q-tooltip>
+      </q-btn>
+    </bubble-menu>
+
+    <!-- Diálogo de inserção de tabela -->
+    <q-dialog v-model="dialogoTabela">
+      <q-card style="min-width: 320px">
+        <q-card-section class="text-h6">Inserir tabela</q-card-section>
+        <q-card-section class="column q-gutter-md">
+          <q-input v-model.number="novaTabela.linhas" type="number" label="Linhas" outlined dense :min="1" :max="30"
+                   :rules="[v => (v >= 1 && v <= 30) || 'De 1 a 30 linhas']" />
+          <q-input v-model.number="novaTabela.colunas" type="number" label="Colunas" outlined dense :min="1" :max="10"
+                   :rules="[v => (v >= 1 && v <= 10) || 'De 1 a 10 colunas']" />
+          <q-checkbox v-model="novaTabela.cabecalho" label="Primeira linha é cabeçalho" />
+        </q-card-section>
+        <q-card-actions align="right">
+          <q-btn flat label="Cancelar" v-close-popup />
+          <q-btn color="primary" label="Inserir" :disable="!novaTabelaValida" @click="inserirTabela" />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
 
     <!-- Editor content area -->
     <div class="wysiwyg-content">
@@ -160,8 +237,8 @@ let focoPendente = false
 </script>
 
 <script setup>
-import { ref, watch, onBeforeUnmount } from 'vue'
-import { useEditor, EditorContent } from '@tiptap/vue-3'
+import { ref, computed, watch, onBeforeUnmount } from 'vue'
+import { useEditor, EditorContent, BubbleMenu } from '@tiptap/vue-3'
 import Collaboration from '@tiptap/extension-collaboration'
 import CollaborationCursor from '@tiptap/extension-collaboration-cursor'
 import { HocuspocusProvider } from '@hocuspocus/provider'
@@ -170,6 +247,7 @@ import { useAuthStore } from '@/stores/auth.js'
 import { useQuasar } from 'quasar'
 import { primeMinioUrlCache } from '@/utils/minioUrls.js'
 import { caixaAlta } from '@/utils/texto.js'
+import { ESTILOS_DE_TABELA, CORES_DE_TABELA, ALINHAMENTOS_VERTICAIS } from '@/utils/estiloDeTabela.js'
 
 // Throttle simples (leading+trailing): a primeira chamada roda na hora, chamadas
 // subsequentes dentro da janela viram uma única execução ao final dela -- garante
@@ -228,6 +306,43 @@ const $q = useQuasar()
 const authStore = useAuthStore()
 const fileInputRef = ref(null)
 const uploadando = ref(false)
+
+// Diálogo de inserção de tabela (linhas, colunas e cabeçalho), no lugar do 3×3 fixo.
+const dialogoTabela = ref(false)
+const novaTabela = ref({ linhas: 3, colunas: 3, cabecalho: true })
+const novaTabelaValida = computed(() => {
+  const { linhas, colunas } = novaTabela.value
+  return Number.isInteger(linhas) && linhas >= 1 && linhas <= 30 && Number.isInteger(colunas) && colunas >= 1 && colunas <= 10
+})
+function abrirDialogoTabela() {
+  novaTabela.value = { linhas: 3, colunas: 3, cabecalho: true }
+  dialogoTabela.value = true
+}
+function inserirTabela() {
+  if (!novaTabelaValida.value || !editor.value) return
+  const { linhas, colunas, cabecalho } = novaTabela.value
+  editor.value.chain().focus().insertTable({ rows: linhas, cols: colunas, withHeaderRow: cabecalho }).run()
+  dialogoTabela.value = false
+}
+
+// Cor e alinhamento vertical da célula onde está o cursor (para marcar o botão ativo / abrir o seletor na cor atual).
+// Funções (não computed) porque dependem do estado do editor, que muda a cada transação.
+function celulaAtual() {
+  const ed = editor.value
+  if (!ed) return {}
+  return ed.isActive('tableHeader') ? ed.getAttributes('tableHeader') : ed.getAttributes('tableCell')
+}
+
+// O menu flutuante fica acima da tabela inteira (incluindo o título), não do cursor -- senão, numa célula da primeira linha,
+// ele cobriria o título.
+function retanguloDaTabela() {
+  const ed = editor.value
+  const no = ed.view.domAtPos(ed.state.selection.from).node
+  const el = (no.nodeType === 1 ? no : no.parentElement)?.closest('.doc-tabela')
+  return (el ?? ed.view.dom).getBoundingClientRect()
+}
+function fundoDaCelula() { return celulaAtual().fundo ?? '#ffffff' }
+function alinhamentoVerticalDaCelula() { return celulaAtual().alinhamentoVertical ?? 'top' }
 
 function parseContent(val) {
   if (!val) return null
@@ -537,13 +652,27 @@ async function onFileSelected(event) {
 }
 .tiptap-editor .ProseMirror table td,
 .tiptap-editor .ProseMirror table th {
-  border: 1px solid #ccc;
   padding: 6px 10px;
   min-width: 80px;
 }
 .tiptap-editor .ProseMirror table th {
-  background: rgba(11, 61, 145, 0.08);
   font-weight: bold;
+}
+/* Células selecionadas por arraste (CellSelection do prosemirror-tables), prontas para "Mesclar células". */
+.tiptap-editor .ProseMirror .selectedCell {
+  background: rgba(11, 61, 145, 0.18) !important;
+}
+/* Menu flutuante da tabela (BubbleMenu) -- fica fora do .wysiwyg-wrapper (tippy anexa ao body). */
+.menu-tabela {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  align-items: center;
+  padding: 2px 4px;
+  background: #fff;
+  border: 1px solid rgba(0, 0, 0, 0.18);
+  border-radius: 6px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.18);
 }
 .tiptap-editor .ProseMirror-focused {
   outline: none;

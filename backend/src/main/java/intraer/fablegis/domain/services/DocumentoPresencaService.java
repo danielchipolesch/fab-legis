@@ -1,11 +1,11 @@
 package intraer.fablegis.domain.services;
 
+import lombok.RequiredArgsConstructor;
 import intraer.fablegis.domain.entities.usuario.Usuario;
 import intraer.fablegis.domain.handlers.exceptions.ResourceNotFoundException;
 import intraer.fablegis.infrastructure.notificacao.DocumentoPresencaEmitterRegistry;
 import intraer.fablegis.infrastructure.repositories.DocumentoRepository;
 import intraer.fablegis.infrastructure.security.AutenticacaoUtil;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
@@ -19,10 +19,11 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 // isso é responsabilidade de DocumentoConcorrenciaService (checagem de
 // versão), uma peça deliberadamente separada.
 @Service
+@RequiredArgsConstructor
 public class DocumentoPresencaService {
 
-    @Autowired private DocumentoRepository documentoRepository;
-    @Autowired private DocumentoPresencaEmitterRegistry emitterRegistry;
+    private final DocumentoRepository documentoRepository;
+    private final DocumentoPresencaEmitterRegistry emitterRegistry;
 
     public SseEmitter conectar(Long documentoId) {
         if (!documentoRepository.existsById(documentoId)) {

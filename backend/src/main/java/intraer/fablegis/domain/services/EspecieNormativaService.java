@@ -1,5 +1,6 @@
 package intraer.fablegis.domain.services;
 
+import lombok.RequiredArgsConstructor;
 import intraer.fablegis.domain.handlers.exceptions.ResourceAlreadyExistsException;
 import intraer.fablegis.domain.handlers.exceptions.ResourceNotFoundException;
 import intraer.fablegis.domain.handlers.exceptions.enums.EspecieNormativaException;
@@ -8,7 +9,6 @@ import intraer.fablegis.application.dtos.especieNormativaDtos.EspecieNormativaRe
 import intraer.fablegis.application.dtos.especieNormativaDtos.EspecieNormativaRequestUpdateDto;
 import intraer.fablegis.domain.entities.numeracaoDocumento.EspecieNormativa;
 import intraer.fablegis.infrastructure.repositories.EspecieNormativaRepository;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -16,12 +16,12 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 
 @Service
+@RequiredArgsConstructor
 public class EspecieNormativaService {
 
-    @Autowired
-    EspecieNormativaRepository especieNormativaRepository;
+    final EspecieNormativaRepository especieNormativaRepository;
 
-    public EspecieNormativaResponseDto create(EspecieNormativaRequestCreateDto request) throws Exception {
+    public EspecieNormativaResponseDto create(EspecieNormativaRequestCreateDto request) {
 
         if(especieNormativaRepository.existsBySigla(request.getSigla())){
             throw new ResourceAlreadyExistsException(EspecieNormativaException.ALREADY_EXISTS.getMessage());
@@ -36,7 +36,7 @@ public class EspecieNormativaService {
     }
 
 
-    public EspecieNormativaResponseDto update(Long id, EspecieNormativaRequestUpdateDto request) throws Exception {
+    public EspecieNormativaResponseDto update(Long id, EspecieNormativaRequestUpdateDto request) {
 
         EspecieNormativa especieNormativa = especieNormativaRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException(EspecieNormativaException.NOT_FOUND.getMessage()));
 
@@ -49,7 +49,7 @@ public class EspecieNormativaService {
         return toDto(especieNormativa);
     }
 
-    public EspecieNormativaResponseDto delete(Long id) throws Exception {
+    public EspecieNormativaResponseDto delete(Long id) {
 
         EspecieNormativa especieNormativa = especieNormativaRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException(EspecieNormativaException.NOT_FOUND.getMessage()));
 
@@ -58,13 +58,13 @@ public class EspecieNormativaService {
         return toDto(especieNormativa);
     }
 
-    public EspecieNormativaResponseDto getById(Long id) throws Exception {
+    public EspecieNormativaResponseDto getById(Long id) {
         EspecieNormativa especieNormativa = especieNormativaRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException(EspecieNormativaException.NOT_FOUND.getMessage()));
         return toDto(especieNormativa);
     }
 
-    public List<EspecieNormativaResponseDto> getAll(Pageable pageable) throws Exception {
+    public List<EspecieNormativaResponseDto> getAll(Pageable pageable) {
         Page<EspecieNormativa> especiesNormativas = especieNormativaRepository.findAll(pageable);
         return especiesNormativas.stream().map(this::toDto).toList();
     }

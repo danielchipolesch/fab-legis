@@ -19,14 +19,16 @@ Endpoints padrão do Spring Authorization Server (`AuthorizationServerConfig`), 
 
 | Método | Rota | Descrição |
 |---|---|---|
-| `POST` | `/` | Cria documento já com a estrutura inicial da espécie. Ato normativo: exige `idAssuntoBasico` (calcula o número secundário) e nasce com os [capítulos padronizados da NSCA 5-3](dominio.md#capitulos-padronizados-nsca-5-3). [NPA](dominio.md#npa-norma-padrao-de-acao): exige `identificacao` (texto livre), não usa assunto básico e nasce com a estrutura do Anexo XII |
+| `POST` | `/` | Cria documento já com a estrutura inicial da espécie. Ato normativo: exige `idAssuntoBasico` (calcula o número secundário) e nasce com os [capítulos padronizados da NSCA 5-3](dominio.md#capítulos-padronizados-nsca-5-3). [NPA](dominio.md#npa--norma-padrão-de-ação): exige `identificacao` (texto livre), não usa assunto básico e nasce com a estrutura do Anexo XII |
 | `POST` | `/{id}/clonar` | Clona o documento em novo `RASCUNHO` |
-| `GET` | `/{id}` | Obtém documento com anexo textual + links HATEOAS — inclui `numeracao` (capítulo/seção/subseção/artigo já calculados pelo servidor, ver [Modelo de Domínio](dominio.md#numeracao-automatica-conforme-a-tecnica-legislativa)) |
+| `POST` | `/{id}/substituir` | **NPA publicada** e sem etapa em curso (`ELB`; OM habilitada, se a espécie pedir): cria a NPA nova em `RASCUNHO`, ligada à substituída. Espécie convencional, NPA não publicada, em revogação ou revogada, ou já com substituta → 4xx. Ver [Substituir](dominio.md#substituir) |
+| `GET` | `/{id}/substituicao` | Os dois lados da ligação: `{ substitui, substituidoPor }` (cada um `{ id, identificacao, titulo, situacaoLocal, situacaoBca }` ou `null`) |
+| `GET` | `/{id}` | Obtém documento com anexo textual + links HATEOAS — inclui `numeracao` (capítulo/seção/subseção/artigo já calculados pelo servidor, ver [Modelo de Domínio](dominio.md#numeração-automática-conforme-a-técnica-legislativa)) |
 | `GET` | `/obter-todos` | Lista paginada (DTO enxuto, sem os itens da árvore); filtros `aba`, `busca`, `tipoDeEspecie` (o módulo: `CONVENCIONAL` ou `COMUNICACAO_OFICIAL_PADRONIZADA`), `especieSigla`, `situacaoBca`, `situacaoLocal`. Cada item traz `situacaoBca` e `situacaoLocal`. `GET /resumo` devolve as contagens `porAba`, `porSituacaoBca` e `porSituacaoLocal` |
 | `GET` | `/filtrar` | Filtra por espécie normativa e assunto básico |
 | `GET` | `/busca?q=&page=&size=` | Busca full-text no **conteúdo** dos dispositivos (`tsvector`/PostgreSQL, ver [Funcionalidades](funcionalidades.md#busca-textual)) — resultado paginado por dispositivo (não por documento), com trecho destacado |
 | `PUT` | `/{id}` | Atualiza metadados (somente Rascunho/Minuta, autor/coautor). `identificacao` (o código do documento) só é aceita numa NPA e em Rascunho/Minuta; nas convencionais um valor diferente do atual é recusado |
-| `PATCH` | `/{id}/status` | Muda a **Situação Local** (corpo: `situacaoLocal` + `revisorId`/`publicadorId` conforme a etapa; `SEM_ETAPA` = concluir a etapa em curso). Transição validada e autorizada por papel; publicar/revogar registram Portaria+BCA (a parte preliminar só na 1ª publicação) — ou, numa NPA, só `numeroBoletimInterno` + `dataBoletimInterno` e são os únicos a mudar a Situação BCA — ver [Ciclo de Vida](ciclo-de-vida.md) |
+| `PATCH` | `/{id}/status` | Muda a **Situação Local** (corpo: `situacaoLocal` (sem escolher pessoa: "enviar para aprovação" e "aprovar" valem para qualquer aprovador da OM e qualquer publicador); `SEM_ETAPA` = concluir a etapa em curso). Transição validada e autorizada por papel; publicar/revogar registram Portaria+BCA (a parte preliminar só na 1ª publicação) — ou, numa NPA, só `numeroBoletimInterno` + `dataBoletimInterno` e são os únicos a mudar a Situação BCA — ver [Ciclo de Vida](ciclo-de-vida.md) |
 | `GET` | `/{id}/pdf?versao=` | `/{id}/html?versao=` | PDF/HTML do documento. `versao=VIGENTE` (a da Situação BCA, armazenada) ou `TRAMITACAO` (a da etapa local em curso); sem o parâmetro, a em tramitação se houver, senão a vigente. `404` se a versão pedida não existe |
 | `PATCH` | `/{id}/secoes` | Salva a árvore de seções por *diff* contra o que já está persistido (checagem de versão) — nunca reescreve `conteudo` de elemento existente, criado/atualizado/excluído propagam via SSE (`event: estrutura`); resposta é `{ itens, numeracao }`, não só a árvore |
 | `PATCH` | `/{id}/elementos/{elementoId}/conteudo` | Grava só o `conteudo` de um elemento — usado pelo serviço `collab` a cada persistência da edição colaborativa |
@@ -34,8 +36,9 @@ Endpoints padrão do Spring Authorization Server (`AuthorizationServerConfig`), 
 | `PUT` | `/{idDocumento}/adicionar-item-anexo-parte-textual` | Adiciona item à parte normativa |
 | `GET` | `/{id}/numeracao` | Numeração calculada da parte normativa |
 | `GET` | `/{id}/pdf` | Gera o PDF oficial do documento sob demanda (Apache FOP) |
-| `GET` | `/{id}/html` | Gera o HTML oficial do documento sob demanda (regras da NSCA 5-3 para a versão eletrônica — ver [Exportação HTML](exportacao-pdf.md#exportacao-html)) |
+| `GET` | `/{id}/html` | Gera o HTML oficial do documento sob demanda (regras da NSCA 5-3 para a versão eletrônica — ver [Exportação HTML](exportacao-pdf.md#exportação-html)) |
 | `GET` | `/{id}/portarias` | Lista todas as portarias registradas do documento (edição, alterações numeradas, revogação) |
+| `POST` | `/{id}/portaria-pdf` | Sobe o PDF da portaria (multipart `arquivo`) antes de confirmar a publicação/revogação; só devolve a URL, não grava nada no documento. Só um **publicador** (CENDOC), com o documento em `EM_PUBLICACAO` ou `EM_REVOGACAO` (`403` nas demais situações) — ver [Autenticação](autenticacao.md) |
 | `DELETE` | `/{id}` | Remove o documento e seus itens em cascata (somente Rascunho/Minuta, autor/coautor) |
 | `GET`/`POST` | `/{id}/compartilhamentos` | Lista ou adiciona um coautor (só o autor) |
 | `DELETE` | `/{id}/compartilhamentos/{usuarioId}` | Remove um coautor (só o autor) |
@@ -55,7 +58,7 @@ Endpoints padrão do Spring Authorization Server (`AuthorizationServerConfig`), 
 
 ## NPA — `/v1/documentos/{id}/npa`
 
-Campos do cabeçalho e do fecho que só a [NPA](dominio.md#npa-norma-padrao-de-acao) tem. Documento de outra espécie responde `404`.
+Campos do cabeçalho e do fecho que só a [NPA](dominio.md#npa--norma-padrão-de-ação) tem. Documento de outra espécie responde `404`.
 
 | Método | Rota | Descrição |
 |---|---|---|
@@ -69,7 +72,7 @@ Os quatro cards do hub, de qualquer módulo; qualquer usuário autenticado. Devo
 | Método | Rota | Descrição |
 |---|---|---|
 | `GET` | `/minhas-em-tramitacao` | Meus documentos (autoria ou coautoria) em etapa de trabalho |
-| `GET` | `/aguardando-acao` | Documentos atribuídos a mim como revisor (`EM_REVISAO`, `ANALISE_REVOGACAO`) ou publicador (`EM_PUBLICACAO`, `EM_REVOGACAO`) |
+| `GET` | `/aguardando-acao` | O que espera a minha decisão: como aprovador, o que está em revisão (`EM_REVISAO`, `ANALISE_REVOGACAO`) **na minha OM**; como publicador, o que está em publicação (`EM_PUBLICACAO`, `EM_REVOGACAO`) de qualquer OM |
 | `GET` | `/em-tramitacao-de-outros` | Documentos em etapa de trabalho, de qualquer OM, dos quais não sou autor nem coautor (só visualização) |
 | `GET` | `/publicados-e-revogados` | `PUBLICADO` e `REVOGADO` sem tramitação (`SEM_ETAPA`), de todas as OMs |
 
@@ -78,8 +81,10 @@ Os quatro cards do hub, de qualquer módulo; qualquer usuário autenticado. Devo
 | Método | Rota | Descrição |
 |---|---|---|
 | `GET` | `/` | Lista os anexos do documento |
-| `POST` | `/` | Envia um arquivo (multipart) como anexo |
+| `POST` | `/` | Envia uma imagem (multipart: `titulo`, `arquivo` e, opcional, `orientacao` = `RETRATO` ou `PAISAGEM`) como anexo. Sem `orientacao`, o servidor a sugere pela proporção da imagem (mais larga que alta = paisagem); valor inválido responde 400. A resposta (e `GET /`) traz `id`, `titulo`, `urlImagem`, `ordem` e `orientacao` |
 | `DELETE` | `/{anexoId}` | Remove um anexo |
+
+**Acesso:** `GET` é visualização, livre para qualquer usuário autenticado. `POST` e `DELETE` seguem a mesma regra de editar o documento (parte normativa, metadados): só autor ou coautor com papel Editor — ou o revisor atribuído, em `EM_REVISAO` — (`@documentoAcessoService.podeEditar`, `403` caso contrário), e só com o documento em `RASCUNHO`, `MINUTA`, `EM_ALTERACAO` ou `EM_REVISAO` (`403` com "Os anexos só podem ser alterados enquanto o documento está em edição…" nas demais etapas). Ver [Ciclo de Vida](ciclo-de-vida.md).
 
 ## Espécies normativas — `/v1/especie-normativa`
 
@@ -96,33 +101,68 @@ Os quatro cards do hub, de qualquer módulo; qualquer usuário autenticado. Devo
 | `POST` | `/upload` | Envia imagem (multipart, máx. 10 MB) para o MinIO e devolve a URL "canônica" do objeto |
 | `POST` | `/urls-assinadas` | Troca uma lista de URLs canônicas por URLs assinadas (S3 pre-signed, válidas por 1h) — necessário porque o bucket é privado |
 
-O `ImagemService` cria o bucket sob demanda na primeira execução; o bucket é **privado** (sem política de leitura pública) — a URL devolvida no upload não é diretamente acessível pelo navegador, só serve como referência estável a ser resolvida via `/urls-assinadas` no momento de exibir a imagem/PDF. Ver [Arquitetura](arquitetura.md#visao-geral-dos-servicos).
+O `ImagemService` cria o bucket sob demanda na primeira execução; o bucket é **privado** (sem política de leitura pública) — a URL devolvida no upload não é diretamente acessível pelo navegador, só serve como referência estável a ser resolvida via `/urls-assinadas` no momento de exibir a imagem/PDF. Ver [Arquitetura](arquitetura.md#visão-geral-dos-serviços).
 
 ## Usuários — `/v1/usuarios` *(Admin)*
 
 | Método | Rota | Descrição |
 |---|---|---|
-| `GET` | `/` · `/{id}` | Lista ou obtém um usuário |
+| `GET` | `/` · `/{id}` | Lista ou obtém um usuário (no escopo de quem pergunta). Cada um traz `motivoDaRevisao` (`NENHUM`, `TROCA_DE_OM`, `REVISAO_VENCIDA`, `CONTA_DORMENTE`) e `revisavel` — se quem pergunta é quem confere o acesso dele — e as datas da última revisão e do último acesso |
 | `POST` | `/` | Cria usuário (CPF, senha, OM, papéis) |
 | `PUT` | `/{id}` | Atualiza nome, OM, papéis e situação (ativo/inativo) |
 | `PATCH` | `/{id}/senha` | Redefine a senha de um usuário |
 
 Sem exclusão definitiva — usuários são autores de documento (FK sem `ON DELETE`), então o ciclo de vida é ativar/desativar, nunca apagar.
 
-Duas rotas sob `/v1/usuarios` sobrescrevem a restrição de Admin da classe (`isAuthenticated()`) — alimentam os seletores de pessoa por nome (CPF é dado pessoal, quase nunca sabido de cor, ver [Autenticação e Colaboração](autenticacao.md#papeis-e-posse-de-documento)):
+Duas rotas sob `/v1/usuarios` sobrescrevem a restrição de Admin da classe (`isAuthenticated()`) — alimentam os seletores de pessoa por nome (CPF é dado pessoal, quase nunca sabido de cor, ver [Autenticação e Colaboração](autenticacao.md#papéis-e-posse-de-documento)):
 
 | Método | Rota | Descrição |
 |---|---|---|
-| `GET` | `/elegiveis?papel=&q=` | Candidatos a revisor/publicador — escopado à OM de quem chama; `q` opcional filtra por nome/nome de guerra |
 | `GET` | `/buscar?q=` | Candidatos a coautor — **sem** filtro de OM/papel (coautoria não é restrita a isso); exige 2+ caracteres |
 
 ## Organizações militares — `/v1/organizacoes-militares`
 
-`GET /` — lista simples, usada para popular o seletor de OM na tela de usuários.
+`GET /` — lista simples, usada para popular o seletor de OM nas telas de usuários e de distintivos (inclui `urlDistintivo`).
+
+| Método | Rota | Papel | Descrição |
+|---|---|---|---|
+| `PUT` | `/{id}/distintivo` | Admin | Envia/troca o DOM da OM (multipart, campo `arquivo`; PNG ou JPEG, até 1 MB; outro formato ou tamanho → 406) |
+| `DELETE` | `/{id}/distintivo` | Admin | Remove o DOM da OM |
+
+## Habilitação de documentos — `/v1/habilitacao-de-documentos`
+
+Quais espécies convencionais cada OM pode **criar** ([regra](autenticacao.md#habilitação-de-documentos)).
+
+| Método | Caminho | Quem | O que faz |
+|---|---|---|---|
+| `GET` | `/` | Admin | Cada OM com os ids das espécies habilitadas |
+| `PUT` | `/{omId}` | Admin | Substitui as habilitações da OM pela lista `{ "especieIds": [...] }` (vazia = nenhuma). Espécie que não depende de habilitação (NPA) → 406; OM ou espécie inexistente → 404 |
+| `PUT` | `/por-especie/{especieId}` | Admin | A visão por espécie (a da tela): substitui as OMs habilitadas a criar a espécie pela lista `{ "omIds": [...] }` (vazia = nenhuma). Mesmos erros do `PUT /{omId}` |
+| `GET` | `/minhas` | autenticado | As espécies que a OM de quem pergunta pode criar (as que não dependem de habilitação, mais as habilitadas) |
+
+Criar (`POST /v1/documentos`) ou clonar (`POST /v1/documentos/{id}/clonar`) sem habilitação responde **403**.
+
+
+
+## Painel Gerencial — `/v1/painel-gerencial`
+
+`GET /` — os indicadores do [Painel Gerencial](funcionalidades.md#painel-gerencial). Só os papéis **Painel Gerencial da OM** (`PNL_OM`) e **Painel Gerencial Geral** (`PNL_GER`). Parâmetros opcionais: `omId`, `especieId`, `dataInicio` e `dataFim` (`AAAA-MM-DD`; sem datas, os últimos 365 dias; início depois do fim → `406`).
+
+A OM é decidida no servidor: o Painel Gerencial Geral usa `omId` (ausente = todas as OMs); o Painel Gerencial da OM sempre vê a própria — mandar `omId` de outra OM responde `403`. A resposta traz `escopo` (a OM usada e se quem pergunta pode trocar de OM), `totais`, `porEspecie`, `porMes`, `situacaoAtual`, `tempos` (mediana e p90 de cada etapa, em dias), `filas`, `gargalos` e `porOm`.
 
 ## Auditoria — `/v1/auditoria` *(Auditor)*
 
 `GET /` — trilha paginada e filtrável por documento, usuário, ação e período. Requer o papel Auditor especificamente (Admin não tem acesso automático — ver [Autenticação e Colaboração](autenticacao.md)).
+
+`GET /acessos` — a trilha dos **acessos** (criação de usuário, concessão/retirada de papel, ativação, troca de OM, redefinição de senha — [Auditoria de acessos](autenticacao.md#auditoria-de-acessos)), filtrável por `cpf` do usuário afetado, `acao` e período; mesmo papel Auditor.
+
+## Revisão de acessos — `/v1/revisao-de-acessos` *(Admin)*
+
+| Método | Rota | Descrição |
+|---|---|---|
+| `POST` | `/{usuarioId}` | Devolve o usuário atualizado. Resultado da revisão `{ "papeis": [...] }`: os papéis que a pessoa **mantém** (os elevados ausentes são retirados; incluir um papel que ela não tem → 406). Quem não a revisa, ou a si mesmo → 403. Grava a data e registra a revisão na auditoria de acessos |
+
+Ver [Revisão periódica de acessos](autenticacao.md#revisão-periódica-de-acessos).
 
 ## Notificações — `/v1/notificacoes`
 
@@ -131,3 +171,21 @@ Duas rotas sob `/v1/usuarios` sobrescrevem a restrição de Admin da classe (`is
 | `GET` | `/stream` | Conexão SSE: notificações ao vivo do usuário autenticado |
 | `GET` | `/nao-lidas` · `/` | Notificações não lidas, ou histórico completo paginado |
 | `PATCH` | `/{id}/lida` · `/lidas` | Marca uma notificação, ou todas, como lida |
+
+## Erros
+
+Todo erro da API é JSON no mesmo formato — `{ "timestamp", "status", "error", "message", "path" }` — e o `status` é o do HTTP. A tela mostra o `message`; só dois códigos têm tratamento próprio no frontend: **401** (sessão expirada → renova ou desloga) e **409** (conflito de edição → recarrega o documento). Quem trata é o `GlobalExceptionHandler`:
+
+| Status | Quando | Origem |
+|---|---|---|
+| `400` | Corpo ilegível, campo inválido (a mensagem lista os campos), parâmetro ausente ou de tipo errado, página negativa, ordenação por propriedade que não existe, valor grande demais para o banco, **regra de negócio violada** (`RegraDeNegocioException`: ex. elemento revogado é permanente, justificativa obrigatória) | erro de quem pediu |
+| `401` | Credenciais inválidas / sessão expirada | `CredenciaisInvalidasException`, Spring Security |
+| `403` | Sem posse, ou documento em etapa que não aceita a operação | `AccessDeniedException` (`@PreAuthorize`), `StatusCannotBeUpdatedException`, `ResourceCannotBeUpdatedException` |
+| `404` | Documento/elemento inexistente, ou rota que não existe | `ResourceNotFoundException`, rota desconhecida |
+| `405` · `415` · `413` | Método HTTP, tipo de conteúdo ou tamanho de upload que a rota não aceita | Spring MVC, com o status que ele define |
+| `406` | Validação de um valor de entrada pelo domínio (`InvalidInputException`: ex. identificação da NPA em branco, orientação de anexo inválida) | convenção histórica do projeto |
+| `409` | Conflito: edição concorrente (`@Version`), valor duplicado ou referência inexistente no banco, nome já usado | `ConflitoEdicaoException`, `ObjectOptimisticLockingFailureException`, `DataIntegrityViolationException`, `ResourceAlreadyExistsException` |
+| `500` | **Falha do servidor**: bug ou infraestrutura (inclui a falha de renderização do PDF). A mensagem é neutra, sem detalhe interno, e a pilha vai para o **log** com nível `ERROR` | qualquer exceção sem handler próprio |
+| `503` | Todas as vagas de geração de PDF ocupadas (com `Retry-After`) | `SistemaOcupadoException` |
+
+Antes, qualquer exceção sem handler próprio — inclusive os erros do próprio Spring (rota inexistente, tipo de conteúdo, upload grande) e bugs de verdade — saía como `400`, sem registro no log. Hoje só é 4xx o que de fato é erro de quem pediu; o resto é `500`, e aparece no log. Um cliente que desconecta no meio de uma resposta longa (SSE, PDF) não é erro: não há resposta nem log de erro.

@@ -16,7 +16,7 @@
       <div v-if="documento?.titulo" class="text-body2 text-grey-8 q-mt-xxs ellipsis-2-lines">
         {{ documento.titulo }}
       </div>
-      <div v-if="documento?.assunto_basico || (perfil.ehNpa && documento?.titulo)" class="text-caption text-grey-6 q-mt-xxs ellipsis">
+      <div v-if="documento?.assunto_basico || (regras.ehNpa && documento?.titulo)" class="text-caption text-grey-6 q-mt-xxs ellipsis">
         {{ documento.assunto_basico || documento.titulo }}
       </div>
     </div>
@@ -355,9 +355,16 @@
                 :key="anexo.id"
                 class="fixed-item row items-center q-px-sm q-py-xs"
               >
-                <q-icon name="mdi-image-outline" size="13px" color="teal-6" class="q-mr-sm" />
+                <q-icon
+                  :name="anexo.orientacao === 'PAISAGEM' ? 'mdi-crop-landscape' : 'mdi-crop-portrait'"
+                  size="13px" color="teal-6" class="q-mr-sm"
+                >
+                  <q-tooltip anchor="center right" self="center left">
+                    {{ anexo.orientacao === 'PAISAGEM' ? 'Página em paisagem' : 'Página em retrato' }}
+                  </q-tooltip>
+                </q-icon>
                 <span class="text-caption col ellipsis">
-                  ANEXO {{ toRoman(anexo.ordem + 1) }} — {{ anexo.titulo }}
+                  {{ regras.rotuloDoAnexo(anexo.ordem) }} — {{ anexo.titulo }}
                 </span>
                 <q-btn
                   flat round dense size="xs" color="negative"
@@ -435,10 +442,10 @@
             <q-input :model-value="props.documento?.especie" label="Espécie" outlined dense disable />
           </div>
           <!-- Número básico e secundário são do ato normativo; a NPA se identifica só pelo texto livre da criação. -->
-          <div v-if="!perfil.ehNpa" class="col-4">
+          <div v-if="!regras.ehNpa" class="col-4">
             <q-input :model-value="props.documento?.numero_basico" label="Número Básico" outlined dense disable />
           </div>
-          <div v-if="!perfil.ehNpa" class="col-4">
+          <div v-if="!regras.ehNpa" class="col-4">
             <q-input
               v-model="metaForm.numero_secundario"
               label="Número Secundário"
@@ -489,13 +496,13 @@
         <!-- Conteúdo -->
         <div class="text-caption text-weight-bold text-grey-6 text-uppercase q-mb-sm">Conteúdo</div>
         <div class="column q-col-gutter-sm q-mb-md">
-          <div v-if="!perfil.ehNpa">
+          <div v-if="!regras.ehNpa">
             <q-input :model-value="props.documento?.assunto_basico" label="Assunto Básico" outlined dense disable />
           </div>
           <div>
             <q-input
               v-model="metaForm.titulo"
-              :label="perfil.ehNpa ? 'Assunto' : 'Título'"
+              :label="regras.ehNpa ? 'Assunto' : 'Título'"
               outlined dense
               autofocus
               :disable="!metaEditavel"
@@ -601,12 +608,28 @@
           :disable="!anexoForm.titulo || anexoUploadando"
           flat bordered
           style="max-height:200px;width:100%"
-          @added="anexoFileQueued = true"
+          @added="onAnexoAdicionado"
           @removed="anexoFileQueued = false"
           @uploading="anexoUploadando = true"
           @uploaded="onAnexoUploaded"
           @failed="onAnexoFailed"
         />
+        <div>
+          <div class="text-caption text-grey-7 q-mb-xs">Orientação da página no PDF</div>
+          <q-btn-toggle
+            v-model="anexoForm.orientacao"
+            :options="[
+              { value: 'RETRATO', label: 'Retrato', icon: 'mdi-crop-portrait' },
+              { value: 'PAISAGEM', label: 'Paisagem', icon: 'mdi-crop-landscape' },
+            ]"
+            unelevated toggle-color="primary" color="grey-3" text-color="grey-8" dense no-caps
+            :disable="anexoUploadando"
+            data-testid="anexo-orientacao"
+          />
+          <div class="text-caption text-grey-6 q-mt-xs">
+            Sugerida pela proporção da imagem; você pode trocar. Uma imagem larga (organograma, fluxograma) fica maior em paisagem.
+          </div>
+        </div>
       </q-card-section>
 
       <q-separator />
@@ -630,13 +653,14 @@ import { useQuasar } from 'quasar'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import { situacaoBcaMeta, situacaoLocalMeta, temEtapaEmCurso } from '@/utils/statusDocumento.js'
 import { formatLabel, elementIcon } from '@/utils/numbering.js'
-import { perfilDoDocumento } from '@/perfis/index.js'
+import { regrasDoDocumento } from '@/regras/index.js'
 import { useEditorStore } from '@/stores/editor.js'
 import { useDocumentosStore } from '@/stores/documentos.js'
 import { useAuthStore } from '@/stores/auth.js'
 import { BASE_URL } from '@/api/client.js'
 import { listOrganizacoesMilitares } from '@/api/usuarios.js'
 import { normalizarBusca } from '@/utils/texto.js'
+import { RETRATO, orientacaoSugeridaDoArquivo } from '@/utils/orientacaoDoAnexo.js'
 
 const $q = useQuasar()
 const editorStore = useEditorStore()
@@ -651,7 +675,7 @@ const props = defineProps({
   isEmAlteracao:  { type: Boolean, default: false },
 })
 
-const emit = defineEmits([
+defineEmits([
   'select',
   'move-up', 'move-down',
   'add-child', 'add-artigo', 'add-capitulo',
@@ -684,7 +708,7 @@ const metaEditavel = computed(() => !props.isEmAlteracao)
 const omEditavel = computed(() => ['RASCUNHO', 'MINUTA'].includes(props.documento?.situacao_local))
 // O código do documento (identificação): só a NPA o escreve, e só até a Minuta -- mesma regra de CriacaoDeNpa.novaIdentificacao
 // no backend. Nas convencionais ele é gerado.
-const codigoEditavel = computed(() => perfil.value.ehNpa && omEditavel.value)
+const codigoEditavel = computed(() => regras.value.ehNpa && omEditavel.value)
 const situacaoTexto = computed(() => {
   const d = props.documento
   if (!d) return ''
@@ -770,14 +794,14 @@ const CAPITULO_PRESETS = [
 const GROUPING_TIPOS = new Set(['capitulo', 'secao_normativa', 'subsecao_normativa'])
 const ARTIGO_TIPOS   = new Set(['artigo', 'paragrafo', 'paragrafo_unico', 'inciso', 'alinea', 'sub_alinea'])
 
-// O que cabe dentro de cada elemento é regra da espécie do documento (perfis/index.js).
-const perfil = computed(() => perfilDoDocumento(props.documento))
+// O que cabe dentro de cada elemento é regra da espécie do documento (regras/index.js).
+const regras = computed(() => regrasDoDocumento(props.documento))
 
 // ── Helpers p/ q-tree ────────────────────────────────────────────────────────
 const isGroupingType = (tipo) => GROUPING_TIPOS.has(tipo)
-const canPromoteNode = (node) => perfil.value.permitePromoverRebaixar && ARTIGO_TIPOS.has(node.tipo) && node.tipo !== 'artigo'
-const canDemoteNode  = (node) => perfil.value.permitePromoverRebaixar && ARTIGO_TIPOS.has(node.tipo)
-const childOptions   = (node) => perfil.value.filhosPermitidos(node.tipo)
+const canPromoteNode = (node) => regras.value.permitePromoverRebaixar && ARTIGO_TIPOS.has(node.tipo) && node.tipo !== 'artigo'
+const canDemoteNode  = (node) => regras.value.permitePromoverRebaixar && ARTIGO_TIPOS.has(node.tipo)
+const childOptions   = (node) => regras.value.filhosPermitidos(node.tipo)
 
 // ── "Mover para" (reparenteamento sem alterar tipo) ─────────────────────────
 // A lista de destinos válidos (incluindo "Nível superior", quando aplicável) é
@@ -882,7 +906,6 @@ watch(normativaElementos, (els) => {
 }, { immediate: true })
 
 // ── Computeds para os botões de adicionar ────────────────────────────────────
-const hasCapitulos       = computed(() => normativaElementos.value.some(e => e.tipo === 'capitulo'))
 const hasTopLevelArtigos = computed(() => normativaElementos.value.some(e => e.tipo === 'artigo'))
 
 const existingCapituloTitulos = computed(() =>
@@ -899,27 +922,27 @@ const anexos = computed(() => documentsStore.anexosPorDocumento[String(props.doc
 const anexoDialogOpen = ref(false)
 const anexoUploadando = ref(false)
 const anexoFileQueued = ref(false)
-const anexoForm = reactive({ titulo: '' })
+const anexoForm = reactive({ titulo: '', orientacao: RETRATO })
 const anexoUploaderRef = ref(null)
 
 const anexoUploadUrl = computed(() => `${BASE_URL}/documentos/${props.documento?.id}/anexos`)
-const anexoFormFields = computed(() => [{ name: 'titulo', value: anexoForm.titulo }])
+const anexoFormFields = computed(() => [
+  { name: 'titulo', value: anexoForm.titulo },
+  { name: 'orientacao', value: anexoForm.orientacao },
+])
+
+// Ao escolher o arquivo, pré-seleciona a orientação pela proporção da imagem (o usuário pode trocar depois).
+async function onAnexoAdicionado(files) {
+  anexoFileQueued.value = true
+  if (files?.[0]) anexoForm.orientacao = await orientacaoSugeridaDoArquivo(files[0])
+}
 // q-uploader não passa pelo client.js (http.js), então não herda a injeção
 // automática do Authorization -- precisa ser passado explicitamente aqui.
 const anexoUploadHeaders = computed(() => [{ name: 'Authorization', value: `Bearer ${authStore.token}` }])
 
-function toRoman(n) {
-  if (n <= 0) return ''
-  const vals = [1000,900,500,400,100,90,50,40,10,9,5,4,1]
-  const syms = ['M','CM','D','CD','C','XC','L','XL','X','IX','V','IV','I']
-  let result = ''
-  for (let i = 0; i < vals.length; i++)
-    while (n >= vals[i]) { result += syms[i]; n -= vals[i] }
-  return result
-}
-
 function abrirDialogAnexo() {
   anexoForm.titulo = ''
+  anexoForm.orientacao = RETRATO
   anexoFileQueued.value = false
   anexoUploadando.value = false
   anexoUploaderRef.value?.reset()
@@ -954,7 +977,7 @@ function removerAnexo(anexoId) {
     try {
       await documentsStore.removeAnexo(props.documento.id, anexoId)
       $q.notify({ type: 'positive', message: 'Anexo removido.' })
-    } catch (e) {
+    } catch {
       $q.notify({ type: 'negative', message: 'Erro ao remover anexo.' })
     }
   })

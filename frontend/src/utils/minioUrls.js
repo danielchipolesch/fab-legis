@@ -59,3 +59,8 @@ export function primeMinioUrlCache(url, assinada) {
   if (!precisaResolver(url) || !assinada) return
   cache.set(url, { assinada, expiraEm: Date.now() + TTL_MS })
 }
+
+// Esvazia o cache de URLs assinadas (ver limparCachesDaSessao: no logout nada da sessão anterior pode sobrar).
+export function limparMinioUrlCache() {
+  cache.clear()
+}

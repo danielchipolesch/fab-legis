@@ -136,17 +136,17 @@ describe('detalhesDoDocumento', () => {
 
   it('em tramitação: com quem o documento está', () => {
     expect(valor(detalhesDoDocumento('minhas_em_tramitacao', doc({ situacao_local: 'MINUTA' })), 'Com')).toBe('Autor e coautores')
-    expect(valor(detalhesDoDocumento('minhas_em_tramitacao', doc({ situacao_local: 'EM_REVISAO', revisor_atribuido_nome: 'Ana' })), 'Com')).toBe('Ana')
-    expect(valor(detalhesDoDocumento('minhas_em_tramitacao', doc({ situacao_local: 'EM_PUBLICACAO', publicador_atribuido_nome: 'Rui' })), 'Com')).toBe('Rui')
+    expect(valor(detalhesDoDocumento('minhas_em_tramitacao', doc({ situacao_local: 'EM_REVISAO', aprovador_nome: 'Ana' })), 'Com')).toBe('Aprovadores da OM')
+    expect(valor(detalhesDoDocumento('minhas_em_tramitacao', doc({ situacao_local: 'EM_PUBLICACAO', publicador_nome: 'Rui' })), 'Com')).toBe('Publicadores (CENDOC)')
   })
 
   it('aguardando: o que se espera da pessoa', () => {
     expect(valor(detalhesDoDocumento('aguardando', doc({ situacao_local: 'EM_REVISAO' })), 'Se espera de você'))
-      .toBe('Revisar o documento e aprová-lo ou devolvê-lo')
+      .toBe('Aprovar o documento ou devolvê-lo')
   })
 
   it('em tramitação nas OMs: com quem o documento está, como nos meus', () => {
-    expect(valor(detalhesDoDocumento('em_tramitacao_de_outros', doc({ situacao_local: 'EM_REVISAO', revisor_atribuido_nome: 'Ana' })), 'Com')).toBe('Ana')
+    expect(valor(detalhesDoDocumento('em_tramitacao_de_outros', doc({ situacao_local: 'EM_REVISAO', aprovador_nome: 'Ana' })), 'Com')).toBe('Aprovadores da OM')
   })
 
   it('publicados: convencional mostra portaria e BCA; NPA, o Boletim Interno', () => {

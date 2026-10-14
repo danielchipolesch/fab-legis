@@ -24,8 +24,9 @@ RUN npm run build
 # ── Estágio de produção (Nginx) ────────────────────────────────────────────────
 FROM nginx:1.28-alpine AS production
 COPY --from=build /app/dist /usr/share/nginx/html
-COPY frontend/nginx.conf /etc/nginx/conf.d/default.conf
+# A configuração do Nginx (nginx/nginx.conf, por ambiente e fora do git) NÃO vai na imagem: o docker-compose.yml a monta em
+# /etc/nginx/conf.d/default.conf. Copie de nginx/nginx.conf.example antes de subir o perfil production.
 EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
-  CMD wget -qO- http://localhost:8080/health || exit 1
+  CMD wget -qO- http://127.0.0.1:8080/health || exit 1
 CMD ["nginx", "-g", "daemon off;"]

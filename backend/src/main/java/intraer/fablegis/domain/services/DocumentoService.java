@@ -1,5 +1,6 @@
 package intraer.fablegis.domain.services;
 
+import lombok.RequiredArgsConstructor;
 import intraer.fablegis.application.dtos.documentoDtos.DocumentoFilaResponseDto;
 import intraer.fablegis.application.dtos.documentoDtos.DocumentoRequestCreateDto;
 import intraer.fablegis.application.dtos.documentoDtos.DocumentoRequestUpdateDto;
@@ -18,10 +19,13 @@ import intraer.fablegis.domain.entities.estruturaDocumento.ItemParteFinal;
 import intraer.fablegis.domain.entities.numeracaoDocumento.AssuntoBasico;
 import intraer.fablegis.domain.entities.numeracaoDocumento.EspecieNormativa;
 import intraer.fablegis.domain.entities.usuario.OrganizacaoMilitar;
+import intraer.fablegis.domain.entities.usuario.PapelEnum;
+import intraer.fablegis.domain.entities.usuario.Usuario;
 import intraer.fablegis.domain.handlers.exceptions.ResourceNotFoundException;
 import intraer.fablegis.domain.handlers.exceptions.enums.AssuntoBasicoException;
 import intraer.fablegis.domain.handlers.exceptions.enums.DocumentoException;
 import intraer.fablegis.domain.handlers.exceptions.StatusCannotBeUpdatedException;
+import intraer.fablegis.application.dtos.documentoDtos.SubstituicaoDeDocumentoDto;
 import intraer.fablegis.domain.handlers.exceptions.enums.EspecieNormativaException;
 import intraer.fablegis.domain.mappers.DocumentoMapper;
 import intraer.fablegis.domain.regras.RegrasDasEspecies;
@@ -37,7 +41,6 @@ import intraer.fablegis.infrastructure.repositories.DocumentoHistoricoRepository
 import intraer.fablegis.infrastructure.repositories.ItemParteFinalRepository;
 import intraer.fablegis.infrastructure.repositories.ItemPartePreliminarRepository;
 import intraer.fablegis.infrastructure.repositories.OrganizacaoMilitarRepository;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -45,56 +48,59 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
-import java.util.EnumSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
 
 @Service
+@RequiredArgsConstructor
 public class DocumentoService {
 
-    @Autowired
-    DocumentoRepository documentoRepository;
+    final DocumentoRepository documentoRepository;
 
-    @Autowired
-    DocumentoCompartilhamentoRepository documentoCompartilhamentoRepository;
+    final DocumentoCompartilhamentoRepository documentoCompartilhamentoRepository;
 
-    @Autowired
-    EspecieNormativaRepository especieNormativaRepository;
+    final EspecieNormativaRepository especieNormativaRepository;
 
-    @Autowired
-    AssuntoBasicoRepository assuntoBasicoRepository;
+    final AssuntoBasicoRepository assuntoBasicoRepository;
 
-    @Autowired
-    ItemAnexoParteNormativaRepository itemAnexoParteNormativaRepository;
+    final ItemAnexoParteNormativaRepository itemAnexoParteNormativaRepository;
 
-    @Autowired
-    ItemPartePreliminarRepository itemPartePreliminarRepository;
+    final ItemPartePreliminarRepository itemPartePreliminarRepository;
 
-    @Autowired
-    ItemParteFinalRepository itemParteFinalRepository;
+    final ItemParteFinalRepository itemParteFinalRepository;
 
-    @Autowired
-    DocumentoHistoricoRepository documentoHistoricoRepository;
+    final DocumentoHistoricoRepository documentoHistoricoRepository;
 
-    @Autowired
-    DocumentoHistoricoService documentoHistoricoService;
+    final DocumentoHistoricoService documentoHistoricoService;
 
-    @Autowired
-    RegrasDasEspecies regras;
+    final RegrasDasEspecies regras;
 
-    @Autowired
-    AnexoRepository anexoRepository;
+    final AnexoRepository anexoRepository;
 
-    @Autowired
-    OrganizacaoMilitarRepository organizacaoMilitarRepository;
+    final OrganizacaoMilitarRepository organizacaoMilitarRepository;
 
+    final HabilitacaoDeCriacaoService habilitacaoDeCriacaoService;
 
-    @Transactional
-    public DocumentoResponseSemAnexoTextualDto create(DocumentoRequestCreateDto request) throws RuntimeException {
+    final CriacaoComNumeracaoUnica numeracaoUnica;
+
+    private static Long omDoUsuarioAtual() {
+        var om = AutenticacaoUtil.usuarioAtual().getOm();
+        return om == null ? null : om.getId();
+    }
+
+    // O número do documento é único no banco; se outra criação simultânea tomou o mesmo, refaz com o seguinte (CriacaoComNumeracaoUnica).
+    public DocumentoResponseSemAnexoTextualDto create(DocumentoRequestCreateDto request) {
+        return numeracaoUnica.executar(() -> criar(request));
+    }
+
+    private DocumentoResponseSemAnexoTextualDto criar(DocumentoRequestCreateDto request) {
 
         EspecieNormativa especieNormativa = especieNormativaRepository.findById(request.idEspecieNormativa()).orElseThrow(() -> new ResourceNotFoundException(EspecieNormativaException.NOT_FOUND.getMessage()));
+
+        // Só a OM habilitada cria espécie convencional (a NPA, qualquer OM): ver HabilitacaoDeCriacaoService.
+        habilitacaoDeCriacaoService.exigirPodeCriar(omDoUsuarioAtual(), especieNormativa);
 
         // O que a espécie exige para criar (assunto básico, identificação...) e como o documento se identifica
         // é regra da espécie.
@@ -110,24 +116,25 @@ public class DocumentoService {
         return DocumentoMapper.documentoToDocumentoSemAnexoTextualResponseDto(salvo);
     }
 
-    public Documento getById(Long id) throws RuntimeException{
+    public Documento getById(Long id) {
 
         return documentoRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException(DocumentoException.NOT_FOUND.getMessage()));
     }
 
-    // Fila pessoal de RevisaoPage.vue -- documentos atribuídos a ESTE usuário como
-    // revisor, tanto no fluxo normal (EM_REVISAO) quanto na revogação (ANALISE_REVOGACAO).
-    public List<DocumentoFilaResponseDto> getMinhaRevisao(Long usuarioId) {
-        return documentoRepository.findByRevisorAtribuidoIdAndSituacaoLocalIn(usuarioId,
+    // Fila da tela de Revisão (RevisaoPage.vue): o que aguarda aprovação na OM de quem pergunta -- no fluxo normal (EM_REVISAO) e na
+    // análise de revogação (ANALISE_REVOGACAO). Só quem tem o papel APROV vê a fila; qualquer aprovador da OM age.
+    public List<DocumentoFilaResponseDto> getFilaDeRevisao(Usuario usuario) {
+        if (!usuario.getPapeis().contains(PapelEnum.APR_OM)) return List.of();
+        return documentoRepository.findByOmIdAndSituacaoLocalIn(usuario.getOm().getId(),
                         List.copyOf(DocumentoSpecifications.SITUACOES_DE_REVISAO))
                 .stream().map(this::toFilaResponseDto).toList();
     }
 
-    // Fila pessoal de PublicacaoPage.vue -- documentos atribuídos a ESTE usuário como
-    // publicador, tanto no fluxo normal (EM_PUBLICACAO) quanto na revogação (EM_REVOGACAO).
-    public List<DocumentoFilaResponseDto> getMinhaPublicacao(Long usuarioId) {
-        return documentoRepository.findByPublicadorAtribuidoIdAndSituacaoLocalIn(usuarioId,
-                        List.copyOf(DocumentoSpecifications.SITUACOES_DE_PUBLICACAO))
+    // Fila da tela de Publicação (PublicacaoPage.vue): o que aguarda publicação, de TODAS as OMs -- a publicação é do CENDOC (o papel
+    // PUBLIC só existe lá) -- no fluxo normal (EM_PUBLICACAO) e na revogação (EM_REVOGACAO).
+    public List<DocumentoFilaResponseDto> getFilaDePublicacao(Usuario usuario) {
+        if (!usuario.getPapeis().contains(PapelEnum.PUB_BCA)) return List.of();
+        return documentoRepository.findBySituacaoLocalIn(List.copyOf(DocumentoSpecifications.SITUACOES_DE_PUBLICACAO))
                 .stream().map(this::toFilaResponseDto).toList();
     }
 
@@ -182,8 +189,8 @@ public class DocumentoService {
         return documentoRepository.findAll(DocumentoSpecifications.emTramitacaoDeOutros(usuarioId), pageable);
     }
 
-    public Page<Documento> getPainelAguardandoAcao(Long usuarioId, Pageable pageable) {
-        return documentoRepository.findAll(DocumentoSpecifications.aguardandoAcaoDe(usuarioId), pageable);
+    public Page<Documento> getPainelAguardandoAcao(Usuario usuario, Pageable pageable) {
+        return documentoRepository.findAll(DocumentoSpecifications.aguardandoAcaoDe(usuario), pageable);
     }
 
     public Page<Documento> getPainelPublicadosERevogados(Pageable pageable) {
@@ -224,23 +231,16 @@ public class DocumentoService {
     }
 
     @Transactional
-    public DocumentoResponseSemAnexoTextualDto update(Long id, DocumentoRequestUpdateDto request) throws RuntimeException {
+    public DocumentoResponseSemAnexoTextualDto update(Long id, DocumentoRequestUpdateDto request) {
 
         Documento documento = documentoRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException(DocumentoException.NOT_FOUND.getMessage()));
 
-        // Checagem de status redundante à de posse (@PreAuthorize podeEditar no
-        // controller já garante QUEM pode chamar isto -- inclusive o revisor
-        // atribuído durante EM_REVISAO); aqui só barra status que nunca deveriam
-        // aceitar edição nem por quem tem posse. RASCUNHO/MINUTA/EM_ALTERACAO
-        // batem com isReadonly do editor (DocumentoEditorPage.vue); EM_REVISAO
-        // porque o autosave estrutural (editorStore.save() -> este endpoint, ver
-        // stores/documentos.js) roda pra qualquer alteração de árvore -- inclusive
-        // as feitas pelo revisor atribuído, que já pode editar essa etapa.
-        var statusPermiteAtualizacao = EnumSet.of(
-                SituacaoLocalEnum.RASCUNHO, SituacaoLocalEnum.MINUTA,
-                SituacaoLocalEnum.EM_ALTERACAO, SituacaoLocalEnum.EM_REVISAO);
-        if (!statusPermiteAtualizacao.contains(documento.getSituacaoLocal())) {
+        // Segunda barreira, da etapa: o @PreAuthorize podeEditar do controller já decide QUEM pode chamar isto e em
+        // QUE etapa (DocumentoAcessoService.podeEditar); esta garante que a etapa seja barrada mesmo se o serviço for
+        // chamado por outro caminho. É a mesma regra (SituacaoLocalEnum.aceitaEdicao), que bate com o isReadonly do
+        // editor (DocumentoEditorPage.vue).
+        if (!documento.getSituacaoLocal().aceitaEdicao()) {
             throw new StatusCannotBeUpdatedException(DocumentoException.CANNOT_BE_UPDATED.getMessage());
         }
 
@@ -303,7 +303,7 @@ public class DocumentoService {
     }
 
     @Transactional
-    public DocumentoResponseSemAnexoTextualDto delete(Long id) throws RuntimeException {
+    public DocumentoResponseSemAnexoTextualDto delete(Long id) {
         Documento documento = documentoRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException(DocumentoException.NOT_FOUND.getMessage()));
 
@@ -322,11 +322,68 @@ public class DocumentoService {
         return DocumentoMapper.documentoToDocumentoSemAnexoTextualResponseDto(documento);
     }
 
-    @Transactional
-    public DocumentoResponseSemAnexoTextualDto clone(Long id) throws RuntimeException {
+    public DocumentoResponseSemAnexoTextualDto clone(Long id) {
+        return numeracaoUnica.executar(() -> clonar(id));
+    }
+
+    private DocumentoResponseSemAnexoTextualDto clonar(Long id) {
+        Documento clonado = copiarParaNovoDocumento(id);
+        documentoHistoricoService.registrar(clonado, TipoAlteracaoEnum.CLONAGEM,
+                "Clonado do documento #" + id, null, SituacaoLocalEnum.RASCUNHO);
+        return DocumentoMapper.documentoToDocumentoSemAnexoTextualResponseDto(clonado);
+    }
+
+    // "Substituir" (NPA): para mudar uma NPA publicada cria-se outra e revoga-se a anterior. Esta ação faz a primeira metade
+    // de forma explícita: cria a NPA nova (cópia em RASCUNHO, da OM de quem substitui) já ligada à substituída. A revogação
+    // da antiga continua sendo o pedido de revogação de sempre, feito depois (a nova ainda nem foi publicada).
+    public DocumentoResponseSemAnexoTextualDto substituir(Long id) {
+        return numeracaoUnica.executar(() -> substituirPor(id));
+    }
+
+    private DocumentoResponseSemAnexoTextualDto substituirPor(Long id) {
+        Documento substituido = documentoRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException(DocumentoException.NOT_FOUND.getMessage()));
+
+        var ciclo = regras.para(substituido.getEspecieNormativa()).cicloDeVida();
+        if (!ciclo.podeSerSubstituido(substituido.getSituacaoLocal(), substituido.getSituacaoBca())) {
+            throw new StatusCannotBeUpdatedException(DocumentoException.CANNOT_BE_REPLACED.getMessage());
+        }
+        documentoRepository.findFirstByDocumentoSubstituidoIdAndSituacaoLocalNotOrderByIdDesc(id, SituacaoLocalEnum.CANCELADO)
+                .ifPresent(existente -> {
+                    throw new StatusCannotBeUpdatedException(
+                            "Esta NPA já está sendo substituída pelo documento " + existente.getIdentificacao() + ".");
+                });
+
+        Documento nova = copiarParaNovoDocumento(id);
+        nova.setDocumentoSubstituido(substituido);
+        documentoRepository.save(nova);
+        documentoHistoricoService.registrar(nova, TipoAlteracaoEnum.SUBSTITUICAO,
+                "Substitui o documento #" + id + " (" + substituido.getIdentificacao() + ")", null, SituacaoLocalEnum.RASCUNHO);
+        return DocumentoMapper.documentoToDocumentoSemAnexoTextualResponseDto(nova);
+    }
+
+    // Os dois lados da ligação "Substituir" (a NPA que este documento substitui e a que o substitui), para a tela mostrar.
+    @Transactional(readOnly = true)
+    public SubstituicaoDeDocumentoDto substituicaoDe(Long id) {
+        Documento documento = documentoRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException(DocumentoException.NOT_FOUND.getMessage()));
+        var substituidoPor = documentoRepository
+                .findFirstByDocumentoSubstituidoIdAndSituacaoLocalNotOrderByIdDesc(id, SituacaoLocalEnum.CANCELADO)
+                .orElse(null);
+        return new SubstituicaoDeDocumentoDto(
+                SubstituicaoDeDocumentoDto.Ponta.de(documento.getDocumentoSubstituido()),
+                SubstituicaoDeDocumentoDto.Ponta.de(substituidoPor));
+    }
+
+    // A cópia em si, comum a clonar e substituir: documento novo em RASCUNHO, de quem copia (autor e OM), com a mesma
+    // habilitação de criação exigida para a espécie.
+    private Documento copiarParaNovoDocumento(Long id) {
 
         Documento documentoAntigo = documentoRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException(DocumentoException.NOT_FOUND.getMessage()));
+
+        // Clonar cria um documento novo: vale a mesma habilitação da OM de quem clona, para a espécie do original.
+        habilitacaoDeCriacaoService.exigirPodeCriar(omDoUsuarioAtual(), documentoAntigo.getEspecieNormativa());
 
         // O clone é um documento novo (ver clonarNormItem): quem clona vira o
         // autor, não quem criou o original -- mesma regra de "criar" no resto
@@ -372,12 +429,11 @@ public class DocumentoService {
             copia.setTitulo(orig.getTitulo());
             copia.setUrlImagem(orig.getUrlImagem());
             copia.setOrdem(orig.getOrdem());
+            copia.setOrientacao(orig.getOrientacao());
             anexoRepository.save(copia);
         }
 
-        documentoHistoricoService.registrar(clonado, TipoAlteracaoEnum.CLONAGEM,
-                "Clonado do documento #" + id, null, SituacaoLocalEnum.RASCUNHO);
-        return DocumentoMapper.documentoToDocumentoSemAnexoTextualResponseDto(clonado);
+        return clonado;
     }
 
     // O clone é um documento novo, sem histórico de emenda: carrega só a redação

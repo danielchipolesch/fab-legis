@@ -1,11 +1,11 @@
 package intraer.fablegis.application.controllers;
 
+import lombok.RequiredArgsConstructor;
 import intraer.fablegis.application.dtos.notificacaoDtos.NotificacaoResponseDto;
 import intraer.fablegis.domain.services.NotificacaoService;
 import intraer.fablegis.infrastructure.notificacao.NotificacaoEmitterRegistry;
 import intraer.fablegis.infrastructure.security.AutenticacaoUtil;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -20,13 +20,12 @@ import java.util.List;
 @RestController
 @RequestMapping(value = "/v1/notificacoes", produces = MediaType.APPLICATION_JSON_VALUE)
 @Tag(name = "Notificação", description = "Notificações em tempo real (SSE) e histórico por usuário")
+@RequiredArgsConstructor
 public class NotificacaoController {
 
-    @Autowired
-    private NotificacaoService notificacaoService;
+    private final NotificacaoService notificacaoService;
 
-    @Autowired
-    private NotificacaoEmitterRegistry emitterRegistry;
+    private final NotificacaoEmitterRegistry emitterRegistry;
 
     // EventSource (API nativa do browser para SSE) não permite header
     // customizado -- a autenticação deste request chega via query param

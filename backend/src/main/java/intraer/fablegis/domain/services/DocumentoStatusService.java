@@ -1,5 +1,6 @@
 package intraer.fablegis.domain.services;
 
+import lombok.RequiredArgsConstructor;
 import intraer.fablegis.application.dtos.documentoDtos.DocumentoResponseSemAnexoTextualDto;
 import intraer.fablegis.application.dtos.documentoDtos.DocumentoStatusRequestDto;
 import intraer.fablegis.domain.entities.estruturaDocumento.Documento;
@@ -7,6 +8,10 @@ import intraer.fablegis.domain.entities.estruturaDocumento.SituacaoBcaEnum;
 import intraer.fablegis.domain.entities.estruturaDocumento.SituacaoLocalEnum;
 import intraer.fablegis.domain.entities.estruturaDocumento.TipoAlteracaoEnum;
 import intraer.fablegis.domain.entities.usuario.Usuario;
+import intraer.fablegis.domain.entities.usuario.PapelEnum;
+import intraer.fablegis.domain.entities.notificacao.TipoNotificacaoEnum;
+import intraer.fablegis.infrastructure.security.UsuarioPrincipal;
+import org.springframework.security.core.context.SecurityContextHolder;
 import intraer.fablegis.domain.handlers.exceptions.ResourceNotFoundException;
 import intraer.fablegis.domain.handlers.exceptions.StatusCannotBeUpdatedException;
 import intraer.fablegis.domain.handlers.exceptions.enums.DocumentoException;
@@ -20,7 +25,6 @@ import intraer.fablegis.infrastructure.repositories.ItemPartePreliminarRepositor
 import intraer.fablegis.infrastructure.repositories.UsuarioRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Propagation;
@@ -41,31 +45,32 @@ import static intraer.fablegis.domain.entities.estruturaDocumento.SituacaoLocalE
 // etapa interna (revisão, alteração em curso, análise de revogação...) é situação local e
 // nunca tira o documento de PUBLICADO. Ver docs/ciclo-de-vida.md e SituacaoLocalEnum.
 @Service
+@RequiredArgsConstructor
 public class DocumentoStatusService {
 
     private static final Logger log = LoggerFactory.getLogger(DocumentoStatusService.class);
 
-    @Autowired DocumentoRepository documentoRepository;
-    @Autowired DocumentoHistoricoService documentoHistoricoService;
-    @Autowired DocumentoPdfService documentoPdfService;
-    @Autowired DocumentoHtmlService documentoHtmlService;
-    @Autowired ItemAnexoParteNormativaRepository normativaRepository;
-    @Autowired ItemPartePreliminarRepository preliminarRepository;
-    @Autowired ItemParteFinalRepository finalRepository;
-    @Autowired EmendaService emendaService;
-    @Autowired NotificacaoService notificacaoService;
-    @Autowired UsuarioRepository usuarioRepository;
-    @Autowired PlatformTransactionManager transactionManager;
+    final DocumentoRepository documentoRepository;
+    final DocumentoHistoricoService documentoHistoricoService;
+    final DocumentoPdfService documentoPdfService;
+    final DocumentoHtmlService documentoHtmlService;
+    final ItemAnexoParteNormativaRepository normativaRepository;
+    final ItemPartePreliminarRepository preliminarRepository;
+    final ItemParteFinalRepository finalRepository;
+    final EmendaService emendaService;
+    final NotificacaoService notificacaoService;
+    final UsuarioRepository usuarioRepository;
+    final PlatformTransactionManager transactionManager;
 
     // As mudanças de etapa permitidas são regra da espécie do documento: um ato normativo tem o
     // ciclo completo (com alteração); uma NPA só publicação e revogação. Ver RegrasDoCicloDeVidaDoDocumento.
-    @Autowired RegrasDasEspecies regras;
+    final RegrasDasEspecies regras;
 
     // Atômico de propósito: a mudança de etapa envolve várias tabelas (documento,
     // respaçamento de nr_ordem, portaria, histórico) e não pode ficar parcialmente aplicada
     // se alguma etapa falhar.
     @Transactional
-    public DocumentoResponseSemAnexoTextualDto changeStatus(Long id, DocumentoStatusRequestDto request) throws RuntimeException {
+    public DocumentoResponseSemAnexoTextualDto changeStatus(Long id, DocumentoStatusRequestDto request) {
 
         Documento documento = documentoRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException(DocumentoException.NOT_FOUND.getMessage()));
@@ -81,29 +86,20 @@ public class DocumentoStatusService {
                     + " (situação BCA: " + bcaAnterior + ").");
         }
 
-        // "Devolver" limpa a atribuição -- a próxima vez que o documento for enviado, alguém
-        // (talvez outra pessoa) é escolhido de novo.
-        if (acao == AcaoDeEtapa.DEVOLVER || acao == AcaoDeEtapa.DEVOLVER_ANALISE) {
-            documento.setRevisorAtribuido(null);
-            documento.setPublicadorAtribuido(null);
+        // Ninguém é escolhido: "enviar para aprovação" (e o pedido de revogação) vale para QUALQUER aprovador da OM do documento, e
+        // aprovar, para QUALQUER publicador (que só existe no CENDOC) -- ver DocumentoAcessoService.podeMudarStatus. O documento
+        // guarda só QUEM aprovou o texto (o "Aprovado por" da NPA) e QUEM publicou, registrados por quem de fato agiu. Devolver o
+        // texto, ou enviá-lo de novo, recomeça sem aprovador nem publicador; o pedido de revogação e a sua aprovação NÃO mexem em quem
+        // aprovou o texto (a NPA continua dizendo quem a aprovou).
+        if (acao == AcaoDeEtapa.DEVOLVER || acao == AcaoDeEtapa.ENVIAR_PARA_REVISAO) {
+            documento.setAprovador(null);
+            documento.setPublicador(null);
         }
-
-        // Enviar para revisão / pedir análise de revogação: exige a pessoa escolhida (papel
-        // APROV, validado em DocumentoAcessoService.podeMudarStatus -- aqui só resolve o registro).
-        if (acao == AcaoDeEtapa.ENVIAR_PARA_REVISAO || acao == AcaoDeEtapa.PEDIR_REVOGACAO) {
-            documento.setRevisorAtribuido(buscarUsuario(request.revisorId(),
-                    "É obrigatório escolher quem vai revisar."));
-        }
-
-        // Aprovar (o texto ou a revogação): exige a pessoa escolhida (papel PUBLIC) que vai
-        // registrar a portaria/BCA.
         if (acao == AcaoDeEtapa.APROVAR) {
-            documento.setPublicadorAtribuido(buscarUsuario(request.publicadorId(),
-                    "É obrigatório escolher quem vai publicar."));
+            documento.setAprovador(quemAgiu());
         }
-        if (acao == AcaoDeEtapa.APROVAR_REVOGACAO) {
-            documento.setPublicadorAtribuido(buscarUsuario(request.publicadorId(),
-                    "É obrigatório escolher quem vai publicar a revogação."));
+        if (acao == AcaoDeEtapa.PUBLICAR || acao == AcaoDeEtapa.REVOGAR) {
+            documento.setPublicador(quemAgiu());
         }
 
         // Cancelar a alteração só é possível sem alterações pendentes: cada uma se desfaz elemento a
@@ -203,19 +199,19 @@ public class DocumentoStatusService {
 
         String descricao = documento.getIdentificacao();
 
-        // Cada transição de atribuição avisa só a pessoa escolhida -- nunca uma OM inteira
-        // (ver PapelEnum: o modelo é de atribuição pessoal, não de "qualquer Aprovador pega").
+        // Quem pode agir agora é avisado -- as pessoas com o papel, nunca uma escolhida: os aprovadores da OM do documento ao
+        // enviar para aprovação (ou pedir a revogação); os publicadores (CENDOC) ao aprovar. Quem acabou de agir não é avisado.
         if (acao == AcaoDeEtapa.ENVIAR_PARA_REVISAO || acao == AcaoDeEtapa.PEDIR_REVOGACAO) {
-            notificacaoService.notificarAtribuicao(documento.getRevisorAtribuido().getId(), documento.getId(), descricao,
-                    "O documento " + descricao + " foi atribuído a você para revisão.");
+            avisar(usuarioRepository.findByOmIdAndPapel(documento.getOm().getId(), PapelEnum.APR_OM), documento, descricao,
+                    "O documento " + descricao + " aguarda a aprovação da sua OM.");
         }
         if (acao == AcaoDeEtapa.APROVAR) {
-            notificacaoService.notificarAtribuicao(documento.getPublicadorAtribuido().getId(), documento.getId(), descricao,
-                    "O documento " + descricao + " foi atribuído a você para publicação.");
+            avisar(usuarioRepository.findAtivosByPapel(PapelEnum.PUB_BCA), documento, descricao,
+                    "O documento " + descricao + " foi aprovado e aguarda publicação.");
         }
         if (acao == AcaoDeEtapa.APROVAR_REVOGACAO) {
-            notificacaoService.notificarAtribuicao(documento.getPublicadorAtribuido().getId(), documento.getId(), descricao,
-                    "O documento " + descricao + " foi atribuído a você para publicar a revogação.");
+            avisar(usuarioRepository.findAtivosByPapel(PapelEnum.PUB_BCA), documento, descricao,
+                    "O documento " + descricao + " teve a revogação aprovada e aguarda a publicação da revogação.");
         }
 
         return DocumentoMapper.documentoToDocumentoSemAnexoTextualResponseDto(documento);
@@ -293,12 +289,18 @@ public class DocumentoStatusService {
         documentoRepository.saveAndFlush(documento);
     }
 
-    private Usuario buscarUsuario(Long usuarioId, String mensagemSeAusente) {
-        if (usuarioId == null) {
-            throw new StatusCannotBeUpdatedException(mensagemSeAusente);
+    private void avisar(java.util.List<Usuario> destinatarios, Documento documento, String descricao, String mensagem) {
+        Usuario ator = quemAgiu();
+        for (Usuario destinatario : destinatarios) {
+            if (ator != null && ator.getId().equals(destinatario.getId())) continue;
+            notificacaoService.criar(destinatario, TipoNotificacaoEnum.APROVACAO_PENDENTE, mensagem, documento.getId(), descricao);
         }
-        return usuarioRepository.findById(usuarioId)
-                .orElseThrow(() -> new StatusCannotBeUpdatedException("Usuário escolhido não encontrado."));
+    }
+
+    // Quem está agindo (o usuário autenticado); nulo sem autenticação (testes unitários, chamadas internas como a do AnexoService).
+    private static Usuario quemAgiu() {
+        var auth = SecurityContextHolder.getContext().getAuthentication();
+        return auth != null && auth.getPrincipal() instanceof UsuarioPrincipal principal ? principal.getUsuario() : null;
     }
 
 }

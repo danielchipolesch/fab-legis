@@ -1,9 +1,10 @@
 package intraer.fablegis.infrastructure.configurations;
 
+import lombok.RequiredArgsConstructor;
 import intraer.fablegis.infrastructure.security.JwtToUsuarioAuthenticationConverter;
 import intraer.fablegis.infrastructure.security.SseBearerTokenResolver;
 import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
@@ -37,13 +38,12 @@ import java.util.List;
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
+@RequiredArgsConstructor
 public class SecurityConfig {
 
-    @Autowired
-    private JwtToUsuarioAuthenticationConverter jwtToUsuarioAuthenticationConverter;
+    private final JwtToUsuarioAuthenticationConverter jwtToUsuarioAuthenticationConverter;
 
-    @Autowired
-    private SseBearerTokenResolver sseBearerTokenResolver;
+    private final SseBearerTokenResolver sseBearerTokenResolver;
 
     @Bean
     public PasswordEncoder passwordEncoder() {
@@ -56,9 +56,12 @@ public class SecurityConfig {
     }
 
     @Bean
-    public CorsConfigurationSource corsConfigurationSource() {
+    // Origens do navegador autorizadas a chamar a API (APP_CORS_ALLOWED_ORIGINS, separadas por vírgula). Em produção, com tudo
+    // atrás do Nginx na mesma origem, não há chamada cross-origin: deixe vazio. Em desenvolvimento o frontend (:5173) fala com a
+    // API (:8081), outra origem, e o padrão cobre isso. Aceita padrões (ex.: https://*.exemplo.mil.br); "*" libera tudo -- evite.
+    public CorsConfigurationSource corsConfigurationSource(@Value("${app.cors.allowed-origins:}") List<String> origensPermitidas) {
         var config = new CorsConfiguration();
-        config.setAllowedOriginPatterns(List.of("*"));
+        config.setAllowedOriginPatterns(origensPermitidas);
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setExposedHeaders(List.of("ETag"));
@@ -91,8 +94,9 @@ public class SecurityConfig {
                 // .anyRequest().authenticated() abaixo -- exigem login igual a
                 // qualquer outro endpoint da API, não há coletor externo hospedado
                 // como parte deste projeto hoje que precise entrar sem isso (ver
-                // docs/instalacao.md, seção "Deploy em produção").
+                // README.md, seção "Instalação em produção").
                 .requestMatchers(HttpMethod.GET, "/actuator/health", "/actuator/health/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/v1/versao").permitAll()
                 // Raiz do backend não é rota de API nenhuma -- só existe pra
                 // dar um destino gracioso (ver RootRedirectController) quando
                 // alguém cai aqui por engano (ex.: um mismatch de host entre

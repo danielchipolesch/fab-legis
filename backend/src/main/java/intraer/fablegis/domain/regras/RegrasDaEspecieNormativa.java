@@ -26,4 +26,7 @@ public interface RegrasDaEspecieNormativa {
     LeiauteDoHtml leiauteDoHtml();
 
     RegrasDoCicloDeVidaDoDocumento cicloDeVida();
+
+    // Quais OMs podem criar documentos da espécie (todas, ou só as habilitadas pelo administrador).
+    RegraDeHabilitacaoDaOm habilitacao();
 }

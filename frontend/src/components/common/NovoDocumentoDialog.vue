@@ -148,8 +148,10 @@
 import { ref, reactive, computed, watch } from 'vue'
 import { useDocumentosStore } from '@/stores/documentos.js'
 import { useRouter } from 'vue-router'
-import { perfilDe } from '@/perfis/index.js'
+import { regrasDe } from '@/regras/index.js'
 import { listEspeciesNormativas, listAssuntosBasicos, normalizeEspecie, normalizeAssunto } from '@/api/referencias.js'
+import { useAuthStore } from '@/stores/auth.js'
+import { apenasCriaveis } from '@/utils/habilitacao.js'
 
 // tipoDeEspecie: o módulo de onde o diálogo foi aberto -- só as espécies dele podem ser criadas ali. Se o módulo tem uma
 // única espécie (a NPA), ela já vem escolhida.
@@ -180,7 +182,12 @@ async function carregarReferencias() {
       listEspeciesNormativas(),
       listAssuntosBasicos(),
     ])
-    especies.value = esp.map(normalizeEspecie).filter(e => !props.tipoDeEspecie || e.tipoDeEspecie === props.tipoDeEspecie)
+    // Só as espécies que a OM da pessoa pode criar (habilitação de documentos; a NPA, toda OM): o backend também barra, mas o
+    // seletor não oferece o que seria negado.
+    especies.value = apenasCriaveis(
+      esp.map(normalizeEspecie).filter(e => !props.tipoDeEspecie || e.tipoDeEspecie === props.tipoDeEspecie),
+      useAuthStore().especiesCriaveis,
+    )
     assuntos.value = ass.map(normalizeAssunto)
     especiesFiltradas.value = especies.value
     assuntosFiltrados.value = assuntos.value
@@ -222,9 +229,9 @@ const form = reactive({
   titulo:           '',
 })
 
-// A espécie escolhida decide o que o documento pede na criação (perfis/index.js): um ato normativo, o assunto
+// A espécie escolhida decide o que o documento pede na criação (regras/index.js): um ato normativo, o assunto
 // básico; uma NPA, a identificação em texto livre.
-const ehNpa = computed(() => perfilDe(form.especieNormativa?.tipoDeEspecie).ehNpa)
+const ehNpa = computed(() => regrasDe(form.especieNormativa?.tipoDeEspecie).ehNpa)
 
 const aberto = computed({
   get: () => props.modelValue,

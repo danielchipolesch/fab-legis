@@ -1,18 +1,17 @@
 package intraer.fablegis.application.controllers;
 
+import lombok.RequiredArgsConstructor;
 import intraer.fablegis.application.dtos.usuarioDtos.RedefinirSenhaRequestDto;
 import intraer.fablegis.application.dtos.usuarioDtos.UsuarioBuscaResponseDto;
 import intraer.fablegis.application.dtos.usuarioDtos.UsuarioCreateRequestDto;
-import intraer.fablegis.application.dtos.usuarioDtos.UsuarioElegivelResponseDto;
 import intraer.fablegis.application.dtos.usuarioDtos.UsuarioResponseDto;
 import intraer.fablegis.application.dtos.usuarioDtos.UsuarioUpdateRequestDto;
 import intraer.fablegis.domain.entities.usuario.PapelEnum;
 import intraer.fablegis.domain.services.UsuarioService;
 import intraer.fablegis.infrastructure.repositories.UsuarioRepository;
-import intraer.fablegis.infrastructure.security.UsuarioPrincipal;
+import intraer.fablegis.infrastructure.security.AutenticacaoUtil;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -28,38 +27,17 @@ import java.util.List;
 @RestController
 @RequestMapping(value = "/v1/usuarios", produces = MediaType.APPLICATION_JSON_VALUE)
 @Tag(name = "Usuário", description = "Gestão de usuários (administração)")
-@PreAuthorize("hasRole('ADMIN')")
+@PreAuthorize("hasAnyRole('ADM_OM', 'ADM_GER')")
+@RequiredArgsConstructor
 public class UsuarioController {
 
-    @Autowired
-    private UsuarioService usuarioService;
+    private final UsuarioService usuarioService;
 
-    @Autowired
-    private UsuarioRepository usuarioRepository;
+    private final UsuarioRepository usuarioRepository;
 
     @GetMapping
     public ResponseEntity<List<UsuarioResponseDto>> listar() {
         return ResponseEntity.ok(usuarioService.listar());
-    }
-
-    // Candidatos para os seletores de "escolher pessoa" (enviar para revisão/
-    // revogação, aprovar escolhendo o publicador -- ver DocumentoStatusService).
-    // Sobrescreve o @PreAuthorize de classe: qualquer autenticado pode chamar, não só
-    // Admin -- a OM vem sempre de quem está chamando, nunca de parâmetro, então não
-    // há como enumerar usuários de outra OM por aqui.
-    @GetMapping("/elegiveis")
-    @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<List<UsuarioElegivelResponseDto>> elegiveis(
-            @RequestParam PapelEnum papel,
-            @RequestParam(required = false) String q,
-            Authentication authentication) {
-        var usuario = ((UsuarioPrincipal) authentication.getPrincipal()).getUsuario();
-        var termo = q != null ? q.trim() : "";
-        var elegiveis = termo.isEmpty()
-                ? usuarioRepository.findByOmIdAndPapel(usuario.getOm().getId(), papel)
-                : usuarioRepository.findByOmIdAndPapelAndTermo(usuario.getOm().getId(), papel, termo);
-        var candidatos = elegiveis.stream().map(UsuarioElegivelResponseDto::from).toList();
-        return ResponseEntity.ok(candidatos);
     }
 
     // Busca de coautor por nome/nome de guerra (CompartilharDialog.vue) -- autor de
@@ -72,7 +50,7 @@ public class UsuarioController {
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<UsuarioBuscaResponseDto>> buscar(
             @RequestParam String q, Authentication authentication) {
-        var usuario = ((UsuarioPrincipal) authentication.getPrincipal()).getUsuario();
+        var usuario = AutenticacaoUtil.usuarioDe(authentication);
         var termo = q.trim();
         if (termo.length() < 2) return ResponseEntity.ok(List.of());
         var candidatos = usuarioRepository.buscarPorNome(termo, usuario.getId()).stream()

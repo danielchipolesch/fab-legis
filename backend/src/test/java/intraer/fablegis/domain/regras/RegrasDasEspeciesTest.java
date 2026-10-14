@@ -58,4 +58,13 @@ class RegrasDasEspeciesTest {
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("CONVENCIONAL");
     }
+
+    // Quem pode CRIAR é regra da espécie: as convencionais dependem de a OM estar habilitada; a NPA, não (toda OM a cria).
+    @Test
+    void soAsEspeciesConvencionaisDependemDaHabilitacaoDaOm() {
+        assertThat(ATO.habilitacao().exigeHabilitacaoDaOm()).isTrue();
+        var npa = new intraer.fablegis.domain.regras.comunicacaooficialpadronizada.RegrasDeComunicacaoOficialPadronizada(
+                null, null, null, null, null, null, null, null, null, null);
+        assertThat(npa.habilitacao().exigeHabilitacaoDaOm()).isFalse();
+    }
 }

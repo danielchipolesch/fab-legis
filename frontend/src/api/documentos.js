@@ -188,8 +188,8 @@ export function backendParaFrontend(doc) {
   return {
     id: doc.idDocumento,
     especie: doc.siglaEspecieNormativa,
-    // Qual conjunto de regras a espécie segue (CONVENCIONAL, COMUNICACAO_OFICIAL_PADRONIZADA): escolhe o perfil de edição, prévia e publicação
-    // (ver perfis/index.js) -- nunca a sigla da espécie.
+    // Qual conjunto de regras a espécie segue (CONVENCIONAL, COMUNICACAO_OFICIAL_PADRONIZADA): escolhe as regras de edição, prévia e publicação
+    // (ver regras/index.js) -- nunca a sigla da espécie.
     tipo_de_especie: doc.tipoDeEspecie ?? 'CONVENCIONAL',
     numero_basico: doc.codigoAssuntoBasico,
     numero_secundario: doc.numeroSecundario != null ? String(doc.numeroSecundario) : null,
@@ -209,13 +209,13 @@ export function backendParaFrontend(doc) {
     // SEM_ETAPA quando não há nenhuma em curso) -- ver SituacaoBcaEnum/SituacaoLocalEnum.
     situacao_bca: doc.situacaoBca,
     situacao_local: doc.situacaoLocal,
-    // Ver Documento.revisorAtribuido/publicadorAtribuido no backend -- quem pode
+    // Ver Documento.aprovador/publicador no backend -- quem pode
     // agir/editar o documento agora, enquanto ele estiver em EM_REVISAO/
     // EM_PUBLICACAO/ANALISE_REVOGACAO/EM_REVOGACAO.
-    revisor_atribuido_id: doc.revisorAtribuidoId != null ? String(doc.revisorAtribuidoId) : null,
-    revisor_atribuido_nome: doc.revisorAtribuidoNome ?? null,
-    publicador_atribuido_id: doc.publicadorAtribuidoId != null ? String(doc.publicadorAtribuidoId) : null,
-    publicador_atribuido_nome: doc.publicadorAtribuidoNome ?? null,
+    aprovador_id: doc.aprovadorId != null ? String(doc.aprovadorId) : null,
+    aprovador_nome: doc.aprovadorNome ?? null,
+    publicador_id: doc.publicadorId != null ? String(doc.publicadorId) : null,
+    publicador_nome: doc.publicadorNome ?? null,
     url_pdf: doc.urlPdf ?? null,
     qtd_replicas: doc.qtdReplicas ?? 0,
     portaria_referencia: doc.portariaReferencia ?? null,
@@ -227,6 +227,7 @@ export function backendParaFrontend(doc) {
     autor_nome: doc.autorNome ?? null,
     om_id: doc.omId != null ? String(doc.omId) : null,
     om_nome: doc.omNome ?? null,
+    om_url_distintivo: doc.omUrlDistintivo ?? null,
     om_sigla: doc.omSigla ?? null,
     // Só vem preenchido (true/false) na listagem paginada (obter-todos) --
     // ver DocumentoResponseSemAnexoTextualDto.ehAutorOuCoautor. null nos
@@ -306,8 +307,8 @@ function filaParaFrontend(doc) {
   }
 }
 
-// Fila pessoal das telas de Revisão/Publicação -- documentos atribuídos a QUEM
-// está chamando (ver Documento.revisorAtribuido/publicadorAtribuido no backend).
+// Filas das telas de Revisão (aguardando aprovação na OM de quem pergunta) e de Publicação (aguardando publicação, CENDOC) --
+// ver DocumentoService.getFilaDeRevisao/getFilaDePublicacao (backend).
 export async function listMinhaRevisao() {
   const resp = await http.get('/documentos/minha-revisao')
   return (resp ?? []).map(filaParaFrontend)
@@ -362,11 +363,6 @@ export async function updateDocumento(id, data) {
 export async function changeDocumentoStatus(id, situacaoLocal, refs) {
   const body = { situacaoLocal }
   if (refs) {
-    // revisorId: quem vai revisar (destino EM_REVISAO/ANALISE_REVOGACAO), escolhido
-    // pelo Editor. publicadorId: quem vai publicar (destino EM_PUBLICACAO ou EM_REVOGACAO),
-    // escolhido pelo Aprovador -- ver SelecionarPessoaDialog.vue/DocumentoStatusRequestDto.
-    body.revisorId       = refs.revisorId ?? null
-    body.publicadorId    = refs.publicadorId ?? null
     body.orgaoPortaria   = refs.orgaoPortaria ?? null
     body.setorPortaria   = refs.setorPortaria ?? null
     body.numeroPortaria  = refs.numeroPortaria ?? null
@@ -489,4 +485,15 @@ export async function listPortarias(documentoId) {
 
 export async function deleteAnexo(documentoId, anexoId) {
   return http.del(`/documentos/${documentoId}/anexos/${anexoId}`)
+}
+
+// "Substituir" (NPA publicada): cria a NPA nova, em RASCUNHO, ligada à substituída.
+export async function substituirDocumento(id) {
+  const data = await http.post(`/documentos/${id}/substituir`)
+  return backendParaFrontend(data)
+}
+
+// Os dois lados da ligação "Substituir": { substitui, substituidoPor } (cada um { id, identificacao, titulo, situacaoLocal, situacaoBca } ou null).
+export async function getSubstituicao(id) {
+  return http.get(`/documentos/${id}/substituicao`)
 }

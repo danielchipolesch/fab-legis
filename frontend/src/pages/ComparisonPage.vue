@@ -173,10 +173,10 @@
           <q-markup-table flat dense class="justificativas-table">
             <thead>
               <tr>
-                <th style="width:120px">Referência</th>
-                <th>Texto em Vigor</th>
-                <th>Texto Proposto</th>
-                <th>Justificativa</th>
+                <th scope="col" style="width:120px">Referência</th>
+                <th scope="col">Texto em Vigor</th>
+                <th scope="col">Texto Proposto</th>
+                <th scope="col">Justificativa</th>
               </tr>
             </thead>
             <tbody>
@@ -253,7 +253,7 @@ import { gerarTextoSugeridoPortaria } from '@/utils/textoSugeridoPortaria.js'
 import { conteudoParaHtml } from '@/editor/conteudoParaHtml.js'
 import { gerarMapaAlteracaoPdf } from '@/services/pdfService.js'
 import { ehAlteracaoPublicada } from '@/utils/fluxoDocumento.js'
-import { moduloDoDocumento } from '@/perfis/index.js'
+import { moduloDoDocumento } from '@/regras/index.js'
 import { useQuasar } from 'quasar'
 
 const conteudoToHtml = conteudoParaHtml

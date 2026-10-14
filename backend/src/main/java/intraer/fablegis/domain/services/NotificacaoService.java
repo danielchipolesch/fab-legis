@@ -1,5 +1,6 @@
 package intraer.fablegis.domain.services;
 
+import lombok.RequiredArgsConstructor;
 import intraer.fablegis.application.dtos.notificacaoDtos.NotificacaoResponseDto;
 import intraer.fablegis.domain.entities.notificacao.Notificacao;
 import intraer.fablegis.domain.entities.notificacao.TipoNotificacaoEnum;
@@ -8,7 +9,6 @@ import intraer.fablegis.domain.handlers.exceptions.ResourceNotFoundException;
 import intraer.fablegis.infrastructure.notificacao.NotificacaoEmitterRegistry;
 import intraer.fablegis.infrastructure.repositories.NotificacaoRepository;
 import intraer.fablegis.infrastructure.repositories.UsuarioRepository;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -29,16 +29,14 @@ import java.util.List;
 // transação inteira der rollback, a notificação nunca existiu de verdade
 // e não pode ter sido empurrada antes disso.
 @Service
+@RequiredArgsConstructor
 public class NotificacaoService {
 
-    @Autowired
-    private NotificacaoRepository notificacaoRepository;
+    private final NotificacaoRepository notificacaoRepository;
 
-    @Autowired
-    private UsuarioRepository usuarioRepository;
+    private final UsuarioRepository usuarioRepository;
 
-    @Autowired
-    private NotificacaoEmitterRegistry emitterRegistry;
+    private final NotificacaoEmitterRegistry emitterRegistry;
 
     @Transactional
     public void criar(Usuario destinatario, TipoNotificacaoEnum tipo, String mensagem, Long documentoId, String documentoDescricao) {
@@ -51,17 +49,6 @@ public class NotificacaoService {
         Notificacao salva = notificacaoRepository.save(notificacao);
 
         agendarPushAposCommit(destinatario.getId(), salva);
-    }
-
-    // Notifica a pessoa especificamente atribuída (revisor ou publicador, ver
-    // Documento.revisorAtribuido/publicadorAtribuido) quando o documento passa a
-    // depender de uma ação dela -- o modelo de atribuição pessoal (ver PapelEnum)
-    // substitui o antigo aviso pra toda a OM.
-    @Transactional
-    public void notificarAtribuicao(Long destinatarioId, Long documentoId, String documentoDescricao, String mensagem) {
-        Usuario destinatario = usuarioRepository.findById(destinatarioId)
-                .orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado."));
-        criar(destinatario, TipoNotificacaoEnum.APROVACAO_PENDENTE, mensagem, documentoId, documentoDescricao);
     }
 
     private void agendarPushAposCommit(Long destinatarioId, Notificacao notificacao) {

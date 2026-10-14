@@ -2,16 +2,17 @@ services:
 
   # ── Banco de dados ──────────────────────────────────────────────────────────
   postgres:
-    image: postgres:16-alpine
+    image: postgres:18-alpine
     container_name: fab-legis-postgres
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-123456}
       POSTGRES_DB: ${POSTGRES_DB:-fab-legis-dev}
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"   # só a própria máquina (depuração); nunca exposto à rede
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      # PostgreSQL 18+: o volume vai em /var/lib/postgresql (o PGDATA da imagem é /var/lib/postgresql/18/docker), não mais em .../data.
+      - postgres_18_data:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
@@ -25,8 +26,9 @@ services:
     container_name: fab-legis-minio
     command: server /data --console-address ":9001"
     ports:
-      - "9000:9000"   # API S3
-      - "9001:9001"   # Console web
+      # O navegador baixa as imagens direto daqui (URLs assinadas, MINIO_PUBLIC_URL): em produção MINIO_BIND=0.0.0.0 (ver README).
+      - "${MINIO_BIND:-127.0.0.1}:9000:9000"   # API S3
+      - "127.0.0.1:9001:9001"   # Console web (só a própria máquina)
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin123}
@@ -46,9 +48,12 @@ services:
       dockerfile: Dockerfile
     container_name: fab-legis-backend
     ports:
-      - "8081:8081"
+      - "127.0.0.1:8081:8081"   # em produção o navegador chega ao backend pelo Nginx (/v1), não por aqui
     environment:
-      SPRING_PROFILES_ACTIVE: dev
+      # Publica a Swagger UI e o JSON do OpenAPI (os endpoints exigem token de qualquer jeito).
+      APP_SWAGGER_ENABLED: ${APP_SWAGGER_ENABLED:-true}
+      # Origens autorizadas a chamar a API pelo navegador (CORS). Em produção, mesma origem via Nginx: vazio.
+      APP_CORS_ALLOWED_ORIGINS: ${APP_CORS_ALLOWED_ORIGINS-http://127.0.0.1:5173,http://localhost:5173}
       DB_HOST: postgres
       DB_PORT: "5432"
       DB_NAME: ${POSTGRES_DB:-fab-legis-dev}
@@ -60,13 +65,25 @@ services:
       MINIO_BUCKET: ${MINIO_BUCKET:-fab-legis-imagens}
       MINIO_PUBLIC_URL: http://localhost:9000
       APP_OAUTH2_ISSUER: ${APP_OAUTH2_ISSUER:-http://127.0.0.1:8081}
+      # Chave de assinatura dos tokens: se /app/chaves/jwt-rsa.pem existe (pasta ./segredos/jwt do servidor, montada abaixo), é a chave
+      # persistente; senão a chave é efêmera. APP_OAUTH2_CHAVE_OBRIGATORIA=true (produção) faz o boot falhar sem o arquivo.
+      APP_OAUTH2_CHAVE_PRIVADA: ${APP_OAUTH2_CHAVE_PRIVADA:-/app/chaves/jwt-rsa.pem}
+      APP_OAUTH2_CHAVE_OBRIGATORIA: ${APP_OAUTH2_CHAVE_OBRIGATORIA:-false}
       APP_OAUTH2_REDIRECT_URI: ${APP_OAUTH2_REDIRECT_URI:-http://127.0.0.1:5173/callback}
       APP_FRONTEND_LOGIN_URL: ${APP_FRONTEND_LOGIN_URL:-http://127.0.0.1:5173/login}
       APP_ADMIN_CPF: ${APP_ADMIN_CPF:-11144477735}
       APP_ADMIN_SENHA: ${APP_ADMIN_SENHA:-Admin@123}
-      APP_ADMIN_NOME: ${APP_ADMIN_NOME:-Administrador}
+      APP_ADMIN_NOME: ${APP_ADMIN_NOME:-DANIEL ANGELO CHIPOLESCH DE ALMEIDA}
+      APP_ADMIN_NOME_GUERRA: ${APP_ADMIN_NOME_GUERRA:-CHIPOLESCH}
+      APP_ADMIN_EMAIL: ${APP_ADMIN_EMAIL:-chipoleschdaca@fab.mil.br}
+      APP_ADMIN_POSTO: ${APP_ADMIN_POSTO:-CP}
       APP_PDF_MAX_CONCORRENTES: ${APP_PDF_MAX_CONCORRENTES:-2}
       APP_PDF_ESPERA_MAXIMA_SEGUNDOS: ${APP_PDF_ESPERA_MAXIMA_SEGUNDOS:-30}
+      APP_PDF_CACHE_TTL_DIAS: ${APP_PDF_CACHE_TTL_DIAS:-2}
+    volumes:
+      # A chave RSA de assinatura dos tokens (jwt-rsa.pem), fornecida pelo ambiente: pasta ./segredos/jwt do servidor (fora do git).
+      # Em desenvolvimento fica vazia e a chave é efêmera. Somente leitura: o sistema nunca grava chave nenhuma.
+      - ${CHAVES_JWT:-./segredos/jwt}:/app/chaves:ro
     depends_on:
       postgres:
         condition: service_healthy
@@ -92,9 +109,12 @@ services:
       context: .
       dockerfile: frontend/Dockerfile
       target: development
+    # Só em desenvolvimento (Vite com HMR). O .env de cada ambiente escolhe os perfis: COMPOSE_PROFILES=dev ou production.
+    profiles:
+      - dev
     container_name: fab-legis-frontend
     ports:
-      - "5173:5173"
+      - "127.0.0.1:5173:5173"
     volumes:
       - ./frontend/src:/app/src
       - ./frontend/public:/app/public
@@ -128,7 +148,7 @@ services:
       # abaixo) -- sem estes args, o build de produção sempre usava o padrão
       # fixo do Dockerfile (http://localhost:8081/v1), ignorando o .env
       # silenciosamente. Lidos do mesmo .env da raiz que o serviço "frontend"
-      # de dev já usa (ver docs/instalacao.md, seção "Deploy em produção") --
+      # de dev já usa (ver README.md, seção "Instalação em produção") --
       # é o único lugar que precisa mudar pra apontar produção pro domínio
       # real; mudar só o .env não move este build já existente, precisa
       # reconstruir a imagem (ver aviso na documentação).
@@ -139,8 +159,15 @@ services:
     container_name: fab-legis-frontend-prod
     ports:
       - "80:8080"
+      - "443:8443"   # só responde se o nginx.conf for o de HTTPS (nginx.https.conf.example)
     environment:
       NODE_ENV: production
+    volumes:
+      # Configuração do Nginx deste ambiente (nginx/nginx.conf, fora do git; copie de nginx/nginx.conf.example). Precisa existir
+      # antes do `up`: se não existir, o Docker cria uma PASTA com esse nome e o Nginx não sobe.
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./nginx/comum.conf:/etc/nginx/comum.conf:ro
+      - ./segredos/tls:/etc/nginx/certs:ro   # fullchain.pem e privkey.pem (HTTPS); fora do git
     profiles:
       - production
     depends_on:
@@ -151,11 +178,11 @@ services:
   # ── Colaboração em tempo real (Hocuspocus/Yjs) ──────────────────────────────
   collab:
     build:
-      context: ./collab
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: collab/Dockerfile
     container_name: fab-legis-collab
     ports:
-      - "1234:1234"
+      - "127.0.0.1:1234:1234"   # em produção o navegador chega ao collab pelo Nginx (/collab)
     environment:
       # ISSUER precisa bater com o claim "iss" do token (o que o NAVEGADOR usa,
       # ver APP_OAUTH2_ISSUER no backend) -- JWKS_URL é só o endereço INTERNO
@@ -168,16 +195,6 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
-  # ── Documentação técnica (MkDocs Material, build estático servido por Nginx) ─
-  docs:
-    build:
-      context: .
-      dockerfile: docs/Dockerfile
-    container_name: fab-legis-docs
-    ports:
-      - "8000:8080"
-    restart: unless-stopped
-
 volumes:
-  postgres_data:
+  postgres_18_data:
   minio_data:

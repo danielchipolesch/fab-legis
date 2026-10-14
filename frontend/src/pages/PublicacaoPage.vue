@@ -11,9 +11,9 @@
 
     <div class="row items-center justify-between q-mb-xl">
       <div>
-        <h1 class="text-h5 text-weight-bold text-primary q-my-none">Publicação</h1>
+        <h1 class="text-h5 text-weight-bold text-primary q-my-none">Manter Publicação de Documento</h1>
         <p class="text-body2 text-grey-7 q-mb-none">
-          Documentos atribuídos a você para publicar, revogar ou devolver.
+          Documentos aprovados aguardando publicação: qualquer publicador do CENDOC pode publicá-los, revogá-los ou devolvê-los.
         </p>
       </div>
     </div>
@@ -73,7 +73,7 @@
         <template #no-data>
           <div class="full-width column items-center q-py-xl text-grey-7">
             <q-icon size="56px" class="q-mb-sm" name="mdi-inbox-outline" />
-            <p>Nenhum documento atribuído a você no momento.</p>
+            <p>Nenhum documento aguardando publicação no momento.</p>
           </div>
         </template>
       </q-table>
@@ -105,7 +105,7 @@ import * as documentosApi from '@/api/documentos.js'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import PublicarDialog from '@/components/editor/PublicarDialog.vue'
 import PublicarNpaDialog from '@/components/editor/PublicarNpaDialog.vue'
-import { perfilDoDocumento } from '@/perfis/index.js'
+import { regrasDoDocumento } from '@/regras/index.js'
 import { caixaAlta } from '@/utils/texto.js'
 import { DESTINO_DE_CONCLUSAO, destinoDeDevolucao, ehRevogacao, podeDevolverPublicacao } from '@/utils/fluxoDocumento.js'
 
@@ -137,7 +137,7 @@ onMounted(carregar)
 
 const dialogPublicar = ref(false)
 const alvo = ref(null)
-const alvoEhNpa = computed(() => perfilDoDocumento(alvo.value).ehNpa)
+const alvoEhNpa = computed(() => regrasDoDocumento(alvo.value).ehNpa)
 const enviando = ref(false)
 
 // PublicarDialog precisa de mais campos do que a fila enxuta traz (espécie,

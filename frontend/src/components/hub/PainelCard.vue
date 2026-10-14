@@ -98,7 +98,7 @@ import { useQuasar } from 'quasar'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import { listarCartao } from '@/api/painel.js'
 import { acaoDaLinha, selosDaLinha } from '@/utils/painel.js'
-import { moduloDe } from '@/perfis/index.js'
+import { moduloDe } from '@/regras/index.js'
 import { useDocumentosStore } from '@/stores/documentos.js'
 import { usePainelStore } from '@/stores/painel.js'
 

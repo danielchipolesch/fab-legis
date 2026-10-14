@@ -1,14 +1,14 @@
 package intraer.fablegis.application.controllers;
 
+import lombok.RequiredArgsConstructor;
 import intraer.fablegis.application.dtos.documentoDtos.DocumentoResponseSemAnexoTextualDto;
 import intraer.fablegis.domain.entities.estruturaDocumento.Documento;
 import intraer.fablegis.domain.entities.usuario.Usuario;
 import intraer.fablegis.domain.mappers.DocumentoMapper;
 import intraer.fablegis.domain.services.DocumentoCompartilhamentoService;
 import intraer.fablegis.domain.services.DocumentoService;
-import intraer.fablegis.infrastructure.security.UsuarioPrincipal;
+import intraer.fablegis.infrastructure.security.AutenticacaoUtil;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -30,13 +30,12 @@ import java.util.Set;
 @RestController
 @RequestMapping(value = "/v1/painel", produces = MediaType.APPLICATION_JSON_VALUE)
 @Tag(name = "Painel", description = "Cards do hub: minhas em tramitação, aguardando ação, em tramitação nas OMs, publicados e revogados")
+@RequiredArgsConstructor
 public class PainelController {
 
-    @Autowired
-    private DocumentoService documentoService;
+    private final DocumentoService documentoService;
 
-    @Autowired
-    private DocumentoCompartilhamentoService compartilhamentoService;
+    private final DocumentoCompartilhamentoService compartilhamentoService;
 
     // Mais recentemente mexidos primeiro.
     private static PageRequest pagina(int page, int size) {
@@ -56,7 +55,7 @@ public class PainelController {
             @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "5") int size,
             Authentication authentication) {
         Usuario usuario = usuario(authentication);
-        return ResponseEntity.ok(comPosse(documentoService.getPainelAguardandoAcao(usuario.getId(), pagina(page, size)), usuario));
+        return ResponseEntity.ok(comPosse(documentoService.getPainelAguardandoAcao(usuario, pagina(page, size)), usuario));
     }
 
     @GetMapping("/em-tramitacao-de-outros")
@@ -76,7 +75,7 @@ public class PainelController {
     }
 
     private static Usuario usuario(Authentication authentication) {
-        return ((UsuarioPrincipal) authentication.getPrincipal()).getUsuario();
+        return AutenticacaoUtil.usuarioDe(authentication);
     }
 
     // 1 consulta para a página inteira (não 1 por linha): marca em quais o usuário é autor ou coautor.

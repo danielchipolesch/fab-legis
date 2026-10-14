@@ -32,10 +32,12 @@
         </div>
       </div>
 
-      <!-- Criar só leva ao módulo: quem cria de fato é o botão de criar da tela inicial dele. -->
-      <q-btn-dropdown v-if="auth.isEditor" class="col-auto" color="primary" unelevated size="lg" icon="mdi-plus" label="Criar" data-testid="criar">
+      <!-- Criar só leva ao módulo: quem cria de fato é o botão de criar da tela inicial dele. Só aparecem os módulos em que a OM
+           da pessoa pode criar (habilitação de documentos): a espécie convencional só para OM habilitada, a NPA para todas. Os
+           cartões dos módulos, abaixo, continuam todos, para consultar. -->
+      <q-btn-dropdown v-if="auth.isElaborador && modulosQueCria.length" class="col-auto" color="primary" unelevated size="lg" icon="mdi-plus" label="Criar" data-testid="criar">
         <q-list style="min-width:240px">
-          <q-item v-for="m in MODULOS" :key="m.rota" clickable v-close-popup :to="{ name: m.rota }" :data-testid="`criar-${m.rota}`">
+          <q-item v-for="m in modulosQueCria" :key="m.rota" clickable v-close-popup :to="{ name: m.rota }" :data-testid="`criar-${m.rota}`">
             <q-item-section avatar><q-icon :name="m.icone" color="primary" /></q-item-section>
             <q-item-section>
               <q-item-label>{{ m.rotuloDoCriar }}</q-item-label>
@@ -93,6 +95,15 @@
     <!-- Cada módulo é o seu próprio card quadrado, centralizado: ocupam só o espaço de que precisam (quebram de linha se um dia
          entrarem mais). O q-btn ocupa o card inteiro, para o card todo ser um link (teclado e foco incluídos). -->
     <div class="row justify-center q-gutter-md">
+      <!-- Painel Gerencial: o primeiro do Acesso Rápido, e só para quem tem o papel do Painel Gerencial. -->
+      <q-card v-if="auth.temAcessoAoPainel" flat bordered class="tile-modulo">
+        <q-btn :to="{ name: 'painel-gerencial' }" stack flat no-caps class="tile-botao full-width full-height" data-testid="tile-painel-gerencial">
+          <q-icon name="mdi-chart-box-outline" size="48px" color="primary" />
+          <div class="text-subtitle1 text-weight-medium text-grey-9 q-mt-sm">Painel Gerencial</div>
+          <div class="text-caption text-grey-7">Indicadores da gestão normativa</div>
+          <q-tooltip>Acessar o Painel Gerencial</q-tooltip>
+        </q-btn>
+      </q-card>
       <q-card v-for="m in MODULOS" :key="m.rota" flat bordered class="tile-modulo">
         <q-btn
           :to="{ name: m.rota }"
@@ -105,7 +116,7 @@
           <q-icon :name="m.icone" size="48px" color="primary" />
           <div class="text-subtitle1 text-weight-medium text-grey-9 q-mt-sm">{{ m.nome }}</div>
           <div class="text-caption text-grey-7">{{ m.subtitulo }}</div>
-          <q-tooltip>Acessar o módulo {{ m.nome }}</q-tooltip>
+          <q-tooltip>Acessar módulo {{ m.nome }}</q-tooltip>
         </q-btn>
       </q-card>
     </div>
@@ -115,15 +126,18 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useAuthStore } from '@/stores/auth.js'
 import PainelCard from '@/components/hub/PainelCard.vue'
 import DetalhesDoDocumentoDialog from '@/components/hub/DetalhesDoDocumentoDialog.vue'
-import { MODULOS } from '@/perfis/index.js'
+import { MODULOS } from '@/regras/index.js'
 
 // O hub, a tela inicial do sistema: três cards do trabalho da pessoa (de qualquer módulo) e, embaixo, o acesso a cada
 // módulo. Nada aqui altera um documento -- as ações acontecem nos módulos, nas telas de Revisão/Publicação ou no editor.
 const auth = useAuthStore()
+
+// Os módulos em que a OM da pessoa pode criar documentos (o botão Criar do hub lista só estes).
+const modulosQueCria = computed(() => MODULOS.filter(m => auth.podeCriarNoModulo(m.tipoDeEspecie)))
 
 const detalhesAberto = ref(false)
 const detalhesDoc = ref(null)

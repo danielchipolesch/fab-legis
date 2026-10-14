@@ -1,0 +1,120 @@
+/* Tabelas do documento no editor, na prévia e nas telas de leitura: legenda ("Tabela N — título", numerada como as figuras),
+   cor e estilo. O PDF (XslFoContentRenderer) e o HTML exportado (CssDoConteudo) têm as mesmas regras, com a mesma paleta
+   (utils/estiloDeTabela.js ↔ EstiloDeTabela.java). `.doc-tabela.doc-tabela` repete a classe só para ganhar de qualquer regra
+   de tabela do contexto (editor, prévia) sem depender da ordem de carga. */
+
+.doc-tabela.doc-tabela table {
+  --tb-cab: #e8edf6;
+  --tb-borda: #999999;
+}
+.doc-tabela.doc-tabela table[data-cor="cinza"] { --tb-cab: #e6e6e6; }
+.doc-tabela.doc-tabela table[data-cor="verde"] { --tb-cab: #e3f0e6; --tb-borda: #8fa896; }
+.doc-tabela.doc-tabela table[data-cor="vinho"] { --tb-cab: #f3e3e6; --tb-borda: #a8909a; }
+.doc-tabela.doc-tabela table[data-cor="sem"] { --tb-cab: transparent; }
+
+.doc-tabela.doc-tabela table td,
+.doc-tabela.doc-tabela table th {
+  border: 1px solid var(--tb-borda);
+}
+.doc-tabela.doc-tabela table th {
+  background: var(--tb-cab);
+  font-weight: bold;
+}
+
+/* Zebrado: linhas pares do corpo mais claras (a cor própria da célula, no style, continua valendo). */
+.doc-tabela.doc-tabela table[data-estilo="zebrado"] tbody tr:nth-child(even) td {
+  background-color: #f4f6fa;
+}
+
+/* Compacto: letra e margens menores. */
+.doc-tabela.doc-tabela table[data-estilo="compacto"] td,
+.doc-tabela.doc-tabela table[data-estilo="compacto"] th {
+  padding: 1px 4px;
+  font-size: 0.85em;
+}
+
+/* Aberto: só linhas horizontais. */
+.doc-tabela.doc-tabela table[data-estilo="aberto"] td,
+.doc-tabela.doc-tabela table[data-estilo="aberto"] th {
+  border-left: 0;
+  border-right: 0;
+}
+
+/* Legenda na prévia / telas de leitura (a tabela só tem título se o autor escreveu um; o número conta só essas). */
+.doc-tabela .tabela-titulo {
+  counter-increment: tabela;
+  font-size: 13px;
+  font-style: italic;
+  margin: 0 0 6px;
+  text-indent: 0;
+  text-align: center;
+}
+.doc-tabela .tabela-titulo::before {
+  content: "Tabela " counter(tabela) " — ";
+}
+.doc-tabela .tabela-fonte {
+  font-size: 12px;
+  color: #555;
+  margin: 4px 0 0;
+  text-indent: 0;
+  text-align: center;
+}
+
+/* A numeração é por documento: o contador reinicia no contêiner das folhas da prévia (a Espécie Convencional reinicia
+   junto com o das figuras, em DocumentoPreview.vue). */
+.pages-wrap {
+  counter-reset: tabela;
+}
+
+/* Editor (TabelaView): título e fonte são campos de texto acima e abaixo da tabela. Só conta no número a tabela com título. */
+.tiptap-editor .ProseMirror {
+  counter-reset: tabela;
+}
+.tabela-legenda-editor {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 13px;
+  margin: 6px 0 2px;
+}
+.tabela-legenda-editor .tabela-rotulo {
+  font-style: italic;
+  white-space: nowrap;
+  color: #555;
+}
+.tabela-legenda-editor input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  border-bottom: 1px dashed #bbb;
+  background: transparent;
+  font: inherit;
+  font-style: italic;
+  padding: 1px 2px;
+}
+.tabela-legenda-editor input:focus {
+  outline: none;
+  border-bottom-color: #0b3d91;
+}
+.doc-tabela.com-titulo {
+  counter-increment: tabela;
+}
+.tabela-titulo-editor .tabela-rotulo::before {
+  content: "Tabela —";
+}
+.doc-tabela.com-titulo .tabela-titulo-editor .tabela-rotulo::before {
+  content: "Tabela " counter(tabela) " —";
+}
+
+.amostra-cor {
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  border: 1px solid;
+  border-radius: 3px;
+}
+
+/* Uma tabela mais larga que o editor (colunas arrastadas) rola dentro dela, em vez de alargar a página. */
+.tiptap-editor .ProseMirror .tableWrapper {
+  overflow-x: auto;
+}

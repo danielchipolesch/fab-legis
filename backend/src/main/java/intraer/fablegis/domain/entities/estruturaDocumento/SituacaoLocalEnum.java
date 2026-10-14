@@ -15,7 +15,7 @@ package intraer.fablegis.domain.entities.estruturaDocumento;
 public enum SituacaoLocalEnum {
     RASCUNHO,
     MINUTA,
-    // Atribuído a uma pessoa específica com papel APROV (Documento.revisorAtribuido),
+    // Atribuído a uma pessoa específica com papel APROV (Documento.aprovador),
     // escolhida por quem enviou (EDIT) -- ver DocumentoStatusService. Alcançável a
     // partir de MINUTA (1ª publicação) ou EM_ALTERACAO (alteração); só a pessoa
     // atribuída decide o próximo passo (aprovar ou devolver), e só ela pode editar o
@@ -23,14 +23,14 @@ public enum SituacaoLocalEnum {
     EM_REVISAO,
     // Aprovado e aguardando o registro da portaria/BCA -- aprovar cascateia direto para
     // cá (não existem estados "aprovado"/"alterado" parados). Atribuído a uma pessoa
-    // específica com papel PUBLIC (Documento.publicadorAtribuido), escolhida pelo APROV
+    // específica com papel PUBLIC (Documento.publicador), escolhida pelo APROV
     // no mesmo ato de aprovar. O conteúdo está congelado: ninguém mais edita. Publicar
     // (registrar portaria/BCA) leva a SEM_ETAPA e atualiza a situação BCA.
     EM_PUBLICACAO,
     // Alteração de um ato já PUBLICADO em elaboração: o texto vigente continua sendo o
     // publicado até o registro da portaria/BCA da alteração.
     EM_ALTERACAO,
-    // Pedido de revogação em análise pelo APROV atribuído (revisorAtribuido). Devolver
+    // Pedido de revogação em análise pelo APROV atribuído (aprovador). Devolver
     // volta a SEM_ETAPA: o documento nunca deixou de ser PUBLICADO.
     ANALISE_REVOGACAO,
     // Revogação aprovada, aguardando a portaria/BCA de revogação (publicador). A única
@@ -39,5 +39,14 @@ public enum SituacaoLocalEnum {
     // Só para quem nunca foi publicado (RASCUNHO/MINUTA).
     CANCELADO,
     // Nenhuma etapa interna em curso: o documento está parado na sua situação BCA.
-    SEM_ETAPA
+    SEM_ETAPA;
+
+    // Em quais etapas o documento aceita edição do que o compõe -- metadados (DocumentoService.update), estrutura, texto e anexos
+    // (AnexoService). É a barreira por ETAPA, sem saber quem pede; quem pode pedir, e com que regra em cada etapa, é
+    // DocumentoAcessoService.podeEditar (que usa esta e é a checagem que os controllers aplicam). EM_REVISAO entra porque o
+    // revisor atribuído edita nela; de EM_PUBLICACAO em diante (e em todo o fluxo de revogação) o conteúdo está congelado:
+    // ninguém edita, nem o autor.
+    public boolean aceitaEdicao() {
+        return this == RASCUNHO || this == MINUTA || this == EM_ALTERACAO || this == EM_REVISAO;
+    }
 }

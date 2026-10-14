@@ -87,11 +87,12 @@ public record DocumentoResponseComAnexoTextualDto(
         Long omId,
         String omNome,
         String omSigla,
+        String omUrlDistintivo,
 
-        Long revisorAtribuidoId,
-        String revisorAtribuidoNome,
-        Long publicadorAtribuidoId,
-        String publicadorAtribuidoNome,
+        Long aprovadorId,
+        String aprovadorNome,
+        Long publicadorId,
+        String publicadorNome,
 
         // Ver DocumentoResponseSemAnexoTextualDto.tipoDeEspecie.
         String tipoDeEspecie

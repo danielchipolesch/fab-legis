@@ -6,6 +6,7 @@ import intraer.fablegis.application.dtos.npaDtos.CamposDaNpaDto;
 import intraer.fablegis.domain.entities.estruturaDocumento.Documento;
 import intraer.fablegis.domain.entities.estruturaDocumento.ElementoEmendaStatusEnum;
 import intraer.fablegis.domain.entities.estruturaDocumento.ItemAnexoParteNormativaTipoEnum;
+import intraer.fablegis.domain.entities.estruturaDocumento.OrientacaoDoAnexo;
 import intraer.fablegis.domain.entities.estruturaDocumento.SituacaoBcaEnum;
 import intraer.fablegis.domain.entities.estruturaDocumento.SituacaoLocalEnum;
 import intraer.fablegis.domain.entities.numeracaoDocumento.EspecieNormativa;
@@ -25,6 +26,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import static intraer.fablegis.domain.entities.estruturaDocumento.ItemAnexoParteNormativaTipoEnum.*;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -96,7 +98,10 @@ class DocumentoFoNpaBuilderTest {
 
     private static String arvoreDeAreas(String fo) throws Exception {
         var saida = new java.io.ByteArrayOutputStream();
-        var fopFactory = FopFactoryProvider.get();
+        // Fábrica PADRÃO (sem a configuração das fontes Carlito): a árvore de áreas só serve para ler o TEXTO, e assim ele não
+        // depende de fonte nenhuma instalada. Com a fábrica compartilhada, o texto variava conforme a ordem dos testes: se um
+        // teste de PDF já tivesse registrado a Carlito, o par "ti" virava um glifo de ligadura (U+E000) e sumia do texto.
+        var fopFactory = org.apache.fop.apps.FopFactory.newInstance(new java.io.File(".").toURI());
         var fop = fopFactory.newFop(org.apache.fop.apps.MimeConstants.MIME_FOP_AREA_TREE, fopFactory.newFOUserAgent(), saida);
         var spf = javax.xml.parsers.SAXParserFactory.newInstance();
         spf.setNamespaceAware(true);
@@ -118,6 +123,20 @@ class DocumentoFoNpaBuilderTest {
         return new AnexoResponseDto((long) ordem, titulo, null, ordem);
     }
 
+    private static AnexoResponseDto anexo(int ordem, String titulo, OrientacaoDoAnexo orientacao) {
+        return new AnexoResponseDto((long) ordem, titulo, null, ordem, orientacao);
+    }
+
+    // Largura x altura de cada página na árvore de áreas do FOP (bounds="0 0 largura altura").
+    private static List<String> orientacoesDasPaginas(String arvore) {
+        var orientacoes = new ArrayList<String>();
+        var m = java.util.regex.Pattern.compile("<pageViewport bounds=\"0 0 (\\d+) (\\d+)\"").matcher(arvore);
+        while (m.find()) {
+            orientacoes.add(Integer.parseInt(m.group(1)) > Integer.parseInt(m.group(2)) ? "PAISAGEM" : "RETRATO");
+        }
+        return orientacoes;
+    }
+
     private static Documento rascunho() {
         return documento(SituacaoBcaEnum.NAO_PUBLICADO, SituacaoLocalEnum.MINUTA);
     }
@@ -130,6 +149,21 @@ class DocumentoFoNpaBuilderTest {
 
         assertThat(fo).doesNotContain("PORTARIA").doesNotContain("SUMÁRIO").doesNotContain("ANEXO I<");
         assertThat(fo.split("<fo:page-sequence ", -1).length - 1).isEqualTo(1);
+    }
+
+    // Orientação por anexo (OrientacaoDoAnexo): a NPA usa o mesmo builder de anexo da espécie convencional, mas o
+    // rótulo é em letras e o corpo (com moldura) segue sempre em retrato.
+    @Test
+    void umAnexoEmPaisagemFicaDeitadoEOCorpoDaNpaContinuaEmRetrato() throws Exception {
+        var fo = fo(rascunho(), estruturaPequena(),
+                List.of(anexo(1, "Organograma", OrientacaoDoAnexo.RETRATO), anexo(2, "Fluxograma", OrientacaoDoAnexo.PAISAGEM)));
+
+        var arvore = arvoreDeAreas(fo);
+        var paginas = orientacoesDasPaginas(arvore);
+
+        assertThat(paginas).startsWith("RETRATO").endsWith("RETRATO", "PAISAGEM");
+        assertThat(paginas.stream().filter("PAISAGEM"::equals).count()).isEqualTo(1);
+        assertThat(textoCorrido(arvore)).contains("ANEXO A").contains("ANEXO B").doesNotContain("ANEXO II");
     }
 
     @Test
@@ -426,5 +460,43 @@ class DocumentoFoNpaBuilderTest {
         // 1 página da NPA + 1 do anexo: nenhuma tem "n/total" (a NPA cabe numa página).
         assertThat(paginas).isEqualTo(2);
         assertThat(textoCorrido(arvore)).doesNotContain("2/2").doesNotContain("1/1");
+    }
+
+    // ─── DOM (distintivo da OM) ─────────────────────────────────────────────────
+
+    private static final String PNG_1X1 = "data:image/png;base64,"
+            + "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
+
+    private DocumentoFoNpaBuilder construtorComImagens(String dataUri) {
+        var campos = mock(CamposDeNpa.class);
+        when(campos.camposParaLeiaute(anyLong())).thenReturn(new CamposDaNpaDto(
+                "DIVISÃO DE SUPORTE OPERACIONAL", "Brasília", List.of(), null, List.of("FULANO"), List.of("BELTRANO")));
+        var imagens = mock(intraer.fablegis.domain.services.ImagemService.class);
+        when(imagens.getImageAsDataUri(anyString())).thenReturn(dataUri);
+        return new DocumentoFoNpaBuilder(new ObjectMapper(), imagens, new NumeracaoDeNpa(), campos);
+    }
+
+    @Test
+    void oDistintivoDaOmEntraNaCelulaDoDomEOPdfRenderiza() throws Exception {
+        var doc = rascunho();
+        doc.getOm().setUrlDistintivo("http://minio/bucket/grupo.png");
+
+        var fo = construtorComImagens(PNG_1X1).gerarFo(doc, List.of(), estruturaPequena(), List.of());
+
+        assertThat(fo).contains("<fo:external-graphic src=\"" + PNG_1X1 + "\"");
+        // O FOP aceita o FO (a imagem é desenhada dentro da célula, sem estourar a página).
+        assertThat(arvoreDeAreas(fo)).isNotEmpty();
+    }
+
+    @Test
+    void semDistintivoACelulaDoDomFicaEmBranco() {
+        var doc = rascunho();
+
+        assertThat(construtorComImagens(PNG_1X1).gerarFo(doc, List.of(), estruturaPequena(), List.of()))
+                .doesNotContain("fo:external-graphic");
+        // Distintivo cadastrado, mas arquivo ausente do armazenamento: também fica em branco, sem quebrar o PDF.
+        doc.getOm().setUrlDistintivo("http://minio/bucket/sumiu.png");
+        assertThat(construtorComImagens(null).gerarFo(doc, List.of(), estruturaPequena(), List.of()))
+                .doesNotContain("fo:external-graphic");
     }
 }

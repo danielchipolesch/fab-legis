@@ -16,6 +16,12 @@ public interface ItemPartePreliminarRepository extends JpaRepository<ItemPartePr
     @Query("SELECT i FROM ItemPartePreliminar i WHERE i.documento.id = :documentoId ORDER BY i.elementOrder ASC")
     List<ItemPartePreliminar> findByDocumentoIdOrderByElementOrderAsc(@Param("documentoId") Long documentoId);
 
+    // Projeção leve (sem as colunas TEXT de conteúdo) usada pelo fingerprint do cache de
+    // PDF/HTML em tramitação (DocumentoRenderCacheService) -- ver o comentário equivalente em
+    // ItemAnexoParteNormativaRepository.
+    @Query("SELECT i.id, i.updatedAt FROM ItemPartePreliminar i WHERE i.documento.id = :documentoId ORDER BY i.id ASC")
+    List<Object[]> findIdsEDataAtualizacaoByDocumentoId(@Param("documentoId") Long documentoId);
+
     @Modifying
     @Transactional
     @Query("DELETE FROM ItemPartePreliminar i WHERE i.documento.id = :documentoId")

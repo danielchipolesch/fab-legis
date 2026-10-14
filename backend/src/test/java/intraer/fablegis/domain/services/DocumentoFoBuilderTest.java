@@ -1,30 +1,30 @@
 package intraer.fablegis.domain.services;
 
 import intraer.fablegis.domain.entities.estruturaDocumento.Documento;
+import intraer.fablegis.domain.entities.estruturaDocumento.OrientacaoDoAnexo;
 import intraer.fablegis.domain.entities.estruturaDocumento.SituacaoBcaEnum;
 import intraer.fablegis.domain.entities.estruturaDocumento.SituacaoLocalEnum;
 import intraer.fablegis.domain.entities.numeracaoDocumento.AssuntoBasico;
 import intraer.fablegis.domain.entities.numeracaoDocumento.EspecieNormativa;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.test.util.ReflectionTestUtils;
 import tools.jackson.databind.ObjectMapper;
 
 import java.sql.Timestamp;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.within;
 
 // A Portaria (1ª página do PDF) só existe depois da 1ª publicação -- ver VersoesDocumento.exibePortaria
 // e docs/exportacao-pdf.md. Sem Spring nem FOP: só a estrutura do XSL-FO gerado.
 class DocumentoFoBuilderTest {
 
-    private final DocumentoFoBuilder builder = new DocumentoFoBuilder();
+    private DocumentoFoBuilder builder;
 
     @BeforeEach
     void setUp() {
-        ReflectionTestUtils.setField(builder, "objectMapper", new ObjectMapper());
-        ReflectionTestUtils.setField(builder, "numeracaoService", new NumeracaoService());
+        builder = new DocumentoFoBuilder(new ObjectMapper(), null, new NumeracaoService());
     }
 
     private static Documento documento(SituacaoBcaEnum bca, SituacaoLocalEnum local) {
@@ -127,7 +127,10 @@ class DocumentoFoBuilderTest {
     // sem extrair texto de um PDF.
     private static String arvoreDeAreas(String fo) throws Exception {
         var saida = new java.io.ByteArrayOutputStream();
-        var fopFactory = FopFactoryProvider.get();
+        // Fábrica PADRÃO (sem a configuração das fontes Carlito): a árvore de áreas só serve para ler o TEXTO, e assim ele não
+        // depende de fonte nenhuma instalada. Com a fábrica compartilhada, o texto variava conforme a ordem dos testes: se um
+        // teste de PDF já tivesse registrado a Carlito, o par "ti" virava um glifo de ligadura (U+E000) e sumia do texto.
+        var fopFactory = org.apache.fop.apps.FopFactory.newInstance(new java.io.File(".").toURI());
         var fop = fopFactory.newFop(org.apache.fop.apps.MimeConstants.MIME_FOP_AREA_TREE, fopFactory.newFOUserAgent(), saida);
         var spf = javax.xml.parsers.SAXParserFactory.newInstance();
         spf.setNamespaceAware(true);
@@ -187,5 +190,141 @@ class DocumentoFoBuilderTest {
                 List.of(), List.of(artigo(1)), List.of(anexo(1, "Curto")));
 
         assertThat(textoCorrido(arvoreDeAreas(fo))).doesNotContain("Continuação do");
+    }
+
+    // ─── Imagem de anexo maior que a página: redimensionada para caber, mantendo as proporções ──────────────────
+
+    // PNG sólido (comprime muito pouco espaço, mas tem as dimensões em pixels pedidas) como data URI.
+    private static String pngComoDataUri(int largura, int altura) throws Exception {
+        var imagem = new java.awt.image.BufferedImage(largura, altura, java.awt.image.BufferedImage.TYPE_INT_RGB);
+        var saida = new java.io.ByteArrayOutputStream();
+        javax.imageio.ImageIO.write(imagem, "png", saida);
+        return "data:image/png;base64," + java.util.Base64.getEncoder().encodeToString(saida.toByteArray());
+    }
+
+    private void servirImagem(String dataUri) {
+        var imagens = org.mockito.Mockito.mock(ImagemService.class);
+        org.mockito.Mockito.when(imagens.getImageAsDataUri(org.mockito.ArgumentMatchers.anyString())).thenReturn(dataUri);
+        builder = new DocumentoFoBuilder(new ObjectMapper(), imagens, new NumeracaoService());
+    }
+
+    private static intraer.fablegis.application.dtos.anexoDtos.AnexoResponseDto anexoComImagem(
+            OrientacaoDoAnexo orientacao) {
+        return new intraer.fablegis.application.dtos.anexoDtos.AnexoResponseDto(
+                1L, "Imagem grande", "http://minio/bucket/imagem.png", 1, orientacao);
+    }
+
+    // Tamanho (em milésimos de ponto) que a última imagem da árvore de áreas ocupa: <viewport ... pos="x y largura altura">.
+    private static long[] tamanhoDaUltimaImagem(String arvore) {
+        var m = java.util.regex.Pattern.compile("<viewport[^>]*pos=\"(-?\\d+) (-?\\d+) (\\d+) (\\d+)\"").matcher(arvore);
+        long[] tamanho = null;
+        while (m.find()) tamanho = new long[]{Long.parseLong(m.group(3)), Long.parseLong(m.group(4))};
+        return tamanho;
+    }
+
+    private static long cm(double centimetros) { return Math.round(centimetros * 28346.457); } // em milésimos de ponto
+
+    // Capa + ANEXO I + o anexo: a imagem não pode gerar página extra nem sair cortada, e as proporções se mantêm.
+    @Test
+    void umaImagemAltaEmRetratoEncolheParaCaberEmUmaSoPagina() throws Exception {
+        servirImagem(pngComoDataUri(1500, 4500)); // 1:3 -- a 17 cm de largura teria 51 cm de altura
+        var fo = builder.buildFo(documento(SituacaoBcaEnum.NAO_PUBLICADO, SituacaoLocalEnum.MINUTA),
+                List.of(), List.of(artigo(1)), List.of(anexoComImagem(OrientacaoDoAnexo.RETRATO)));
+        var arvore = arvoreDeAreas(fo);
+
+        assertThat(orientacoesDasPaginas(arvore)).containsExactly("RETRATO", "RETRATO", "RETRATO");
+        var imagem = tamanhoDaUltimaImagem(arvore);
+        assertThat(imagem[1]).isLessThanOrEqualTo(cm(22.5));          // cabe na altura da caixa
+        assertThat(imagem[0]).isLessThanOrEqualTo(cm(17));                         // e na largura
+        assertThat((double) imagem[0] / imagem[1]).isCloseTo(1.0 / 3.0, within(0.01)); // 1:3 mantido
+    }
+
+    @Test
+    void umaImagemAltaEmPaisagemEncolheParaCaberEmUmaSoPagina() throws Exception {
+        servirImagem(pngComoDataUri(1000, 3000));
+        var fo = builder.buildFo(documento(SituacaoBcaEnum.NAO_PUBLICADO, SituacaoLocalEnum.MINUTA),
+                List.of(), List.of(artigo(1)), List.of(anexoComImagem(OrientacaoDoAnexo.PAISAGEM)));
+        var arvore = arvoreDeAreas(fo);
+
+        assertThat(orientacoesDasPaginas(arvore)).containsExactly("RETRATO", "RETRATO", "PAISAGEM");
+        var imagem = tamanhoDaUltimaImagem(arvore);
+        assertThat(imagem[1]).isLessThanOrEqualTo(cm(14));
+        assertThat(imagem[0]).isLessThanOrEqualTo(cm(25.7));
+        assertThat((double) imagem[0] / imagem[1]).isCloseTo(1.0 / 3.0, within(0.01));
+    }
+
+    @Test
+    void umaImagemLargaEmRetratoEncolheParaALarguraDaCaixa() throws Exception {
+        servirImagem(pngComoDataUri(6000, 1000)); // 6:1
+        var fo = builder.buildFo(documento(SituacaoBcaEnum.NAO_PUBLICADO, SituacaoLocalEnum.MINUTA),
+                List.of(), List.of(artigo(1)), List.of(anexoComImagem(OrientacaoDoAnexo.RETRATO)));
+        var arvore = arvoreDeAreas(fo);
+
+        assertThat(orientacoesDasPaginas(arvore)).containsExactly("RETRATO", "RETRATO", "RETRATO");
+        var imagem = tamanhoDaUltimaImagem(arvore);
+        assertThat(imagem[0]).isLessThanOrEqualTo(cm(17));
+        assertThat((double) imagem[0] / imagem[1]).isCloseTo(6.0, within(0.05));
+    }
+
+    // ─── Orientação do anexo de imagem (OrientacaoDoAnexo) ─────────────────────────
+
+    private static intraer.fablegis.application.dtos.anexoDtos.AnexoResponseDto anexo(
+            int ordem, String titulo, OrientacaoDoAnexo orientacao) {
+        return new intraer.fablegis.application.dtos.anexoDtos.AnexoResponseDto((long) ordem, titulo, null, ordem, orientacao);
+    }
+
+    // Tamanho de cada página, na ordem, a partir da árvore de áreas do FOP (atributo bounds="0 0 largura altura").
+    private static List<String> orientacoesDasPaginas(String arvore) {
+        var orientacoes = new java.util.ArrayList<String>();
+        var m = java.util.regex.Pattern.compile("<pageViewport bounds=\"0 0 (\\d+) (\\d+)\"").matcher(arvore);
+        while (m.find()) {
+            orientacoes.add(Integer.parseInt(m.group(1)) > Integer.parseInt(m.group(2)) ? "PAISAGEM" : "RETRATO");
+        }
+        return orientacoes;
+    }
+
+    // Cada anexo escolhe a orientação da própria página: o PDF mistura as duas no mesmo documento.
+    @Test
+    void umAnexoEmPaisagemTemPaginaDeitadaEOsDemaisContinuamEmRetrato() throws Exception {
+        var fo = builder.buildFo(documento(SituacaoBcaEnum.NAO_PUBLICADO, SituacaoLocalEnum.MINUTA),
+                List.of(), List.of(artigo(1)),
+                List.of(anexo(1, "Retrato", OrientacaoDoAnexo.RETRATO),
+                        anexo(2, "Paisagem", OrientacaoDoAnexo.PAISAGEM),
+                        anexo(3, "Outro retrato", OrientacaoDoAnexo.RETRATO)));
+
+        // capa, ANEXO I (sumário + corpo), ANEXO II, ANEXO III, ANEXO IV
+        assertThat(orientacoesDasPaginas(arvoreDeAreas(fo)))
+                .containsExactly("RETRATO", "RETRATO", "RETRATO", "PAISAGEM", "RETRATO");
+    }
+
+    @Test
+    void aContinuacaoDeUmAnexoEmPaisagemTambemFicaDeitada() throws Exception {
+        var titulo = "PALAVRA ".repeat(900);
+        var fo = builder.buildFo(documento(SituacaoBcaEnum.NAO_PUBLICADO, SituacaoLocalEnum.MINUTA),
+                List.of(), List.of(artigo(1)), List.of(anexo(1, titulo, OrientacaoDoAnexo.PAISAGEM)));
+
+        var arvore = arvoreDeAreas(fo);
+        var paginasDoAnexo = orientacoesDasPaginas(arvore).subList(2, orientacoesDasPaginas(arvore).size()); // sem capa e ANEXO I
+
+        assertThat(paginasDoAnexo).hasSizeGreaterThanOrEqualTo(2).containsOnly("PAISAGEM");
+        assertThat(ocorrencias(textoCorrido(arvore), "Continuação do ANEXO II")).isEqualTo(paginasDoAnexo.size() - 1);
+    }
+
+    @Test
+    void semOrientacaoInformadaOAnexoFicaEmRetrato() throws Exception {
+        var fo = builder.buildFo(documento(SituacaoBcaEnum.NAO_PUBLICADO, SituacaoLocalEnum.MINUTA),
+                List.of(), List.of(artigo(1)), List.of(anexo(1, "Curto")));
+
+        assertThat(fo).contains("master-reference=\"a4-anexo\"").doesNotContain("master-reference=\"a4-anexo-paisagem\"");
+    }
+
+    // A marca d'água de tramitação é centrada na página: em paisagem o centro muda de lugar.
+    @Test
+    void aMarcaDAguaDoAnexoEmPaisagemFicaNoCentroDaFolhaDeitada() {
+        var fo = builder.buildFo(documento(SituacaoBcaEnum.NAO_PUBLICADO, SituacaoLocalEnum.MINUTA),
+                List.of(), List.of(artigo(1)), List.of(anexo(1, "Paisagem", OrientacaoDoAnexo.PAISAGEM)));
+
+        assertThat(fo).contains("top=\"421pt\" left=\"211pt\"")   // folha deitada (anexo II)
+                .contains("top=\"545pt\" left=\"87pt\"");          // retrato (capa, corpo)
     }
 }

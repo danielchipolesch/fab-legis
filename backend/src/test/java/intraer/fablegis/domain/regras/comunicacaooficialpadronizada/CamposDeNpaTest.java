@@ -178,7 +178,7 @@ class CamposDeNpaTest {
         assertThat(campos.obter(1L).aprovadoPor()).isEmpty();
 
         // Enviado para revisão: já há um revisor escolhido, mas ele ainda não aprovou -- o nome não aparece.
-        doc.setRevisorAtribuido(usuario(9, "Ana Aprovadora", "Brig"));
+        doc.setAprovador(usuario(9, "Ana Aprovadora", "Brig"));
         assertThat(campos.obter(1L).aprovadoPor()).isEmpty();
 
         // Aprovado: agora é ele quem aparece.

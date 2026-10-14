@@ -23,7 +23,7 @@
         </div>
       </div>
       <q-btn
-        v-if="auth.isEditor"
+        v-if="auth.isElaborador && auth.podeCriarNoModulo(tipoDeEspecie)"
         class="col-auto"
         color="primary"
         unelevated
@@ -312,6 +312,7 @@
 
                 <!-- Clonar -->
                 <q-btn
+                  v-if="auth.isElaborador && auth.podeCriarEspecie(props.row.especie)"
                   icon="mdi-content-copy"
                   size="sm"
                   flat
@@ -445,7 +446,7 @@
                 Visualizar
               </q-btn>
               <q-space />
-              <q-btn size="sm" icon="mdi-content-copy" flat round dense color="primary" @click="confirmarClone(doc)">
+              <q-btn v-if="auth.isElaborador && auth.podeCriarEspecie(doc.especie)" size="sm" icon="mdi-content-copy" flat round dense color="primary" @click="confirmarClone(doc)">
                 <q-tooltip anchor="top middle" self="bottom middle">Clonar</q-tooltip>
                 <q-badge v-if="doc.qtd_replicas > 0" floating color="indigo" :label="doc.qtd_replicas" />
               </q-btn>
@@ -509,8 +510,7 @@
     </q-dialog>
 
     <!-- Confirm status change dialog -- só para transições sem escolha de pessoa
-         (Enviar para Minuta, Iniciar Alteração). Enviar para Revisão/Revogação abre
-         SelecionarPessoaDialog abaixo; publicar/revogar de fato (com portaria/BCA)
+         (Enviar para Minuta, Enviar para Aprovação, Iniciar Alteração); publicar/revogar de fato (com portaria/BCA)
          mudou para PublicacaoPage.vue, que é quem tem a atribuição pra isso. -->
     <q-dialog v-model="dialog.status" :persistent="alterandoStatus">
       <q-card style="min-width:420px;max-width:500px;width:100%">
@@ -532,17 +532,6 @@
       </q-card>
     </q-dialog>
 
-    <!-- Enviar para revisão/revogação: exige escolher a pessoa (papel APROV) --
-         ver SelecionarPessoaDialog.vue. -->
-    <SelecionarPessoaDialog
-      v-model="dialog.pessoa"
-      papel="APROV"
-      :titulo="dialog.statusOpt?.label ?? ''"
-      :descricao="dialog.target ? `Documento ${dialog.target.codigo_documento}` : ''"
-      acao-label="Enviar"
-      :enviando="alterandoStatus"
-      @confirmar="executarEnvioPessoa"
-    />
 
     <!-- Confirm clone dialog -->
     <q-dialog v-model="dialog.clone">
@@ -570,14 +559,13 @@ import { useDocumentosStore } from '@/stores/documentos.js'
 import { useAuthStore } from '@/stores/auth.js'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import NovoDocumentoDialog from '@/components/common/NovoDocumentoDialog.vue'
-import SelecionarPessoaDialog from '@/components/editor/SelecionarPessoaDialog.vue'
 import { gerarPdf } from '@/services/pdfService.js'
 import { listEspeciesNormativas, normalizeEspecie } from '@/api/referencias.js'
 import { SITUACAO_BCA_META, SITUACAO_LOCAL_META } from '@/utils/statusDocumento.js'
 import { rotaBuscaConteudo } from '@/utils/buscaTextual.js'
-import { perfilDoDocumento, moduloDe } from '@/perfis/index.js'
+import { regrasDoDocumento, moduloDe } from '@/regras/index.js'
 
-// A tela é a mesma para todos os módulos (perfis/index.js): o tipo de espécie, vindo da rota, decide quais documentos
+// A tela é a mesma para todos os módulos (regras/index.js): o tipo de espécie, vindo da rota, decide quais documentos
 // entram, as colunas e os rótulos. Nunca se testa a sigla da espécie aqui.
 const props = defineProps({
   tipoDeEspecie: { type: String, required: true },
@@ -743,7 +731,7 @@ const resumoBca = computed(() => resumir(SITUACAO_BCA_META, store.resumoSituacao
 const resumoLocal = computed(() => resumir(SITUACAO_LOCAL_META, store.resumoSituacaoLocal, ['SEM_ETAPA']))
 
 // O ícone da tela do módulo sempre abre em modo leitura (visualizar), mesmo para o
-// revisor atribuído durante EM_REVISAO -- ele entra no editor de propósito, pelo
+// aprovador da OM durante EM_REVISAO -- ele entra no editor de propósito, pelo
 // link "Editar" da tela de visualização (mesmo padrão de Rascunho/Minuta) ou
 // pela fila de Revisão, nunca direto por aqui.
 //
@@ -796,7 +784,7 @@ function docRoute(doc) {
 }
 
 // Só as ações que o Editor conduz sozinho (sem escolher pessoa) ou a única
-// exceção sem atribuição prévia (Iniciar Alteração, papel APROV da própria OM --
+// exceção sem atribuição prévia (Iniciar Alteração, papel APR_OM da própria OM --
 // ver DocumentoAcessoService.podeMudarStatus). Revisar/aprovar/publicar/revogar
 // de fato viraram telas dedicadas (RevisaoPage.vue/PublicacaoPage.vue), cada
 // uma restrita a quem tem a atribuição pessoal daquela etapa -- por isso não
@@ -805,29 +793,38 @@ function statusActions(doc) {
   const publicado = doc.situacao_bca === 'PUBLICADO'
   switch (doc.situacao_local) {
     case 'RASCUNHO':
-      return auth.isEditor
+      return auth.isElaborador
         ? [{ destino: 'MINUTA', label: 'Enviar para Minuta', icon: 'mdi-file-edit-outline', rotuloDestino: 'Minuta' }]
         : []
     case 'MINUTA':
-      return auth.isEditor
-        ? [{ destino: 'EM_REVISAO', label: 'Enviar para Revisão', icon: 'mdi-account-arrow-right-outline', escolherPessoa: true }]
+      return auth.isElaborador
+        ? [{
+          destino: 'EM_REVISAO', label: 'Enviar para Aprovação', icon: 'mdi-account-arrow-right-outline',
+          descricao: 'será enviado para aprovação: qualquer aprovador da OM poderá aprová-lo ou devolvê-lo. Ninguém precisa ser escolhido.',
+        }]
         : []
     case 'EM_ALTERACAO':
       return [
-        ...(auth.isEditor ? [{ destino: 'EM_REVISAO', label: 'Enviar Alteração para Revisão', icon: 'mdi-account-arrow-right-outline', escolherPessoa: true }] : []),
+        ...(auth.isElaborador ? [{
+          destino: 'EM_REVISAO', label: 'Enviar Alteração para Aprovação', icon: 'mdi-account-arrow-right-outline',
+          descricao: 'será enviado para aprovação: qualquer aprovador da OM poderá aprová-lo ou devolvê-lo. Ninguém precisa ser escolhido.',
+        }] : []),
         // Desistir da alteração: o documento segue PUBLICADO com a versão vigente (SEM_ETAPA =
         // concluir a etapa, aqui, cancelando-a). Só sem alterações pendentes: cada uma se desfaz
         // elemento a elemento, no painel lateral do editor.
-        ...(auth.isAprovador || auth.isEditor ? [{
+        ...(auth.isAprovador || auth.isElaborador ? [{
           destino: 'SEM_ETAPA', label: 'Cancelar Alteração', icon: 'mdi-close-circle-outline',
           descricao: 'terá a alteração cancelada e continua PUBLICADO, com a versão vigente. Só é possível sem alterações pendentes: desfaça-as antes, elemento a elemento, no painel lateral do editor.',
         }] : []),
       ]
     case 'SEM_ETAPA':
       return publicado ? [
-        // A NPA não tem alteração: para mudá-la cria-se outra e revoga-se a anterior (perfis/index.js).
-        ...(auth.isAprovador && perfilDoDocumento(doc).permiteAlteracao ? [{ destino: 'EM_ALTERACAO', label: 'Iniciar Alteração', icon: 'mdi-pencil-lock-outline', rotuloDestino: 'Em Alteração' }] : []),
-        ...(auth.isEditor ? [{ destino: 'ANALISE_REVOGACAO', label: 'Enviar para Revogação', icon: 'mdi-file-remove-outline', escolherPessoa: true }] : []),
+        // A NPA não tem alteração: para mudá-la cria-se outra e revoga-se a anterior (regras/index.js).
+        ...(auth.isAprovador && regrasDoDocumento(doc).permiteAlteracao ? [{ destino: 'EM_ALTERACAO', label: 'Iniciar Alteração', icon: 'mdi-pencil-lock-outline', rotuloDestino: 'Em Alteração' }] : []),
+        ...(auth.isElaborador ? [{
+          destino: 'ANALISE_REVOGACAO', label: 'Enviar para Revogação', icon: 'mdi-file-remove-outline',
+          descricao: 'terá a revogação enviada para análise: qualquer aprovador da OM poderá aprová-la ou recusá-la. Ninguém precisa ser escolhido.',
+        }] : []),
       ] : []
     default:
       return []
@@ -837,11 +834,7 @@ function statusActions(doc) {
 function confirmarMudancaStatus(doc, opt) {
   dialog.target = doc
   dialog.statusOpt = opt
-  if (opt.escolherPessoa) {
-    dialog.pessoa = true
-  } else {
-    dialog.status = true
-  }
+  dialog.status = true
 }
 
 const alterandoStatus = ref(false)
@@ -861,28 +854,6 @@ async function executarMudancaStatus() {
     await fecharDialogStatus()
   } catch (e) {
     $q.notify({ type: 'negative', message: `Erro ao mudar situação: ${e?.message ?? 'erro desconhecido'}` })
-  } finally {
-    alterandoStatus.value = false
-  }
-}
-
-// Enviar para revisão/revogação -- mesma mudança de status acima, só que com a
-// pessoa escolhida no SelecionarPessoaDialog (sempre revisorId aqui: as duas
-// transições que passam por esse diálogo, EM_REVISAO e ANALISE_REVOGACAO, são de
-// atribuir um revisor -- ver DocumentoStatusRequestDto).
-async function executarEnvioPessoa(usuarioId) {
-  if (alterandoStatus.value) return
-  const alvo = dialog.target
-  const opt  = dialog.statusOpt
-  if (!alvo || !opt) return
-
-  alterandoStatus.value = true
-  try {
-    await store.changeStatus(alvo.id, opt.destino, { revisorId: usuarioId })
-    dialog.pessoa = false
-    await fecharDialogStatus()
-  } catch (e) {
-    $q.notify({ type: 'negative', message: `Erro ao enviar: ${e?.message ?? 'erro desconhecido'}` })
   } finally {
     alterandoStatus.value = false
   }
@@ -933,7 +904,7 @@ async function executarClone() {
 }
 
 const dialog = reactive({
-  delete: false, status: false, clone: false, pessoa: false,
+  delete: false, status: false, clone: false,
   target: null, statusOpt: null,
 })
 

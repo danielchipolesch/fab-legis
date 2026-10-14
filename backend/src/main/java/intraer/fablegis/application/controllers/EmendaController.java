@@ -1,5 +1,6 @@
 package intraer.fablegis.application.controllers;
 
+import lombok.RequiredArgsConstructor;
 import intraer.fablegis.application.dtos.emendaDtos.EmendaElementoRequestDto;
 import intraer.fablegis.application.dtos.emendaDtos.EmendaIncluirRequestDto;
 import intraer.fablegis.domain.entities.auditoria.AcaoAuditoriaEnum;
@@ -9,7 +10,6 @@ import intraer.fablegis.domain.services.EmendaService;
 import intraer.fablegis.domain.services.LogAuditoriaService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -18,16 +18,14 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping(value = "/v1/documentos/{docId}/emendar", produces = MediaType.APPLICATION_JSON_VALUE)
 @Tag(name = "Emenda", description = "Alteração, revogação e inclusão de elementos em documentos publicados")
+@RequiredArgsConstructor
 public class EmendaController {
 
-    @Autowired
-    private EmendaService emendaService;
+    private final EmendaService emendaService;
 
-    @Autowired
-    private DocumentoService documentoService;
+    private final DocumentoService documentoService;
 
-    @Autowired
-    private LogAuditoriaService logAuditoriaService;
+    private final LogAuditoriaService logAuditoriaService;
 
     private void registrarEdicao(Long docId, String detalhe) {
         var dto = DocumentoMapper.documentoToDocumentoSemAnexoTextualResponseDto(documentoService.getById(docId));

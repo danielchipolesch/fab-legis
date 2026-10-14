@@ -238,4 +238,21 @@ class LeiauteHtmlDeNpaTest {
 
         assertThat(html).containsIgnoringCase("#FF0000").contains("[preencher]");
     }
+
+    @Test
+    void oDistintivoDaOmApareceNoCabecalhoDoHtmlSoQuandoExiste() {
+        var campos = mock(CamposDeNpa.class);
+        when(campos.camposParaLeiaute(anyLong())).thenReturn(new CamposDaNpaDto(
+                "DIVISÃO DE SUPORTE OPERACIONAL", "Brasília", List.of(), null, List.of("FULANO"), List.of("BELTRANO")));
+        var imagens = mock(intraer.fablegis.domain.services.ImagemService.class);
+        when(imagens.getImageAsDataUri(org.mockito.ArgumentMatchers.anyString())).thenReturn("data:image/png;base64,AAAA");
+        var comImagens = new LeiauteHtmlDeNpa(new ObjectMapper(), imagens, new NumeracaoDeNpa(), campos);
+
+        var doc = documento(SituacaoBcaEnum.NAO_PUBLICADO);
+        assertThat(comImagens.gerarHtml(doc, List.of(), estrutura(), List.of())).doesNotContain("class=\"distintivo\" src=");
+
+        doc.getOm().setUrlDistintivo("http://minio/bucket/grupo.png");
+        assertThat(comImagens.gerarHtml(doc, List.of(), estrutura(), List.of()))
+                .contains("<img class=\"distintivo\" src=\"data:image/png;base64,AAAA\"");
+    }
 }

@@ -31,6 +31,10 @@ public class Anexo {
     @Column(name = "nr_ordem", nullable = false)
     private Integer ordem;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "sg_orientacao", nullable = false, length = 10)
+    private OrientacaoDoAnexo orientacao = OrientacaoDoAnexo.RETRATO;
+
     @CreationTimestamp
     @Column(name = "dt_criacao", updatable = false)
     private LocalDateTime dtCriacao;

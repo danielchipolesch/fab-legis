@@ -149,3 +149,15 @@ export function etapasDoCiclo(doc) {
   const chave = temEtapaEmCurso(local) ? local : (bca === 'REVOGADO' ? 'REVOGADO' : 'PUBLICADO')
   return { ciclo, etapas, atual: etapas.findIndex(e => e.chave === chave) }
 }
+
+// "Substituir" (NPA): só uma NPA publicada e parada (sem etapa em curso: nem pedido de revogação, nem revogação) pode ser
+// substituída. Espelha CicloDeVidaDeNpa.podeSerSubstituido (backend); `regras.permiteSubstituicao` diz se a espécie tem a ação.
+export function podeSubstituir(doc, regras) {
+  return !!regras?.permiteSubstituicao && doc?.situacao_local === 'SEM_ETAPA' && doc?.situacao_bca === 'PUBLICADO'
+}
+
+// Aprovador do documento: quem tem o papel Aprovador da OM (APR_OM) na OM dele. Qualquer um age ao "Enviar para aprovação" -- ninguém é escolhido
+// (espelha DocumentoAcessoService.ehAprovadorDaOm, backend). `usuario`: { omId, papeis }.
+export function ehAprovadorDaOm(doc, usuario) {
+  return !!usuario && (usuario.papeis ?? []).includes('APR_OM') && String(doc?.om_id) === String(usuario.omId)
+}

@@ -1,0 +1,158 @@
+package intraer.fablegis.application.controllers;
+
+import intraer.fablegis.IntegracaoComPostgresBase;
+import intraer.fablegis.domain.entities.usuario.PapelEnum;
+import intraer.fablegis.domain.entities.usuario.Usuario;
+import intraer.fablegis.infrastructure.repositories.EspecieNormativaRepository;
+import intraer.fablegis.infrastructure.repositories.OrganizacaoMilitarRepository;
+import intraer.fablegis.infrastructure.repositories.UsuarioRepository;
+import intraer.fablegis.infrastructure.security.UsuarioPrincipal;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.request.RequestPostProcessor;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.web.context.WebApplicationContext;
+
+import java.util.EnumSet;
+
+import static org.hamcrest.Matchers.hasItem;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
+import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+// Painel Gerencial de ponta a ponta (docs/funcionalidades.md): o Painel Gerencial Geral vê todas as OMs e filtra por uma; o Painel Gerencial da OM, só a
+// própria, sem visão geral; quem não tem o papel do painel não vê nada.
+class PainelGerencialIntegracaoTest extends IntegracaoComPostgresBase {
+
+    private static final String CPF_PNL_DA_OM = "50617283916";
+    private static final String CPF_SEM_PAPEL = "61728394027";
+
+    @Autowired WebApplicationContext contexto;
+    @Autowired UsuarioRepository usuarioRepository;
+    @Autowired OrganizacaoMilitarRepository omRepository;
+    @Autowired EspecieNormativaRepository especieRepository;
+    @Autowired JdbcTemplate jdbc;
+
+    MockMvc mvc;
+    long bant;
+    long bafl;
+
+    @BeforeEach
+    void preparar() throws Exception {
+        mvc = MockMvcBuilders.webAppContextSetup(contexto).apply(springSecurity()).build();
+        bant = omRepository.findBySigla("BANT").orElseThrow().getId();
+        bafl = omRepository.findBySigla("BAFL").orElseThrow().getId();
+        // Cenário determinístico nas duas OMs do teste: o que um teste anterior da classe deixou nelas vai para o CENDOC.
+        long cendoc = omRepository.findBySigla("CENDOC").orElseThrow().getId();
+        jdbc.update("update t_documento set om_id = ? where om_id in (?, ?)", cendoc, bant, bafl);
+        long publicada = novaNpa("NPA-PAINEL-01");
+        long emAprovacao = novaNpa("NPA-PAINEL-02");
+        long rascunho = novaNpa("NPA-PAINEL-03");
+        jdbc.update("update t_documento set om_id = ?, st_situacao_local = 'SEM_ETAPA', st_situacao_bca = 'PUBLICADO',"
+                + " dt_criacao = now() - interval '10 days', dt_em_revisao = now() - interval '8 days', dt_aprovacao = now() - interval '6 days',"
+                + " dt_em_publicacao = now() - interval '6 days', dt_publicacao = now() - interval '4 days' where id_documento = ?", bant, publicada);
+        jdbc.update("update t_documento set om_id = ?, st_situacao_local = 'EM_REVISAO', dt_criacao = now() - interval '5 days',"
+                + " dt_em_revisao = now() - interval '3 days' where id_documento = ?", bant, emAprovacao);
+        jdbc.update("update t_documento set om_id = ?, dt_criacao = now() - interval '2 days' where id_documento = ?", bafl, rascunho);
+    }
+
+    private Usuario painelGeral() {
+        return usuarioRepository.findAll().stream().filter(u -> !u.isSistema()).findFirst().orElseThrow();
+    }
+
+    private Usuario pessoa(String sigla, String cpf, PapelEnum... papeis) {
+        return usuarioRepository.findByCpf(cpf).orElseGet(() -> {
+            var u = new Usuario();
+            u.setNome("Pessoa " + cpf);
+            u.setCpf(cpf);
+            u.setSenhaHash("{noop}x");
+            u.setOm(omRepository.findBySigla(sigla).orElseThrow());
+            var conjunto = EnumSet.noneOf(PapelEnum.class);
+            conjunto.addAll(java.util.List.of(papeis));
+            u.setPapeis(conjunto);
+            return usuarioRepository.save(u);
+        });
+    }
+
+    private static RequestPostProcessor como(Usuario usuario) {
+        var principal = new UsuarioPrincipal(usuario);
+        return authentication(new UsernamePasswordAuthenticationToken(principal, null, principal.getAuthorities()));
+    }
+
+    private long novaNpa(String identificacao) throws Exception {
+        long npa = especieRepository.findAll().stream().filter(e -> "NPA".equals(e.getSigla())).findFirst().orElseThrow().getId();
+        var criado = mvc.perform(post("/v1/documentos").with(como(painelGeral())).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"idEspecieNormativa\": " + npa + ", \"identificacao\": \"" + identificacao + "\", \"tituloDocumento\": \"Teste\"}"))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+        return Long.parseLong(criado.replaceAll("(?s).*\"idDocumento\":(\\d+).*", "$1"));
+    }
+
+    @Test
+    void oPapelGeralDoPainelVeUmaOmEFiltraPorEla() throws Exception {
+        mvc.perform(get("/v1/painel-gerencial").param("omId", String.valueOf(bant)).with(como(painelGeral())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.escopo.omSigla").value("BANT"))
+                .andExpect(jsonPath("$.escopo.podeFiltrarPorOm").value(true))
+                .andExpect(jsonPath("$.totais.criados").value(2))
+                .andExpect(jsonPath("$.totais.publicados").value(1))
+                .andExpect(jsonPath("$.totais.emTramitacao").value(1))
+                .andExpect(jsonPath("$.totais.vigentes").value(1))
+                .andExpect(jsonPath("$.filas.aguardandoAprovacao").value(1))
+                .andExpect(jsonPath("$.filas.aguardandoPublicacao").value(0))
+                .andExpect(jsonPath("$.tempos.elaboracao.n").value(2))
+                .andExpect(jsonPath("$.tempos.elaboracao.mediana").value(2.0))
+                .andExpect(jsonPath("$.tempos.aprovacao.n").value(1))
+                .andExpect(jsonPath("$.tempos.aprovacao.mediana").value(2.0))
+                .andExpect(jsonPath("$.tempos.publicacao.mediana").value(2.0))
+                .andExpect(jsonPath("$.gargalos[0].identificacao").value("NPA-PAINEL-02"))
+                .andExpect(jsonPath("$.gargalos[0].etapa").value("APROVACAO"))
+                .andExpect(jsonPath("$.gargalos[0].dias").value(3))
+                .andExpect(jsonPath("$.porEspecie[0].sigla").value("NPA"))
+                .andExpect(jsonPath("$.porOm.length()").value(1));
+    }
+
+    @Test
+    void semFiltroOPapelGeralVeTodasAsOmsEAPorOmListaAsDuas() throws Exception {
+        mvc.perform(get("/v1/painel-gerencial").with(como(painelGeral())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.escopo.omId").doesNotExist())
+                .andExpect(jsonPath("$.porOm[*].sigla", hasItem("BANT")))
+                .andExpect(jsonPath("$.porOm[*].sigla", hasItem("BAFL")));
+    }
+
+    @Test
+    void oPapelDaOmDoPainelVeSoAPropriaOmSemVisaoGeral() throws Exception {
+        var daOm = pessoa("BANT", CPF_PNL_DA_OM, PapelEnum.ELB, PapelEnum.PNL_OM);
+
+        mvc.perform(get("/v1/painel-gerencial").with(como(daOm)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.escopo.omSigla").value("BANT"))
+                .andExpect(jsonPath("$.escopo.podeFiltrarPorOm").value(false))
+                .andExpect(jsonPath("$.totais.criados").value(2))
+                .andExpect(jsonPath("$.porOm.length()").value(1));
+
+        // pedir a própria OM é aceito; pedir outra (a visão geral não existe para ele), não
+        mvc.perform(get("/v1/painel-gerencial").param("omId", String.valueOf(bant)).with(como(daOm))).andExpect(status().isOk());
+        mvc.perform(get("/v1/painel-gerencial").param("omId", String.valueOf(bafl)).with(como(daOm))).andExpect(status().isForbidden());
+    }
+
+    @Test
+    void quemNaoTemOPapelDoPainelNaoAcessa() throws Exception {
+        mvc.perform(get("/v1/painel-gerencial").with(como(pessoa("BANT", CPF_SEM_PAPEL, PapelEnum.ELB, PapelEnum.ADM_OM, PapelEnum.AUD_OM))))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void periodoInvertidoEhRecusado() throws Exception {
+        mvc.perform(get("/v1/painel-gerencial").param("dataInicio", "2026-05-02").param("dataFim", "2026-05-01").with(como(painelGeral())))
+                .andExpect(status().is4xxClientError());
+    }
+}

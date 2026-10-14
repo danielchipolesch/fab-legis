@@ -1,12 +1,12 @@
 import { defineStore } from 'pinia'
 import { v4 as uuidv4 } from 'uuid'
-import { renumerarElementos } from '@/perfis/index.js'
+import { renumerarElementos } from '@/regras/index.js'
 import * as api from '@/api/documentos.js'
 
 function renumerarSecaoNormativa(doc) {
   const normativa = doc.secoes?.find(s => s.tipo === 'parte_normativa')
   if (!normativa?.elementos?.length) return
-  // A numeração é regra da espécie do documento (perfis/index.js): num ato normativo já publicado a
+  // A numeração é regra da espécie do documento (regras/index.js): num ato normativo já publicado a
   // numeração é por emenda (elemento em vigor nunca é renumerado); numa NPA, pelo caminho.
   renumerarElementos(normativa.elementos, doc)
 }
@@ -44,7 +44,7 @@ export function jDoc(...paragraphs) {
 // mais parte da edição -- só existe de fato a partir da publicação em BCA,
 // então passou a ser coletada no próprio formulário de publicação
 // (ModuloPage.vue), não como uma seção editável aqui.
-function gerarSecoesTemplate(doc) {
+function gerarSecoesTemplate() {
   return [
     {
       id: uuidv4(),
@@ -173,7 +173,7 @@ export const useDocumentosStore = defineStore('documents', {
       const doc = await api.getDocumento(id)
       if (!doc) return null
       if (!doc.secoes) {
-        doc.secoes = gerarSecoesTemplate(doc)
+        doc.secoes = gerarSecoesTemplate()
         doc._fromTemplate = true
       } else {
         doc._fromTemplate = false
@@ -198,24 +198,33 @@ export const useDocumentosStore = defineStore('documents', {
       return doc
     },
 
+    // POST /documentos devolve o DTO enxuto (sem a árvore de itens), mas o backend já criou a estrutura inicial da
+    // espécie na hora (EstruturaInicialDeNovoDocumento -- capítulos padronizados numa espécie convencional, os
+    // próprios da NPA na NPA). Por isso busca a estrutura real com fetchDocumento em vez de supor um template no
+    // cliente: gerarSecoesTemplate() só sabe montar os capítulos de espécie convencional, e usá-lo aqui incondicional
+    // sobrescrevia a estrutura certa de uma NPA recém-criada pela errada assim que o editor abria (autoSave em
+    // _fromTemplate, ver DocumentoEditorPage.vue) -- bug encontrado ao investigar clonagem de NPA.
     async createDocumento(payload) {
       const novo = await api.createDocumento(payload)
-      novo.secoes = gerarSecoesTemplate(novo)
-      novo._fromTemplate = true
       this.documentos.unshift(novo)
-      return novo
+      return await this.fetchDocumento(novo.id)
     },
 
     async cloneDocumento(id) {
       const clone = await api.cloneDocumento(id)
-      if (clone) {
-        clone.secoes = gerarSecoesTemplate(clone)
-        clone._fromTemplate = true
-        this.documentos.unshift(clone)
-        const original = this.documentos.find(d => String(d.id) === String(id))
-        if (original) original.qtd_replicas = (original.qtd_replicas ?? 0) + 1
-      }
-      return clone
+      if (!clone) return clone
+      this.documentos.unshift(clone)
+      const original = this.documentos.find(d => String(d.id) === String(id))
+      if (original) original.qtd_replicas = (original.qtd_replicas ?? 0) + 1
+      return await this.fetchDocumento(clone.id)
+    },
+
+    // "Substituir": como clonar (abre a cópia para edição), mas a NPA nova já nasce ligada à substituída.
+    async substituirDocumento(id) {
+      const nova = await api.substituirDocumento(id)
+      if (!nova) return nova
+      this.documentos.unshift(nova)
+      return await this.fetchDocumento(nova.id)
     },
 
     // Sequencial de propósito, não Promise.all: saveSecoes checa

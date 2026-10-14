@@ -1,0 +1,9 @@
+# Nginx da borda do sistema -- versão HTTP (desenvolvimento local do perfil "production", ou atrás de um balanceador/proxy que já
+# termina o TLS). Copie para nginx/nginx.conf (fora do git). Para HTTPS direto no Nginx use nginx.https.conf.example.
+# Tudo que é comum (SPA, proxy reverso para o backend e o collab) está em comum.conf.
+server {
+    listen 8080;
+    server_name _;
+
+    include /etc/nginx/comum.conf;
+}

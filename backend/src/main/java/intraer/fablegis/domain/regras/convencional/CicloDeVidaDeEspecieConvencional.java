@@ -47,4 +47,10 @@ public class CicloDeVidaDeEspecieConvencional implements RegrasDoCicloDeVidaDoDo
             case CANCELADO         -> null;
         });
     }
+
+    // Uma espécie convencional publicada se muda pelo ciclo de emenda, nunca por substituição.
+    @Override
+    public boolean podeSerSubstituido(SituacaoLocalEnum atual, SituacaoBcaEnum bca) {
+        return false;
+    }
 }

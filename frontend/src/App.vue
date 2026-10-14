@@ -25,11 +25,12 @@ import { useAuthStore } from '@/stores/auth.js'
 
 // Páginas "avulsas" (ver meta.paginaAvulsa nas rotas) não usam o shell do
 // app -- hoje só o login, que é a própria porta de entrada e não deve
-// carregar topbar/rodapé nem depender de uma sessão para renderizar.
+// carregar topbar/rodapé nem depender de uma sessão para renderizar. O manual (meta.avulsaSemLogin) é avulso só enquanto
+// não há login; logado, usa a barra do sistema.
 const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
-const isPaginaAvulsa = computed(() => !!route.meta.paginaAvulsa)
+const isPaginaAvulsa = computed(() => !!route.meta.paginaAvulsa || (!!route.meta.avulsaSemLogin && !auth.isAuthenticated))
 
 // A guarda de rota (router/index.js) só barra ao NAVEGAR -- se a sessão cair
 // enquanto o usuário já está numa página protegida (token expirado/revogado,

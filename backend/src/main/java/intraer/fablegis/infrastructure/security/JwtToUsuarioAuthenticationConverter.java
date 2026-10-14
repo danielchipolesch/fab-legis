@@ -1,7 +1,7 @@
 package intraer.fablegis.infrastructure.security;
 
+import lombok.RequiredArgsConstructor;
 import intraer.fablegis.infrastructure.repositories.UsuarioRepository;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -20,10 +20,10 @@ import org.springframework.stereotype.Component;
 // claims do token), igual o filtro antigo já fazia -- uma mudança de papel
 // no meio da vida do token já vale na próxima requisição, sem esperar expirar.
 @Component
+@RequiredArgsConstructor
 public class JwtToUsuarioAuthenticationConverter implements Converter<Jwt, AbstractAuthenticationToken> {
 
-    @Autowired
-    private UsuarioRepository usuarioRepository;
+    private final UsuarioRepository usuarioRepository;
 
     @Override
     public AbstractAuthenticationToken convert(Jwt jwt) {

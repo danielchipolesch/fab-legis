@@ -1,13 +1,10 @@
 package intraer.fablegis.domain.util.tiptap;
 
+import intraer.fablegis.domain.util.ImagemRemota;
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.time.Duration;
 import java.util.Base64;
 import java.util.List;
 import java.util.Locale;
@@ -16,13 +13,9 @@ import java.util.regex.Pattern;
 
 /**
  * Converts a TipTap JSON document to XSL-FO XML fragments.
- * One instance per PDF render; figCount tracks figure numbering across all sections.
+ * One instance per PDF render; figCount and tabelaCount track figure and table numbering across all sections.
  */
 public class XslFoContentRenderer {
-
-    private static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()
-            .connectTimeout(Duration.ofSeconds(6))
-            .build();
 
     private static final Pattern BLOCK_PATTERN =
             Pattern.compile("(?i)^\\s*(table|bulletList|orderedList|heading|figure)$");
@@ -38,6 +31,7 @@ public class XslFoContentRenderer {
     private static final double TABLE_CELL_OVERHEAD_W = 14;
 
     private int figCount = 0;
+    private int tabelaCount = 0;
     private Function<String, String> imageResolver = null;
 
     public int getFigCount() { return figCount; }
@@ -199,60 +193,94 @@ public class XslFoContentRenderer {
     }
 
     private void renderTable(TipTapNode table, StringBuilder sb) {
-        if (table.getContent() == null || table.getContent().isEmpty()) return;
-        // Determine column count from first row
-        int colCount = 0;
-        var firstRow = table.getContent().get(0);
-        if (firstRow.getContent() != null) colCount = firstRow.getContent().size();
-        if (colCount == 0) colCount = 1;
+        var grade = GradeDeTabela.de(table);
+        if (grade.linhas().isEmpty()) return;
+        int colunas = Math.max(1, grade.colunas());
+        double[] larguras = grade.largurasRelativas();
+        String estilo = EstiloDeTabela.estilo(table.getAttrStr("estilo"));
+        var cor = EstiloDeTabela.cor(table.getAttrStr("cor"));
+        String titulo = table.getAttrStr("titulo");
+        String fonte = table.getAttrStr("fonte");
 
-        // Colunas dividem FIG_MAX_W em partes iguais (proportional-column-width) --
-        // uma figura dentro de uma célula precisa da mesma conta, descontado o
-        // padding/borda da própria célula, senão cabe na COLUNA mas estoura a
-        // CÉLULA visualmente (ver TABLE_CELL_OVERHEAD_W e renderFigure).
-        double cellFigMaxW = Math.max(40, (FIG_MAX_W / colCount) - TABLE_CELL_OVERHEAD_W);
-
-        sb.append("<fo:table table-layout=\"fixed\" width=\"100%\" border-collapse=\"separate\" space-after=\"5pt\">");
-        for (int i = 0; i < colCount; i++) {
-            sb.append("<fo:table-column column-width=\"proportional-column-width(1)\"/>");
+        // Legenda como a da figura: "Tabela N — título" acima (só a tabela com título é numerada), "Fonte: …" abaixo.
+        sb.append("<fo:block space-before=\"5pt\" space-after=\"5pt\">");
+        if (EstiloDeTabela.temTitulo(titulo)) {
+            tabelaCount++;
+            sb.append("<fo:block font-size=\"10pt\" font-style=\"italic\" text-align=\"center\" space-after=\"3pt\" keep-with-next.within-page=\"always\">")
+              .append("Tabela ").append(tabelaCount).append(" — ").append(foEsc(titulo.trim()))
+              .append("</fo:block>");
+        }
+        sb.append("<fo:table table-layout=\"fixed\" width=\"100%\" border-collapse=\"separate\">");
+        // Largura de cada coluna: a que o usuário arrastou no editor (colwidth), em proporção -- o total se ajusta à página.
+        for (int i = 0; i < colunas; i++) {
+            sb.append("<fo:table-column column-width=\"proportional-column-width(")
+              .append(fmtPt(i < larguras.length ? larguras[i] : 1)).append(")\"/>");
+        }
+        int cabecalho = grade.linhasDeCabecalho();
+        if (cabecalho > 0) {
+            // Cabeçalho repetido no topo de cada página quando a tabela atravessa uma quebra.
+            sb.append("<fo:table-header>");
+            for (int r = 0; r < cabecalho; r++) renderLinhaDaTabela(grade, r, sb, estilo, cor, r - cabecalho);
+            sb.append("</fo:table-header>");
         }
         sb.append("<fo:table-body>");
-        for (var row : table.getContent()) {
-            if (!"tableRow".equals(row.getType())) continue;
-            sb.append("<fo:table-row>");
-            if (row.getContent() != null) {
-                for (var cell : row.getContent()) {
-                    boolean isHeader = "tableHeader".equals(cell.getType());
-                    String bg  = isHeader ? "#e8edf6" : "transparent";
-                    String fw  = isHeader ? "bold"    : "normal";
-                    String ta  = isHeader ? "center"  : "justify";
-                    sb.append("<fo:table-cell border=\"1pt solid #999999\" padding=\"3pt 6pt\"")
-                      .append(" background-color=\"").append(bg).append("\"");
-                    int cs = cell.getAttrInt("colspan", 1);
-                    int rs = cell.getAttrInt("rowspan", 1);
-                    if (cs > 1) sb.append(" number-columns-spanned=\"").append(cs).append("\"");
-                    if (rs > 1) sb.append(" number-rows-spanned=\"").append(rs).append("\"");
-                    sb.append(">");
-                    if (cell.getContent() != null) {
-                        for (var c : cell.getContent()) {
-                            if ("paragraph".equals(c.getType())) {
-                                sb.append("<fo:block font-size=\"10pt\" font-weight=\"").append(fw)
-                                  .append("\" text-align=\"").append(ta).append("\">");
-                                renderInlines(c.getContent(), sb);
-                                sb.append("</fo:block>");
-                            } else {
-                                renderBlock(c, sb, cellFigMaxW, FIG_MAX_H);
-                            }
-                        }
-                    } else {
-                        sb.append("<fo:block/>");
-                    }
-                    sb.append("</fo:table-cell>");
-                }
-            }
-            sb.append("</fo:table-row>");
-        }
+        for (int r = cabecalho; r < grade.linhas().size(); r++) renderLinhaDaTabela(grade, r, sb, estilo, cor, r - cabecalho);
         sb.append("</fo:table-body></fo:table>");
+        if (fonte != null && !fonte.isBlank()) {
+            sb.append("<fo:block font-size=\"9pt\" text-align=\"center\" space-before=\"3pt\">Fonte: ").append(foEsc(fonte.trim())).append("</fo:block>");
+        }
+        sb.append("</fo:block>");
+    }
+
+    // indiceNoCorpo: posição da linha no corpo (0, 1, 2…); negativo no cabeçalho. Serve ao zebrado.
+    private void renderLinhaDaTabela(GradeDeTabela grade, int indice, StringBuilder sb,
+                                     String estilo, EstiloDeTabela.Cor cor, int indiceNoCorpo) {
+        boolean compacto = EstiloDeTabela.COMPACTO.equals(estilo);
+        boolean aberto = EstiloDeTabela.ABERTO.equals(estilo);
+        boolean zebra = EstiloDeTabela.ZEBRADO.equals(estilo) && indiceNoCorpo >= 0 && indiceNoCorpo % 2 == 1;
+        String borda = "1pt solid " + cor.borda();
+        // Uma linha não se parte entre páginas.
+        sb.append("<fo:table-row keep-together.within-page=\"always\">");
+        for (var celula : grade.linhas().get(indice)) {
+            var no = celula.no();
+            boolean ehCabecalho = celula.cabecalho();
+            // A cor escolhida para a célula vale mais que a do cabeçalho e a do zebrado.
+            String fundo = EstiloDeTabela.fundo(no.getAttrStr("fundo"));
+            if (fundo == null) fundo = ehCabecalho ? cor.cabecalho() : (zebra ? EstiloDeTabela.COR_DA_ZEBRA : "transparent");
+            String peso = ehCabecalho ? "bold" : "normal";
+            String alinhamentoPadrao = ehCabecalho ? "center" : "justify";
+            // Uma figura dentro da célula cabe na coluna (ou colunas) que a célula realmente ocupa, descontado padding/borda.
+            double figMaxW = Math.max(40, (FIG_MAX_W * grade.fracaoDaLargura(celula)) - TABLE_CELL_OVERHEAD_W);
+            sb.append("<fo:table-cell padding=\"").append(compacto ? "1pt 3pt" : "3pt 6pt").append("\"");
+            if (aberto) {
+                sb.append(" border-top=\"").append(borda).append("\" border-bottom=\"").append(borda).append("\"");
+            } else {
+                sb.append(" border=\"").append(borda).append("\"");
+            }
+            sb.append(" background-color=\"").append(fundo).append("\"")
+              .append(" display-align=\"").append(EstiloDeTabela.displayAlignDoFo(no.getAttrStr("alinhamentoVertical"))).append("\"");
+            if (celula.colspan() > 1) sb.append(" number-columns-spanned=\"").append(celula.colspan()).append("\"");
+            if (celula.rowspan() > 1) sb.append(" number-rows-spanned=\"").append(celula.rowspan()).append("\"");
+            sb.append(">");
+            if (no.getContent() != null && !no.getContent().isEmpty()) {
+                for (var c : no.getContent()) {
+                    if ("paragraph".equals(c.getType())) {
+                        // O alinhamento escolhido pelo autor no parágrafo vale; sem escolha, cabeçalho centralizado e corpo justificado.
+                        String alinhamento = c.getAttrStr("textAlign");
+                        sb.append("<fo:block font-size=\"").append(compacto ? "8.5pt" : "10pt").append("\" font-weight=\"").append(peso)
+                          .append("\" text-align=\"").append(alinhamento != null ? alinhamento : alinhamentoPadrao).append("\">");
+                        renderInlines(c.getContent(), sb);
+                        sb.append("</fo:block>");
+                    } else {
+                        renderBlock(c, sb, figMaxW, FIG_MAX_H);
+                    }
+                }
+            } else {
+                sb.append("<fo:block/>");
+            }
+            sb.append("</fo:table-cell>");
+        }
+        sb.append("</fo:table-row>");
     }
 
     private void renderFigure(TipTapNode node, StringBuilder sb, double maxW, double maxH) {
@@ -373,33 +401,9 @@ public class XslFoContentRenderer {
             if (resolved != null && !resolved.isBlank()) return resolved;
         }
         if (src.startsWith("http://") || src.startsWith("https://")) {
-            return fetchDataUri(src);
+            return ImagemRemota.comoDataUri(src);
         }
         return src;
-    }
-
-    private static String fetchDataUri(String url) {
-        try {
-            var req = HttpRequest.newBuilder().uri(URI.create(url))
-                    .timeout(Duration.ofSeconds(8)).GET().build();
-            var res = HTTP_CLIENT.send(req, HttpResponse.BodyHandlers.ofByteArray());
-            if (res.statusCode() != 200) return url;
-            String ct = res.headers().firstValue("content-type").orElse(guessMimeType(url));
-            String mime = ct.split(";")[0].trim();
-            if (!mime.startsWith("image/")) return url;
-            return "data:" + mime + ";base64," + Base64.getEncoder().encodeToString(res.body());
-        } catch (Exception e) {
-            return url;
-        }
-    }
-
-    private static String guessMimeType(String url) {
-        String lc = url.toLowerCase();
-        if (lc.endsWith(".png"))                       return "image/png";
-        if (lc.endsWith(".jpg") || lc.endsWith(".jpeg")) return "image/jpeg";
-        if (lc.endsWith(".gif"))                       return "image/gif";
-        if (lc.endsWith(".webp"))                      return "image/webp";
-        return "image/png";
     }
 
     static String foEsc(String s) {

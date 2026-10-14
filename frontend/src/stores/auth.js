@@ -1,4 +1,9 @@
-import { defineStore } from 'pinia'
+import { defineStore, getActivePinia } from 'pinia'
+import { limparCachesDaSessao } from '@/utils/limparSessao.js'
+import { temEscopoGeral } from '@/utils/escopo.js'
+import { ehAdmin, ehAdminGeral, ehAuditor, ehPainelGerencial, ehPainelGerencialGeral } from '@/utils/papeis.js'
+import { podeCriarNoModulo, podeCriarEspecie } from '@/utils/habilitacao.js'
+import { listMinhasEspeciesCriaveis } from '@/api/habilitacao.js'
 import { setAuthTokenGetter, setUnauthorizedHandler, setRefreshHandler } from '@/api/client.js'
 import { gerarCodeVerifier, gerarCodeChallenge, gerarState } from '@/utils/pkce.js'
 
@@ -76,35 +81,59 @@ export const useAuthStore = defineStore('auth', {
         cpf: salvo.cpf,
         omId: salvo.omId,
         omNome: salvo.omNome,
+        omSigla: salvo.omSigla,
         nomeGuerra: salvo.nomeGuerra,
         postoGraduacaoBigrama: salvo.postoGraduacaoBigrama,
         papeis: salvo.papeis ?? [],
       } : null,
       loading: false,
+      // Espécies que a OM da pessoa pode criar (habilitação de documentos): decide onde aparecem os botões de criar. Vazia até
+      // carregar -- e enquanto vazia nenhum botão de criar aparece, nunca o contrário.
+      especiesCriaveis: [],
       erro: null,
     }
   },
 
   getters: {
     isAuthenticated: (state) => !!state.token,
-    // ADMIN é puramente administrativo (usuários/OMs) -- não implica EDIT/APROV/PUBLIC
+    // Administrador (ADM_OM/ADM_GER) é puramente administrativo (usuários/OMs) -- não implica ELB/APR_OM/PUB_BCA
     // nenhum, ver PapelEnum no backend.
-    isAdmin: (state) => state.usuario?.papeis?.includes('ADMIN') ?? false,
-    isEditor: (state) => state.usuario?.papeis?.includes('EDIT') ?? false,
-    isAprovador: (state) => state.usuario?.papeis?.includes('APROV') ?? false,
-    isPublicador: (state) => state.usuario?.papeis?.includes('PUBLIC') ?? false,
-    // Espelha o backend (hasRole('AUDITOR') -- ver AuditoriaController): papel
+    isAdmin: (state) => ehAdmin(state.usuario?.papeis),
+    // Administrador Geral (ADM_GER, só no CENDOC; ver utils/papeis.js): cadastra habilitação e DOM e mantém os admins locais.
+    isAdminGeral: (state) => ehAdminGeral(state.usuario?.papeis),
+    // Escopo geral de quem está logado (OM = CENDOC), para a auditoria e a revisão de acessos.
+    temEscopoGeral: (state) => temEscopoGeral(state.usuario?.omSigla),
+    isElaborador: (state) => state.usuario?.papeis?.includes('ELB') ?? false,
+    isAprovador: (state) => state.usuario?.papeis?.includes('APR_OM') ?? false,
+    isPublicador: (state) => state.usuario?.papeis?.includes('PUB_BCA') ?? false,
+    // Espelha o backend (hasAnyRole('AUD_OM', 'AUD_GER') -- ver AuditoriaController): papel
     // independente de ADMIN, precisa estar marcado no próprio cadastro.
-    isAuditor: (state) => state.usuario?.papeis?.includes('AUDITOR') ?? false,
+    isAuditor: (state) => ehAuditor(state.usuario?.papeis),
+    // Painel Gerencial (módulo): só para quem tem o papel do Painel Gerencial; o Painel Gerencial Geral (CENDOC) também filtra por OM.
+    temAcessoAoPainel: (state) => ehPainelGerencial(state.usuario?.papeis),
+    isPainelGerencialGeral: (state) => ehPainelGerencialGeral(state.usuario?.papeis),
+    // Criar documento = ter o papel Elaborador (ELB) E a OM habilitada para a espécie (a NPA, toda OM). Consultar e ser coautor independem disso.
+    podeCriarNoModulo: (state) => (tipoDeEspecie) => podeCriarNoModulo(state.especiesCriaveis, tipoDeEspecie),
+    podeCriarEspecie: (state) => (sigla) => podeCriarEspecie(state.especiesCriaveis, sigla),
   },
 
   actions: {
     // Chamado uma vez no boot do app (main.js) -- plugueia o client HTTP no
     // token/estado deste store sem criar dependência circular entre módulos.
     inicializar() {
+      if (this.token) this.carregarEspeciesCriaveis()
       setAuthTokenGetter(() => this.token)
       setUnauthorizedHandler(() => this.logout())
       setRefreshHandler(() => this.refresh())
+    },
+
+    // Busca no backend as espécies que a OM da pessoa pode criar. Falha em silêncio (lista vazia = sem botão de criar).
+    async carregarEspeciesCriaveis() {
+      try {
+        this.especiesCriaveis = await listMinhasEspeciesCriaveis()
+      } catch {
+        this.especiesCriaveis = []
+      }
     },
 
     _aplicarTokens(tokenResp) {
@@ -115,13 +144,10 @@ export const useAuthStore = defineStore('auth', {
         nome: claims.nome,
         cpf: claims.preferred_username,
         omId: claims.om_id != null ? Number(claims.om_id) : null,
-        // omNome/nomeGuerra/postoGraduacaoBigrama não vão na claim (mesmo
-        // conjunto que o token caseiro já carregava) -- quem precisa desses
-        // três em telas específicas já busca via GET /usuarios/{id} quando
-        // necessário; o topbar usa nome/cpf, que o token sempre traz.
-        omNome: this.usuario?.omId === claims.om_id ? this.usuario?.omNome : null,
-        nomeGuerra: this.usuario?.nomeGuerra ?? null,
-        postoGraduacaoBigrama: this.usuario?.postoGraduacaoBigrama ?? null,
+        omNome: claims.om_nome ?? null,
+        omSigla: claims.om_sigla ?? null,
+        nomeGuerra: claims.nome_guerra ?? null,
+        postoGraduacaoBigrama: claims.posto_bigrama ?? null,
         papeis: claims.realm_access?.roles ?? [],
       }
       localStorage.setItem(STORAGE_KEY, JSON.stringify({
@@ -131,10 +157,12 @@ export const useAuthStore = defineStore('auth', {
         cpf: this.usuario.cpf,
         omId: this.usuario.omId,
         omNome: this.usuario.omNome,
+        omSigla: this.usuario.omSigla,
         nomeGuerra: this.usuario.nomeGuerra,
         postoGraduacaoBigrama: this.usuario.postoGraduacaoBigrama,
         papeis: this.usuario.papeis,
       }))
+      this.carregarEspeciesCriaveis()
     },
 
     // Início do fluxo Authorization Code + PKCE: gera verifier/state, guarda
@@ -254,6 +282,7 @@ export const useAuthStore = defineStore('auth', {
         postoGraduacaoBigrama: dados.postoGraduacaoBigrama ?? null,
         omId: dados.omId ?? this.usuario.omId,
         omNome: dados.omNome ?? this.usuario.omNome,
+        omSigla: dados.omSigla ?? this.usuario.omSigla,
         papeis: dados.papeis ?? this.usuario.papeis,
       }
       const salvo = lerArmazenado()
@@ -265,6 +294,7 @@ export const useAuthStore = defineStore('auth', {
           postoGraduacaoBigrama: this.usuario.postoGraduacaoBigrama,
           omId: this.usuario.omId,
           omNome: this.usuario.omNome,
+          omSigla: this.usuario.omSigla,
           papeis: this.usuario.papeis,
         }))
       }
@@ -278,10 +308,14 @@ export const useAuthStore = defineStore('auth', {
     // silêncio com a sessão antiga ainda viva. logoutSuccessUrl já aponta de
     // volta pro /login (ver AuthorizationServerConfig), então isso já
     // termina no lugar certo sozinho -- quem chama não precisa navegar depois.
+    // Também apaga tudo o que a sessão deixou no navegador (limparCachesDaSessao): estado de todas as stores e URLs assinadas em
+    // cache -- a próxima pessoa que entrar neste navegador não herda nada de quem saiu.
     logout() {
       this.token = null
       this.usuario = null
+      this.especiesCriaveis = []
       localStorage.removeItem(STORAGE_KEY)
+      limparCachesDaSessao(getActivePinia())
       window.location.href = `${OAUTH2_BASE_URL}/logout`
     },
   },

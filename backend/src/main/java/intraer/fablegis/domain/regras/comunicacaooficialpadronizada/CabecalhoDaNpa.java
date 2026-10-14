@@ -29,6 +29,8 @@ import java.util.regex.Pattern;
 //   localEData   : "Local, dd de mês de aaaa" do fecho (data da aprovação)
 //   publicadaNo  : "(Publicada no Boletim Interno Ostensivo nº __, de __ de ____)" -- só depois de publicada; senão null
 //   revogadaNo   : "(Revogada pelo Boletim Interno Ostensivo nº __, de __ de ____)" -- só depois de revogada; senão null
+//   distintivoUrl: o DOM (distintivo) da OM do documento -- lido de Documento.om a cada geração, nunca copiado; por isso uma
+//                  NPA clonada mostra o distintivo da OM de quem clonou. null = a OM ainda não tem distintivo
 public record CabecalhoDaNpa(
         List<String> linhasDeCima,
         String identificacao,
@@ -40,7 +42,8 @@ public record CabecalhoDaNpa(
         String localEData,
         List<AssinaturaDaNpaDto> assinaturas,
         String publicadaNo,
-        String revogadaNo) {
+        String revogadaNo,
+        String distintivoUrl) {
 
     static final String COMANDO = "COMANDO DA AERONÁUTICA";
     static final String DISTRIBUICAO = "OSTENSIVA";
@@ -75,7 +78,8 @@ public record CabecalhoDaNpa(
                 assinaturas(campos),
                 publicada ? "(Publicada no " + boletim + ")" : null,
                 campos.boletimDaRevogacao() != null && !campos.boletimDaRevogacao().isBlank()
-                        ? "(Revogada pelo " + campos.boletimDaRevogacao().strip() + ")" : null);
+                        ? "(Revogada pelo " + campos.boletimDaRevogacao().strip() + ")" : null,
+                doc.getOm().getUrlDistintivo());
     }
 
     // "Boletim Interno Ostensivo nº X, de dd de mês de aaaa": a referência oficial da publicação, gravada pronta no campo

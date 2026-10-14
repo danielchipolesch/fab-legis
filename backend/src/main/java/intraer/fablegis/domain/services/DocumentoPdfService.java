@@ -1,58 +1,47 @@
 package intraer.fablegis.domain.services;
 
+import lombok.RequiredArgsConstructor;
 import intraer.fablegis.application.dtos.anexoDtos.AnexoResponseDto;
 import intraer.fablegis.application.dtos.itemAnexoParteNormativaDtos.ItemAnexoParteNormativaResponseDto;
 import intraer.fablegis.application.dtos.itemPartePreliminarDtos.ItemPartePreliminarResponseDto;
 import intraer.fablegis.domain.entities.estruturaDocumento.Documento;
 import intraer.fablegis.domain.entities.estruturaDocumento.VersaoDocumentoEnum;
+import intraer.fablegis.domain.handlers.exceptions.FalhaNaRenderizacaoException;
 import intraer.fablegis.domain.handlers.exceptions.ResourceNotFoundException;
 import intraer.fablegis.domain.regras.RegrasDasEspecies;
 import intraer.fablegis.domain.handlers.exceptions.enums.DocumentoException;
 import intraer.fablegis.infrastructure.repositories.AnexoRepository;
 import intraer.fablegis.infrastructure.repositories.DocumentoRepository;
-import org.apache.fop.apps.Fop;
-import org.apache.fop.apps.FopFactory;
-import org.apache.fop.apps.MimeConstants;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
-import org.xml.sax.InputSource;
-import org.xml.sax.XMLReader;
 
-import javax.xml.parsers.SAXParserFactory;
-import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
-import java.io.StringReader;
 import java.time.Instant;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Set;
 
 @Service
+@RequiredArgsConstructor
 public class DocumentoPdfService {
 
-    private static final FopFactory FOP_FACTORY = FopFactoryProvider.get();
 
-    @Autowired
-    private DocumentoRepository documentoRepository;
+    private final DocumentoRepository documentoRepository;
 
-    @Autowired
-    private DocumentoParteNormativaService documentoParteNormativaService;
+    private final DocumentoParteNormativaService documentoParteNormativaService;
 
-    @Autowired
-    private RegrasDasEspecies regras;
+    private final RegrasDasEspecies regras;
 
-    @Autowired
-    private ImagemService imagemService;
+    private final ImagemService imagemService;
 
-    @Autowired
-    private AnexoRepository anexoRepository;
+    private final AnexoRepository anexoRepository;
 
-    @Autowired
-    private LimitadorGeracaoPdf limitador;
+    private final LimitadorGeracaoPdf limitador;
+
+    private final DocumentoRenderCacheService renderCacheService;
 
     // A geração armazenada (depois de aprovar/publicar/revogar) não tem ninguém esperando o
     // resultado: pode aguardar bem mais por uma vaga que um pedido de tela.
@@ -89,9 +78,19 @@ public class DocumentoPdfService {
             // URL presente mas não recuperável (objeto removido/inconsistência): recai
             // na renderização ao vivo em vez de falhar a exportação.
         }
+        // Documento em tramitação sem cópia congelada: antes de renderizar de novo (caro, pelo
+        // FOP), tenta o cache em MinIO -- ver DocumentoRenderCacheService. Cache hit não passa
+        // pelo limitador: é exatamente esse custo que o cache evita.
+        var doCache = renderCacheService.buscar(doc, DocumentoRenderCacheService.TipoDeRenderizacao.PDF);
+        if (doCache.isPresent()) {
+            byte[] cacheado = doCache.get();
+            return outputStream -> outputStream.write(cacheado);
+        }
+
         // Renderiza ANTES de devolver o corpo: assim, com todas as vagas ocupadas, ainda dá para
         // responder 503 (depois de iniciado o streaming os cabeçalhos já saíram).
         byte[] renderizado = limitador.executar(() -> renderPdf(doc));
+        renderCacheService.salvar(doc, DocumentoRenderCacheService.TipoDeRenderizacao.PDF, renderizado);
         return outputStream -> outputStream.write(renderizado);
     }
 
@@ -110,7 +109,7 @@ public class DocumentoPdfService {
             String filename = "documento-" + documento.getId() + "-" + Instant.now().toEpochMilli() + ".pdf";
             return imagemService.uploadPdf(pdfBytes, filename);
         } catch (Exception e) {
-            throw new RuntimeException("Erro ao gerar/armazenar PDF: " + e.getMessage(), e);
+            throw new FalhaNaRenderizacaoException("Erro ao gerar/armazenar PDF: " + e.getMessage(), e);
         }
     }
 
@@ -131,16 +130,6 @@ public class DocumentoPdfService {
         // O layout do PDF é regra da espécie (atos normativos: Portaria + Capa + Sumário + Corpo).
         String fo = regras.para(doc.getEspecieNormativa()).leiauteDoPdf().gerarFo(doc, preliminares, normativos, anexos);
 
-        try (var os = new ByteArrayOutputStream()) {
-            Fop fop = FOP_FACTORY.newFop(MimeConstants.MIME_PDF, FOP_FACTORY.newFOUserAgent(), os);
-            SAXParserFactory spf = SAXParserFactory.newInstance();
-            spf.setNamespaceAware(true);
-            XMLReader reader = spf.newSAXParser().getXMLReader();
-            reader.setContentHandler(fop.getDefaultHandler());
-            reader.parse(new InputSource(new StringReader(fo)));
-            return os.toByteArray();
-        } catch (Exception e) {
-            throw new RuntimeException("Erro ao renderizar PDF: " + e.getMessage(), e);
-        }
+        return RenderizadorDePdf.renderizar(fo, "PDF");
     }
 }

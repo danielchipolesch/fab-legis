@@ -13,20 +13,12 @@ import java.time.LocalDate;
 //   EM_REVOGACAO      -> revogar (situação BCA passa a REVOGADO): exige portaria/BCA/PDF
 //   ANALISE_REVOGACAO -> devolver o pedido de revogação (o documento segue PUBLICADO)
 //   EM_ALTERACAO      -> cancelar a alteração (descarta o que estava pendente)
+// Ninguém é escolhido: "enviar para aprovação" vale para qualquer aprovador da OM do documento e "aprovar", para qualquer
+// publicador (que só existe no CENDOC) -- ver DocumentoAcessoService.
 public record DocumentoStatusRequestDto(
 
         @NotNull
         SituacaoLocalEnum situacaoLocal,
-
-        // Obrigatório só ao enviar para revisão/análise de revogação (destino
-        // EM_REVISAO/ANALISE_REVOGACAO) -- id de quem, com papel APROV na mesma OM, vai
-        // revisar. Ver DocumentoStatusService/DocumentoAcessoService.
-        Long revisorId,
-
-        // Obrigatório só ao aprovar (EM_REVISAO -> EM_PUBLICACAO) ou ao aprovar uma
-        // revogação (ANALISE_REVOGACAO -> EM_REVOGACAO) -- id de quem, com papel PUBLIC na
-        // mesma OM, vai publicar/formalizar.
-        Long publicadorId,
 
         // Obrigatórios ao publicar (EM_PUBLICACAO -> SEM_ETAPA) e ao revogar
         // (EM_REVOGACAO -> SEM_ETAPA) -- não ao devolver nem ao cancelar.
@@ -60,12 +52,12 @@ public record DocumentoStatusRequestDto(
 ) {
 
     // Forma sem o Boletim Interno: o pedido de um ato normativo (e todas as etapas que não registram publicação).
-    public DocumentoStatusRequestDto(SituacaoLocalEnum situacaoLocal, Long revisorId, Long publicadorId,
+    public DocumentoStatusRequestDto(SituacaoLocalEnum situacaoLocal,
                                      String orgaoPortaria, String setorPortaria, String numeroPortaria,
                                      LocalDate dataPortaria, Integer numeroBca, LocalDate dataBca,
                                      String epigrafe, String ementa, String preambulo, String fecho,
                                      String assinatura, String portariaPdfUrl) {
-        this(situacaoLocal, revisorId, publicadorId, orgaoPortaria, setorPortaria, numeroPortaria, dataPortaria,
+        this(situacaoLocal, orgaoPortaria, setorPortaria, numeroPortaria, dataPortaria,
                 numeroBca, dataBca, epigrafe, ementa, preambulo, fecho, assinatura, portariaPdfUrl, null, null);
     }
 }

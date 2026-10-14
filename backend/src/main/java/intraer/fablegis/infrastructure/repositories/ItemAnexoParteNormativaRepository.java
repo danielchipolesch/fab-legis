@@ -19,6 +19,12 @@ public interface ItemAnexoParteNormativaRepository extends JpaRepository<ItemAne
     @Query("SELECT i FROM ItemAnexoParteNormativa i WHERE i.documento.id = :documentoId")
     List<ItemAnexoParteNormativa> findAllByDocumentoId(@Param("documentoId") Long documentoId);
 
+    // Projeção leve (sem as colunas TEXT de conteúdo) usada pelo fingerprint do cache de
+    // PDF/HTML em tramitação (DocumentoRenderCacheService) -- buscar o conteúdo inteiro só para
+    // calcular a chave do cache anularia o ganho de performance do próprio cache.
+    @Query("SELECT i.id, i.updatedAt FROM ItemAnexoParteNormativa i WHERE i.documento.id = :documentoId ORDER BY i.id ASC")
+    List<Object[]> findIdsEDataAtualizacaoByDocumentoId(@Param("documentoId") Long documentoId);
+
     List<ItemAnexoParteNormativa> findByParentOrderByElementOrderAsc(ItemAnexoParteNormativa parent);
 
     @Modifying

@@ -1,0 +1,64 @@
+# Nginx da borda do sistema -- versão HTTPS (produção com TLS terminado aqui). Copie para nginx/nginx.conf (fora do git) e coloque
+# o certificado em segredos/tls/ (fora do git): fullchain.pem (certificado + intermediárias) e privkey.pem (chave privada).
+# O docker-compose.yml publica 80 -> 8080 e 443 -> 8443. Tudo que é comum está em comum.conf.
+
+# HTTP: só redireciona para HTTPS (e responde o /health que o healthcheck do container usa).
+server {
+    listen 8080;
+    server_name _;
+
+    location = /health {
+        access_log off;
+        add_header Content-Type text/plain;
+        return 200 "ok";
+    }
+
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}
+
+# HTTPS
+server {
+    listen 8443 ssl;
+    http2 on;
+    server_name _;     # troque pelo nome do host, ex.: fab-legis.intraer
+
+    ssl_certificate     /etc/segredos/tls/fullchain.pem;
+    ssl_certificate_key /etc/segredos/tls/privkey.pem;
+    ssl_protocols       TLSv1.2 TLSv1.3;
+    ssl_session_cache   shared:SSL:10m;
+    ssl_session_timeout 1d;
+
+    # Diz ao navegador para usar sempre HTTPS neste host (1 ano).
+    add_header Strict-Transport-Security "max-age=31536000" always;
+
+    include /etc/nginx/comum.conf;
+}
+
+# Imagens e arquivos do MinIO, com nome e HTTPS próprios. O navegador baixa as imagens direto do MinIO por URLs assinadas
+# (MINIO_PUBLIC_URL); numa página HTTPS essas URLs também têm de ser HTTPS (senão o navegador bloqueia: conteúdo misto). O TLS
+# fica aqui, no mesmo Nginx e com o mesmo certificado (que precisa cobrir este nome -- um certificado com os dois nomes, ou
+# curinga), e o MinIO segue em HTTP, só na rede interna do Docker (por isso a porta 9000 não precisa ser publicada).
+# Troque server_name pelo nome real e use MINIO_PUBLIC_URL=https://<esse nome> no .env.
+server {
+    listen 8443 ssl;
+    http2 on;
+    server_name s3.exemplo.intraer;
+
+    ssl_certificate     /etc/segredos/tls/fullchain.pem;
+    ssl_certificate_key /etc/segredos/tls/privkey.pem;
+    ssl_protocols       TLSv1.2 TLSv1.3;
+
+    client_max_body_size 0;
+    proxy_buffering off;
+
+    location / {
+        proxy_pass http://minio:9000;
+        # A assinatura das URLs inclui o Host: tem de chegar ao MinIO exatamente como o navegador o enviou.
+        proxy_set_header Host              $http_host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}

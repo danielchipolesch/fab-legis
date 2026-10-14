@@ -1,14 +1,16 @@
 {
   "name": "fab-legis-frontend",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "private": true,
+  "license": "GPL-3.0-or-later",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "lint": "eslint ."
   },
   "dependencies": {
     "vue": "^3.5.13",
@@ -36,13 +38,19 @@
     "vuedraggable": "^4.1.0",
     "pdfmake": "^0.2.12",
     "diff": "^5.2.0",
-    "uuid": "^9.0.1"
+    "uuid": "^9.0.1",
+    "echarts": "^6.1.0",
+    "markdown-it": "^14.1.0"
   },
   "devDependencies": {
     "vite": "^5.4.11",
     "@vitejs/plugin-vue": "^5.2.1",
     "@quasar/vite-plugin": "^1.9.0",
     "sass-embedded": "^1.80.0",
-    "vitest": "^3.2.7"
+    "vitest": "^3.2.7",
+    "eslint": "^9.0.0",
+    "@eslint/js": "^9.0.0",
+    "eslint-plugin-vue": "^10.0.0",
+    "globals": "^15.0.0"
   }
 }

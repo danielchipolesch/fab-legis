@@ -26,7 +26,7 @@
 
       <q-separator vertical style="height:36px" />
 
-      <q-btn v-if="perfil.permiteAlteracao" outline color="primary" size="sm"
+      <q-btn v-if="regras.permiteAlteracao" outline color="primary" size="sm"
         :to="{ name: 'documento-comparar', params: { id: documentoId } }">
         <q-icon left name="mdi-source-branch" />
         Versões
@@ -61,9 +61,43 @@
         <q-icon left name="mdi-content-copy" />
         Clonar
       </q-btn>
+      <!-- Substituir: só a NPA publicada. O Clonar continua, para quem só quer partir de uma cópia. -->
+      <q-btn
+        v-if="documento && podeSubstituirEste"
+        outline color="primary" size="sm" data-testid="substituir"
+        @click="dialogSubstituir.open = true"
+      >
+        <q-icon left name="mdi-file-replace-outline" />
+        Substituir
+        <q-tooltip anchor="bottom middle" self="top middle" max-width="320px" class="text-body2">
+          Cria uma NPA nova, em rascunho, já ligada a esta. Use quando esta NPA precisa mudar: depois de publicar a nova,
+          peça a revogação desta. É diferente de Clonar, que só faz uma cópia, sem ligação.
+        </q-tooltip>
+      </q-btn>
     </div>
 
     <q-separator />
+
+    <!-- Ligação "Substituir" entre duas NPA: uma nova nasce ligada à publicada, e a antiga só é revogada pelo pedido de sempre. -->
+    <div v-if="substituicao && (substituicao.substitui || substituicao.substituidoPor)" class="q-px-xl q-pt-md" data-testid="faixa-substituicao">
+      <q-banner v-if="substituicao.substitui" rounded class="bg-blue-1 text-blue-10 q-mb-sm">
+        <template #avatar><q-icon name="mdi-file-replace-outline" /></template>
+        Esta NPA substitui
+        <router-link :to="{ name: 'documento-visualizar', params: { id: substituicao.substitui.id } }">{{ substituicao.substitui.identificacao }}</router-link>.
+        <span v-if="substituicao.substitui.situacaoBca === 'PUBLICADO' && substituicao.substitui.situacaoLocal === 'SEM_ETAPA'">
+          Depois de publicar esta, peça a revogação da NPA substituída.
+        </span>
+      </q-banner>
+      <q-banner v-if="substituicao.substituidoPor" rounded class="bg-amber-1 text-amber-10">
+        <template #avatar><q-icon name="mdi-file-replace-outline" /></template>
+        Esta NPA está sendo substituída por
+        <router-link :to="{ name: 'documento-visualizar', params: { id: substituicao.substituidoPor.id } }">{{ substituicao.substituidoPor.identificacao }}</router-link>
+        ({{ substituicao.substituidoPor.situacaoBca === 'PUBLICADO' ? 'já publicada' : 'ainda não publicada' }}).
+        <span v-if="substituicao.substituidoPor.situacaoBca === 'PUBLICADO' && documento?.situacao_bca === 'PUBLICADO' && documento?.situacao_local === 'SEM_ETAPA'">
+          A substituta já vale: peça a revogação desta NPA.
+        </span>
+      </q-banner>
+    </div>
 
     <!-- Sections -->
     <div class="viewer-body q-px-xl q-py-lg">
@@ -98,19 +132,19 @@
                       <div class="info-label">Título</div>
                       <div class="info-value">{{ documento.titulo || '—' }}</div>
                     </div>
-                    <div v-if="!perfil.ehNpa" class="col-12">
+                    <div v-if="!regras.ehNpa" class="col-12">
                       <div class="info-label">Assunto Básico</div>
                       <div class="info-value">{{ documento.assunto_basico || '—' }}</div>
                     </div>
                     <div class="col-6">
-                      <div class="info-label">{{ perfil.ehNpa ? 'Situação (Boletim Interno)' : 'Situação BCA' }}</div>
+                      <div class="info-label">{{ regras.ehNpa ? 'Situação (Boletim Interno)' : 'Situação BCA' }}</div>
                       <StatusBadge :situacao-bca="documento.situacao_bca" mostrar="bca" class="q-mt-xs" data-testid="info-situacao-bca" />
                     </div>
                     <div class="col-6">
                       <div class="info-label">Situação Local</div>
                       <StatusBadge :situacao-local="documento.situacao_local" mostrar="local" class="q-mt-xs" data-testid="info-situacao-local" />
                     </div>
-                    <div v-if="perfil.ehNpa && documento.bca_referencia" class="col-12">
+                    <div v-if="regras.ehNpa && documento.bca_referencia" class="col-12">
                       <div class="info-label">Publicação</div>
                       <div class="info-value">{{ documento.bca_referencia }}</div>
                     </div>
@@ -174,7 +208,7 @@
 
         <!-- 2. Portarias (edição, alterações e revogação -- fechada por padrão). A NPA não tem portaria:
              é publicada e revogada no Boletim Interno (ver "Publicação" acima). -->
-        <q-card v-if="!perfil.ehNpa" flat class="section-card">
+        <q-card v-if="!regras.ehNpa" flat class="section-card">
           <q-expansion-item
             v-model="expanded.portarias"
             icon="mdi-file-certificate-outline"
@@ -318,6 +352,29 @@
       </q-card>
     </q-dialog>
 
+    <!-- Modal: confirmação de substituição (NPA publicada) -->
+    <q-dialog v-model="dialogSubstituir.open" persistent>
+      <q-card style="min-width:380px; max-width:480px">
+        <q-card-section class="row items-center q-pb-none">
+          <q-icon name="mdi-file-replace-outline" color="primary" size="24px" class="q-mr-sm" />
+          <span class="text-h6">Substituir NPA</span>
+        </q-card-section>
+        <q-card-section class="q-pt-md">
+          <div class="text-weight-medium">{{ docLabel }}</div>
+          <div class="text-body2 text-grey-8 q-mt-sm">
+            Uma NPA nova será criada em <strong>RASCUNHO</strong>, com o conteúdo desta, da sua OM, e ligada a esta NPA.
+          </div>
+          <div class="text-caption text-grey-7 q-mt-sm">
+            A NPA atual continua em vigor até você publicar a nova e pedir a revogação dela.
+          </div>
+        </q-card-section>
+        <q-card-actions align="right">
+          <q-btn flat label="Cancelar" color="grey-7" v-close-popup />
+          <q-btn unelevated label="Substituir" color="primary" data-testid="confirmar-substituir" @click="executarSubstituicao" />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
+
     <!-- Texto sugerido para a portaria de alteração (NSCA 5-3, Art. 22) -->
     <q-dialog v-model="dialogTextoSugerido">
       <q-card style="min-width:560px;max-width:720px;width:100%">
@@ -363,10 +420,11 @@ import { gerarPdf, gerarHtml, buscarPdfBlob } from '@/services/pdfService.js'
 import { gerarTextoSugeridoPortaria } from '@/utils/textoSugeridoPortaria.js'
 import { resolveMinioUrls } from '@/utils/minioUrls.js'
 import BotaoBaixarVersao from '@/components/common/BotaoBaixarVersao.vue'
-import { perfilDoDocumento, moduloDoDocumento } from '@/perfis/index.js'
+import { regrasDoDocumento, moduloDoDocumento } from '@/regras/index.js'
+import { getSubstituicao } from '@/api/documentos.js'
 import { itensRenumeracaoUnico } from '@/utils/numbering.js'
 import {
-  ehAlteracaoPublicada, temVersaoVigente, temVersaoEmTramitacao, versaoPadrao, eventoDoHistorico,
+  ehAlteracaoPublicada, temVersaoVigente, temVersaoEmTramitacao, versaoPadrao, eventoDoHistorico, podeSubstituir, ehAprovadorDaOm,
 } from '@/utils/fluxoDocumento.js'
 
 const route    = useRoute()
@@ -388,8 +446,8 @@ const expanded = reactive({
 
 const documentoId = computed(() => route.params.id)
 const documento   = computed(() => docStore.getById(documentoId.value))
-// As regras da espécie do documento (perfis/index.js): o que a tela mostra varia por espécie.
-const perfil      = computed(() => perfilDoDocumento(documento.value))
+// As regras da espécie do documento (regras/index.js): o que a tela mostra varia por espécie.
+const regras      = computed(() => regrasDoDocumento(documento.value))
 
 // Versão exibida no iframe: a em tramitação (se houver) é a padrão; senão, a vigente. O PDF só
 // é buscado com a seção aberta: a versão em tramitação é renderizada na hora pelo backend quando
@@ -440,7 +498,7 @@ const docLabel = computed(() => {
 })
 
 // Rascunho/Minuta oferecem o atalho de voltar para o editor pelo breadcrumb
-// por posse; EM_REVISAO oferece o mesmo atalho só para o revisor atribuído
+// por posse; EM_REVISAO oferece o mesmo atalho para qualquer aprovador da OM
 // (ver DocumentoAcessoService.podeEditar/isReadonly em DocumentoEditorPage.vue)
 // -- as demais situações não têm edição direta de conteúdo (ver "Regra de
 // imutabilidade" no README).
@@ -448,7 +506,7 @@ const podeEditar = computed(() => {
   const doc = documento.value
   if (!doc) return false
   if (doc.situacao_local === 'EM_REVISAO') {
-    return doc.situacao_bca !== 'PUBLICADO' && doc.revisor_atribuido_id === String(auth.usuario?.id)
+    return doc.situacao_bca !== 'PUBLICADO' && ehAprovadorDaOm(doc, auth.usuario)
   }
   return ['RASCUNHO', 'MINUTA'].includes(doc.situacao_local)
 })
@@ -457,8 +515,8 @@ const podeEditar = computed(() => {
 // partir da fila pessoal de Revisão/Publicação (query `origem`), o breadcrumb
 // do meio volta pra lá em vez de pro acervo geral.
 const ORIGEM_CRUMB = {
-  revisao:    { label: 'Revisão',    to: { name: 'revisao' } },
-  publicacao: { label: 'Publicação', to: { name: 'publicacao' } },
+  revisao:    { label: 'Manter Revisão de Documento',    to: { name: 'revisao' } },
+  publicacao: { label: 'Manter Publicação de Documento', to: { name: 'publicacao' } },
   busca:      { label: 'Busca Textual', to: { name: 'busca' } },
 }
 // Sem origem, o crumb do meio é o módulo a que o documento pertence (a tela inicial dele).
@@ -528,6 +586,7 @@ onMounted(async () => {
     await docStore.fetchHistorico(documentoId.value)
     await docStore.fetchPortarias(documentoId.value)
     await docStore.fetchMapaAlteracao(documentoId.value)
+    await carregarSubstituicao()
   } catch (e) {
     console.error('[Viewer] Erro ao buscar documento:', e)
     $q.notify({ type: 'negative', message: 'Erro ao carregar documento.' })
@@ -571,6 +630,32 @@ function executarClone() {
   docStore.cloneDocumento(documento.value.id).then(clone => {
     if (clone) router.push({ name: 'documento-editar', params: { id: clone.id } })
   })
+}
+
+// ── Substituir (NPA publicada) ─────────────────────────────────────────────────
+const dialogSubstituir = reactive({ open: false })
+const substituicao = ref(null)
+
+// Visível para quem pode criar NPA (papel ELB e OM habilitada, como no Clonar) e só numa NPA publicada e parada.
+const podeSubstituirEste = computed(() =>
+  podeSubstituir(documento.value, regras.value) && auth.isElaborador && auth.podeCriarNoModulo(regras.value.tipo))
+
+async function carregarSubstituicao() {
+  substituicao.value = null
+  if (!regras.value.permiteSubstituicao) return
+  try {
+    substituicao.value = await getSubstituicao(documentoId.value)
+  } catch {
+    substituicao.value = null
+  }
+}
+
+function executarSubstituicao() {
+  dialogSubstituir.open = false
+  if (!documento.value) return
+  docStore.substituirDocumento(documento.value.id)
+    .then(nova => { if (nova) router.push({ name: 'documento-editar', params: { id: nova.id } }) })
+    .catch(e => $q.notify({ type: 'negative', message: e?.message ?? 'Não foi possível substituir a NPA.' }))
 }
 
 // ── Texto sugerido da portaria de alteração (NSCA 5-3, Art. 22) ────────────────

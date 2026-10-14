@@ -14,13 +14,17 @@ import intraer.fablegis.infrastructure.repositories.DocumentoRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import org.mockito.InOrder;
+
 import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 // Criação de um ato normativo (docs/dominio.md, "Numeração"): identificado por ESPÉCIE + ASSUNTO BÁSICO +
@@ -121,6 +125,52 @@ class CriacaoDeEspecieConvencionalTest {
         assertThat(copia.getSituacaoLocal()).isEqualTo(SituacaoLocalEnum.RASCUNHO);
         assertThat(copia.getAutor()).isSameAs(autor);
     }
+
+    // Duas criações simultâneas não podem escolher o mesmo número: a numeração da espécie + assunto é travada (no banco, vale entre
+    // réplicas) ANTES de ler os números existentes, e quem chega depois espera e lê já com o número da outra.
+    @Test
+    void travaANumeracaoDaEspecieEDoAssuntoAntesDeEscolherONumero() {
+        when(assuntos.findById(7L)).thenReturn(Optional.of(assunto11));
+        when(documentos.findByEspecieNormativaAndAssuntoBasico(any(), any())).thenReturn(List.of());
+        dca.setId(3L);
+        assunto11.setId(7L);
+
+        criacao.montar(new DocumentoRequestCreateDto(3L, 7L, null, "Título"), dca, autor);
+
+        InOrder ordem = inOrder(documentos);
+        ordem.verify(documentos).travarNumeracao(CriacaoDeEspecieConvencional.chaveDaNumeracao(dca, assunto11));
+        ordem.verify(documentos).findByEspecieNormativaAndAssuntoBasico(dca, assunto11);
+    }
+
+    @Test
+    void aCopiaTambemTravaANumeracao() {
+        var original = new Documento();
+        original.setEspecieNormativa(dca);
+        original.setAssuntoBasico(assunto11);
+        when(documentos.findByEspecieNormativaAndAssuntoBasico(any(), any())).thenReturn(List.of());
+
+        criacao.montarCopiaDe(original, autor);
+
+        verify(documentos).travarNumeracao(CriacaoDeEspecieConvencional.chaveDaNumeracao(dca, assunto11));
+    }
+
+    @Test
+    void cadaEspecieEAssuntoTemASuaTrava() {
+        var outraEspecie = new EspecieNormativa();
+        var outroAssunto = new AssuntoBasico();
+        dca.setId(1L);
+        outraEspecie.setId(2L);
+        assunto11.setId(1L);
+        outroAssunto.setId(2L);
+
+        var chaves = List.of(
+                CriacaoDeEspecieConvencional.chaveDaNumeracao(dca, assunto11),
+                CriacaoDeEspecieConvencional.chaveDaNumeracao(dca, outroAssunto),
+                CriacaoDeEspecieConvencional.chaveDaNumeracao(outraEspecie, assunto11),
+                CriacaoDeEspecieConvencional.chaveDaNumeracao(outraEspecie, outroAssunto));
+        assertThat(chaves).doesNotHaveDuplicates();
+    }
+
 
     // O código de uma espécie convencional é gerado (espécie + assunto + sequencial): os metadados não o alteram.
     @Test

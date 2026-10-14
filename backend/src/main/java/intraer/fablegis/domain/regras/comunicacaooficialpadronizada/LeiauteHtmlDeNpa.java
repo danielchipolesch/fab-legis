@@ -14,6 +14,7 @@ import intraer.fablegis.domain.util.tiptap.TipTapNode;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.ObjectMapper;
 
+import intraer.fablegis.domain.util.tiptap.CssDoConteudo;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
@@ -88,6 +89,7 @@ public class LeiauteHtmlDeNpa implements LeiauteDoHtml {
             table.cabecalho td.e { border-right: 1px solid #000; }
             table.cabecalho td.j { text-align: justify; }
             table.cabecalho td.topo { vertical-align: bottom; }
+            table.cabecalho img.distintivo { max-width: 90pt; max-height: 56pt; }
             .rotulo { font-weight: bold; }
             .capitulo { font-weight: bold; margin: 16px 0 6px; text-align: left; }
             .secao { margin: 10px 0 4px; }
@@ -109,21 +111,29 @@ public class LeiauteHtmlDeNpa implements LeiauteDoHtml {
             .anexo-titulo { text-align: center; font-weight: bold; margin: 0 0 6px; }
             .anexo-imagem { text-align: center; }
             .anexo-imagem img { max-width: 100%; }
-            """;
+            """ + CssDoConteudo.TABELAS_E_FIGURAS + CssDoConteudo.NUMERACAO_E_ESTILO_DAS_TABELAS;
     }
 
     // ─── Cabeçalho ────────────────────────────────────────────────────────────
 
+    // O DOM (distintivo da OM) embutido como data URI, para o HTML exportado ser um arquivo único; em branco se a OM não
+    // tem distintivo (ou o arquivo sumiu do armazenamento).
+    private String distintivo(CabecalhoDaNpa c) {
+        if (imagemService == null || c.distintivoUrl() == null || c.distintivoUrl().isBlank()) return "&nbsp;";
+        String uri = imagemService.getImageAsDataUri(c.distintivoUrl());
+        return uri == null ? "&nbsp;" : "<img class=\"distintivo\" src=\"" + uri + "\" alt=\"Distintivo da OM\" />";
+    }
+
     // Reproduz o modelo do Anexo XII (ver DocumentoFoNpaBuilder.tabelaDoCabecalho): quatro colunas, o DOM nas linhas 2 a 4
     // da primeira e a identificação numa célula própria logo abaixo dele. As bordas de cima, da esquerda e da direita do
     // cabeçalho são as da moldura; as células só desenham as linhas internas, todas com a mesma espessura da moldura.
-    private static String tabelaDoCabecalho(CabecalhoDaNpa c) {
+    private String tabelaDoCabecalho(CabecalhoDaNpa c) {
         var sb = new StringBuilder("<table class=\"cabecalho\">\n");
         sb.append("<colgroup><col style=\"width:24.5%\"/><col style=\"width:25%\"/><col style=\"width:26.5%\"/><col style=\"width:24%\"/></colgroup>\n");
         sb.append("<tr style=\"height:72px\"><td colspan=\"4\" class=\"topo\">");
         for (String linha : c.linhasDeCima()) sb.append("<div class=\"rotulo\">").append(esc(linha)).append("</div>");
         sb.append("</td></tr>\n");
-        sb.append("<tr style=\"height:28px\"><td rowspan=\"3\" class=\"e\">&nbsp;</td><td colspan=\"2\" class=\"e\">DATAS</td>")
+        sb.append("<tr style=\"height:28px\"><td rowspan=\"3\" class=\"e\">").append(distintivo(c)).append("</td><td colspan=\"2\" class=\"e\">DATAS</td>")
           .append("<td rowspan=\"2\">DISTRIBUIÇÃO</td></tr>\n");
         sb.append("<tr style=\"height:29px\"><td class=\"e\">EMISSÃO</td><td class=\"e\">EFETIVAÇÃO</td></tr>\n");
         sb.append("<tr style=\"height:44px\"><td rowspan=\"2\" class=\"e\">").append(esc(c.emissao())).append("</td>")

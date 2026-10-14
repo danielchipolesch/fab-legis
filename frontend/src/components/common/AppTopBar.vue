@@ -13,6 +13,11 @@
         </div>
       </q-toolbar-title>
 
+      <!-- Ajuda: abre o manual na página da tela em que a pessoa está (meta.manual da rota) -->
+      <q-btn v-if="auth.usuario" icon="mdi-help-circle-outline" flat round color="white" :to="paginaDeAjuda" data-testid="botao-ajuda">
+        <q-tooltip anchor="bottom middle" self="top middle">Ajuda — Manual do Usuário</q-tooltip>
+      </q-btn>
+
       <q-btn v-if="auth.usuario" icon="mdi-bell-outline" flat round color="white">
         <q-badge v-if="naoLidas.length" floating rounded color="negative">{{ naoLidas.length }}</q-badge>
         <q-tooltip anchor="bottom middle" self="top middle">Notificações</q-tooltip>
@@ -73,9 +78,9 @@
                 </q-avatar>
               </q-item-section>
               <q-item-section>
-                <q-item-label class="text-weight-bold text-white">{{ caixaAlta(auth.usuario.nome) }}</q-item-label>
+                <q-item-label class="text-weight-bold text-white">{{ nomeExibicao }}</q-item-label>
                 <q-item-label caption class="text-white" style="opacity:.85">{{ ocultarCpf(auth.usuario.cpf) }}</q-item-label>
-                <q-item-label caption class="text-white" style="opacity:.85">{{ auth.usuario.omNome }}</q-item-label>
+                <q-item-label caption class="text-white" style="opacity:.85">{{ auth.usuario.omSigla || auth.usuario.omNome }}</q-item-label>
               </q-item-section>
             </q-item>
 
@@ -97,19 +102,31 @@
               <q-item-section avatar>
                 <q-icon name="mdi-account-search-outline" color="primary" />
               </q-item-section>
-              <q-item-section>Revisão</q-item-section>
+              <q-item-section>Manter Revisão de Documento</q-item-section>
             </q-item>
             <q-item v-if="auth.isPublicador" clickable v-close-popup :to="{ name: 'publicacao' }">
               <q-item-section avatar>
                 <q-icon name="mdi-publish" color="primary" />
               </q-item-section>
-              <q-item-section>Publicação</q-item-section>
+              <q-item-section>Manter Publicação de Documento</q-item-section>
             </q-item>
             <q-item v-if="auth.isAdmin" clickable v-close-popup :to="{ name: 'usuarios' }">
               <q-item-section avatar>
                 <q-icon name="mdi-account-multiple-outline" color="primary" />
               </q-item-section>
               <q-item-section>Manter Usuários</q-item-section>
+            </q-item>
+            <q-item v-if="auth.isAdminGeral" clickable v-close-popup :to="{ name: 'habilitacao-de-documentos' }" data-testid="menu-habilitacao">
+              <q-item-section avatar>
+                <q-icon name="mdi-file-check-outline" color="primary" />
+              </q-item-section>
+              <q-item-section>Manter Habilitação de Espécies Normativas por OM</q-item-section>
+            </q-item>
+            <q-item v-if="auth.isAdminGeral" clickable v-close-popup :to="{ name: 'distintivos-das-oms' }" data-testid="menu-distintivos">
+              <q-item-section avatar>
+                <q-icon name="mdi-shield-star-outline" color="primary" />
+              </q-item-section>
+              <q-item-section>Manter DOM de OM</q-item-section>
             </q-item>
             <q-item v-if="auth.isAuditor" clickable v-close-popup :to="{ name: 'auditoria' }">
               <q-item-section avatar>
@@ -135,7 +152,7 @@
 
 <script setup>
 import { ref, computed, watch, onUnmounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { useAuthStore } from '@/stores/auth.js'
 import { useDocumentosStore } from '@/stores/documentos.js'
@@ -144,9 +161,16 @@ import { caixaAlta } from '@/utils/texto.js'
 import * as notificacoesApi from '@/api/notificacoes.js'
 
 const router = useRouter()
+const route = useRoute()
 const $q = useQuasar()
 const auth = useAuthStore()
 const documentosStore = useDocumentosStore()
+
+// O manual na página da tela atual (meta.manual da rota, 'pagina' ou 'pagina#secao'); sem ela, o início do manual.
+const paginaDeAjuda = computed(() => {
+  const [pagina, secao] = String(route.meta.manual ?? '').split('#')
+  return pagina ? { path: `/manual/${pagina}`, hash: secao ? `#${secao}` : '' } : { name: 'manual' }
+})
 
 // Servidores civis podem não ter posto/graduação nem nome de guerra
 // cadastrados (ver Usuario.java) -- nesse caso cai para o nome completo.

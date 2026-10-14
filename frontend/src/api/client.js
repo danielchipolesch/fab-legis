@@ -102,3 +102,9 @@ export async function patch(path, body, extraHeaders) {
 export async function del(path) {
   return request('DELETE', path)
 }
+
+// Envio de arquivo (multipart): o navegador define o Content-Type com o boundary, por isso o corpo não passa por JSON.
+export async function putForm(path, form) {
+  const res = await fetch(`${BASE_URL}${path}`, { method: 'PUT', headers: headers(), body: form })
+  return handleResponse(res)
+}
