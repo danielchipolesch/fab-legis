@@ -61,6 +61,15 @@ public final class EscopoDeAcesso {
         }
     }
 
+    // O CENDOC nunca fica sem administrador geral (ADMIN lotado no CENDOC): quem hoje é admin geral só deixa de ser -- por perder o papel,
+    // ser desativado ou mudar de OM -- se houver outro ativo. `adminsGeraisAtivos` conta os de agora, ele incluído.
+    public static void exigirAoMenosUmAdminGeral(boolean eraAdminGeralAtivo, boolean continuaAdminGeralAtivo, long adminsGeraisAtivos) {
+        if (eraAdminGeralAtivo && !continuaAdminGeralAtivo && adminsGeraisAtivos <= 1) {
+            throw new OperacaoNaoAutorizadaException(
+                    "É preciso manter ao menos um administrador geral ativo (ADMIN lotado no CENDOC). Conceda o papel a outra pessoa do CENDOC antes.");
+        }
+    }
+
     // Valida uma criação (alvo == null) ou alteração de usuário -- OM de destino e papéis que ele passa a ter. Lança
     // OperacaoNaoAutorizadaException (403) com a regra violada; não lança se a operação é permitida.
     public static void exigirPodeGerenciar(Usuario ator, Usuario alvo, String siglaDaOmDeDestino, Set<PapelEnum> papeisDepois) {

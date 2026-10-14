@@ -123,12 +123,6 @@
               </q-item-section>
               <q-item-section>Manter DOM de OM</q-item-section>
             </q-item>
-            <q-item v-if="auth.isAdmin" clickable v-close-popup :to="{ name: 'revisao-de-acessos' }" data-testid="menu-revisao-de-acessos">
-              <q-item-section avatar>
-                <q-icon name="mdi-account-check-outline" color="primary" />
-              </q-item-section>
-              <q-item-section>Manter Revisão de Acessos</q-item-section>
-            </q-item>
             <q-item v-if="auth.isAuditor" clickable v-close-popup :to="{ name: 'auditoria' }">
               <q-item-section avatar>
                 <q-icon name="mdi-text-box-search-outline" color="primary" />

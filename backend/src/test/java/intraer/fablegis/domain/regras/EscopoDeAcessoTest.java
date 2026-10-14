@@ -106,4 +106,23 @@ class EscopoDeAcessoTest {
         assertThatThrownBy(() -> EscopoDeAcesso.exigirPodeGerenciar(local, null, "BAGL", publicador))
                 .isInstanceOf(OperacaoNaoAutorizadaException.class).hasMessageContaining("exclusiva do CENDOC");
     }
+
+    // ─── O CENDOC nunca fica sem administrador geral ─────────────────────────
+
+    @Test
+    void oUltimoAdminGeralNaoDeixaDeSer() {
+        assertThatThrownBy(() -> EscopoDeAcesso.exigirAoMenosUmAdminGeral(true, false, 1))
+                .isInstanceOf(OperacaoNaoAutorizadaException.class).hasMessageContaining("ao menos um administrador geral");
+    }
+
+    @Test
+    void haOutroAdminGeralOuElePermanece() {
+        assertThatCode(() -> EscopoDeAcesso.exigirAoMenosUmAdminGeral(true, false, 2)).doesNotThrowAnyException();
+        assertThatCode(() -> EscopoDeAcesso.exigirAoMenosUmAdminGeral(true, true, 1)).doesNotThrowAnyException();
+    }
+
+    @Test
+    void quemNaoEraAdminGeralNaoEntraNaConta() {
+        assertThatCode(() -> EscopoDeAcesso.exigirAoMenosUmAdminGeral(false, false, 1)).doesNotThrowAnyException();
+    }
 }

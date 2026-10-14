@@ -107,7 +107,7 @@ O `ImagemService` cria o bucket sob demanda na primeira execução; o bucket é 
 
 | Método | Rota | Descrição |
 |---|---|---|
-| `GET` | `/` · `/{id}` | Lista ou obtém um usuário |
+| `GET` | `/` · `/{id}` | Lista ou obtém um usuário (no escopo de quem pergunta). Cada um traz `motivoDaRevisao` (`NENHUM`, `TROCA_DE_OM`, `REVISAO_VENCIDA`, `CONTA_DORMENTE`) e `revisavel` — se quem pergunta é quem confere o acesso dele — e as datas da última revisão e do último acesso |
 | `POST` | `/` | Cria usuário (CPF, senha, OM, papéis) |
 | `PUT` | `/{id}` | Atualiza nome, OM, papéis e situação (ativo/inativo) |
 | `PATCH` | `/{id}/senha` | Redefine a senha de um usuário |
@@ -154,8 +154,7 @@ Criar (`POST /v1/documentos`) ou clonar (`POST /v1/documentos/{id}/clonar`) sem 
 
 | Método | Rota | Descrição |
 |---|---|---|
-| `GET` | `/` | Os usuários ativos com papel elevado que quem pergunta revisa (o admin geral: admins locais e CENDOC; o admin local: os demais da própria OM), com o `motivo` da pendência (`NENHUM`, `TROCA_DE_OM`, `REVISAO_VENCIDA`, `CONTA_DORMENTE`) — pendentes primeiro |
-| `POST` | `/{usuarioId}` | Resultado da revisão `{ "papeis": [...] }`: os papéis que a pessoa **mantém** (os elevados ausentes são retirados; incluir um papel que ela não tem → 406). Quem não a revisa, ou a si mesmo → 403. Grava a data e registra a revisão na auditoria de acessos |
+| `POST` | `/{usuarioId}` | Devolve o usuário atualizado. Resultado da revisão `{ "papeis": [...] }`: os papéis que a pessoa **mantém** (os elevados ausentes são retirados; incluir um papel que ela não tem → 406). Quem não a revisa, ou a si mesmo → 403. Grava a data e registra a revisão na auditoria de acessos |
 
 Ver [Revisão periódica de acessos](autenticacao.md#revisao-periodica-de-acessos).
 

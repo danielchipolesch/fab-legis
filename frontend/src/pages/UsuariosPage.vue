@@ -14,9 +14,19 @@
       </q-btn>
     </div>
 
+    <!-- Revisão periódica de acessos (docs/autenticacao.md): automática -- o sistema aponta quem precisa de revisão; o admin só
+         confere (Manter acesso / Retirar papéis…). Ninguém precisa pedir nada e nada é retirado sozinho: por ora só avisa. -->
+    <q-banner v-if="pendentes" rounded class="bg-amber-1 text-amber-10 q-mb-md" data-testid="aviso-de-pendencias">
+      <template #avatar><q-icon name="mdi-account-alert-outline" /></template>
+      {{ pendentes }} {{ pendentes === 1 ? 'acesso precisa' : 'acessos precisam' }} de revisão.
+      <template #action>
+        <q-toggle v-model="soPendentes" label="Mostrar só esses" color="amber-9" data-testid="so-pendentes" />
+      </template>
+    </q-banner>
+
     <q-card flat bordered>
       <q-table
-        :rows="usuarios"
+        :rows="usuariosVisiveis"
         :columns="columns"
         row-key="id"
         :loading="carregando"
@@ -64,6 +74,21 @@
           </q-td>
         </template>
 
+        <template #body-cell-acesso="props">
+          <q-td :props="props">
+            <q-chip dense square size="sm" :color="motivoDaRevisao(props.row.motivoDaRevisao).color"
+                    :text-color="motivoDaRevisao(props.row.motivoDaRevisao).textColor">
+              {{ motivoDaRevisao(props.row.motivoDaRevisao).label }}
+              <q-tooltip v-if="motivoDaRevisao(props.row.motivoDaRevisao).explicacao">
+                {{ motivoDaRevisao(props.row.motivoDaRevisao).explicacao }}
+              </q-tooltip>
+            </q-chip>
+            <div v-if="temPapelElevado(props.row)" class="text-caption text-grey-7">
+              Revisado em {{ formatarData(props.row.dtRevisaoAcesso) }}
+            </div>
+          </q-td>
+        </template>
+
         <template #body-cell-ativo="props">
           <q-td :props="props">
             <q-chip dense square size="sm" :color="props.row.ativo ? 'green-2' : 'grey-3'" :text-color="props.row.ativo ? 'green-10' : 'grey-8'">
@@ -75,6 +100,14 @@
         <template #body-cell-actions="props">
           <q-td :props="props" class="text-center">
             <div class="row justify-center no-wrap" style="gap:4px">
+              <q-btn v-if="props.row.revisavel" icon="mdi-check" size="sm" flat round dense color="positive"
+                     :loading="revisando === props.row.id" :data-testid="`manter-acesso-${props.row.cpf}`" @click="manterAcesso(props.row)">
+                <q-tooltip anchor="top middle" self="bottom middle">Manter acesso (reconfirma os papéis)</q-tooltip>
+              </q-btn>
+              <q-btn v-if="props.row.revisavel" icon="mdi-account-minus-outline" size="sm" flat round dense color="negative"
+                     :disable="revisando === props.row.id" :data-testid="`retirar-papeis-${props.row.cpf}`" @click="abrirRetirada(props.row)">
+                <q-tooltip anchor="top middle" self="bottom middle">Retirar papéis…</q-tooltip>
+              </q-btn>
               <q-btn v-if="podeAdministrarEste(props.row)" icon="mdi-pencil-outline" size="sm" flat round dense color="primary" @click="abrirEdicao(props.row)">
                 <q-tooltip anchor="top middle" self="bottom middle">Editar</q-tooltip>
               </q-btn>
@@ -231,6 +264,27 @@
       </q-card>
     </q-dialog>
 
+    <!-- Retirar papéis (revisão de acesso): desmarque o que a pessoa deixa de ter; o que continuar marcado é mantido. -->
+    <q-dialog v-model="retirada.aberta" persistent>
+      <q-card style="min-width:400px">
+        <q-card-section class="row items-center q-pb-none">
+          <q-icon name="mdi-account-minus-outline" color="negative" size="24px" class="q-mr-sm" />
+          <span class="text-h6">Retirar papéis</span>
+        </q-card-section>
+        <q-card-section v-if="retirada.usuario" class="q-pt-md">
+          <div class="text-weight-medium q-mb-sm">{{ caixaAlta(retirada.usuario.nome) }}</div>
+          <div class="text-caption text-grey-7 q-mb-xs">Desmarque o que a pessoa deixa de ter:</div>
+          <div class="column">
+            <q-checkbox v-for="p in papeisElevadosDe(retirada.usuario)" :key="p" v-model="retirada.mantidos[p]" :label="rotuloDoPapel(p)" />
+          </div>
+        </q-card-section>
+        <q-card-actions align="right">
+          <q-btn flat label="Cancelar" color="grey-7" v-close-popup />
+          <q-btn unelevated label="Confirmar" color="primary" data-testid="confirmar-retirada" @click="confirmarRetirada" />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
+
     <!-- Redefinir senha -->
     <q-dialog v-model="dialogSenha" persistent>
       <q-card style="min-width:420px">
@@ -284,6 +338,7 @@ import { caixaAlta, normalizarBusca } from '@/utils/texto.js'
 import { useAuthStore } from '@/stores/auth.js'
 import { emailInstitucional } from '@/utils/email.js'
 import { omsDoEscopo, papeisConcediveis, podeAdministrar } from '@/utils/escopo.js'
+import { motivoDaRevisao, rotuloDoPapel, contarPendentes, precisaDeRevisao, temPapelElevado, papeisElevadosDe } from '@/utils/revisaoDeAcessos.js'
 
 const $q = useQuasar()
 const auth = useAuthStore()
@@ -300,6 +355,7 @@ const columns = [
   { name: 'cpf',    label: 'CPF',     field: 'cpf',    align: 'center', sortable: true, style: 'width:160px' },
   { name: 'om',     label: 'OM',      field: 'omNome', align: 'center', sortable: true },
   { name: 'papeis', label: 'Papéis',  field: 'papeis', align: 'center' },
+  { name: 'acesso', label: 'Acesso',  field: 'motivoDaRevisao', align: 'center', style: 'width:150px' },
   { name: 'ativo',  label: 'Situação', field: 'ativo',  align: 'center', sortable: true, style: 'width:110px' },
   { name: 'actions', label: 'Ações',  field: 'actions', align: 'center', style: 'width:110px' },
 ]
@@ -323,6 +379,54 @@ function filtrarOm(val, update) {
 // postos já vem ordenado pela hierarquia militar (ver PostoGraduacaoRepository), não
 // alfabeticamente -- mantém essa mesma ordem no seletor.
 const postoOptions = computed(() => postos.value.map(p => ({ label: `${p.bigrama} — ${p.nome}`, value: p.id })))
+
+// ── Revisão periódica de acessos ─────────────────────────────────────────────
+// Automática: o servidor diz, para cada usuário, se o acesso precisa de revisão (motivoDaRevisao) e se QUEM está logado é quem o
+// revisa (revisavel). O admin só confere: Manter acesso (reconfirma) ou Retirar papéis…; nada é retirado sozinho, por ora só avisa.
+const soPendentes = ref(false)
+const revisando = ref(null)
+const retirada = reactive({ aberta: false, usuario: null, mantidos: {} })
+
+const pendentes = computed(() => contarPendentes(usuarios.value))
+const usuariosVisiveis = computed(() => (soPendentes.value ? usuarios.value.filter(precisaDeRevisao) : usuarios.value))
+
+function formatarData(iso) {
+  if (!iso) return '—'
+  const [y, m, d] = String(iso).split('T')[0].split('-')
+  return `${d}/${m}/${y}`
+}
+
+async function enviarRevisao(usuario, papeisMantidos, mensagem) {
+  revisando.value = usuario.id
+  try {
+    const atualizado = await usuariosApi.revisarAcesso(usuario.id, ['EDIT', ...papeisMantidos])
+    const i = usuarios.value.findIndex(u => u.id === usuario.id)
+    if (i >= 0) usuarios.value.splice(i, 1, atualizado)
+    if (!pendentes.value) soPendentes.value = false
+    $q.notify({ type: 'positive', message: mensagem })
+  } catch (e) {
+    $q.notify({ type: 'negative', message: `Não foi possível registrar a revisão: ${e?.message ?? 'erro desconhecido'}` })
+  } finally {
+    revisando.value = null
+  }
+}
+
+function manterAcesso(usuario) {
+  enviarRevisao(usuario, papeisElevadosDe(usuario), `Acesso de ${caixaAlta(usuario.nome)} mantido.`)
+}
+
+function abrirRetirada(usuario) {
+  retirada.usuario = usuario
+  retirada.mantidos = Object.fromEntries(papeisElevadosDe(usuario).map(p => [p, true]))
+  retirada.aberta = true
+}
+
+function confirmarRetirada() {
+  const usuario = retirada.usuario
+  retirada.aberta = false
+  if (!usuario) return
+  enviarRevisao(usuario, papeisElevadosDe(usuario).filter(p => retirada.mantidos[p]), `Acesso de ${caixaAlta(usuario.nome)} revisado.`)
+}
 
 const PAPEL_CHIP = {
   EDIT:    { label: 'Editor',     color: 'blue-2',        textColor: 'secondary' },

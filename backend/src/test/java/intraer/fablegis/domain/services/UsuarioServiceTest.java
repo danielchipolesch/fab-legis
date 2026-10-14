@@ -281,4 +281,39 @@ class UsuarioServiceTest {
 
         assertThat(alvo.getDtRevisaoAcesso()).isEqualTo(revisao);
     }
+
+    // ─── O CENDOC nunca fica sem administrador geral ─────────────────────────
+
+    @Test
+    void naoSeRetiraOPapelDeAdminDoUltimoAdminGeral() {
+        var alvo = existente(2L, "CENDOC", PapelEnum.EDIT, PapelEnum.ADMIN);
+        prepararEdicao(alvo, "CENDOC");
+        when(usuarioRepository.contarAtivosComPapelNaOm("CENDOC", PapelEnum.ADMIN)).thenReturn(1L);
+
+        assertThatThrownBy(() -> service.atualizar(2L, edicao(PapelEnum.EDIT)))
+                .isInstanceOf(intraer.fablegis.domain.handlers.exceptions.OperacaoNaoAutorizadaException.class)
+                .hasMessageContaining("administrador geral");
+        verify(usuarioRepository, never()).save(any());
+    }
+
+    @Test
+    void naoSeMudaDeOmOUltimoAdminGeral() {
+        var alvo = existente(2L, "CENDOC", PapelEnum.EDIT, PapelEnum.ADMIN);
+        prepararEdicao(alvo, "BAGL");
+        when(usuarioRepository.contarAtivosComPapelNaOm("CENDOC", PapelEnum.ADMIN)).thenReturn(1L);
+
+        assertThatThrownBy(() -> service.atualizar(2L, edicao(PapelEnum.EDIT, PapelEnum.ADMIN)))
+                .isInstanceOf(intraer.fablegis.domain.handlers.exceptions.OperacaoNaoAutorizadaException.class);
+    }
+
+    @Test
+    void comOutroAdminGeralAtivoPodeSerRetirado() {
+        var alvo = existente(2L, "CENDOC", PapelEnum.EDIT, PapelEnum.ADMIN);
+        prepararEdicao(alvo, "CENDOC");
+        when(usuarioRepository.contarAtivosComPapelNaOm("CENDOC", PapelEnum.ADMIN)).thenReturn(2L);
+
+        service.atualizar(2L, edicao(PapelEnum.EDIT));
+
+        assertThat(alvo.getPapeis()).doesNotContain(PapelEnum.ADMIN);
+    }
 }

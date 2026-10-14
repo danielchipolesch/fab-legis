@@ -1,6 +1,6 @@
 package intraer.fablegis.domain.services;
 
-import intraer.fablegis.application.dtos.usuarioDtos.RevisaoDeAcessoResponseDto;
+import intraer.fablegis.application.dtos.usuarioDtos.UsuarioResponseDto;
 import intraer.fablegis.domain.entities.auditoria.AcaoDeAcessoEnum;
 import intraer.fablegis.domain.entities.usuario.PapelEnum;
 import intraer.fablegis.domain.entities.usuario.Usuario;
@@ -19,9 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.EnumSet;
-import java.util.List;
 import java.util.Set;
 
 // Revisão periódica de acessos (RevisaoDeAcesso). Quem revisa mantém os papéis elevados de quem lhe cabe ou retira alguns; nunca
@@ -33,21 +31,8 @@ public class RevisaoDeAcessoService {
     private final UsuarioRepository usuarioRepository;
     private final AuditoriaDeAcessoService auditoriaDeAcesso;
 
-    // Os usuários ativos, com papel elevado, que quem pergunta revisa -- pendentes primeiro.
-    @Transactional(readOnly = true)
-    public List<RevisaoDeAcessoResponseDto> listar() {
-        var revisor = AutenticacaoUtil.usuarioAtual();
-        var agora = Timestamp.from(Instant.now());
-        return usuarioRepository.findAll().stream()
-                .filter(u -> !u.isSistema() && u.isAtivo() && RevisaoDeAcesso.temPapelElevado(u) && RevisaoDeAcesso.podeRevisar(revisor, u))
-                .map(u -> RevisaoDeAcessoResponseDto.from(u, agora))
-                .sorted(Comparator.comparing(RevisaoDeAcessoResponseDto::pendente).reversed()
-                        .thenComparing(RevisaoDeAcessoResponseDto::nome, String.CASE_INSENSITIVE_ORDER))
-                .toList();
-    }
-
     @Transactional
-    public RevisaoDeAcessoResponseDto revisar(Long usuarioId, Set<PapelEnum> papeisMantidos) {
+    public UsuarioResponseDto revisar(Long usuarioId, Set<PapelEnum> papeisMantidos) {
         var revisor = AutenticacaoUtil.usuarioAtual();
         Usuario alvo = usuarioRepository.findById(usuarioId)
                 .filter(u -> !u.isSistema())
@@ -70,6 +55,10 @@ public class RevisaoDeAcessoService {
         retirados.addAll(elevadosAntes);
         retirados.removeAll(elevadosMantidos);
 
+        EscopoDeAcesso.exigirAoMenosUmAdminGeral(
+                EscopoDeAcesso.ehAdminGeral(alvo) && alvo.isAtivo(),
+                depois.contains(PapelEnum.ADMIN) && EscopoDeAcesso.temEscopoGeral(alvo) && alvo.isAtivo(),
+                usuarioRepository.contarAtivosComPapelNaOm(EscopoDeAcesso.OM_GERAL, PapelEnum.ADMIN));
         alvo.setPapeis(depois);
         alvo.setDtRevisaoAcesso(Timestamp.from(Instant.now()));
         var salvo = usuarioRepository.save(alvo);
@@ -80,7 +69,7 @@ public class RevisaoDeAcessoService {
                 new DiferencaDeAcesso.Estado(antes, salvo.isAtivo(), EscopoDeAcesso.siglaDaOm(salvo)),
                 new DiferencaDeAcesso.Estado(depois, salvo.isAtivo(), EscopoDeAcesso.siglaDaOm(salvo))));
         auditoriaDeAcesso.registrarMudancas(salvo, eventos);
-        return RevisaoDeAcessoResponseDto.from(salvo, Timestamp.from(Instant.now()));
+        return UsuarioResponseDto.from(salvo, revisor);
     }
 
     private static String detalhe(Set<PapelEnum> mantidos, Set<PapelEnum> retirados) {

@@ -50,12 +50,13 @@ public class UsuarioService {
         return usuarioRepository.findAll().stream()
                 .filter(u -> !u.isSistema())
                 .filter(u -> EscopoDeAcesso.enxerga(ator, u))
-                .map(UsuarioResponseDto::from)
+                .map(u -> UsuarioResponseDto.from(u, ator))
                 .toList();
     }
 
     public UsuarioResponseDto obter(Long id) {
-        return UsuarioResponseDto.from(buscarUsuarioDoEscopo(id, AutenticacaoUtil.usuarioAtual()));
+        var ator = AutenticacaoUtil.usuarioAtual();
+        return UsuarioResponseDto.from(buscarUsuarioDoEscopo(id, ator), ator);
     }
 
     @Transactional
@@ -84,7 +85,7 @@ public class UsuarioService {
 
         var salvo = usuarioRepository.save(usuario);
         auditoriaDeAcesso.registrarCriacao(salvo);
-        return UsuarioResponseDto.from(salvo);
+        return UsuarioResponseDto.from(salvo, AutenticacaoUtil.usuarioAtual());
     }
 
     @Transactional
@@ -103,6 +104,10 @@ public class UsuarioService {
         OrganizacaoMilitar om = buscarOm(request.omId());
         var papeisDepois = papeisComo(request.papeis());
         EscopoDeAcesso.exigirPodeGerenciar(usuarioLogado, usuario, om.getSigla(), papeisDepois);
+        EscopoDeAcesso.exigirAoMenosUmAdminGeral(
+                EscopoDeAcesso.ehAdminGeral(usuario) && usuario.isAtivo(),
+                papeisDepois.contains(PapelEnum.ADMIN) && EscopoDeAcesso.ehOmGeral(om.getSigla()) && request.ativo(),
+                usuarioRepository.contarAtivosComPapelNaOm(EscopoDeAcesso.OM_GERAL, PapelEnum.ADMIN));
 
         // O estado de acesso ANTES da mudança, para a auditoria registrar só o que de fato mudou (papéis, situação, OM).
         var antes = new DiferencaDeAcesso.Estado(EnumSet.copyOf(papeisOuVazio(usuario.getPapeis())), usuario.isAtivo(), siglaDa(usuario.getOm()));
@@ -119,7 +124,7 @@ public class UsuarioService {
         var salvo = usuarioRepository.save(usuario);
         var depois = new DiferencaDeAcesso.Estado(EnumSet.copyOf(papeisOuVazio(salvo.getPapeis())), salvo.isAtivo(), siglaDa(salvo.getOm()));
         auditoriaDeAcesso.registrarMudancas(salvo, DiferencaDeAcesso.entre(antes, depois));
-        return UsuarioResponseDto.from(salvo);
+        return UsuarioResponseDto.from(salvo, usuarioLogado);
     }
 
     @Transactional

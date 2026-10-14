@@ -82,25 +82,42 @@ class RevisaoDeAcessoIntegracaoTest extends IntegracaoComPostgresBase {
         return authentication(new UsernamePasswordAuthenticationToken(principal, null, principal.getAuthorities()));
     }
 
+    // A lista de usuários já diz, para quem pergunta, quem ele revisa (revisavel) e o motivo da pendência: nada a pedir.
     @Test
-    void cadaRevisorVeSoQuemLheCabe() throws Exception {
+    void aListaDeUsuariosMarcaSoQuemCadaRevisorConferee() throws Exception {
         adminLocal();
         aprovadorLocal();
         usuarioDa("BABE", CPF_APROVADOR_OUTRA_OM, PapelEnum.EDIT, PapelEnum.APROV);
 
-        // o admin geral: o admin local (e o pessoal do CENDOC), não os aprovadores de outras OMs
-        mvc.perform(get("/v1/revisao-de-acessos").with(como(geral())))
+        // o admin geral confere o admin local, não os aprovadores das outras OMs
+        mvc.perform(get("/v1/usuarios").with(como(geral())))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[*].cpf", hasItem(CPF_ADMIN_LOCAL)))
-                .andExpect(jsonPath("$[*].cpf", not(hasItem(CPF_APROVADOR_LOCAL))))
-                .andExpect(jsonPath("$[*].cpf", not(hasItem(CPF_APROVADOR_OUTRA_OM))));
+                .andExpect(jsonPath("$[?(@.cpf == '" + CPF_ADMIN_LOCAL + "')].revisavel").value(true))
+                .andExpect(jsonPath("$[?(@.cpf == '" + CPF_APROVADOR_LOCAL + "')].revisavel").value(false))
+                .andExpect(jsonPath("$[?(@.cpf == '" + CPF_APROVADOR_OUTRA_OM + "')].revisavel").value(false));
 
-        // o admin local: os demais da própria OM (não ele mesmo, nem a OM dos outros)
-        mvc.perform(get("/v1/revisao-de-acessos").with(como(adminLocal())))
+        // o admin local confere os demais da própria OM (não ele mesmo, e nem enxerga a outra OM)
+        mvc.perform(get("/v1/usuarios").with(como(adminLocal())))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[*].cpf", hasItem(CPF_APROVADOR_LOCAL)))
-                .andExpect(jsonPath("$[*].cpf", not(hasItem(CPF_ADMIN_LOCAL))))
-                .andExpect(jsonPath("$[*].cpf", not(hasItem(CPF_APROVADOR_OUTRA_OM))));
+                .andExpect(jsonPath("$[?(@.cpf == '" + CPF_APROVADOR_LOCAL + "')].revisavel").value(true))
+                .andExpect(jsonPath("$[?(@.cpf == '" + CPF_ADMIN_LOCAL + "')].revisavel").value(false))
+                .andExpect(jsonPath("$[?(@.cpf == '" + CPF_APROVADOR_OUTRA_OM + "')]").isEmpty());
+    }
+
+    @Test
+    void oMotivoDaRevisaoVemDaListaDeUsuariosSemNingemPedirNada() throws Exception {
+        var aprovador = aprovadorLocal();
+        jdbc.update("update t_usuario set dt_revisao_acesso = now() - interval '200 days' where id_usuario = ?", aprovador.getId());
+
+        mvc.perform(get("/v1/usuarios").with(como(adminLocal())))
+                .andExpect(jsonPath("$[?(@.cpf == '" + CPF_APROVADOR_LOCAL + "')].motivoDaRevisao").value("REVISAO_VENCIDA"));
+
+        // revisar (manter) volta a "em dia", e continua revisável por quem o confere
+        mvc.perform(post("/v1/revisao-de-acessos/" + aprovador.getId()).with(como(adminLocal())).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"papeis\":[\"EDIT\",\"APROV\",\"AUDITOR\"]}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.motivoDaRevisao").value("NENHUM"))
+                .andExpect(jsonPath("$.revisavel").value(true));
     }
 
     @Test
@@ -116,8 +133,8 @@ class RevisaoDeAcessoIntegracaoTest extends IntegracaoComPostgresBase {
         mvc.perform(post("/v1/revisao-de-acessos/" + aprovador.getId()).with(como(adminLocal())).contentType(MediaType.APPLICATION_JSON)
                         .content("{\"papeis\":[\"EDIT\",\"APROV\"]}"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.papeisElevados[0]").value("APROV"))
-                .andExpect(jsonPath("$.pendente").value(false));
+                .andExpect(jsonPath("$.papeis", hasItem("APROV")))
+                .andExpect(jsonPath("$.papeis", not(hasItem("AUDITOR"))));
 
         var papeis = jdbc.queryForList("select sg_papel from t_usuario_papel where usuario_id = ?", String.class, aprovador.getId());
         assertThat(papeis).containsExactlyInAnyOrder("EDIT", "APROV");
@@ -144,6 +161,8 @@ class RevisaoDeAcessoIntegracaoTest extends IntegracaoComPostgresBase {
         mvc.perform(post("/v1/revisao-de-acessos/" + admin.getId()).with(como(admin)).contentType(MediaType.APPLICATION_JSON)
                         .content("{\"papeis\":[\"EDIT\",\"ADMIN\"]}"))
                 .andExpect(status().isForbidden());
-        mvc.perform(get("/v1/revisao-de-acessos").with(como(aprovadorLocal()))).andExpect(status().isForbidden());
+        mvc.perform(post("/v1/revisao-de-acessos/" + admin.getId()).with(como(aprovadorLocal())).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"papeis\":[\"EDIT\"]}"))
+                .andExpect(status().isForbidden());
     }
 }
