@@ -6,6 +6,7 @@ export const ACAO_DE_ACESSO = {
   DESATIVOU_USUARIO: { label: 'Desativou',         color: 'negative' },
   TROCOU_OM:         { label: 'Trocou de OM',      color: 'deep-orange-8' },
   REDEFINIU_SENHA:   { label: 'Redefiniu a senha', color: 'brown-6' },
+  REVISOU_ACESSO:    { label: 'Revisou o acesso',  color: 'blue-grey-7' },
 }
 
 export const acaoDeAcessoLabel = (acao) => ACAO_DE_ACESSO[acao]?.label ?? acao

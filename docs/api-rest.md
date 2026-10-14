@@ -151,6 +151,15 @@ Criar (`POST /v1/documentos`) ou clonar (`POST /v1/documentos/{id}/clonar`) sem 
 
 `GET /acessos` — a trilha dos **acessos** (criação de usuário, concessão/retirada de papel, ativação, troca de OM, redefinição de senha — [Auditoria de acessos](autenticacao.md#auditoria-de-acessos)), filtrável por `cpf` do usuário afetado, `acao` e período; mesmo papel Auditor.
 
+## Revisão de acessos — `/v1/revisao-de-acessos` *(Admin)*
+
+| Método | Rota | Descrição |
+|---|---|---|
+| `GET` | `/` | Os usuários ativos com papel elevado que quem pergunta revisa (o admin geral: admins locais e CENDOC; o admin local: os demais da própria OM), com o `motivo` da pendência (`NENHUM`, `TROCA_DE_OM`, `REVISAO_VENCIDA`, `CONTA_DORMENTE`) — pendentes primeiro |
+| `POST` | `/{usuarioId}` | Resultado da revisão `{ "papeis": [...] }`: os papéis que a pessoa **mantém** (os elevados ausentes são retirados; incluir um papel que ela não tem → 406). Quem não a revisa, ou a si mesmo → 403. Grava a data e registra a revisão na auditoria de acessos |
+
+Ver [Revisão periódica de acessos](autenticacao.md#revisao-periodica-de-acessos).
+
 ## Notificações — `/v1/notificacoes`
 
 | Método | Rota | Descrição |

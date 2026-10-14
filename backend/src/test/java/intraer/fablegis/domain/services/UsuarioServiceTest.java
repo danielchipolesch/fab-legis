@@ -220,4 +220,65 @@ class UsuarioServiceTest {
                 .isInstanceOf(intraer.fablegis.domain.handlers.exceptions.OperacaoNaoAutorizadaException.class);
         verify(passwordEncoder, never()).encode(any());
     }
+
+    // ─── Revisão periódica: o que atualiza a data da revisão ─────────────────
+
+    private void prepararEdicao(Usuario alvo, String siglaDeDestino) {
+        when(usuarioRepository.findById(alvo.getId())).thenReturn(Optional.of(alvo));
+        var om = new OrganizacaoMilitar();
+        om.setSigla(siglaDeDestino);
+        when(organizacaoMilitarRepository.findById(1L)).thenReturn(Optional.of(om));
+        when(usuarioRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+    }
+
+    private static intraer.fablegis.application.dtos.usuarioDtos.UsuarioUpdateRequestDto edicao(PapelEnum... papeis) {
+        return new intraer.fablegis.application.dtos.usuarioDtos.UsuarioUpdateRequestDto(
+                "Fulano", null, null, null, 1L, true, java.util.Set.of(papeis));
+    }
+
+    @Test
+    void trocarDeOmDeQuemTemPapelElevadoDeixaARevisaoPendente() {
+        var alvo = existente(2L, "BAGL", PapelEnum.EDIT, PapelEnum.APROV);
+        alvo.setDtRevisaoAcesso(java.sql.Timestamp.from(java.time.Instant.now()));
+        prepararEdicao(alvo, "BABE");
+
+        service.atualizar(2L, edicao(PapelEnum.EDIT, PapelEnum.APROV));
+
+        assertThat(alvo.getDtRevisaoAcesso()).isNull();
+    }
+
+    @Test
+    void trocarDeOmDeQuemSoEEditorNaoGeraPendencia() {
+        var alvo = existente(2L, "BAGL", PapelEnum.EDIT);
+        var revisao = java.sql.Timestamp.valueOf("2026-01-01 00:00:00");
+        alvo.setDtRevisaoAcesso(revisao);
+        prepararEdicao(alvo, "BABE");
+
+        service.atualizar(2L, edicao(PapelEnum.EDIT));
+
+        assertThat(alvo.getDtRevisaoAcesso()).isEqualTo(revisao);
+    }
+
+    @Test
+    void concederUmPapelElevadoNovoReiniciaOPrazoDaRevisao() {
+        var alvo = existente(2L, "BAGL", PapelEnum.EDIT);
+        alvo.setDtRevisaoAcesso(java.sql.Timestamp.valueOf("2020-01-01 00:00:00"));
+        prepararEdicao(alvo, "BAGL");
+
+        service.atualizar(2L, edicao(PapelEnum.EDIT, PapelEnum.APROV));
+
+        assertThat(alvo.getDtRevisaoAcesso()).isAfter(java.sql.Timestamp.valueOf("2026-01-01 00:00:00"));
+    }
+
+    @Test
+    void editarSemMudarOAcessoNaoMexeNaDataDaRevisao() {
+        var alvo = existente(2L, "BAGL", PapelEnum.EDIT, PapelEnum.APROV);
+        var revisao = java.sql.Timestamp.valueOf("2026-03-01 00:00:00");
+        alvo.setDtRevisaoAcesso(revisao);
+        prepararEdicao(alvo, "BAGL");
+
+        service.atualizar(2L, edicao(PapelEnum.EDIT, PapelEnum.APROV));
+
+        assertThat(alvo.getDtRevisaoAcesso()).isEqualTo(revisao);
+    }
 }

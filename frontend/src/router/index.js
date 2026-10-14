@@ -91,6 +91,12 @@ const routes = [
     meta: { title: 'Manter DOM de OM', requiresAdminGeral: true },
   },
   {
+    path: '/revisao-de-acessos',
+    name: 'revisao-de-acessos',
+    component: () => import('@/pages/RevisaoDeAcessosPage.vue'),
+    meta: { title: 'Manter Revisão de Acessos', requiresAdmin: true },
+  },
+  {
     path: '/auditoria',
     name: 'auditoria',
     component: () => import('@/pages/AuditoriaPage.vue'),

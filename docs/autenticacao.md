@@ -105,3 +105,21 @@ Além da trilha de documentos, toda mudança no **acesso de um usuário** deixa 
 
 - **Atomicidade:** o registro é gravado **na mesma transação** da mudança (`AuditoriaDeAcessoService`, ao contrário da auditoria de documentos, que engole a falha): conceder um papel sem deixar rastro é pior do que não conceder. Editar um usuário sem mudar papéis, situação nem OM não gera registro (`DiferencaDeAcesso`: só o que de fato mudou, um evento por tipo de mudança).
 - **Consulta:** `GET /v1/auditoria/acessos` (filtros: CPF do usuário afetado, ação, período), na aba **Acessos** da tela *Auditoria* — só o papel `AUDITOR`, como a auditoria de documentos.
+
+### Revisão periódica de acessos
+
+Quem tem papel **elevado** (qualquer um além do Editor: Aprovador, Publicador, Auditor, Administrador) precisa ter o acesso **reconfirmado** (`RevisaoDeAcesso`):
+
+| Quando | Motivo na lista |
+|---|---|
+| 180 dias (6 meses) desde a última revisão | *Revisão vencida* |
+| Ao **trocar de OM** (a revisão fica pendente de imediato) | *Trocou de OM* |
+| Conta 180 dias sem entrar (`dt_ultimo_acesso`, gravada a cada login) | *Sem entrar há 6 meses* |
+
+Conceder um papel elevado novo (ou criar o usuário com ele) conta como revisão: o prazo corre dali (`dt_revisao_acesso`).
+
+**Quem revisa quem:** o **admin geral** (CENDOC) confere **só os admins locais** e o pessoal do próprio CENDOC; cada **admin local** confere os **demais usuários da própria OM**. Ninguém revisa o próprio acesso, e quem não é admin não revisa ninguém.
+
+**Como:** tela **Manter Revisão de Acessos** (menu do usuário, para todo admin): lista só os usuários que o revisor confere, com a situação (pendentes primeiro) e dois botões — **Manter** (reconfirma os mesmos papéis) e **Retirar papéis…** (desmarca o que a pessoa deixa de ter). A revisão **nunca concede** (conceder é a tela de usuários), grava a data e registra `REVISOU_ACESSO` — mais o `ALTEROU_PAPEIS` do que foi retirado — na [auditoria de acessos](#auditoria-de-acessos), na mesma transação.
+
+**Por ora só avisa:** as pendências aparecem na lista e na faixa de aviso da tela; **nada é suspenso nem desativado sozinho** (a suspensão dos papéis depois de uma carência e a notificação ao revisor ficam no [roadmap](roadmap.md)).

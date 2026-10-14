@@ -7,5 +7,6 @@ public enum AcaoDeAcessoEnum {
     ATIVOU_USUARIO,
     DESATIVOU_USUARIO,
     TROCOU_OM,
-    REDEFINIU_SENHA
+    REDEFINIU_SENHA,
+    REVISOU_ACESSO
 }

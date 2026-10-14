@@ -8,6 +8,7 @@ import intraer.fablegis.application.dtos.usuarioDtos.UsuarioUpdateRequestDto;
 import intraer.fablegis.domain.entities.usuario.OrganizacaoMilitar;
 import intraer.fablegis.domain.regras.DiferencaDeAcesso;
 import intraer.fablegis.domain.regras.EscopoDeAcesso;
+import intraer.fablegis.domain.regras.RevisaoDeAcesso;
 import intraer.fablegis.domain.entities.usuario.PapelEnum;
 import intraer.fablegis.domain.entities.usuario.PostoGraduacao;
 import intraer.fablegis.domain.entities.usuario.Usuario;
@@ -78,6 +79,8 @@ public class UsuarioService {
         usuario.setOm(om);
         usuario.setAtivo(true);
         usuario.setPapeis(papeis);
+        // Quem nasce com papel elevado conta como revisado agora: o prazo de 6 meses corre a partir da concessão.
+        usuario.setDtRevisaoAcesso(java.sql.Timestamp.from(java.time.Instant.now()));
 
         var salvo = usuarioRepository.save(usuario);
         auditoriaDeAcesso.registrarCriacao(salvo);
@@ -111,6 +114,7 @@ public class UsuarioService {
         usuario.setOm(om);
         usuario.setAtivo(request.ativo());
         usuario.setPapeis(papeisDepois);
+        atualizarRevisaoDeAcesso(usuario, antes);
 
         var salvo = usuarioRepository.save(usuario);
         var depois = new DiferencaDeAcesso.Estado(EnumSet.copyOf(papeisOuVazio(salvo.getPapeis())), salvo.isAtivo(), siglaDa(salvo.getOm()));
@@ -125,6 +129,18 @@ public class UsuarioService {
         usuario.setSenhaHash(passwordEncoder.encode(request.novaSenha()));
         usuarioRepository.save(usuario);
         auditoriaDeAcesso.registrarRedefinicaoDeSenha(usuario);
+    }
+
+    // Troca de OM de quem tem papel elevado deixa a revisão PENDENTE (data nula); conceder um papel elevado novo conta como revisão
+    // (o prazo corre dali). Ver RevisaoDeAcesso.
+    private static void atualizarRevisaoDeAcesso(Usuario usuario, DiferencaDeAcesso.Estado antes) {
+        var elevadosDepois = RevisaoDeAcesso.papeisElevados(usuario.getPapeis());
+        boolean trocouDeOm = !java.util.Objects.equals(antes.omSigla(), siglaDa(usuario.getOm()));
+        if (trocouDeOm && !elevadosDepois.isEmpty()) {
+            usuario.setDtRevisaoAcesso(null);
+        } else if (!RevisaoDeAcesso.papeisElevados(antes.papeis()).containsAll(elevadosDepois)) {
+            usuario.setDtRevisaoAcesso(java.sql.Timestamp.from(java.time.Instant.now()));
+        }
     }
 
     private static java.util.Set<PapelEnum> papeisOuVazio(java.util.Set<PapelEnum> papeis) {

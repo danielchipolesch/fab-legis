@@ -64,6 +64,14 @@ public class Usuario {
     @Enumerated(EnumType.STRING)
     private Set<PapelEnum> papeis = EnumSet.noneOf(PapelEnum.class);
 
+    // Revisão periódica de acessos (ver RevisaoDeAcesso): quando o acesso foi reconfirmado; nulo = revisão pendente.
+    @Column(name = "dt_revisao_acesso")
+    private Timestamp dtRevisaoAcesso;
+
+    // Último login com sucesso (conta dormenta = muito tempo sem entrar).
+    @Column(name = "dt_ultimo_acesso")
+    private Timestamp dtUltimoAcesso;
+
     @Column(name = "dt_criacao", updatable = false)
     @CreationTimestamp
     private Timestamp dtCriacao;

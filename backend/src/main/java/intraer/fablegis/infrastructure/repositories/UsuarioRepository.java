@@ -12,6 +12,11 @@ import java.util.Optional;
 
 @Repository
 public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
+    // Direto no banco: não mexe na versão (@Version) nem em dt_alteracao do usuário só por ele ter entrado.
+    @org.springframework.data.jpa.repository.Modifying
+    @Query("update Usuario u set u.dtUltimoAcesso = :quando where u.id = :id")
+    void registrarUltimoAcesso(@Param("id") Long id, @Param("quando") java.sql.Timestamp quando);
+
     Optional<Usuario> findByCpf(String cpf);
     boolean existsByCpf(String cpf);
 
