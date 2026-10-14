@@ -70,7 +70,7 @@
         <div class="col-12 col-md-8">
           <q-card flat class="cartao full-height">
             <q-card-section>
-              <div class="titulo">Documentos por mês</div>
+              <div class="titulo">Documentos por Mês</div>
               <div class="sub">Criados e publicados em cada mês do período</div>
               <div v-if="!painel.porMes.length" class="vazio">Nenhum mês no período.</div>
               <GraficoEcharts v-else :opcao="opcoes.porMes" arquivo="documentos-por-mes" descricao="Documentos criados e publicados por mês" data-testid="grafico-por-mes" />
@@ -81,7 +81,7 @@
         <div class="col-12 col-md-4">
           <q-card flat class="cartao full-height">
             <q-card-section>
-              <div class="titulo">Criados por espécie</div>
+              <div class="titulo">Criados por Espécie</div>
               <div class="sub">No período</div>
               <div v-if="!painel.porEspecie.length" class="vazio">Nenhum documento criado no período.</div>
               <GraficoEcharts v-else :opcao="opcoes.porEspecie" arquivo="criados-por-especie" descricao="Documentos criados por espécie" />
@@ -94,11 +94,11 @@
         <div class="col-12 col-md-5">
           <q-card flat class="cartao full-height">
             <q-card-section>
-              <div class="titulo">Tempo em cada etapa</div>
+              <div class="titulo">Tempo em Cada Etapa</div>
               <div class="sub">Mediana e "90% até", em dias, dos documentos criados no período que cumpriram a etapa</div>
               <GraficoEcharts :opcao="opcoes.tempos" height="220px" arquivo="tempo-por-etapa" descricao="Tempo em cada etapa" />
               <q-markup-table flat dense class="q-mt-sm" data-testid="tempos">
-                <thead><tr><th class="text-left">Etapa</th><th class="text-right">Mediana</th><th class="text-right">90% até</th><th class="text-right">Docs</th></tr></thead>
+                <thead><tr><th class="text-left">Etapa</th><th class="text-right">Mediana</th><th class="text-right">90% Até</th><th class="text-right">Docs</th></tr></thead>
                 <tbody>
                   <tr v-for="t in linhasDeTempo" :key="t.rotulo">
                     <td>{{ t.rotulo }}</td>
@@ -116,7 +116,7 @@
         <div class="col-12 col-md-3">
           <q-card flat class="cartao full-height">
             <q-card-section>
-              <div class="titulo">Esperando agora</div>
+              <div class="titulo">Esperando Agora</div>
               <div class="sub">Fila de cada etapa</div>
               <div class="fila-medidor">
                 <GraficoEcharts :opcao="opcoes.filaAprovacao" height="140px" arquivo="fila-aprovacao" descricao="Documentos aguardando aprovação" />
@@ -133,7 +133,7 @@
         <div class="col-12 col-md-4">
           <q-card flat class="cartao full-height">
             <q-card-section>
-              <div class="titulo">Situação atual</div>
+              <div class="titulo">Situação Atual</div>
               <div class="sub">Todos os documentos, hoje</div>
               <div v-if="!painel.situacaoAtual.length" class="vazio">Nenhum documento.</div>
               <GraficoEcharts v-else :opcao="opcoes.situacao" :height="alturaDaSituacao" arquivo="situacao-atual" descricao="Documentos por situação atual" />
@@ -144,7 +144,7 @@
 
       <q-card flat class="cartao q-mb-lg">
         <q-card-section>
-          <div class="titulo">Parados há mais tempo</div>
+          <div class="titulo">Parados Há Mais Tempo</div>
           <div class="sub">Documentos esperando aprovação ou publicação, os mais antigos primeiro</div>
           <q-markup-table flat dense data-testid="gargalos">
             <thead><tr><th class="text-left">Documento</th><th class="text-left">OM</th><th class="text-left">Etapa</th><th class="text-right">Parado há</th></tr></thead>
@@ -170,7 +170,7 @@
           <template v-else>
             <GraficoEcharts :opcao="opcoes.porOm" :height="alturaPorOm" arquivo="documentos-por-om" descricao="Documentos por OM" />
             <q-markup-table flat dense class="q-mt-md" data-testid="por-om">
-              <thead><tr><th class="text-left">OM</th><th class="text-right">Criados</th><th class="text-right">Publicados</th><th class="text-right">Em tramitação</th></tr></thead>
+              <thead><tr><th class="text-left">OM</th><th class="text-right">Criados</th><th class="text-right">Publicados</th><th class="text-right">Em Tramitação</th></tr></thead>
               <tbody>
                 <tr v-for="o in painel.porOm" :key="o.omId">
                   <td>{{ o.sigla }}</td><td class="text-right">{{ o.criados }}</td><td class="text-right">{{ o.publicados }}</td><td class="text-right">{{ o.emTramitacao }}</td>
@@ -215,7 +215,7 @@ const cartoes = computed(() => {
     { chave: 'publicados', rotulo: 'Publicados', valor: t.publicados, nota: 'no período', icone: 'mdi-publish', cor: '#2E9E6B' },
     { chave: 'revogados', rotulo: 'Revogados', valor: t.revogados, nota: 'no período', icone: 'mdi-file-remove-outline', cor: '#6B7A90' },
     { chave: 'devolvidos', rotulo: 'Devolvidos', valor: t.devolvidos, nota: 'voltaram à minuta, no período', icone: 'mdi-undo-variant', cor: '#D9534F' },
-    { chave: 'em-tramitacao', rotulo: 'Em tramitação', valor: t.emTramitacao, nota: 'agora', icone: 'mdi-timer-sand', cor: '#E0A030' },
+    { chave: 'em-tramitacao', rotulo: 'Em Tramitação', valor: t.emTramitacao, nota: 'agora', icone: 'mdi-timer-sand', cor: '#E0A030' },
     { chave: 'vigentes', rotulo: 'Vigentes', valor: t.vigentes, nota: 'publicados em vigor, agora', icone: 'mdi-check-decagram-outline', cor: '#7A4FBF' },
   ]
 })

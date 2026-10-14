@@ -87,7 +87,7 @@ export function opcaoTempos(tempos) {
     yAxis: { type: 'value', splitLine: { lineStyle: { color: CORES.grade } }, axisLabel: { color: CORES.eixo } },
     series: [
       { name: 'Mediana', type: 'bar', barMaxWidth: 26, itemStyle: { borderRadius: [4, 4, 0, 0] }, data: etapas.map(([, d]) => d?.mediana ?? null) },
-      { name: '90% até', type: 'bar', barMaxWidth: 26, itemStyle: { borderRadius: [4, 4, 0, 0] }, data: etapas.map(([, d]) => d?.p90 ?? null) },
+      { name: '90% Até', type: 'bar', barMaxWidth: 26, itemStyle: { borderRadius: [4, 4, 0, 0] }, data: etapas.map(([, d]) => d?.p90 ?? null) },
     ],
   }
 }
@@ -106,7 +106,7 @@ export function opcaoPorOm(porOm = []) {
     series: [
       { name: 'Criados', type: 'bar', barMaxWidth: 14, itemStyle: { borderRadius: [0, 4, 4, 0] }, data: oms.map(o => o.criados) },
       { name: 'Publicados', type: 'bar', barMaxWidth: 14, itemStyle: { borderRadius: [0, 4, 4, 0] }, data: oms.map(o => o.publicados) },
-      { name: 'Em tramitação', type: 'bar', barMaxWidth: 14, itemStyle: { borderRadius: [0, 4, 4, 0] }, data: oms.map(o => o.emTramitacao) },
+      { name: 'Em Tramitação', type: 'bar', barMaxWidth: 14, itemStyle: { borderRadius: [0, 4, 4, 0] }, data: oms.map(o => o.emTramitacao) },
     ],
   }
 }
