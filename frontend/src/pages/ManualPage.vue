@@ -45,7 +45,7 @@
 
       <!-- A página -->
       <article class="manual-pagina" v-if="pagina">
-        <q-breadcrumbs v-if="auth.isAuthenticated" active-color="primary" class="q-mb-md no-print" style="font-size:13px">
+        <q-breadcrumbs v-if="auth.isAuthenticated" active-color="primary" class="q-mb-md" style="font-size:13px">
           <template #separator><q-icon name="mdi-chevron-right" size="16px" color="primary" /></template>
           <q-breadcrumbs-el :to="{ name: 'home' }" icon="mdi-home" />
           <q-breadcrumbs-el label="Área de Trabalho" :to="{ name: 'home' }" />
@@ -54,7 +54,6 @@
 
         <div class="row items-start no-wrap">
           <h1 class="manual-titulo col">{{ pagina.titulo }}</h1>
-          <q-btn flat round dense icon="mdi-printer-outline" class="no-print" @click="imprimir"><q-tooltip>Imprimir esta página</q-tooltip></q-btn>
         </div>
 
         <div v-if="perfisDaPagina.length" class="q-mb-md" data-testid="manual-perfis">
@@ -67,7 +66,7 @@
         <!-- eslint-disable-next-line vue/no-v-html -->
         <div ref="conteudo" class="manual-texto" v-html="html" @click="aoClicar" />
 
-        <div class="manual-navegacao no-print">
+        <div class="manual-navegacao">
           <q-btn v-if="anterior" flat no-caps color="primary" icon="mdi-chevron-left" :label="anterior.titulo" :to="destino(anterior.slug)" />
           <q-space />
           <q-btn v-if="seguinte" flat no-caps color="primary" icon-right="mdi-chevron-right" :label="seguinte.titulo" :to="destino(seguinte.slug)" />
@@ -81,7 +80,7 @@
       </article>
 
       <!-- Nesta página -->
-      <aside class="manual-toc no-print" v-if="pagina && pagina.secoes.length > 1" aria-label="Nesta página">
+      <aside class="manual-toc" v-if="pagina && pagina.secoes.length > 1" aria-label="Nesta página">
         <div class="toc-titulo">Nesta página</div>
         <a v-for="s in pagina.secoes" :key="s.id" :href="`#${s.id}`" class="toc-link" @click.prevent="irParaSecao(s.id)">{{ s.titulo }}</a>
       </aside>
@@ -146,7 +145,6 @@ function aoClicar(evento) {
   }
 }
 
-const imprimir = () => window.print()
 
 watch(() => [route.params.pagina, route.hash], rolar)
 onMounted(rolar)
@@ -208,12 +206,5 @@ onMounted(rolar)
   .manual-indice { position: static; max-height: none; }
   .manual-pagina { padding: 22px 18px; }
   .manual-titulo { font-size: 23px; }
-}
-
-@media print {
-  .manual { background: #fff; }
-  .manual-topo, .manual-indice, .manual-toc, .no-print { display: none !important; }
-  .manual-corpo { display: block; padding: 0; }
-  .manual-pagina { box-shadow: none; padding: 0; }
 }
 </style>
