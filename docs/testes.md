@@ -72,23 +72,17 @@ Achados que são **ruído deste projeto**, não defeito: `java:S1135` ("TODO") d
 
 ## Integração contínua (GitHub Actions)
 
-`.github/workflows/ci.yml` roda a cada `push` (qualquer branch) e a cada `pull_request` para `master` — quatro jobs independentes (backend, integração, frontend e docs), cada um repetindo exatamente o que este documento já manda rodar manualmente: `mvn test` + SpotBugs (backend), `npm run lint` + `npm test` + `npm run build` (frontend) e `docker compose build docs` (o build estrito do MkDocs). Nenhum deploy — o workflow existe só para pegar cedo o que apareceu nesta mesma sessão (um commit com erro de compilação passando batido por a suíte não ter rodado até o fim).
+`.github/workflows/ci.yml` roda a cada `push` (qualquer branch) e a cada `pull_request` para `master` — três jobs independentes (backend, integração e frontend), cada um repetindo exatamente o que este documento já manda rodar manualmente: `mvn test` + SpotBugs (backend) e `npm run lint` + `npm test` + `npm run build` (frontend). Nenhum deploy — o workflow existe só para pegar cedo o que apareceu nesta mesma sessão (um commit com erro de compilação passando batido por a suíte não ter rodado até o fim).
 
-## Servindo esta documentação técnica
+## Lendo e editando esta documentação
 
-O serviço `docs` do `docker compose.yml` empacota esta documentação (MkDocs Material) como um site estático servido por Nginx (`docs/Dockerfile`: builda com `mkdocs build --strict`, depois serve com `docs/nginx.conf`) — faz parte do `docker compose up -d`/`docker compose up --build` normal, junto com os demais serviços, disponível em `http://localhost:8000`.
+A documentação técnica **não é publicada em lugar nenhum**: são arquivos Markdown na pasta `docs/`, lidos direto no repositório (no GitHub, ou no editor), a partir do [README](../README.md#documentação-técnica), que é o índice. Não há serviço, site gerado nem ferramenta para instalar. O GitHub renderiza as tabelas, os blocos de alerta (`> [!NOTE]`) e os diagramas Mermaid.
 
-!!! note "Alterou algo em `docs/`?"
-    Como o conteúdo é compilado em build time (não montado como volume), rode `docker compose up -d --build docs` para reconstruir o site com as mudanças.
+Ao editar, valem estas convenções (o que o GitHub entende, e nada além):
 
-Para editar com recarregamento automático (sem rebuildar a imagem a cada alteração), rode o MkDocs diretamente via Python:
-
-```bash
-pip install -r requirements-docs.txt
-mkdocs serve
-```
-
-Abre em `http://localhost:8000` (pare o container `docs` antes, para não conflitar na porta). `mkdocs build` sozinho gera o site estático na pasta `site/`, útil para publicar em outro hosting (ex.: GitHub Pages).
+- links entre páginas são relativos, com a extensão (`[Arquitetura](arquitetura.md#estrutura-de-pastas)`); a âncora é o título em minúsculas, sem pontuação, com hífen no lugar de espaço — um título com travessão (` — `) gera dois hífens seguidos;
+- avisos usam `> [!NOTE]` (ou `[!WARNING]`), nunca a sintaxe `!!!` do MkDocs; variantes em abas viram subtítulos;
+- página nova entra na tabela do [README](../README.md#documentação-técnica) e em `CLAUDE.md`.
 
 ## Versionamento
 

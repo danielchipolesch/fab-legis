@@ -17,10 +17,12 @@ Autenticação via **Spring Authorization Server embutido no próprio backend** 
 - **E-mail institucional:** o e-mail de um usuário, quando informado, precisa ser do domínio `@fab.mil.br` (`@EmailInstitucional`, espelhado no formulário de *Manter Usuários*); outro domínio é recusado com 400.
 - A barra superior mostra o **posto e o nome de guerra** de quem está logado (cai para o nome completo se faltarem), vindos de claims do token (`nome_guerra`, `posto_bigrama`, `om_sigla`; o menu do usuário mostra a **sigla da OM**, não o nome completo) — uma mudança de posto só aparece no próximo login.
 
-!!! note "Detecção de expiração é reativa, por design"
-    A validade do token só é verificada no momento em que uma chamada real à API acontece através do `client.js` — ou quando a conexão SSE de notificações (`AppTopBar.vue`) recebe um erro de autenticação do servidor. Não há timer proativo de logout — se o usuário ficar numa página já carregada sem disparar nenhuma requisição e sem receber nenhum erro do SSE, a sessão pode *parecer* válida até a próxima interação real. Essa é uma decisão deliberada, não um bug.
-    
-    O `EventSource` de notificações leva o token na própria URL (não há header em SSE); quando ele expira, o servidor rejeita a conexão e o navegador **não** tenta de novo sozinho (`readyState` vai direto para `CLOSED` — só reconecta automaticamente em queda de rede, não em erro de autenticação). `AppTopBar.vue` detecta esse `CLOSED` e reage: tenta uma renovação silenciosa (`auth.refresh()`) e, se conseguir, reconecta o SSE com o token novo; se não conseguir, desloga.
+> [!NOTE]
+> **Detecção de expiração é reativa, por design**
+>
+> A validade do token só é verificada no momento em que uma chamada real à API acontece através do `client.js` — ou quando a conexão SSE de notificações (`AppTopBar.vue`) recebe um erro de autenticação do servidor. Não há timer proativo de logout — se o usuário ficar numa página já carregada sem disparar nenhuma requisição e sem receber nenhum erro do SSE, a sessão pode *parecer* válida até a próxima interação real. Essa é uma decisão deliberada, não um bug.
+>
+> O `EventSource` de notificações leva o token na própria URL (não há header em SSE); quando ele expira, o servidor rejeita a conexão e o navegador **não** tenta de novo sozinho (`readyState` vai direto para `CLOSED` — só reconecta automaticamente em queda de rede, não em erro de autenticação). `AppTopBar.vue` detecta esse `CLOSED` e reage: tenta uma renovação silenciosa (`auth.refresh()`) e, se conseguir, reconecta o SSE com o token novo; se não conseguir, desloga.
 
 ## CPF oculto na tela
 

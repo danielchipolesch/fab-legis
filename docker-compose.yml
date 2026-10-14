@@ -124,8 +124,6 @@ services:
       VITE_USE_MOCK_API: ${VITE_USE_MOCK_API:-false}
       VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://127.0.0.1:8081/v1}
       VITE_COLLAB_URL: ${VITE_COLLAB_URL:-ws://127.0.0.1:1234}
-      # Endereço da documentação técnica, para o link da tela de login (vazio = sem link).
-      VITE_DOCS_URL: ${VITE_DOCS_URL-http://localhost:8000}
       # NÃO é VITE_* de propósito -- só o próprio processo do Vite (node, lado
       # servidor) usa isto pra saber pra onde proxiar /oauth2/**, /login,
       # /logout (ver vite.config.js); nunca vai pro bundle do navegador.
@@ -157,7 +155,6 @@ services:
       args:
         VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://127.0.0.1:8081/v1}
         VITE_COLLAB_URL: ${VITE_COLLAB_URL:-ws://127.0.0.1:1234}
-        VITE_DOCS_URL: ${VITE_DOCS_URL-http://localhost:8000}
         VITE_USE_MOCK_API: ${VITE_USE_MOCK_API:-false}
     container_name: fab-legis-frontend-prod
     ports:
@@ -196,16 +193,6 @@ services:
     depends_on:
       backend:
         condition: service_healthy
-    restart: unless-stopped
-
-  # ── Documentação técnica (MkDocs Material, build estático servido por Nginx) ─
-  docs:
-    build:
-      context: .
-      dockerfile: docs/Dockerfile
-    container_name: fab-legis-docs
-    ports:
-      - "${DOCS_BIND:-127.0.0.1}:8000:8080"   # em produção, DOCS_BIND=0.0.0.0 se a documentação for pública
     restart: unless-stopped
 
 volumes:

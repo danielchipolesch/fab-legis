@@ -99,11 +99,11 @@ Nem toda espécie normativa obedece às mesmas regras. Para o restante do sistem
 | `LeiauteDoHtml` | a diagramação do HTML | `LeiauteHtmlDeEspecieConvencional` |
 | `RegrasDeRegistroDaPublicacao` | o que se registra (e o que é obrigatório informar) ao publicar ou revogar oficialmente | `PublicacaoDeEspecieConvencional` (portaria + BCA e, na 1ª publicação, a parte preliminar) · NPA: `PublicacaoDeNpa` (Boletim Interno) |
 | `RegrasDoCicloDeVidaDoDocumento` | as mudanças de etapa permitidas (`AcaoDeEtapa`) | `CicloDeVidaDeEspecieConvencional` |
-| `RegraDeHabilitacaoDaOm` | se a OM precisa estar habilitada pelo administrador para criar documentos da espécie ([Habilitação de documentos](autenticacao.md#habilitacao-de-documentos)) | exige (a NPA não: toda OM a cria) |
+| `RegraDeHabilitacaoDaOm` | se a OM precisa estar habilitada pelo administrador para criar documentos da espécie ([Habilitação de documentos](autenticacao.md#habilitação-de-documentos)) | exige (a NPA não: toda OM a cria) |
 
 `RegrasDaEspecieNormativa` reúne as regras de uma espécie (`RegrasDeEspecieConvencional` para o tipo `CONVENCIONAL`; `RegrasDeComunicacaoOficialPadronizada` para o tipo `COMUNICACAO_OFICIAL_PADRONIZADA`) e `RegrasDasEspecies.para(especie)` devolve as regras — toda `RegrasDaEspecieNormativa` registrada como bean entra sozinha, então acrescentar uma espécie com regras próprias **não exige mexer no registro nem nos serviços**. Quem só precisa da regra depende da interface: `DocumentoService.create`/`clone` (criação, estrutura inicial e campos específicos), `DocumentoParteNormativaService` (hierarquia e numeração), `DocumentoPdfService` e `DocumentoHtmlService` (layouts, que continuam dono da parte que não depende da espécie: escolher a versão, gerar, armazenar e servir o arquivo) e `DocumentoStatusService` (ciclo de vida e registro da publicação).
 
-**Regra para código novo:** um comportamento que varia por espécie entra como método de uma dessas interfaces (ou de uma interface nova), nunca como `if (espécie == …)` no serviço. Ver o que falta da NPA, a primeira espécie de comunicação oficial padronizada, no [Roadmap](roadmap.md#npa-norma-padrao-de-acao-o-que-falta).
+**Regra para código novo:** um comportamento que varia por espécie entra como método de uma dessas interfaces (ou de uma interface nova), nunca como `if (espécie == …)` no serviço.
 
 ## Camadas do frontend
 
@@ -142,7 +142,7 @@ frontend/src
 - **`documents`** — o acervo. Busca, cria, clona, salva e transiciona documentos; gera o *template* inicial de seções ao criar um novo ato; também busca as portarias e o mapa de alteração de um documento.
 - **`editor`** — o documento aberto. Mantém uma cópia profunda para edição isolada, controla o elemento selecionado, o flag `isDirty` (salvamento automático), a versão esperada para o bloqueio otimista e todas as operações de árvore, disparando a renumeração após cada mutação. `reload()` sempre busca a versão real no servidor (nunca do cache local) — importante após um `409` de conflito de edição. `aplicarEventosEstrutura()` faz o mesmo tipo de mutação de árvore, mas a partir de eventos recebidos via SSE (mudança feita por outra pessoa, ver [Autenticação e Colaboração](autenticacao.md)) — sempre um *patch* incremental (criar/reparentear/renomear/excluir um nó), nunca um `reload()`, porque isso preservaria a identidade local de todo elemento já aberto por quem estiver editando ao vivo no momento.
 
-**Camada de API desacoplada:** o `client.js` encapsula `fetch` com verbos tipados (`get`/`post`/`put`/`patch`/`del`), injeta o header `Authorization` via um *getter* plugado pelo `auth` store (evita import circular) e tenta renovar o token automaticamente uma vez antes de repassar um `401`; os módulos por recurso fazem a **tradução entre a nomenclatura do backend e a do frontend** (`SECAO` ⇄ `secao_normativa`, `PARAGRAFO_NUMERADO` ⇄ `paragrafo`, `ITEM` ⇄ `sub_alinea`), de modo que uma mudança no contrato REST não vaza para os componentes. Conexões SSE (notificações, presença — que também carrega o evento `estrutura` de mudanças em tempo real na árvore, ver [Autenticação e Colaboração](autenticacao.md)) não passam pelo `client.js` — são `EventSource` nativas, com o token na *query string* (única forma de autenticar um `EventSource`, que não permite headers customizados). Quando o token expira, o servidor recusa a conexão e o `EventSource` passa a `CLOSED` sem reconectar sozinho; o `AppTopBar.vue` detecta isso, tenta a renovação silenciosa do token (`auth.refresh()`) e reconecta, ou desloga se não conseguir (ver [Autenticação e Colaboração](autenticacao.md#login-e-sessao)).
+**Camada de API desacoplada:** o `client.js` encapsula `fetch` com verbos tipados (`get`/`post`/`put`/`patch`/`del`), injeta o header `Authorization` via um *getter* plugado pelo `auth` store (evita import circular) e tenta renovar o token automaticamente uma vez antes de repassar um `401`; os módulos por recurso fazem a **tradução entre a nomenclatura do backend e a do frontend** (`SECAO` ⇄ `secao_normativa`, `PARAGRAFO_NUMERADO` ⇄ `paragrafo`, `ITEM` ⇄ `sub_alinea`), de modo que uma mudança no contrato REST não vaza para os componentes. Conexões SSE (notificações, presença — que também carrega o evento `estrutura` de mudanças em tempo real na árvore, ver [Autenticação e Colaboração](autenticacao.md)) não passam pelo `client.js` — são `EventSource` nativas, com o token na *query string* (única forma de autenticar um `EventSource`, que não permite headers customizados). Quando o token expira, o servidor recusa a conexão e o `EventSource` passa a `CLOSED` sem reconectar sozinho; o `AppTopBar.vue` detecta isso, tenta a renovação silenciosa do token (`auth.refresh()`) e reconecta, ou desloga se não conseguir (ver [Autenticação e Colaboração](autenticacao.md#login-e-sessão)).
 
 **Build otimizado:** o Vite separa *chunks* por vendor (`vendor-vue`, `vendor-quasar`, `vendor-tiptap`, `vendor-utils`, `vendor-dnd`) para maximizar o cache do navegador; o `pdfmake` é importado dinamicamente e fica fora do bundle inicial.
 
@@ -150,14 +150,11 @@ frontend/src
 
 ```
 fab-legis/
-├── docker-compose.yml          # Orquestração: postgres, minio, backend, collab, frontend, docs
-├── mkdocs.yml                  # Configuração da documentação técnica (este site)
-├── docs/                       # Fonte da documentação técnica (MkDocs Material)
-│   ├── Dockerfile              # Multi-stage: mkdocs build → Nginx Alpine
-│   └── nginx.conf              # Nginx só da documentação (serviço independente, porta 8000)
+├── docker-compose.yml          # Orquestração: postgres, minio, backend, collab, frontend
+├── docs/                       # Documentação técnica em Markdown, lida no próprio repositório (índice: README.md)
 ├── nginx/                      # Borda do sistema em produção: SPA + proxy reverso (mesma origem)
 │   ├── nginx.conf.template     # BACKEND_UPSTREAM / COLLAB_UPSTREAM preenchidos ao subir o container
-│   └── proxy-comum.conf        # Cabeçalhos comuns do proxy (Host, X-Forwarded-*); também serve a documentação em /docs/
+│   └── proxy-comum.conf        # Cabeçalhos comuns do proxy (Host, X-Forwarded-*)
 ├── collab/                     # Servidor de colaboração em tempo real (Node.js + Hocuspocus/Yjs)
 │   ├── Dockerfile              # node:20-alpine, npm ci --omit=dev
 │   ├── server.js               # Hooks onAuthenticate/onLoadDocument/onStoreDocument

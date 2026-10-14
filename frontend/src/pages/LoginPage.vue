@@ -75,7 +75,6 @@
           </div>
         </form>
       </q-card-section>
-<!-- Link para a documentação técnica (serviço próprio; endereço em VITE_DOCS_URL, vazio = sem link). -->      <q-separator v-if="DOCS_URL" />      <q-card-section v-if="DOCS_URL" class="text-center q-py-sm">        <a :href="DOCS_URL" target="_blank" rel="noopener" class="link-docs" data-testid="link-documentacao">          <q-icon name="mdi-book-open-page-variant-outline" size="16px" class="q-mr-xs" />Documentação técnica        </a>      </q-card-section>
     </q-card>
     <div v-if="versao" class="text-caption text-grey-6 q-mt-sm" data-testid="versao-do-sistema">v{{ versao }}</div>
   </q-page>
@@ -87,9 +86,6 @@ import { useRoute } from 'vue-router'
 import { useAuthStore, OAUTH2_BASE_URL } from '@/stores/auth.js'
 import { validarCpf, mascaraCpf, onlyDigits } from '@/utils/cpf.js'
 import { getVersao } from '@/api/versao.js'
-
-// Endereço da documentação técnica (build-time, como as demais VITE_*); vazio esconde o link.
-const DOCS_URL = import.meta.env.VITE_DOCS_URL ?? ''
 
 const route = useRoute()
 const auth = useAuthStore()
@@ -185,13 +181,5 @@ function aoEnviar(event) {
 .login-page {
   background: var(--color-background, #F4F6FA);
   min-height: 100vh;
-}
-.link-docs {
-  font-size: 13px;
-  color: var(--q-primary);
-  text-decoration: none;
-}
-.link-docs:hover {
-  text-decoration: underline;
 }
 </style>

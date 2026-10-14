@@ -2,7 +2,7 @@
 
 ## Documentação técnica
 
-Este projeto mantém a documentação técnica em `docs/` (MkDocs Material, servido via `mkdocs.yml`), separada do `README.md` (que fica enxuto — visão geral e quick start).
+Este projeto mantém a documentação técnica em `docs/`, em Markdown, **lida só no repositório (git)**: não há site, serviço nem ferramenta de geração (o MkDocs foi abandonado de propósito — não reintroduza). O `README.md` é o **hub**: visão geral, instalação e a tabela que leva a cada página de `docs/`.
 
 **Sempre que uma feature nova for implementada ou um comportamento documentado em `docs/` mudar (fluxo, endpoint, regra de negócio, perfil/permissão, migração de banco relevante), atualize a página correspondente em `docs/` como parte da mesma tarefa** — não deixe para depois nem espere o usuário pedir. Páginas existentes:
 
@@ -16,13 +16,13 @@ Este projeto mantém a documentação técnica em `docs/` (MkDocs Material, serv
 | `docs/ciclo-de-vida.md` | Status do documento, portarias/BCA, ciclo de emenda |
 | `docs/exportacao-pdf.md` | Geração de PDF (Apache FOP) e HTML, fontes, texto sugerido de portaria, regra de consistência entre PDF e HTML |
 | `docs/api-rest.md` | Endpoints |
-| `docs/testes.md` | Como testar (unitários, integração, frontend), análise estática, CI e como servir a documentação |
+| `docs/testes.md` | Como testar (unitários, integração, frontend), análise estática, CI e como ler e editar a documentação |
 | `docs/replicas.md` | Quais serviços podem ter réplicas (Kubernetes) e quais não, e por quê |
 | `docs/roadmap.md` | Perspectivas futuras — mova um item para cá quando virar decisão adiada, ou remova-o quando for implementado |
 
 **Arquivos de configuração por ambiente (`.env`, `nginx/nginx.conf`) ficam fora do git**; o que se versiona são os modelos (`.env.example`, `nginx/nginx.conf.example`) — mudou um, atualize o outro. **Instalação, configuração e variáveis de ambiente ficam no `README.md`** (seções "Instalação em desenvolvimento", "Instalação em produção" e "Variáveis de ambiente"), não em `docs/` — quem precisa instalar o sistema ainda não tem a documentação no ar. Mudou uma variável de ambiente, uma porta, um serviço do Compose ou um passo de deploy? Atualize o README na mesma tarefa.
 
-Se a mudança não se encaixa em nenhuma página existente, prefira estender a mais próxima a criar uma nova; só crie página nova para um assunto genuinamente novo, e nesse caso adicione a entrada em `mkdocs.yml` (`nav:`).
+Se a mudança não se encaixa em nenhuma página existente, prefira estender a mais próxima a criar uma nova; só crie página nova para um assunto genuinamente novo, e nesse caso adicione a linha na tabela "Documentação técnica" do `README.md` e a linha da tabela acima.
 
 ## Testes unitários acompanham as regras de negócio
 
@@ -52,7 +52,7 @@ Ao criar algo novo, mantenha o nome do conceito consistente com o que já existe
 
 ## Regras que variam por espécie entram por interface
 
-Cada `EspecieNormativa` tem um **tipo de espécie** (`TipoDeEspecie`), com os nomes da NSCA 5-3: `CONVENCIONAL` (Espécies Convencionais: MCA, NSCA, ICA, ROCA, DCA…) e `COMUNICACAO_OFICIAL_PADRONIZADA` (Espécies de Comunicações Oficiais Padronizadas, Cap. VIII, Seção VIII — a NPA se enquadra aqui). Cada tipo segue um conjunto de regras. Um comportamento que varia por espécie — numeração, estrutura inicial, layout de PDF/HTML, rótulo dos anexos, ciclo de vida, campos do cabeçalho, se a OM precisa de habilitação para criar (`RegraDeHabilitacaoDaOm`) — **entra como método de uma interface do pacote `domain.regras`** (ou de uma interface nova ali), implementada por `RegrasDeEspecieConvencional` e `RegrasDeComunicacaoOficialPadronizada` e obtida por `RegrasDasEspecies.para(especie)`. **Nunca** teste a sigla ou o nome da espécie num serviço (`if (especie == NPA)`). No frontend vale o mesmo: o que varia por espécie sai de `frontend/src/perfis/` (escolhido por `tipo_de_especie`), e as regras que o frontend espelha da NPA (`perfis/npa.js`) mudam junto com o backend e com os testes (`npa.test.js` ↔ `NumeracaoDeNpaTest`, `HierarquiaDeNpaTest`, `CabecalhoDaNpaTest`). Ver [`docs/arquitetura.md`](docs/arquitetura.md#regras-por-especie-normativa-atras-de-interfaces).
+Cada `EspecieNormativa` tem um **tipo de espécie** (`TipoDeEspecie`), com os nomes da NSCA 5-3: `CONVENCIONAL` (Espécies Convencionais: MCA, NSCA, ICA, ROCA, DCA…) e `COMUNICACAO_OFICIAL_PADRONIZADA` (Espécies de Comunicações Oficiais Padronizadas, Cap. VIII, Seção VIII — a NPA se enquadra aqui). Cada tipo segue um conjunto de regras. Um comportamento que varia por espécie — numeração, estrutura inicial, layout de PDF/HTML, rótulo dos anexos, ciclo de vida, campos do cabeçalho, se a OM precisa de habilitação para criar (`RegraDeHabilitacaoDaOm`) — **entra como método de uma interface do pacote `domain.regras`** (ou de uma interface nova ali), implementada por `RegrasDeEspecieConvencional` e `RegrasDeComunicacaoOficialPadronizada` e obtida por `RegrasDasEspecies.para(especie)`. **Nunca** teste a sigla ou o nome da espécie num serviço (`if (especie == NPA)`). No frontend vale o mesmo: o que varia por espécie sai de `frontend/src/perfis/` (escolhido por `tipo_de_especie`), e as regras que o frontend espelha da NPA (`perfis/npa.js`) mudam junto com o backend e com os testes (`npa.test.js` ↔ `NumeracaoDeNpaTest`, `HierarquiaDeNpaTest`, `CabecalhoDaNpaTest`). Ver [`docs/arquitetura.md`](docs/arquitetura.md#regras-por-espécie-normativa--atrás-de-interfaces).
 
 ## Armadilhas conhecidas e decisões deliberadas
 

@@ -17,7 +17,7 @@
 ![Docker](https://img.shields.io/badge/Docker-Compose-2496ED)
 ![License](https://img.shields.io/badge/License-GPLv3-blue.svg)
 
-📖 **[Documentação técnica completa](docs/index.md)**
+📖 **[Documentação técnica](#documentação-técnica)**
 
 </div>
 
@@ -34,7 +34,26 @@ O FAB Legis trata o ato normativo (ICA, NSCA, MCA, RCA, DCA, PCA, OCA, RICA, ROC
 - **busca textual** no conteúdo de todos os documentos;
 - **autenticação OAuth2** (Authorization Code + PKCE) com login por CPF, emitida pelo próprio backend.
 
-Para o detalhamento de funcionalidades, arquitetura, modelo de domínio, autenticação, ciclo de vida do documento e API, veja a **[documentação técnica](docs/index.md)** — sobe junto com `docker compose up -d` (ver abaixo) e fica em `http://localhost:8000` (serviço próprio, com o seu Nginx; a tela de login tem um link para ela — ver `VITE_DOCS_URL`). A instalação (desenvolvimento e produção) e a configuração ficam **aqui, neste README**; a documentação técnica trata do sistema em si e de como testá-lo.
+A documentação técnica fica na pasta [`docs/`](docs/), em Markdown, e é lida aqui mesmo, no repositório — ver [Documentação técnica](#documentação-técnica). A instalação (desenvolvimento e produção) e a configuração ficam **neste README**; a documentação técnica trata do sistema em si e de como testá-lo.
+
+## Documentação técnica
+
+A documentação técnica são arquivos Markdown na pasta [`docs/`](docs/), lidos direto no repositório (o GitHub renderiza tabelas e diagramas Mermaid). Este README é o ponto de partida:
+
+| Se você quer... | Vá para... |
+|---|---|
+| Ter a visão geral do sistema e a lista de tecnologias | [Visão geral e stack](docs/index.md) |
+| Entender o que cada tela faz | [Funcionalidades](docs/funcionalidades.md) |
+| Entender como o sistema é construído por dentro | [Arquitetura](docs/arquitetura.md) |
+| Entender como um ato normativo é modelado (partes, numeração) | [Modelo de Domínio](docs/dominio.md) |
+| Entender login, perfis e colaboração em tempo real | [Autenticação e Colaboração](docs/autenticacao.md) |
+| Entender os status de um documento e o ciclo de emenda | [Ciclo de Vida do Documento](docs/ciclo-de-vida.md) |
+| Entender como o PDF/portaria são gerados | [Geração de PDF e Portarias](docs/exportacao-pdf.md) |
+| Consultar os endpoints da API | [API REST](docs/api-rest.md) |
+| Testar e analisar o código | [Testes e qualidade](docs/testes.md) |
+| Saber o que pode ter réplicas (Kubernetes) | [Réplicas e escalabilidade](docs/replicas.md) |
+| Ver o que está planejado para o futuro | [Roadmap](docs/roadmap.md) |
+| Instalar e rodar o projeto (desenvolvimento e produção) | as seções abaixo, neste README |
 
 ## Instalação em desenvolvimento
 
@@ -59,8 +78,7 @@ cd fab-legis
 # desenvolvimento os padrões servem, e é aqui que se ajusta credenciais e portas sem tocar no docker-compose.yml
 cp .env.example .env
 
-# Sobe PostgreSQL, MinIO, backend, collab (colaboração em tempo real), frontend
-# e a documentação técnica
+# Sobe PostgreSQL, MinIO, backend, collab (colaboração em tempo real) e frontend
 docker compose up -d
 
 # Acompanhar os logs
@@ -78,7 +96,6 @@ O `.env` na raiz (fora do git, só o `.env.example` é versionado) é lido autom
 | Swagger UI | http://localhost:8081/swagger-ui.html | — |
 | Collab (colaboração em tempo real) | ws://localhost:1234 | — |
 | OpenAPI JSON | http://localhost:8081/v1/fab-legis-api | — |
-| Documentação técnica | http://localhost:8000 | — |
 | PostgreSQL | `localhost:5432` | `postgres` / `123456` |
 | MinIO (console) | http://localhost:9001 | `minioadmin` / `minioadmin123` |
 
@@ -251,7 +268,6 @@ Todas já são parametrizáveis (ver tabelas acima), só precisam do valor certo
 | `OAUTH2_ISSUER` (collab) | `https://fab-legis.exemplo.mil.br` — precisa bater com `APP_OAUTH2_ISSUER` (comparado contra o claim `iss` do token) |
 | `OAUTH2_JWKS_URL` (collab) | pode continuar interno (`http://backend:8081/oauth2/jwks`) — é só de onde o `collab` busca as chaves, nunca é exposto ao navegador |
 | `VITE_API_BASE_URL` | `https://fab-legis.exemplo.mil.br/v1` |
-| `VITE_DOCS_URL` | onde a documentação estiver publicada (ex.: `https://docs.fab-legis.exemplo.mil.br`) ou vazio para não mostrar o link |
 | `VITE_COLLAB_URL` | `wss://fab-legis.exemplo.mil.br/collab` (ou outro caminho/porta, dependendo de como o `collab` for exposto — ele também precisa estar atrás de TLS, já que a página é servida por HTTPS e não pode abrir um WebSocket `ws://` sem criptografia a partir dela) |
 
 > **`VITE_*` é build-time, não runtime — sempre reconstrua depois de mudar o `.env`**
@@ -357,10 +373,10 @@ Via Docker Compose, todas as variáveis abaixo (exceto `PORT` do collab, que nã
 | `MINIO_ACCESS_KEY` / `MINIO_SECRET_KEY` | `minioadmin` / `minioadmin123` | Credenciais do MinIO |
 | `MINIO_BUCKET` | `fab-legis-imagens` | Bucket das imagens |
 | `MINIO_PUBLIC_URL` | `http://localhost:9000` | URL pública para servir as imagens (em produção, `https://`) |
-| `APP_PDF_MAX_CONCORRENTES` / `APP_PDF_ESPERA_MAXIMA_SEGUNDOS` | `2` / `30` | Renderizações de PDF simultâneas por instância e quanto um pedido espera por uma vaga antes do `503` — ver [Limite de gerações simultâneas de PDF](docs/exportacao-pdf.md#limite-de-geracoes-simultaneas-de-pdf) |
-| `APP_PDF_CACHE_TTL_DIAS` | `2` | Dias até o cache de PDF/HTML em tramitação expirar no MinIO — ver [Cache de PDF/HTML em tramitação](docs/exportacao-pdf.md#cache-de-pdfhtml-em-tramitacao) |
+| `APP_PDF_MAX_CONCORRENTES` / `APP_PDF_ESPERA_MAXIMA_SEGUNDOS` | `2` / `30` | Renderizações de PDF simultâneas por instância e quanto um pedido espera por uma vaga antes do `503` — ver [Limite de gerações simultâneas de PDF](docs/exportacao-pdf.md#limite-de-gerações-simultâneas-de-pdf) |
+| `APP_PDF_CACHE_TTL_DIAS` | `2` | Dias até o cache de PDF/HTML em tramitação expirar no MinIO — ver [Cache de PDF/HTML em tramitação](docs/exportacao-pdf.md#cache-de-pdfhtml-em-tramitação) |
 | `COMPOSE_PROFILES` | `dev` | Quais serviços o `docker compose up` sobe: `dev` (frontend Vite) ou `production` (frontend compilado atrás do Nginx). Lida pelo próprio Compose |
-| `MINIO_BIND` / `DOCS_BIND` | `127.0.0.1` | Em que interface o Docker publica as portas do MinIO (9000) e da documentação (8000). `127.0.0.1` = só a própria máquina. Com o MinIO atrás do Nginx (passo 1, recomendado), `MINIO_BIND` fica assim também em produção; `0.0.0.0` só se o navegador for chegar ao MinIO direto |
+| `MINIO_BIND` | `127.0.0.1` | Em que interface o Docker publica a porta do MinIO (9000). `127.0.0.1` = só a própria máquina. Com o MinIO atrás do Nginx (passo 1, recomendado), `MINIO_BIND` fica assim também em produção; `0.0.0.0` só se o navegador for chegar ao MinIO direto |
 | `APP_OAUTH2_CHAVE_PRIVADA` | `/app/chaves/jwt-rsa.pem` | Caminho, dentro do container, da chave RSA de assinatura dos tokens; se o arquivo existe é a chave persistente, senão a chave é efêmera (passo 4) |
 | `APP_OAUTH2_CHAVE_OBRIGATORIA` | `false` | `true` faz o backend recusar a subida sem o arquivo da chave (produção) |
 | `CHAVES_JWT` | `./segredos/jwt` | Pasta do servidor com o `jwt-rsa.pem`, montada somente para leitura no backend |
@@ -387,7 +403,6 @@ Via Docker Compose, todas as variáveis abaixo (exceto `PORT` do collab, que nã
 | `VITE_API_BASE_URL` | `http://127.0.0.1:8081/v1` | URL base da API |
 | `PROXY_BACKEND_TARGET` | `http://127.0.0.1:8081` | **Não** é `VITE_*` de propósito — só o processo Node do Vite (lado servidor) usa isto para saber para onde proxiar `/oauth2/**`, `/login`, `/logout` (ver `server.proxy` em `vite.config.js`); nunca chega ao bundle do navegador. No Docker vale `http://backend:8081` (nome do serviço, só resolvível dentro da rede Docker) |
 | `VITE_COLLAB_URL` | `ws://127.0.0.1:1234` | URL do serviço de colaboração em tempo real (WebSocket) |
-| `VITE_DOCS_URL` | `http://localhost:8000` | Endereço da documentação técnica, para o link da tela de login (build-time); vazio esconde o link |
 | `VITE_USE_MOCK_API` | `false` | Usa API mockada em vez do backend real |
 | `VITE_APP_ENV` | `development` | Ambiente (`development` \| `staging` \| `production`) — só afeta o build local (sourcemap em `staging`, ver `vite.config.js`); o build via Docker sempre roda como `development` |
 | `VITE_APP_VERSION` | `1.0.0` | Versão exibida em logs/telas de diagnóstico |

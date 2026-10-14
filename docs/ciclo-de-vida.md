@@ -19,7 +19,7 @@ Combinações que existem (`SituacaoLocalEnum` documenta as mesmas):
 | `PUBLICADO` | `SEM_ETAPA`, `EM_ALTERACAO`, `EM_REVISAO`, `EM_PUBLICACAO`, `ANALISE_REVOGACAO`, `EM_REVOGACAO` |
 | `REVOGADO` | `SEM_ETAPA` |
 
-> **NPA:** a [NPA](dominio.md#npa-norma-padrao-de-acao) percorre o mesmo caminho de elaboração, revisão, publicação e revogação, mas **sem alteração** — o fluxo completo está em [Fluxo da NPA](#fluxo-da-npa-norma-padrao-de-acao).
+> **NPA:** a [NPA](dominio.md#npa--norma-padrão-de-ação) percorre o mesmo caminho de elaboração, revisão, publicação e revogação, mas **sem alteração** — o fluxo completo está em [Fluxo da NPA](#fluxo-da-npa-norma-padrão-de-ação).
 
 ## Transições da Situação Local
 
@@ -119,7 +119,7 @@ stateDiagram-v2
     EM_REVOGACAO --> SEM_ETAPA: revogar (Boletim Interno)
 ```
 
-Passo a passo, com o que muda no cabeçalho do documento (prévia, PDF e HTML — ver [Campos do cabeçalho e do fecho](dominio.md#campos-do-cabecalho-e-do-fecho)):
+Passo a passo, com o que muda no cabeçalho do documento (prévia, PDF e HTML — ver [Campos do cabeçalho e do fecho](dominio.md#campos-do-cabeçalho-e-do-fecho)):
 
 | Etapa | Quem age | O que acontece |
 |---|---|---|
@@ -136,7 +136,7 @@ Passo a passo, com o que muda no cabeçalho do documento (prévia, PDF e HTML �
 
 ## Portaria, BCA e registro de publicações
 
-> **NPA:** a [NPA](dominio.md#npa-norma-padrao-de-acao) não tem portaria nem BCA — é publicada e revogada no **Boletim Interno** da OM, e basta informar o **número** (1 a 9999) e a **data** (`numeroBoletimInterno`/`dataBoletimInterno` no pedido de status; `PublicacaoDeNpa`). A referência da publicação ("Boletim Interno Ostensivo nº 15, de 2 de abril de 2026") vai para os mesmos campos de referência que um ato normativo usa para o BCA e alimenta a EFETIVAÇÃO do cabeçalho e a linha "(Publicada no …)". A da **revogação** fica em `t_documento_npa` e **não sobrescreve** a da publicação: a NPA revogada continua mostrando onde foi publicada, e ganha "(Revogada pelo …)" e o selo `REVOGADO`. A data do Boletim da revogação não pode ser anterior à da publicação.
+> **NPA:** a [NPA](dominio.md#npa--norma-padrão-de-ação) não tem portaria nem BCA — é publicada e revogada no **Boletim Interno** da OM, e basta informar o **número** (1 a 9999) e a **data** (`numeroBoletimInterno`/`dataBoletimInterno` no pedido de status; `PublicacaoDeNpa`). A referência da publicação ("Boletim Interno Ostensivo nº 15, de 2 de abril de 2026") vai para os mesmos campos de referência que um ato normativo usa para o BCA e alimenta a EFETIVAÇÃO do cabeçalho e a linha "(Publicada no …)". A da **revogação** fica em `t_documento_npa` e **não sobrescreve** a da publicação: a NPA revogada continua mostrando onde foi publicada, e ganha "(Revogada pelo …)" e o selo `REVOGADO`. A data do Boletim da revogação não pode ser anterior à da publicação.
 
 Publicar (`EM_PUBLICACAO → SEM_ETAPA`) e revogar (`EM_REVOGACAO → SEM_ETAPA`), sempre por um Publicador (CENDOC), exigem o registro de uma **Portaria** (órgão, setor, número, data) e de um **BCA** (número, data), além do upload do PDF da portaria correspondente. Esse registro é gravado como uma linha própria em `PortariaPublicacao`, nunca mesclado ao PDF do documento — cada portaria permanece um arquivo íntegro, condição necessária para uma futura assinatura digital (que cobre um intervalo de bytes exato do arquivo original; um merge invalidaria essa assinatura).
 
@@ -148,7 +148,7 @@ O tipo de cada registro é decidido pela **Situação BCA** do documento no mome
 | `PUBLICADO` → publicando uma alteração | `ALTERACAO` | Sim — 1ª, 2ª, 3ª... calculado por `PortariaPublicacaoRepository.findMaxNumeroSequencialAlteracao()` |
 | `PUBLICADO` → revogando (`EM_REVOGACAO → SEM_ETAPA`) | `REVOGACAO` | Não (ocorre uma única vez) |
 
-Todas as portarias registradas de um documento aparecem na tela de visualização, na seção **Portarias** (ver [Funcionalidades](funcionalidades.md#visualizacao-do-documento)), acessíveis via `GET /v1/documentos/{id}/portarias`.
+Todas as portarias registradas de um documento aparecem na tela de visualização, na seção **Portarias** (ver [Funcionalidades](funcionalidades.md#visualização-do-documento)), acessíveis via `GET /v1/documentos/{id}/portarias`.
 
 **A parte preliminar é da primeira publicação — e só dela.** Antes dela o documento não exibe a Portaria (nem na prévia, nem no PDF, nem no HTML). Somente a portaria de **publicação** aparece na parte preliminar do documento (epígrafe, ementa, preâmbulo, fecho e assinatura), e ela é **perene**: nunca é sobrescrita. As portarias de alteração aparecem como **cláusula em cada elemento alterado** (ver ciclo de emenda abaixo) e a de revogação total, pelo selo `REVOGADO`. Por isso:
 

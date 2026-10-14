@@ -19,11 +19,11 @@ Endpoints padrão do Spring Authorization Server (`AuthorizationServerConfig`), 
 
 | Método | Rota | Descrição |
 |---|---|---|
-| `POST` | `/` | Cria documento já com a estrutura inicial da espécie. Ato normativo: exige `idAssuntoBasico` (calcula o número secundário) e nasce com os [capítulos padronizados da NSCA 5-3](dominio.md#capitulos-padronizados-nsca-5-3). [NPA](dominio.md#npa-norma-padrao-de-acao): exige `identificacao` (texto livre), não usa assunto básico e nasce com a estrutura do Anexo XII |
+| `POST` | `/` | Cria documento já com a estrutura inicial da espécie. Ato normativo: exige `idAssuntoBasico` (calcula o número secundário) e nasce com os [capítulos padronizados da NSCA 5-3](dominio.md#capítulos-padronizados-nsca-5-3). [NPA](dominio.md#npa--norma-padrão-de-ação): exige `identificacao` (texto livre), não usa assunto básico e nasce com a estrutura do Anexo XII |
 | `POST` | `/{id}/clonar` | Clona o documento em novo `RASCUNHO` |
 | `POST` | `/{id}/substituir` | **NPA publicada** e sem etapa em curso (`ELB`; OM habilitada, se a espécie pedir): cria a NPA nova em `RASCUNHO`, ligada à substituída. Espécie convencional, NPA não publicada, em revogação ou revogada, ou já com substituta → 4xx. Ver [Substituir](dominio.md#substituir) |
 | `GET` | `/{id}/substituicao` | Os dois lados da ligação: `{ substitui, substituidoPor }` (cada um `{ id, identificacao, titulo, situacaoLocal, situacaoBca }` ou `null`) |
-| `GET` | `/{id}` | Obtém documento com anexo textual + links HATEOAS — inclui `numeracao` (capítulo/seção/subseção/artigo já calculados pelo servidor, ver [Modelo de Domínio](dominio.md#numeracao-automatica-conforme-a-tecnica-legislativa)) |
+| `GET` | `/{id}` | Obtém documento com anexo textual + links HATEOAS — inclui `numeracao` (capítulo/seção/subseção/artigo já calculados pelo servidor, ver [Modelo de Domínio](dominio.md#numeração-automática-conforme-a-técnica-legislativa)) |
 | `GET` | `/obter-todos` | Lista paginada (DTO enxuto, sem os itens da árvore); filtros `aba`, `busca`, `tipoDeEspecie` (o módulo: `CONVENCIONAL` ou `COMUNICACAO_OFICIAL_PADRONIZADA`), `especieSigla`, `situacaoBca`, `situacaoLocal`. Cada item traz `situacaoBca` e `situacaoLocal`. `GET /resumo` devolve as contagens `porAba`, `porSituacaoBca` e `porSituacaoLocal` |
 | `GET` | `/filtrar` | Filtra por espécie normativa e assunto básico |
 | `GET` | `/busca?q=&page=&size=` | Busca full-text no **conteúdo** dos dispositivos (`tsvector`/PostgreSQL, ver [Funcionalidades](funcionalidades.md#busca-textual)) — resultado paginado por dispositivo (não por documento), com trecho destacado |
@@ -36,7 +36,7 @@ Endpoints padrão do Spring Authorization Server (`AuthorizationServerConfig`), 
 | `PUT` | `/{idDocumento}/adicionar-item-anexo-parte-textual` | Adiciona item à parte normativa |
 | `GET` | `/{id}/numeracao` | Numeração calculada da parte normativa |
 | `GET` | `/{id}/pdf` | Gera o PDF oficial do documento sob demanda (Apache FOP) |
-| `GET` | `/{id}/html` | Gera o HTML oficial do documento sob demanda (regras da NSCA 5-3 para a versão eletrônica — ver [Exportação HTML](exportacao-pdf.md#exportacao-html)) |
+| `GET` | `/{id}/html` | Gera o HTML oficial do documento sob demanda (regras da NSCA 5-3 para a versão eletrônica — ver [Exportação HTML](exportacao-pdf.md#exportação-html)) |
 | `GET` | `/{id}/portarias` | Lista todas as portarias registradas do documento (edição, alterações numeradas, revogação) |
 | `POST` | `/{id}/portaria-pdf` | Sobe o PDF da portaria (multipart `arquivo`) antes de confirmar a publicação/revogação; só devolve a URL, não grava nada no documento. Só um **publicador** (CENDOC), com o documento em `EM_PUBLICACAO` ou `EM_REVOGACAO` (`403` nas demais situações) — ver [Autenticação](autenticacao.md) |
 | `DELETE` | `/{id}` | Remove o documento e seus itens em cascata (somente Rascunho/Minuta, autor/coautor) |
@@ -58,7 +58,7 @@ Endpoints padrão do Spring Authorization Server (`AuthorizationServerConfig`), 
 
 ## NPA — `/v1/documentos/{id}/npa`
 
-Campos do cabeçalho e do fecho que só a [NPA](dominio.md#npa-norma-padrao-de-acao) tem. Documento de outra espécie responde `404`.
+Campos do cabeçalho e do fecho que só a [NPA](dominio.md#npa--norma-padrão-de-ação) tem. Documento de outra espécie responde `404`.
 
 | Método | Rota | Descrição |
 |---|---|---|
@@ -101,7 +101,7 @@ Os quatro cards do hub, de qualquer módulo; qualquer usuário autenticado. Devo
 | `POST` | `/upload` | Envia imagem (multipart, máx. 10 MB) para o MinIO e devolve a URL "canônica" do objeto |
 | `POST` | `/urls-assinadas` | Troca uma lista de URLs canônicas por URLs assinadas (S3 pre-signed, válidas por 1h) — necessário porque o bucket é privado |
 
-O `ImagemService` cria o bucket sob demanda na primeira execução; o bucket é **privado** (sem política de leitura pública) — a URL devolvida no upload não é diretamente acessível pelo navegador, só serve como referência estável a ser resolvida via `/urls-assinadas` no momento de exibir a imagem/PDF. Ver [Arquitetura](arquitetura.md#visao-geral-dos-servicos).
+O `ImagemService` cria o bucket sob demanda na primeira execução; o bucket é **privado** (sem política de leitura pública) — a URL devolvida no upload não é diretamente acessível pelo navegador, só serve como referência estável a ser resolvida via `/urls-assinadas` no momento de exibir a imagem/PDF. Ver [Arquitetura](arquitetura.md#visão-geral-dos-serviços).
 
 ## Usuários — `/v1/usuarios` *(Admin)*
 
@@ -131,7 +131,7 @@ Duas rotas sob `/v1/usuarios` sobrescrevem a restrição de Admin da classe (`is
 
 ## Habilitação de documentos — `/v1/habilitacao-de-documentos`
 
-Quais espécies convencionais cada OM pode **criar** ([regra](autenticacao.md#habilitacao-de-documentos)).
+Quais espécies convencionais cada OM pode **criar** ([regra](autenticacao.md#habilitação-de-documentos)).
 
 | Método | Caminho | Quem | O que faz |
 |---|---|---|---|
@@ -162,7 +162,7 @@ A OM é decidida no servidor: o Painel Gerencial Geral usa `omId` (ausente = tod
 |---|---|---|
 | `POST` | `/{usuarioId}` | Devolve o usuário atualizado. Resultado da revisão `{ "papeis": [...] }`: os perfis que a pessoa **mantém** (os elevados ausentes são retirados; incluir um perfil que ela não tem → 406). Quem não a revisa, ou a si mesmo → 403. Grava a data e registra a revisão na auditoria de acessos |
 
-Ver [Revisão periódica de acessos](autenticacao.md#revisao-periodica-de-acessos).
+Ver [Revisão periódica de acessos](autenticacao.md#revisão-periódica-de-acessos).
 
 ## Notificações — `/v1/notificacoes`
 

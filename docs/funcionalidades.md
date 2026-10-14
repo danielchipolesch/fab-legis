@@ -14,9 +14,9 @@ O conteúdo de cada elemento é armazenado no banco como **JSON TipTap** (format
 
 Operações estruturais disponíveis: adicionar filho, adicionar irmão, **promover** e **rebaixar** elementos na hierarquia (com validação de subárvore), mover para cima/baixo, remover e reordenar por *drag and drop* (persistido no backend).
 
-Um documento novo já abre com os **capítulos padronizados da NSCA 5-3** (Disposições Preliminares, Gerais, Transitórias e Finais, com suas seções e artigos de orientação) — o autor preenche os textos, insere os capítulos do assunto e exclui os de aplicação eventual que não precisar. Detalhes em [Modelo de Domínio](dominio.md#capitulos-padronizados-nsca-5-3).
+Um documento novo já abre com os **capítulos padronizados da NSCA 5-3** (Disposições Preliminares, Gerais, Transitórias e Finais, com suas seções e artigos de orientação) — o autor preenche os textos, insere os capítulos do assunto e exclui os de aplicação eventual que não precisar. Detalhes em [Modelo de Domínio](dominio.md#capítulos-padronizados-nsca-5-3).
 
-Regras de numeração automática aplicadas pelo editor estão detalhadas em [Modelo de Domínio](dominio.md#numeracao-automatica-conforme-a-tecnica-legislativa).
+Regras de numeração automática aplicadas pelo editor estão detalhadas em [Modelo de Domínio](dominio.md#numeração-automática-conforme-a-técnica-legislativa).
 
 ## Figuras com numeração sequencial
 
@@ -45,7 +45,7 @@ Geração de PDF **server-side** via **Apache FOP 2.10 / XSL-FO**, e de HTML **s
 
 ## Comparação de versões
 
-Página dedicada (`ComparisonPage.vue`) alimentada pelo histórico real de emendas (`EmendaHistorico`, agrupado por ciclo de publicação) — não por snapshots do documento. Ver [Ciclo de emenda](ciclo-de-vida.md#ciclo-de-emenda-alterando-um-ato-ja-publicado) e [Quadro de Justificativas](ciclo-de-vida.md#quadro-de-justificativas-das-modificacoes-propostas).
+Página dedicada (`ComparisonPage.vue`) alimentada pelo histórico real de emendas (`EmendaHistorico`, agrupado por ciclo de publicação) — não por snapshots do documento. Ver [Ciclo de emenda](ciclo-de-vida.md#ciclo-de-emenda--alterando-um-ato-já-publicado) e [Quadro de Justificativas](ciclo-de-vida.md#quadro-de-justificativas-das-modificações-propostas).
 
 Para documentos com uma alteração aguardando publicação (`PUBLICADO` + `EM_PUBLICACAO`), a mesma página (e também a tela de visualização) oferece o botão **Texto Sugerido**, que gera automaticamente um rascunho da portaria de alteração — ver [Texto sugerido da portaria (NSCA 5-3, Art. 22)](exportacao-pdf.md#texto-sugerido-da-portaria-nsca-5-3-art-22).
 
@@ -57,8 +57,8 @@ A `DocumentViewerPage` exibe o documento em modo leitura com seções expansíve
 |---|---|
 | **Informações do Documento** | Metadados (espécie, número, título, assunto, código, **situação BCA** e **situação local** — cada uma em seu próprio campo) e linha do tempo das transições (publicação, alteração publicada, alteração cancelada, revogação...) |
 | **Portarias** | Lista de todas as portarias registradas para o documento — edição, alterações (numeradas sequencialmente) e revogação — cada uma com órgão/setor, número, data, BCA e link de download do PDF |
-| **Visualização do Documento** | Iframe com o PDF, carregado só com a seção aberta. Mostra por padrão a **versão em tramitação** (se houver etapa local em curso) e oferece o alternador para a **versão vigente (BCA)**; sem etapa em curso, mostra direto a vigente. Ver [Versões do documento](ciclo-de-vida.md#versoes-do-documento-vigente-em-tramitacao) |
-| **Anexos** | Upload/listagem/remoção de imagens vinculadas ao documento (`AnexoController`), incluídas como páginas próprias na exportação em PDF e em HTML. No upload o usuário escolhe a **orientação da página** (retrato ou paisagem — já vem sugerida pela proporção da imagem, e uma imagem larga fica maior deitada); o PDF e a prévia mostram cada anexo na sua orientação ([regra](dominio.md#orientacao-da-pagina-do-anexo-de-imagem-npa-e-especies-convencionais)) |
+| **Visualização do Documento** | Iframe com o PDF, carregado só com a seção aberta. Mostra por padrão a **versão em tramitação** (se houver etapa local em curso) e oferece o alternador para a **versão vigente (BCA)**; sem etapa em curso, mostra direto a vigente. Ver [Versões do documento](ciclo-de-vida.md#versões-do-documento-vigente--em-tramitação) |
+| **Anexos** | Upload/listagem/remoção de imagens vinculadas ao documento (`AnexoController`), incluídas como páginas próprias na exportação em PDF e em HTML. No upload o usuário escolhe a **orientação da página** (retrato ou paisagem — já vem sugerida pela proporção da imagem, e uma imagem larga fica maior deitada); o PDF e a prévia mostram cada anexo na sua orientação ([regra](dominio.md#orientação-da-página-do-anexo-de-imagem-npa-e-espécies-convencionais)) |
 | **Histórico de Versões** | Acesso direto à página de comparação de versões |
 
 Ações disponíveis na topbar: baixar PDF e HTML (com menu para escolher a versão vigente ou em tramitação quando as duas existem), ver texto sugerido da portaria (quando há alteração aguardando publicação), clonar e navegar para a comparação de versões.
@@ -92,7 +92,7 @@ O sistema é dividido em **módulos**, um por tipo de espécie (`TipoDeEspecie`,
 
 **Quem pode criar espécies convencionais** é decidido por OM: só as OMs que o administrador (CENDOC) habilitou criam MCA, NSCA, ICA, ROCA, DCA e as demais; o GABAER e o CENDOC vêm habilitados para todas, e a NPA é criada por qualquer OM. Quem é de uma OM sem habilitação **consulta normalmente** (hub e módulo) e pode ser **coautor**, mas **não vê o botão de criar** (nem o de clonar) — o **Criar** do hub só lista os módulos em que a OM cria.
 
-O administrador gerencia na tela **Manter Habilitação de Espécies Normativas por OM** (menu do usuário, só `ADMIN`): uma linha por espécie convencional, com as OMs habilitadas (só as siglas) e um seletor para adicionar ou remover, gravado a cada mudança; o filtro no topo mostra o que uma OM específica pode criar. Detalhes e regras em [Autenticação — Habilitação de documentos](autenticacao.md#habilitacao-de-documentos).
+O administrador gerencia na tela **Manter Habilitação de Espécies Normativas por OM** (menu do usuário, só `ADMIN`): uma linha por espécie convencional, com as OMs habilitadas (só as siglas) e um seletor para adicionar ou remover, gravado a cada mudança; o filtro no topo mostra o que uma OM específica pode criar. Detalhes e regras em [Autenticação — Habilitação de documentos](autenticacao.md#habilitação-de-documentos).
 
 ## Gestão do acervo
 
@@ -141,16 +141,16 @@ O usuário padrão do sistema (o administrador do primeiro boot) já nasce com o
 - **Situação atual** de todos os documentos e **Parados há mais tempo** (os dez mais antigos na aprovação ou na publicação, com link para o documento).
 - **Por OM** (só a visão geral): as OMs com mais documentos criados no período.
 
-Detalhes e endpoint em [API REST](api-rest.md#painel-gerencial-v1painel-gerencial).
+Detalhes e endpoint em [API REST](api-rest.md#painel-gerencial--v1painel-gerencial).
 
 ## NPA (Norma Padrão de Ação)
 
-A [NPA](dominio.md#npa-norma-padrao-de-acao) é um módulo próprio (`/npa`) e usa as mesmas telas de documento das convencionais, mas cada uma se adapta à espécie pelo **perfil** do documento (`frontend/src/perfis/`, escolhido pelo `tipoDeEspecie` que o backend informa — nunca pela sigla):
+A [NPA](dominio.md#npa--norma-padrão-de-ação) é um módulo próprio (`/npa`) e usa as mesmas telas de documento das convencionais, mas cada uma se adapta à espécie pelo **perfil** do documento (`frontend/src/perfis/`, escolhido pelo `tipoDeEspecie` que o backend informa — nunca pela sigla):
 
 - **Novo documento:** ao escolher a espécie NPA o diálogo troca o *Assunto Básico* pela **Identificação** (texto livre, ex.: `NPA-AGO-01`) e o campo do título vira **Assunto**. O **código** (a identificação) pode ser corrigido depois, no diálogo de **metadados** do editor, enquanto a NPA está em Rascunho ou Minuta; nas convencionais o código é gerado e aparece só para leitura.
 - **Editor:** a árvore mostra a numeração pelo caminho (`1`, `1.1`, `1.1.1.1`, `a)`); "Adicionar" oferece só o que a hierarquia da NPA permite (capítulo → seção/parágrafo; seção → subseção/parágrafo; parágrafo → alínea) e seção, subseção e parágrafo do mesmo pai trocam de lugar livremente. Não há promover/rebaixar, "Comparar versões" nem a ajuda da LC 95/1998. O botão **Cabeçalho e assinaturas** (`CamposDaNpaDialog`) edita o setor emissor, o local do fecho e os blocos de assinatura em texto livre — cada bloco com rótulo, até 6 linhas, e pode ser reordenado; um bloco novo entra **embaixo** dos existentes. "Elaborado por" (autor e coautores) e "Aprovado por" (quem aprova) não são digitados: saem do documento.
 - **Prévia** (`NpaPreview`): **paginada como o PDF** — uma folha A4 por página, cada uma com a moldura até o fim, o cabeçalho só na primeira e o "n/total" da segunda em diante. A quebra é calculada no navegador (`utils/paginacaoDaNpa.js`): uma cópia invisível do conteúdo é medida bloco a bloco, e título de capítulo/seção fica sempre junto do bloco seguinte, como o `keep-with-next` do PDF. É aproximada (a quebra exata é a do FOP). Os textos vêm de `perfis/npa.js` (espelho de `CabecalhoDaNpa`, backend), os mesmos do PDF e do HTML.
-- **Fluxo completo** (criar → minutar → revisão → aprovação → publicação → revogação, sem alteração): ver [Fluxo da NPA](ciclo-de-vida.md#fluxo-da-npa-norma-padrao-de-acao).
+- **Fluxo completo** (criar → minutar → revisão → aprovação → publicação → revogação, sem alteração): ver [Fluxo da NPA](ciclo-de-vida.md#fluxo-da-npa-norma-padrão-de-ação).
 - **Publicação e revogação** (`PublicarNpaDialog`, na tela *Manter Publicação de Documento*): só o **número e a data do Boletim Interno**, sem portaria, BCA nem PDF de portaria.
 - **Substituir:** na visualização de uma NPA publicada o botão *Substituir* (com tooltip explicativo) fica ao lado de *Clonar* — cria a NPA nova já ligada à antiga; uma faixa no alto mostra a ligação nos dois documentos. Ver [Substituir](dominio.md#substituir).
 - **DOM (distintivo):** o cabeçalho da NPA mostra o distintivo da OM do documento; o administrador cadastra as imagens em *Manter DOM de OM* (menu do usuário). Ver [DOM](dominio.md#dom-distintivo-da-om).

@@ -2,22 +2,24 @@
 
 Este documento responde a uma pergunta de implantação: **quais serviços do sistema podem rodar em várias instâncias (réplicas) — por exemplo num cluster Kubernetes — e quais não podem**, e por quê. A regra de ouro: um serviço só pode ter réplicas se **nenhuma informação de que ele depende vive só na memória de uma instância**. Hoje isso vale para alguns serviços e **não** vale para outros.
 
-!!! info "Antes de tudo: réplica não é desempenho"
-    Para a escala esperada (dezenas a poucas centenas de usuários), **uma instância de cada serviço** dá conta, e é a configuração mais simples e segura. Réplicas servem principalmente à **disponibilidade** (um pod cai, outro assume; atualização sem parar o serviço). Só vale a pena enfrentar a complexidade abaixo se a FAB exigir isso.
+> [!NOTE]
+> **Antes de tudo: réplica não é desempenho**
+>
+> Para a escala esperada (dezenas a poucas centenas de usuários), **uma instância de cada serviço** dá conta, e é a configuração mais simples e segura. Réplicas servem principalmente à **disponibilidade** (um pod cai, outro assume; atualização sem parar o serviço). Só vale a pena enfrentar a complexidade abaixo se a FAB exigir isso.
 
 ## Resumo
 
 | Serviço | Réplicas? | Por quê |
 |---|---|---|
-| **Frontend (Nginx)** e **documentação** | **Sim, livremente** | só servem arquivos estáticos e repassam chamadas; não guardam estado |
+| **Frontend (Nginx)** | **Sim, livremente** | só servem arquivos estáticos e repassam chamadas; não guardam estado |
 | **Backend** | **Hoje, não** — só depois de resolver 3 pontos (abaixo) | guarda em memória o login em andamento, os códigos de autorização e as conexões de tempo real; a numeração tem uma corrida; a chave de assinatura precisa ser compartilhada |
 | **Collab** (edição colaborativa) | **Não** (1 réplica) | cada documento aberto vive na memória de **uma** instância; duas instâncias dariam versões diferentes do mesmo texto |
 | **PostgreSQL** | **Não como "réplicas do container"** | é um banco com um primário que aceita escrita; alta disponibilidade exige um operador/serviço próprio (ver abaixo) |
 | **MinIO** | **Não como "réplicas do container"** | é um armazenamento com discos; o modo distribuído é outro tipo de implantação |
 
-## Serviços sem estado: Frontend (Nginx) e documentação
+## Serviço sem estado: Frontend (Nginx)
 
-Entregam arquivos prontos (SPA compilada, site do MkDocs) e repassam as chamadas ao backend. Qualquer instância responde igual a qualquer outra: **escale à vontade** (`replicas: 2` ou mais num Deployment do Kubernetes, atrás do Service/Ingress).
+Entrega arquivos prontos (a SPA compilada) e repassam as chamadas ao backend. Qualquer instância responde igual a qualquer outra: **escale à vontade** (`replicas: 2` ou mais num Deployment do Kubernetes, atrás do Service/Ingress).
 
 ## Backend (Spring Boot) — o que impede as réplicas hoje
 
@@ -47,7 +49,7 @@ O número sequencial de um documento novo é escolhido **na aplicação** ("o me
 
 ### 5. Limite de geração de PDF (funciona, mas é "por réplica")
 
-O limite de renderizações simultâneas (`APP_PDF_MAX_CONCORRENTES`, ver [Exportação](exportacao-pdf.md#limite-de-geracoes-simultaneas-de-pdf)) é um semáforo **dentro de cada instância**. Com *N* réplicas, o total simultâneo no cluster é *N × o limite*: ajuste o valor pensando na memória de **cada pod**, não do cluster. Não impede réplicas.
+O limite de renderizações simultâneas (`APP_PDF_MAX_CONCORRENTES`, ver [Exportação](exportacao-pdf.md#limite-de-gerações-simultâneas-de-pdf)) é um semáforo **dentro de cada instância**. Com *N* réplicas, o total simultâneo no cluster é *N × o limite*: ajuste o valor pensando na memória de **cada pod**, não do cluster. Não impede réplicas.
 
 ### O que já funciona entre réplicas
 
