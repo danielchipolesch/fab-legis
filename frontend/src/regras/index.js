@@ -1,4 +1,4 @@
-// O perfil de uma espécie normativa no frontend: as regras que variam por espécie (hierarquia dos elementos,
+// As regras de uma espécie normativa no frontend: as regras que variam por espécie (hierarquia dos elementos,
 // numeração, cabeçalho) atrás de uma interface só, escolhida pelo `tipoDeEspecie` que o backend informa -- nunca pela
 // sigla da espécie. Espelha as interfaces de domain.regras (backend); ver docs/arquitetura.md.
 import * as convencional from './convencional.js'
@@ -81,7 +81,7 @@ const PERFIS = {
   },
 }
 
-export function perfilDe(tipoDeEspecie) {
+export function regrasDe(tipoDeEspecie) {
   return PERFIS[tipoDeEspecie] ?? PERFIS[CONVENCIONAL]
 }
 
@@ -89,7 +89,7 @@ export function perfilDe(tipoDeEspecie) {
 export const MODULOS = Object.values(PERFIS).map(p => p.modulo)
 
 export function moduloDe(tipoDeEspecie) {
-  return perfilDe(tipoDeEspecie).modulo
+  return regrasDe(tipoDeEspecie).modulo
 }
 
 // O módulo a que um documento do frontend pertence.
@@ -97,12 +97,12 @@ export function moduloDoDocumento(documento) {
   return moduloDe(documento?.tipo_de_especie)
 }
 
-// O perfil do documento do frontend (campo tipo_de_especie, ver api/documentos.js).
-export function perfilDoDocumento(documento) {
-  return perfilDe(documento?.tipo_de_especie)
+// As regras da espécie do documento no frontend (campo tipo_de_especie, ver api/documentos.js).
+export function regrasDoDocumento(documento) {
+  return regrasDe(documento?.tipo_de_especie)
 }
 
 // Renumera os elementos da parte normativa segundo as regras da espécie do documento.
 export function renumerarElementos(elementos, documento) {
-  perfilDoDocumento(documento).renumerar(elementos, documento)
+  regrasDoDocumento(documento).renumerar(elementos, documento)
 }

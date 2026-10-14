@@ -1,7 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { Notify } from 'quasar'
 import { useAuthStore } from '@/stores/auth.js'
-import { MODULOS } from '@/perfis/index.js'
+import { MODULOS } from '@/regras/index.js'
 
 const routes = [
   {
@@ -37,7 +37,7 @@ const routes = [
     component: () => import('@/pages/PainelGerencialPage.vue'),
     meta: { title: 'Painel Gerencial', requiresPainelGerencial: true, manual: 'painel-gerencial' },
   },
-  // A tela inicial de cada módulo (perfis/index.js): a mesma tela, configurada pelo tipo de espécie.
+  // A tela inicial de cada módulo (regras/index.js): a mesma tela, configurada pelo tipo de espécie.
   ...MODULOS.map(modulo => ({
     path: modulo.caminho,
     name: modulo.rota,

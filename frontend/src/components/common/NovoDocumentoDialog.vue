@@ -148,7 +148,7 @@
 import { ref, reactive, computed, watch } from 'vue'
 import { useDocumentosStore } from '@/stores/documentos.js'
 import { useRouter } from 'vue-router'
-import { perfilDe } from '@/perfis/index.js'
+import { regrasDe } from '@/regras/index.js'
 import { listEspeciesNormativas, listAssuntosBasicos, normalizeEspecie, normalizeAssunto } from '@/api/referencias.js'
 import { useAuthStore } from '@/stores/auth.js'
 import { apenasCriaveis } from '@/utils/habilitacao.js'
@@ -229,9 +229,9 @@ const form = reactive({
   titulo:           '',
 })
 
-// A espécie escolhida decide o que o documento pede na criação (perfis/index.js): um ato normativo, o assunto
+// A espécie escolhida decide o que o documento pede na criação (regras/index.js): um ato normativo, o assunto
 // básico; uma NPA, a identificação em texto livre.
-const ehNpa = computed(() => perfilDe(form.especieNormativa?.tipoDeEspecie).ehNpa)
+const ehNpa = computed(() => regrasDe(form.especieNormativa?.tipoDeEspecie).ehNpa)
 
 const aberto = computed({
   get: () => props.modelValue,

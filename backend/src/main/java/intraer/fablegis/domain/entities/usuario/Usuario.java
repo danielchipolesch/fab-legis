@@ -59,10 +59,10 @@ public class Usuario {
     private boolean sistema = false;
 
     @ElementCollection(fetch = FetchType.EAGER)
-    @CollectionTable(name = "t_usuario_papel", joinColumns = @JoinColumn(name = "usuario_id"))
-    @Column(name = "sg_papel")
+    @CollectionTable(name = "t_usuario_perfil", joinColumns = @JoinColumn(name = "usuario_id"))
+    @Column(name = "sg_perfil")
     @Enumerated(EnumType.STRING)
-    private Set<PapelEnum> papeis = EnumSet.noneOf(PapelEnum.class);
+    private Set<PerfilEnum> perfis = EnumSet.noneOf(PerfilEnum.class);
 
     // Revisão periódica de acessos (ver RevisaoDeAcesso): quando o acesso foi reconfirmado; nulo = revisão pendente.
     @Column(name = "dt_revisao_acesso")

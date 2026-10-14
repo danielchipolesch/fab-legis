@@ -1,6 +1,6 @@
 package intraer.fablegis.domain.regras;
 
-import intraer.fablegis.domain.entities.usuario.PapelEnum;
+import intraer.fablegis.domain.entities.usuario.PerfilEnum;
 import intraer.fablegis.domain.entities.usuario.Usuario;
 import intraer.fablegis.domain.handlers.exceptions.OperacaoNaoAutorizadaException;
 
@@ -12,23 +12,23 @@ public final class EscopoDoPainel {
     private EscopoDoPainel() {}
 
     public static boolean temAcesso(Usuario usuario) {
-        return usuario.getPapeis().contains(PapelEnum.PNL_GER) || usuario.getPapeis().contains(PapelEnum.PNL_OM);
+        return usuario.getPerfis().contains(PerfilEnum.PNL_GER) || usuario.getPerfis().contains(PerfilEnum.PNL_OM);
     }
 
     public static boolean ehGeral(Usuario usuario) {
-        return usuario.getPapeis().contains(PapelEnum.PNL_GER);
+        return usuario.getPerfis().contains(PerfilEnum.PNL_GER);
     }
 
     // A OM pela qual os indicadores são filtrados: a pedida (ou nenhuma = todas) para o Painel Gerencial Geral; sempre a própria para o da OM
     // (pedir outra é 403 -- não há como espiar a visão geral nem a de outra OM).
     public static Long omDosIndicadores(Usuario usuario, Long omPedida) {
         if (ehGeral(usuario)) return omPedida;
-        if (!usuario.getPapeis().contains(PapelEnum.PNL_OM)) {
-            throw new OperacaoNaoAutorizadaException("O Painel Gerencial é dos perfis " + PapelEnum.PNL_OM.nome() + " e " + PapelEnum.PNL_GER.nome() + ".");
+        if (!usuario.getPerfis().contains(PerfilEnum.PNL_OM)) {
+            throw new OperacaoNaoAutorizadaException("O Painel Gerencial é dos perfis " + PerfilEnum.PNL_OM.nome() + " e " + PerfilEnum.PNL_GER.nome() + ".");
         }
         Long propria = usuario.getOm().getId();
         if (omPedida != null && !omPedida.equals(propria)) {
-            throw new OperacaoNaoAutorizadaException("O " + PapelEnum.PNL_OM.nome() + " só vê os indicadores da própria OM.");
+            throw new OperacaoNaoAutorizadaException("O " + PerfilEnum.PNL_OM.nome() + " só vê os indicadores da própria OM.");
         }
         return propria;
     }

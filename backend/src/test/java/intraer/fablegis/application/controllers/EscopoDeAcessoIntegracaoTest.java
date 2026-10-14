@@ -1,7 +1,7 @@
 package intraer.fablegis.application.controllers;
 
 import intraer.fablegis.IntegracaoComPostgresBase;
-import intraer.fablegis.domain.entities.usuario.PapelEnum;
+import intraer.fablegis.domain.entities.usuario.PerfilEnum;
 import intraer.fablegis.domain.entities.usuario.Usuario;
 import intraer.fablegis.infrastructure.repositories.OrganizacaoMilitarRepository;
 import intraer.fablegis.infrastructure.repositories.UsuarioRepository;
@@ -52,26 +52,26 @@ class EscopoDeAcessoIntegracaoTest extends IntegracaoComPostgresBase {
         return usuarioRepository.findAll().stream().filter(u -> !u.isSistema()).findFirst().orElseThrow();
     }
 
-    private Usuario usuarioDa(String sigla, String cpf, PapelEnum... papeis) {
+    private Usuario usuarioDa(String sigla, String cpf, PerfilEnum... perfis) {
         return usuarioRepository.findByCpf(cpf).orElseGet(() -> {
             var u = new Usuario();
             u.setNome("Pessoa " + sigla);
             u.setCpf(cpf);
             u.setSenhaHash("{noop}x");
             u.setOm(omRepository.findBySigla(sigla).orElseThrow());
-            var conjunto = EnumSet.noneOf(PapelEnum.class);
-            conjunto.addAll(java.util.List.of(papeis));
-            u.setPapeis(conjunto);
+            var conjunto = EnumSet.noneOf(PerfilEnum.class);
+            conjunto.addAll(java.util.List.of(perfis));
+            u.setPerfis(conjunto);
             return usuarioRepository.save(u);
         });
     }
 
     private Usuario adminLocal() {
-        return usuarioDa("EMAER", CPF_ADMIN_LOCAL, PapelEnum.ELB, PapelEnum.ADM_OM);
+        return usuarioDa("EMAER", CPF_ADMIN_LOCAL, PerfilEnum.ELB, PerfilEnum.ADM_OM);
     }
 
     private long idDoEditorLocal() {
-        return usuarioDa("EMAER", CPF_EDITOR_LOCAL, PapelEnum.ELB).getId();
+        return usuarioDa("EMAER", CPF_EDITOR_LOCAL, PerfilEnum.ELB).getId();
     }
 
     private static RequestPostProcessor como(Usuario usuario) {
@@ -79,8 +79,8 @@ class EscopoDeAcessoIntegracaoTest extends IntegracaoComPostgresBase {
         return authentication(new UsernamePasswordAuthenticationToken(principal, null, principal.getAuthorities()));
     }
 
-    private String corpo(String cpf, long omId, String papeis) {
-        return "{\"nome\":\"Novo\",\"cpf\":\"" + cpf + "\",\"senha\":\"senha-forte-1\",\"omId\":" + omId + ",\"papeis\":" + papeis + "}";
+    private String corpo(String cpf, long omId, String perfis) {
+        return "{\"nome\":\"Novo\",\"cpf\":\"" + cpf + "\",\"senha\":\"senha-forte-1\",\"omId\":" + omId + ",\"perfis\":" + perfis + "}";
     }
 
     @Test
@@ -104,7 +104,7 @@ class EscopoDeAcessoIntegracaoTest extends IntegracaoComPostgresBase {
 
         mvc.perform(get("/v1/usuarios/" + idDoGeral).with(como(adminLocal()))).andExpect(status().isNotFound());
         mvc.perform(put("/v1/usuarios/" + idDoGeral).with(como(adminLocal())).contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"nome\":\"X\",\"omId\":" + omRepository.findBySigla("EMAER").orElseThrow().getId() + ",\"ativo\":true,\"papeis\":[\"ELB\"]}"))
+                        .content("{\"nome\":\"X\",\"omId\":" + omRepository.findBySigla("EMAER").orElseThrow().getId() + ",\"ativo\":true,\"perfis\":[\"ELB\"]}"))
                 .andExpect(status().isNotFound());
     }
 
@@ -135,17 +135,17 @@ class EscopoDeAcessoIntegracaoTest extends IntegracaoComPostgresBase {
         long emaer = omRepository.findBySigla("EMAER").orElseThrow().getId();
         long idEditor = idDoEditorLocal();
         mvc.perform(put("/v1/usuarios/" + idEditor).with(como(adminLocal())).contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"nome\":\"Pessoa EMAER\",\"omId\":" + emaer + ",\"ativo\":true,\"papeis\":[\"ELB\",\"APR_OM\"]}"))
+                        .content("{\"nome\":\"Pessoa EMAER\",\"omId\":" + emaer + ",\"ativo\":true,\"perfis\":[\"ELB\",\"APR_OM\"]}"))
                 .andExpect(status().isOk());
 
         // outro administrador da mesma OM: só o admin geral mexe
-        var outroAdmin = usuarioDa("EMAER", "66677788830", PapelEnum.ELB, PapelEnum.ADM_OM);
+        var outroAdmin = usuarioDa("EMAER", "66677788830", PerfilEnum.ELB, PerfilEnum.ADM_OM);
         mvc.perform(put("/v1/usuarios/" + outroAdmin.getId()).with(como(adminLocal())).contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"nome\":\"X\",\"omId\":" + emaer + ",\"ativo\":true,\"papeis\":[\"ELB\"]}"))
+                        .content("{\"nome\":\"X\",\"omId\":" + emaer + ",\"ativo\":true,\"perfis\":[\"ELB\"]}"))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.message").value(containsString("administradores são mantidos")));
         mvc.perform(put("/v1/usuarios/" + outroAdmin.getId()).with(como(geral())).contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"nome\":\"X\",\"omId\":" + emaer + ",\"ativo\":true,\"papeis\":[\"ELB\"]}"))
+                        .content("{\"nome\":\"X\",\"omId\":" + emaer + ",\"ativo\":true,\"perfis\":[\"ELB\"]}"))
                 .andExpect(status().isOk());
     }
 
@@ -161,7 +161,7 @@ class EscopoDeAcessoIntegracaoTest extends IntegracaoComPostgresBase {
 
     @Test
     void oAuditorLocalSoVeOsAcessosDaPropriaOm() throws Exception {
-        var auditorLocal = usuarioDa("EMAER", "77788899941", PapelEnum.ELB, PapelEnum.AUD_OM);
+        var auditorLocal = usuarioDa("EMAER", "77788899941", PerfilEnum.ELB, PerfilEnum.AUD_OM);
         mvc.perform(post("/v1/usuarios").with(como(geral())).contentType(MediaType.APPLICATION_JSON)
                         .content(corpo("88899900078", omRepository.findBySigla("BAGL").orElseThrow().getId(), "[\"ELB\"]")))
                 .andExpect(status().isCreated());

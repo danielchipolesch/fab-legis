@@ -1,14 +1,14 @@
 package intraer.fablegis.domain.entities.usuario;
 
-// Os perfis (perfis) de acesso. Cada um tem o CÓDIGO (o próprio nome da constante, que é o que se grava em t_usuario_papel.sg_papel) e o
-// NOME POR EXTENSO (o que as telas e a documentação mostram) -- a tabela t_papel guarda os dois, e PapelEnumTest garante que enum e
+// Os perfis de acesso. Cada um tem o CÓDIGO (o próprio nome da constante, que é o que se grava em t_usuario_perfil.sg_perfil) e o
+// NOME POR EXTENSO (o que as telas e a documentação mostram) -- a tabela t_perfil guarda os dois, e PerfilEnumTest garante que enum e
 // tabela dizem a mesma coisa. Os códigos têm trigrama + sufixo de escopo, com sublinhado.
 //
-// Todo usuário autenticado pode visualizar qualquer documento -- isso não depende de nenhum papel, é o que "estar logado" já garante
-// (DocumentoAcessoService). Os demais poderes são concedidos explicitamente por papel, sem implícito nenhum. O escopo vem da OM de
-// quem tem o papel (EscopoDeAcesso): os gerais (_GER) só existem no CENDOC; os da OM (_OM), em qualquer outra; a publicação (PUB_BCA),
+// Todo usuário autenticado pode visualizar qualquer documento -- isso não depende de nenhum perfil, é o que "estar logado" já garante
+// (DocumentoAcessoService). Os demais poderes são concedidos explicitamente por perfil, sem implícito nenhum. O escopo vem da OM de
+// quem tem o perfil (EscopoDeAcesso): os gerais (_GER) só existem no CENDOC; os da OM (_OM), em qualquer outra; a publicação (PUB_BCA),
 // só no CENDOC.
-public enum PapelEnum {
+public enum PerfilEnum {
 
     ELB("Elaborador", "Cria e edita documentos como autor ou coautor e os envia para aprovação"),
     APR_OM("Aprovador da OM", "Aprova ou devolve os documentos da própria OM (qualquer aprovador da OM age)"),
@@ -23,7 +23,7 @@ public enum PapelEnum {
     private final String nome;
     private final String descricao;
 
-    PapelEnum(String nome, String descricao) {
+    PerfilEnum(String nome, String descricao) {
         this.nome = nome;
         this.descricao = descricao;
     }

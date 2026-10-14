@@ -253,7 +253,7 @@ import { gerarTextoSugeridoPortaria } from '@/utils/textoSugeridoPortaria.js'
 import { conteudoParaHtml } from '@/editor/conteudoParaHtml.js'
 import { gerarMapaAlteracaoPdf } from '@/services/pdfService.js'
 import { ehAlteracaoPublicada } from '@/utils/fluxoDocumento.js'
-import { moduloDoDocumento } from '@/perfis/index.js'
+import { moduloDoDocumento } from '@/regras/index.js'
 import { useQuasar } from 'quasar'
 
 const conteudoToHtml = conteudoParaHtml

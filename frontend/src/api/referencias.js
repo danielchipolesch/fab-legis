@@ -16,7 +16,7 @@ export function normalizeEspecie(e) {
     sigla: e.acronym ?? e.sigla,
     nome:  e.name    ?? e.nome,
     label: `${e.acronym ?? e.sigla} — ${e.name ?? e.nome}`,
-    // Espécies da NPA pedem a identificação em texto livre em vez do assunto básico (ver perfis/index.js).
+    // Espécies da NPA pedem a identificação em texto livre em vez do assunto básico (ver regras/index.js).
     tipoDeEspecie: e.tipoDeEspecie ?? 'CONVENCIONAL',
   }
 }

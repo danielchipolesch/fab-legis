@@ -36,7 +36,7 @@
         <q-list v-else class="paginas">
           <q-item v-for="p in paginas" :key="p.slug" clickable :to="destino(p.slug)" :active="p.slug === pagina?.slug" active-class="pagina-ativa" :data-testid="`manual-indice-${p.slug}`">
             <q-item-section>{{ p.titulo }}</q-item-section>
-            <q-item-section v-if="ehParaMim(p, auth.usuario?.papeis)" side>
+            <q-item-section v-if="ehParaMim(p, auth.usuario?.perfis)" side>
               <q-icon name="mdi-account-check-outline" color="primary" size="18px"><q-tooltip>Tem a ver com o seu perfil</q-tooltip></q-icon>
             </q-item-section>
           </q-item>
@@ -113,7 +113,7 @@ const anterior = computed(() => paginas[indice.value - 1] ?? null)
 const seguinte = computed(() => paginas[indice.value + 1] ?? null)
 const html = computed(() => (pagina.value ? renderizarManual(pagina.value.markdown) : ''))
 const perfisDaPagina = computed(() => nomesDosPerfis(pagina.value?.perfis))
-const paraMim = computed(() => !!pagina.value && ehParaMim(pagina.value, auth.usuario?.papeis))
+const paraMim = computed(() => !!pagina.value && ehParaMim(pagina.value, auth.usuario?.perfis))
 const resultados = computed(() => buscarNoManual(paginas, termo.value ?? ''))
 
 const destino = (slug, secaoId) => ({ path: `/manual/${slug}`, hash: secaoId ? `#${secaoId}` : '' })

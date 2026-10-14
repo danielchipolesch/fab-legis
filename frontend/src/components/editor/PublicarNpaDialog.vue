@@ -66,7 +66,7 @@
 <script setup>
 import { computed, reactive, watch } from 'vue'
 import { ehRevogacao } from '@/utils/fluxoDocumento.js'
-import { dataPorExtenso } from '@/perfis/npa.js'
+import { dataPorExtenso } from '@/regras/npa.js'
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },

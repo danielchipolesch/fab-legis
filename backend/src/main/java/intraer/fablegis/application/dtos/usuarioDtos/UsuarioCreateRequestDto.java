@@ -1,7 +1,7 @@
 package intraer.fablegis.application.dtos.usuarioDtos;
 
 import intraer.fablegis.application.validation.CpfValido;
-import intraer.fablegis.domain.entities.usuario.PapelEnum;
+import intraer.fablegis.domain.entities.usuario.PerfilEnum;
 import intraer.fablegis.application.validation.EmailInstitucional;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -34,9 +34,9 @@ public record UsuarioCreateRequestDto(
         @NotNull
         Long omId,
 
-        Set<PapelEnum> papeis
+        Set<PerfilEnum> perfis
 ) {
     public UsuarioCreateRequestDto {
-        if (papeis == null) papeis = Set.of();
+        if (perfis == null) perfis = Set.of();
     }
 }

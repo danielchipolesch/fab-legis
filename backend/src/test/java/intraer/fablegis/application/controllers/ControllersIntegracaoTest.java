@@ -28,7 +28,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 // Os controllers de ponta a ponta -- segurança, validação, serviço, JPA e PostgreSQL de verdade, com as migrations do
-// Flyway aplicadas --, no que os testes unitários (que mockam tudo) não enxergam: a regra de acesso por papel, o corpo
+// Flyway aplicadas --, no que os testes unitários (que mockam tudo) não enxergam: a regra de acesso por perfil, o corpo
 // de erro no formato da API e o que realmente chega ao banco.
 class ControllersIntegracaoTest extends IntegracaoComPostgresBase {
 
@@ -56,15 +56,15 @@ class ControllersIntegracaoTest extends IntegracaoComPostgresBase {
         return como(administradorPadrao());
     }
 
-    // Um usuário real da mesma OM, mas sem nenhum papel: só visualiza o acervo.
-    private RequestPostProcessor comoSemPapel() {
+    // Um usuário real da mesma OM, mas sem nenhum perfil: só visualiza o acervo.
+    private RequestPostProcessor comoSemPerfil() {
         var leitor = usuarioRepository.findByCpf(CPF_DO_LEITOR).orElseGet(() -> {
             var u = new Usuario();
             u.setNome("Leitor");
             u.setCpf(CPF_DO_LEITOR);
             u.setSenhaHash("{noop}x");
             u.setOm(administradorPadrao().getOm());
-            u.setPapeis(new HashSet<>());
+            u.setPerfis(new HashSet<>());
             return usuarioRepository.save(u);
         });
         return como(leitor);
@@ -111,8 +111,8 @@ class ControllersIntegracaoTest extends IntegracaoComPostgresBase {
     }
 
     @Test
-    void criarDocumentoExigeOPapelEdit() throws Exception {
-        mvc.perform(post("/v1/documentos").with(comoSemPapel()).contentType(MediaType.APPLICATION_JSON)
+    void criarDocumentoExigeOPerfilEdit() throws Exception {
+        mvc.perform(post("/v1/documentos").with(comoSemPerfil()).contentType(MediaType.APPLICATION_JSON)
                         .content(corpoDeNovoDocumento()))
                 .andExpect(status().isForbidden());
     }
@@ -181,7 +181,7 @@ class ControllersIntegracaoTest extends IntegracaoComPostgresBase {
         duplicado.setCpf(existente.getCpf());
         duplicado.setSenhaHash("{noop}x");
         duplicado.setOm(existente.getOm());
-        duplicado.setPapeis(new HashSet<>());
+        duplicado.setPerfis(new HashSet<>());
 
         org.assertj.core.api.Assertions.assertThatThrownBy(() -> usuarioRepository.saveAndFlush(duplicado))
                 .isInstanceOf(org.springframework.dao.DataIntegrityViolationException.class);

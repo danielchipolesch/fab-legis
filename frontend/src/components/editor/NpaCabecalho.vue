@@ -41,7 +41,7 @@
 import { ref, watch } from 'vue'
 import { resolveMinioUrls } from '@/utils/minioUrls.js'
 
-// c: o resultado de cabecalho() de perfis/npa.js. O DOM (c.distintivoUrl) vem do MinIO: precisa de URL assinada.
+// c: o resultado de cabecalho() de regras/npa.js. O DOM (c.distintivoUrl) vem do MinIO: precisa de URL assinada.
 const props = defineProps({ c: { type: Object, required: true } })
 
 const distintivoSrc = ref(null)

@@ -30,7 +30,7 @@ O CPF é **dado pessoal**: em toda tela onde ele fica visível para um usuário 
 
 ## Perfis e posse de documento
 
-Nenhum poder sobre o ciclo de vida de um documento é implícito — todos os perfis são concedidos explicitamente na tela **Manter Usuários** (restrita a administradores), em `PapelEnum`. Uma pessoa sem perfil nenhum só visualiza o acervo. Cada perfil tem **código** (o que vai para o banco e para o token) e **nome por extenso** (o que as telas mostram), guardados no enum e na tabela `t_papel` (migração `V21`, conferidos por `PapelEnumIntegracaoTest`); o **escopo** (geral ou da OM) está no próprio código:
+Nenhum poder sobre o ciclo de vida de um documento é implícito — todos os perfis são concedidos explicitamente na tela **Manter Usuários** (restrita a administradores), em `PerfilEnum`. Uma pessoa sem perfil nenhum só visualiza o acervo. Cada perfil tem **código** (o que vai para o banco e para o token) e **nome por extenso** (o que as telas mostram), guardados no enum e na tabela `t_perfil` (migração `V21`, conferidos por `PerfilEnumIntegracaoTest`); o **escopo** (geral ou da OM) está no próprio código:
 
 | Código | Nome por extenso | O que faz |
 |---|---|---|
@@ -129,6 +129,6 @@ Conceder um perfil elevado novo (ou criar o usuário com ele) conta como revisã
 
 **Quem revisa quem:** o **admin geral** (CENDOC) confere **só os admins locais** e o pessoal do próprio CENDOC; cada **admin local** confere os **demais usuários da própria OM**. Ninguém revisa o próprio acesso, e quem não é admin não revisa ninguém.
 
-**Como:** **automático** — o sistema calcula, para cada usuário, se o acesso precisa de revisão e mostra na tela **Manter Usuários** (coluna *Acesso*, faixa de aviso com o filtro "só os pendentes"). **Ninguém pede nada**: nem o usuário com perfil elevado, nem o admin; o admin só confere, nas linhas que lhe cabem, com **Manter acesso** (reconfirma os mesmos perfis) ou **Retirar perfis…** (desmarca o que a pessoa deixa de ter). A revisão **nunca concede** (conceder é editar o usuário), grava a data e registra `REVISOU_ACESSO` — mais o `ALTEROU_PAPEIS` do que foi retirado — na [auditoria de acessos](#auditoria-de-acessos), na mesma transação.
+**Como:** **automático** — o sistema calcula, para cada usuário, se o acesso precisa de revisão e mostra na tela **Manter Usuários** (coluna *Acesso*, faixa de aviso com o filtro "só os pendentes"). **Ninguém pede nada**: nem o usuário com perfil elevado, nem o admin; o admin só confere, nas linhas que lhe cabem, com **Manter acesso** (reconfirma os mesmos perfis) ou **Retirar perfis…** (desmarca o que a pessoa deixa de ter). A revisão **nunca concede** (conceder é editar o usuário), grava a data e registra `REVISOU_ACESSO` — mais o `ALTEROU_PERFIS` do que foi retirado — na [auditoria de acessos](#auditoria-de-acessos), na mesma transação.
 
 **Por ora só avisa:** as pendências aparecem na lista e na faixa de aviso da tela; **nada é suspenso nem desativado sozinho** (a suspensão dos perfis depois de uma carência e a notificação ao revisor ficam no [roadmap](roadmap.md)).

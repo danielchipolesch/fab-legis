@@ -28,7 +28,7 @@ public class AnexoController {
     }
 
     // Adicionar e remover seguem a mesma regra de edição do resto do documento (metadados, parte normativa): só quem
-    // pode editá-lo -- autor ou coautor com papel EDIT, ou o revisor atribuído em EM_REVISAO. Listar fica livre para
+    // pode editá-lo -- autor ou coautor com perfil EDIT, ou o revisor atribuído em EM_REVISAO. Listar fica livre para
     // qualquer usuário autenticado, como toda visualização (ver DocumentoAcessoService). A etapa é barrada no AnexoService.
     @PreAuthorize("@documentoAcessoService.podeEditar(#documentoId, authentication)")
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)

@@ -2,7 +2,7 @@ package intraer.fablegis.domain.services;
 
 import intraer.fablegis.application.dtos.usuarioDtos.UsuarioCreateRequestDto;
 import intraer.fablegis.domain.entities.usuario.OrganizacaoMilitar;
-import intraer.fablegis.domain.entities.usuario.PapelEnum;
+import intraer.fablegis.domain.entities.usuario.PerfilEnum;
 import intraer.fablegis.domain.entities.usuario.Usuario;
 import intraer.fablegis.domain.handlers.exceptions.ResourceAlreadyExistsException;
 import intraer.fablegis.infrastructure.repositories.OrganizacaoMilitarRepository;
@@ -68,7 +68,7 @@ class UsuarioServiceTest {
 
     // ─── Auditoria dos acessos ───────────────────────────────────────────────
 
-    private Usuario existente(long id, String sigla, PapelEnum... papeis) {
+    private Usuario existente(long id, String sigla, PerfilEnum... perfis) {
         var om = new OrganizacaoMilitar();
         om.setId(1L);
         om.setSigla(sigla);
@@ -78,7 +78,7 @@ class UsuarioServiceTest {
         u.setCpf("11144477735");
         u.setOm(om);
         u.setAtivo(true);
-        u.setPapeis(java.util.EnumSet.copyOf(java.util.List.of(papeis)));
+        u.setPerfis(java.util.EnumSet.copyOf(java.util.List.of(perfis)));
         return u;
     }
 
@@ -91,7 +91,7 @@ class UsuarioServiceTest {
     // Por padrão, quem age é o administrador geral (ADMIN no CENDOC); os testes do escopo local trocam o ator.
     @org.junit.jupiter.api.BeforeEach
     void autenticarOAdministradorGeral() {
-        autenticarComo(existente(1L, "CENDOC", PapelEnum.ADM_GER, PapelEnum.ELB));
+        autenticarComo(existente(1L, "CENDOC", PerfilEnum.ADM_GER, PerfilEnum.ELB));
     }
 
     @org.junit.jupiter.api.AfterEach
@@ -112,10 +112,10 @@ class UsuarioServiceTest {
     }
 
     @Test
-    void concederPapelPeloCadastroVaiParaAAuditoriaComOQueMudou() {
-        var admin = existente(1L, "CENDOC", PapelEnum.ADM_GER, PapelEnum.ELB);
+    void concederPerfilPeloCadastroVaiParaAAuditoriaComOQueMudou() {
+        var admin = existente(1L, "CENDOC", PerfilEnum.ADM_GER, PerfilEnum.ELB);
         autenticarComo(admin);
-        var alvo = existente(2L, "BAGL", PapelEnum.ELB);
+        var alvo = existente(2L, "BAGL", PerfilEnum.ELB);
         when(usuarioRepository.findById(2L)).thenReturn(Optional.of(alvo));
         var om = new OrganizacaoMilitar();
         om.setSigla("BAGL");
@@ -123,20 +123,20 @@ class UsuarioServiceTest {
         when(usuarioRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
         service.atualizar(2L, new intraer.fablegis.application.dtos.usuarioDtos.UsuarioUpdateRequestDto(
-                "Fulano", null, null, null, 1L, true, java.util.Set.of(PapelEnum.ELB, PapelEnum.APR_OM)));
+                "Fulano", null, null, null, 1L, true, java.util.Set.of(PerfilEnum.ELB, PerfilEnum.APR_OM)));
 
         @SuppressWarnings("unchecked")
         ArgumentCaptor<java.util.List<intraer.fablegis.domain.regras.DiferencaDeAcesso.Evento>> eventos = ArgumentCaptor.forClass(java.util.List.class);
         verify(auditoriaDeAcesso).registrarMudancas(any(Usuario.class), eventos.capture());
         assertThat(eventos.getValue()).hasSize(1);
-        assertThat(eventos.getValue().get(0).acao()).isEqualTo(intraer.fablegis.domain.entities.auditoria.AcaoDeAcessoEnum.ALTEROU_PAPEIS);
+        assertThat(eventos.getValue().get(0).acao()).isEqualTo(intraer.fablegis.domain.entities.auditoria.AcaoDeAcessoEnum.ALTEROU_PERFIS);
         assertThat(eventos.getValue().get(0).detalhe()).contains("Concedido(s): APR_OM");
     }
 
     @Test
     void editarSemMudarOAcessoNaoGeraRegistro() {
-        autenticarComo(existente(1L, "CENDOC", PapelEnum.ADM_GER, PapelEnum.ELB));
-        var alvo = existente(2L, "BAGL", PapelEnum.ELB);
+        autenticarComo(existente(1L, "CENDOC", PerfilEnum.ADM_GER, PerfilEnum.ELB));
+        var alvo = existente(2L, "BAGL", PerfilEnum.ELB);
         when(usuarioRepository.findById(2L)).thenReturn(Optional.of(alvo));
         var om = new OrganizacaoMilitar();
         om.setSigla("BAGL");
@@ -144,7 +144,7 @@ class UsuarioServiceTest {
         when(usuarioRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
         service.atualizar(2L, new intraer.fablegis.application.dtos.usuarioDtos.UsuarioUpdateRequestDto(
-                "Fulano da Silva", null, null, null, 1L, true, java.util.Set.of(PapelEnum.ELB)));
+                "Fulano da Silva", null, null, null, 1L, true, java.util.Set.of(PerfilEnum.ELB)));
 
         @SuppressWarnings("unchecked")
         ArgumentCaptor<java.util.List<intraer.fablegis.domain.regras.DiferencaDeAcesso.Evento>> eventos = ArgumentCaptor.forClass(java.util.List.class);
@@ -154,7 +154,7 @@ class UsuarioServiceTest {
 
     @Test
     void redefinirSenhaVaiParaAAuditoria() {
-        var alvo = existente(2L, "BAGL", PapelEnum.ELB);
+        var alvo = existente(2L, "BAGL", PerfilEnum.ELB);
         when(usuarioRepository.findById(2L)).thenReturn(Optional.of(alvo));
         when(passwordEncoder.encode("nova-senha-1")).thenReturn("hash");
 
@@ -167,9 +167,9 @@ class UsuarioServiceTest {
 
     @Test
     void oAdminLocalSoVeOsUsuariosDaPropriaOm() {
-        autenticarComo(existente(1L, "BAGL", PapelEnum.ADM_OM, PapelEnum.ELB));
+        autenticarComo(existente(1L, "BAGL", PerfilEnum.ADM_OM, PerfilEnum.ELB));
         when(usuarioRepository.findAll()).thenReturn(java.util.List.of(
-                existente(2L, "BAGL", PapelEnum.ELB), existente(3L, "BABE", PapelEnum.ELB), existente(4L, "CENDOC", PapelEnum.ELB)));
+                existente(2L, "BAGL", PerfilEnum.ELB), existente(3L, "BABE", PerfilEnum.ELB), existente(4L, "CENDOC", PerfilEnum.ELB)));
 
         assertThat(service.listar()).extracting(r -> r.id()).containsExactly(2L);
     }
@@ -177,22 +177,22 @@ class UsuarioServiceTest {
     @Test
     void oAdminGeralVeTodosOsUsuarios() {
         when(usuarioRepository.findAll()).thenReturn(java.util.List.of(
-                existente(2L, "BAGL", PapelEnum.ELB), existente(3L, "BABE", PapelEnum.ELB), existente(4L, "CENDOC", PapelEnum.ELB)));
+                existente(2L, "BAGL", PerfilEnum.ELB), existente(3L, "BABE", PerfilEnum.ELB), existente(4L, "CENDOC", PerfilEnum.ELB)));
 
         assertThat(service.listar()).hasSize(3);
     }
 
     @Test
     void oAdminLocalNaoConsultaUsuarioDeOutraOm() {
-        autenticarComo(existente(1L, "BAGL", PapelEnum.ADM_OM, PapelEnum.ELB));
-        when(usuarioRepository.findById(3L)).thenReturn(Optional.of(existente(3L, "BABE", PapelEnum.ELB)));
+        autenticarComo(existente(1L, "BAGL", PerfilEnum.ADM_OM, PerfilEnum.ELB));
+        when(usuarioRepository.findById(3L)).thenReturn(Optional.of(existente(3L, "BABE", PerfilEnum.ELB)));
 
         assertThatThrownBy(() -> service.obter(3L)).isInstanceOf(intraer.fablegis.domain.handlers.exceptions.ResourceNotFoundException.class);
     }
 
     @Test
-    void oAdminLocalNaoCriaUsuarioEmOutraOmNemComPapelDeAdmin() {
-        autenticarComo(existente(1L, "BAGL", PapelEnum.ADM_OM, PapelEnum.ELB));
+    void oAdminLocalNaoCriaUsuarioEmOutraOmNemComPerfilDeAdmin() {
+        autenticarComo(existente(1L, "BAGL", PerfilEnum.ADM_OM, PerfilEnum.ELB));
         when(usuarioRepository.existsByCpf("11144477735")).thenReturn(false);
         var outra = new OrganizacaoMilitar();
         outra.setSigla("BABE");
@@ -206,15 +206,15 @@ class UsuarioServiceTest {
         propria.setSigla("BAGL");
         when(organizacaoMilitarRepository.findById(1L)).thenReturn(Optional.of(propria));
         assertThatThrownBy(() -> service.criar(new UsuarioCreateRequestDto("Fulano", null, "11144477735", null, null, "senha-forte-1", 1L,
-                java.util.Set.of(PapelEnum.ADM_OM))))
+                java.util.Set.of(PerfilEnum.ADM_OM))))
                 .isInstanceOf(intraer.fablegis.domain.handlers.exceptions.OperacaoNaoAutorizadaException.class);
         verify(usuarioRepository, never()).save(any());
     }
 
     @Test
     void oAdminLocalNaoRedefineASenhaDeOutroAdmin() {
-        autenticarComo(existente(1L, "BAGL", PapelEnum.ADM_OM, PapelEnum.ELB));
-        when(usuarioRepository.findById(2L)).thenReturn(Optional.of(existente(2L, "BAGL", PapelEnum.ADM_OM, PapelEnum.ELB)));
+        autenticarComo(existente(1L, "BAGL", PerfilEnum.ADM_OM, PerfilEnum.ELB));
+        when(usuarioRepository.findById(2L)).thenReturn(Optional.of(existente(2L, "BAGL", PerfilEnum.ADM_OM, PerfilEnum.ELB)));
 
         assertThatThrownBy(() -> service.redefinirSenha(2L, new intraer.fablegis.application.dtos.usuarioDtos.RedefinirSenhaRequestDto("nova-senha-1")))
                 .isInstanceOf(intraer.fablegis.domain.handlers.exceptions.OperacaoNaoAutorizadaException.class);
@@ -231,53 +231,53 @@ class UsuarioServiceTest {
         when(usuarioRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
     }
 
-    private static intraer.fablegis.application.dtos.usuarioDtos.UsuarioUpdateRequestDto edicao(PapelEnum... papeis) {
+    private static intraer.fablegis.application.dtos.usuarioDtos.UsuarioUpdateRequestDto edicao(PerfilEnum... perfis) {
         return new intraer.fablegis.application.dtos.usuarioDtos.UsuarioUpdateRequestDto(
-                "Fulano", null, null, null, 1L, true, java.util.Set.of(papeis));
+                "Fulano", null, null, null, 1L, true, java.util.Set.of(perfis));
     }
 
     @Test
-    void trocarDeOmDeQuemTemPapelElevadoDeixaARevisaoPendente() {
-        var alvo = existente(2L, "BAGL", PapelEnum.ELB, PapelEnum.APR_OM);
+    void trocarDeOmDeQuemTemPerfilElevadoDeixaARevisaoPendente() {
+        var alvo = existente(2L, "BAGL", PerfilEnum.ELB, PerfilEnum.APR_OM);
         alvo.setDtRevisaoAcesso(java.sql.Timestamp.from(java.time.Instant.now()));
         prepararEdicao(alvo, "BABE");
 
-        service.atualizar(2L, edicao(PapelEnum.ELB, PapelEnum.APR_OM));
+        service.atualizar(2L, edicao(PerfilEnum.ELB, PerfilEnum.APR_OM));
 
         assertThat(alvo.getDtRevisaoAcesso()).isNull();
     }
 
     @Test
     void trocarDeOmDeQuemSoEEditorNaoGeraPendencia() {
-        var alvo = existente(2L, "BAGL", PapelEnum.ELB);
+        var alvo = existente(2L, "BAGL", PerfilEnum.ELB);
         var revisao = java.sql.Timestamp.valueOf("2026-01-01 00:00:00");
         alvo.setDtRevisaoAcesso(revisao);
         prepararEdicao(alvo, "BABE");
 
-        service.atualizar(2L, edicao(PapelEnum.ELB));
+        service.atualizar(2L, edicao(PerfilEnum.ELB));
 
         assertThat(alvo.getDtRevisaoAcesso()).isEqualTo(revisao);
     }
 
     @Test
-    void concederUmPapelElevadoNovoReiniciaOPrazoDaRevisao() {
-        var alvo = existente(2L, "BAGL", PapelEnum.ELB);
+    void concederUmPerfilElevadoNovoReiniciaOPrazoDaRevisao() {
+        var alvo = existente(2L, "BAGL", PerfilEnum.ELB);
         alvo.setDtRevisaoAcesso(java.sql.Timestamp.valueOf("2020-01-01 00:00:00"));
         prepararEdicao(alvo, "BAGL");
 
-        service.atualizar(2L, edicao(PapelEnum.ELB, PapelEnum.APR_OM));
+        service.atualizar(2L, edicao(PerfilEnum.ELB, PerfilEnum.APR_OM));
 
         assertThat(alvo.getDtRevisaoAcesso()).isAfter(java.sql.Timestamp.valueOf("2026-01-01 00:00:00"));
     }
 
     @Test
     void editarSemMudarOAcessoNaoMexeNaDataDaRevisao() {
-        var alvo = existente(2L, "BAGL", PapelEnum.ELB, PapelEnum.APR_OM);
+        var alvo = existente(2L, "BAGL", PerfilEnum.ELB, PerfilEnum.APR_OM);
         var revisao = java.sql.Timestamp.valueOf("2026-03-01 00:00:00");
         alvo.setDtRevisaoAcesso(revisao);
         prepararEdicao(alvo, "BAGL");
 
-        service.atualizar(2L, edicao(PapelEnum.ELB, PapelEnum.APR_OM));
+        service.atualizar(2L, edicao(PerfilEnum.ELB, PerfilEnum.APR_OM));
 
         assertThat(alvo.getDtRevisaoAcesso()).isEqualTo(revisao);
     }
@@ -285,12 +285,12 @@ class UsuarioServiceTest {
     // ─── O CENDOC nunca fica sem administrador geral ─────────────────────────
 
     @Test
-    void naoSeRetiraOPapelDeAdminDoUltimoAdminGeral() {
-        var alvo = existente(2L, "CENDOC", PapelEnum.ELB, PapelEnum.ADM_GER);
+    void naoSeRetiraOPerfilDeAdminDoUltimoAdminGeral() {
+        var alvo = existente(2L, "CENDOC", PerfilEnum.ELB, PerfilEnum.ADM_GER);
         prepararEdicao(alvo, "CENDOC");
-        when(usuarioRepository.contarAtivosComPapel(PapelEnum.ADM_GER)).thenReturn(1L);
+        when(usuarioRepository.contarAtivosComPerfil(PerfilEnum.ADM_GER)).thenReturn(1L);
 
-        assertThatThrownBy(() -> service.atualizar(2L, edicao(PapelEnum.ELB)))
+        assertThatThrownBy(() -> service.atualizar(2L, edicao(PerfilEnum.ELB)))
                 .isInstanceOf(intraer.fablegis.domain.handlers.exceptions.OperacaoNaoAutorizadaException.class)
                 .hasMessageContaining("Administrador Geral");
         verify(usuarioRepository, never()).save(any());
@@ -298,22 +298,22 @@ class UsuarioServiceTest {
 
     @Test
     void naoSeMudaDeOmOUltimoAdminGeral() {
-        var alvo = existente(2L, "CENDOC", PapelEnum.ELB, PapelEnum.ADM_GER);
+        var alvo = existente(2L, "CENDOC", PerfilEnum.ELB, PerfilEnum.ADM_GER);
         prepararEdicao(alvo, "BAGL");
-        when(usuarioRepository.contarAtivosComPapel(PapelEnum.ADM_GER)).thenReturn(1L);
+        when(usuarioRepository.contarAtivosComPerfil(PerfilEnum.ADM_GER)).thenReturn(1L);
 
-        assertThatThrownBy(() -> service.atualizar(2L, edicao(PapelEnum.ELB, PapelEnum.ADM_OM)))
+        assertThatThrownBy(() -> service.atualizar(2L, edicao(PerfilEnum.ELB, PerfilEnum.ADM_OM)))
                 .isInstanceOf(intraer.fablegis.domain.handlers.exceptions.OperacaoNaoAutorizadaException.class);
     }
 
     @Test
     void comOutroAdminGeralAtivoPodeSerRetirado() {
-        var alvo = existente(2L, "CENDOC", PapelEnum.ELB, PapelEnum.ADM_GER);
+        var alvo = existente(2L, "CENDOC", PerfilEnum.ELB, PerfilEnum.ADM_GER);
         prepararEdicao(alvo, "CENDOC");
-        when(usuarioRepository.contarAtivosComPapel(PapelEnum.ADM_GER)).thenReturn(2L);
+        when(usuarioRepository.contarAtivosComPerfil(PerfilEnum.ADM_GER)).thenReturn(2L);
 
-        service.atualizar(2L, edicao(PapelEnum.ELB));
+        service.atualizar(2L, edicao(PerfilEnum.ELB));
 
-        assertThat(alvo.getPapeis()).doesNotContain(PapelEnum.ADM_OM);
+        assertThat(alvo.getPerfis()).doesNotContain(PerfilEnum.ADM_OM);
     }
 }

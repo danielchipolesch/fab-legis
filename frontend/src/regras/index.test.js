@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { MODULOS, moduloDe, moduloDoDocumento, perfilDe } from './index.js'
+import { MODULOS, moduloDe, moduloDoDocumento, regrasDe } from './index.js'
 
 // Módulos do sistema: um por tipo de espécie (NSCA 5-3) -- Espécies Convencionais e Comunicações Oficiais Padronizadas (NPA).
 describe('módulos', () => {
@@ -14,9 +14,9 @@ describe('módulos', () => {
     expect(moduloDoDocumento({ tipo_de_especie: 'CONVENCIONAL' }).rota).toBe('modulo-convencionais')
   })
 
-  it('sem tipo informado cai no módulo convencional, como o perfil', () => {
+  it('sem tipo informado cai no módulo convencional, como as regras', () => {
     expect(moduloDoDocumento(null).tipoDeEspecie).toBe('CONVENCIONAL')
-    expect(moduloDe(undefined)).toBe(perfilDe('CONVENCIONAL').modulo)
+    expect(moduloDe(undefined)).toBe(regrasDe('CONVENCIONAL').modulo)
   })
 
   it('as opções do botão Criar do hub são só o nome da espécie, sem o verbo', () => {
@@ -31,16 +31,16 @@ describe('módulos', () => {
   })
 })
 
-// O rótulo do anexo de imagem vem do perfil da espécie -- o mesmo que o PDF (RotuloDosAnexos, backend) -- e é o que a
+// O rótulo do anexo de imagem vem das regras da espécie -- o mesmo que o PDF (RotuloDosAnexos, backend) -- e é o que a
 // lista de anexos da barra lateral mostra: romano nas convencionais (o ANEXO I é o corpo normativo) e letras na NPA.
-describe('rótulo do anexo por perfil', () => {
+describe('rótulo do anexo por espécie', () => {
   it('espécie convencional: ANEXO II, III, IV…', () => {
-    const { rotuloDoAnexo } = perfilDe('CONVENCIONAL')
+    const { rotuloDoAnexo } = regrasDe('CONVENCIONAL')
     expect([1, 2, 3, 8, 13].map(rotuloDoAnexo)).toEqual(['ANEXO II', 'ANEXO III', 'ANEXO IV', 'ANEXO IX', 'ANEXO XIV'])
   })
 
   it('NPA: ANEXO A, B, C… e AA depois do Z', () => {
-    const { rotuloDoAnexo } = perfilDe('COMUNICACAO_OFICIAL_PADRONIZADA')
+    const { rotuloDoAnexo } = regrasDe('COMUNICACAO_OFICIAL_PADRONIZADA')
     expect([1, 2, 3, 26, 27].map(rotuloDoAnexo)).toEqual(['ANEXO A', 'ANEXO B', 'ANEXO C', 'ANEXO Z', 'ANEXO AA'])
   })
 })

@@ -1,6 +1,6 @@
 package intraer.fablegis.infrastructure.repositories;
 
-import intraer.fablegis.domain.entities.usuario.PapelEnum;
+import intraer.fablegis.domain.entities.usuario.PerfilEnum;
 import intraer.fablegis.domain.entities.usuario.Usuario;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -20,23 +20,23 @@ public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
     Optional<Usuario> findByCpf(String cpf);
     boolean existsByCpf(String cpf);
 
-    // Quem tem o papel (ativo, de verdade): destinatário dos avisos de "aguardando publicação" -- o papel PUBLIC só existe no CENDOC.
-    @Query("SELECT DISTINCT u FROM Usuario u JOIN u.papeis p WHERE u.ativo = true AND u.sistema = false AND p = :papel ORDER BY u.nome")
-    List<Usuario> findAtivosByPapel(@Param("papel") PapelEnum papel);
+    // Quem tem o perfil (ativo, de verdade): destinatário dos avisos de "aguardando publicação" -- o perfil PUBLIC só existe no CENDOC.
+    @Query("SELECT DISTINCT u FROM Usuario u JOIN u.perfis p WHERE u.ativo = true AND u.sistema = false AND p = :perfil ORDER BY u.nome")
+    List<Usuario> findAtivosByPerfil(@Param("perfil") PerfilEnum perfil);
 
     // Quantos usuários ativos têm o perfil: garante que o CENDOC nunca fique sem Administrador Geral (ADM_GER).
-    @Query("SELECT COUNT(DISTINCT u) FROM Usuario u JOIN u.papeis p WHERE u.ativo = true AND u.sistema = false AND p = :papel")
-    long contarAtivosComPapel(@Param("papel") PapelEnum papel);
+    @Query("SELECT COUNT(DISTINCT u) FROM Usuario u JOIN u.perfis p WHERE u.ativo = true AND u.sistema = false AND p = :perfil")
+    long contarAtivosComPerfil(@Param("perfil") PerfilEnum perfil);
 
-    // Os aprovadores ativos de uma OM (papel APROV): destinatários do aviso de "aguardando aprovação" (DocumentoStatusService) --
+    // Os aprovadores ativos de uma OM (perfil APROV): destinatários do aviso de "aguardando aprovação" (DocumentoStatusService) --
     // sempre restrito à OM do documento, nunca cross-OM.
     @Query("""
-            SELECT DISTINCT u FROM Usuario u JOIN u.papeis p
+            SELECT DISTINCT u FROM Usuario u JOIN u.perfis p
             WHERE u.ativo = true AND u.sistema = false
-              AND p = :papel AND u.om.id = :omId
+              AND p = :perfil AND u.om.id = :omId
             ORDER BY u.nome
             """)
-    List<Usuario> findByOmIdAndPapel(@Param("omId") Long omId, @Param("papel") PapelEnum papel);
+    List<Usuario> findByOmIdAndPerfil(@Param("omId") Long omId, @Param("perfil") PerfilEnum perfil);
 
     // Busca de coautor por nome/nome de guerra -- deliberadamente SEM filtro de OM:
     // coautoria não é restrita à OM do autor (ver DocumentoCompartilhamentoService),

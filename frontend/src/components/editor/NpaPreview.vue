@@ -43,7 +43,7 @@
 <script setup>
 import { ref, computed, watch, nextTick, onMounted, onUnmounted, onUpdated } from 'vue'
 import { conteudoParaHtml } from '@/editor/conteudoParaHtml.js'
-import { cabecalho, letraDoAnexo } from '@/perfis/npa.js'
+import { cabecalho, letraDoAnexo } from '@/regras/npa.js'
 import { paginar } from '@/utils/paginacaoDaNpa.js'
 import { exibeSeloRevogado } from '@/utils/fluxoDocumento.js'
 import { resolveMinioUrls } from '@/utils/minioUrls.js'
@@ -52,7 +52,7 @@ import NpaCabecalho from '@/components/editor/NpaCabecalho.vue'
 import NpaBloco from '@/components/editor/NpaBloco.vue'
 
 // Prévia da NPA: o mesmo conteúdo do PDF (cabeçalho, corpo numerado pelo caminho, fecho e assinaturas) e os mesmos
-// textos -- todos calculados por perfis/npa.js, espelho de CabecalhoDaNpa (backend). Só a diagramação é da tela.
+// textos -- todos calculados por regras/npa.js, espelho de CabecalhoDaNpa (backend). Só a diagramação é da tela.
 
 const props = defineProps({
   documento:         { type: Object, default: null },

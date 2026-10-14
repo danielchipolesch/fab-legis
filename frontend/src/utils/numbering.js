@@ -1,4 +1,4 @@
-import { rotulo as rotuloNpa, rotuloDoCorpo as rotuloDoCorpoNpa } from '@/perfis/npa.js'
+import { rotulo as rotuloNpa, rotuloDoCorpo as rotuloDoCorpoNpa } from '@/regras/npa.js'
 
 export function toRoman(n) {
   const vals = [1000,900,500,400,100,90,50,40,10,9,5,4,1]
@@ -33,7 +33,7 @@ function ordinalWithLetra(n, letra) {
   return `${comSeparadorMilhar(n)}-${letra}.`
 }
 
-// Elemento numerado pelas regras da NPA (`_caminho`, ver perfis/npa.js): rótulo pelo caminho (1, 1.1, a)).
+// Elemento numerado pelas regras da NPA (`_caminho`, ver regras/npa.js): rótulo pelo caminho (1, 1.1, a)).
 export function formatLabel(element) {
   if (element._caminho != null) return rotuloNpa(element)
   const letra = element._emendaLetra ?? null

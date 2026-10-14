@@ -26,7 +26,7 @@
 
       <q-separator vertical style="height:36px" />
 
-      <q-btn v-if="perfil.permiteAlteracao" outline color="primary" size="sm"
+      <q-btn v-if="regras.permiteAlteracao" outline color="primary" size="sm"
         :to="{ name: 'documento-comparar', params: { id: documentoId } }">
         <q-icon left name="mdi-source-branch" />
         Versões
@@ -132,19 +132,19 @@
                       <div class="info-label">Título</div>
                       <div class="info-value">{{ documento.titulo || '—' }}</div>
                     </div>
-                    <div v-if="!perfil.ehNpa" class="col-12">
+                    <div v-if="!regras.ehNpa" class="col-12">
                       <div class="info-label">Assunto Básico</div>
                       <div class="info-value">{{ documento.assunto_basico || '—' }}</div>
                     </div>
                     <div class="col-6">
-                      <div class="info-label">{{ perfil.ehNpa ? 'Situação (Boletim Interno)' : 'Situação BCA' }}</div>
+                      <div class="info-label">{{ regras.ehNpa ? 'Situação (Boletim Interno)' : 'Situação BCA' }}</div>
                       <StatusBadge :situacao-bca="documento.situacao_bca" mostrar="bca" class="q-mt-xs" data-testid="info-situacao-bca" />
                     </div>
                     <div class="col-6">
                       <div class="info-label">Situação Local</div>
                       <StatusBadge :situacao-local="documento.situacao_local" mostrar="local" class="q-mt-xs" data-testid="info-situacao-local" />
                     </div>
-                    <div v-if="perfil.ehNpa && documento.bca_referencia" class="col-12">
+                    <div v-if="regras.ehNpa && documento.bca_referencia" class="col-12">
                       <div class="info-label">Publicação</div>
                       <div class="info-value">{{ documento.bca_referencia }}</div>
                     </div>
@@ -208,7 +208,7 @@
 
         <!-- 2. Portarias (edição, alterações e revogação -- fechada por padrão). A NPA não tem portaria:
              é publicada e revogada no Boletim Interno (ver "Publicação" acima). -->
-        <q-card v-if="!perfil.ehNpa" flat class="section-card">
+        <q-card v-if="!regras.ehNpa" flat class="section-card">
           <q-expansion-item
             v-model="expanded.portarias"
             icon="mdi-file-certificate-outline"
@@ -420,7 +420,7 @@ import { gerarPdf, gerarHtml, buscarPdfBlob } from '@/services/pdfService.js'
 import { gerarTextoSugeridoPortaria } from '@/utils/textoSugeridoPortaria.js'
 import { resolveMinioUrls } from '@/utils/minioUrls.js'
 import BotaoBaixarVersao from '@/components/common/BotaoBaixarVersao.vue'
-import { perfilDoDocumento, moduloDoDocumento } from '@/perfis/index.js'
+import { regrasDoDocumento, moduloDoDocumento } from '@/regras/index.js'
 import { getSubstituicao } from '@/api/documentos.js'
 import { itensRenumeracaoUnico } from '@/utils/numbering.js'
 import {
@@ -446,8 +446,8 @@ const expanded = reactive({
 
 const documentoId = computed(() => route.params.id)
 const documento   = computed(() => docStore.getById(documentoId.value))
-// As regras da espécie do documento (perfis/index.js): o que a tela mostra varia por espécie.
-const perfil      = computed(() => perfilDoDocumento(documento.value))
+// As regras da espécie do documento (regras/index.js): o que a tela mostra varia por espécie.
+const regras      = computed(() => regrasDoDocumento(documento.value))
 
 // Versão exibida no iframe: a em tramitação (se houver) é a padrão; senão, a vigente. O PDF só
 // é buscado com a seção aberta: a versão em tramitação é renderizada na hora pelo backend quando
@@ -638,11 +638,11 @@ const substituicao = ref(null)
 
 // Visível para quem pode criar NPA (perfil ELB e OM habilitada, como no Clonar) e só numa NPA publicada e parada.
 const podeSubstituirEste = computed(() =>
-  podeSubstituir(documento.value, perfil.value) && auth.isElaborador && auth.podeCriarNoModulo(perfil.value.tipo))
+  podeSubstituir(documento.value, regras.value) && auth.isElaborador && auth.podeCriarNoModulo(regras.value.tipo))
 
 async function carregarSubstituicao() {
   substituicao.value = null
-  if (!perfil.value.permiteSubstituicao) return
+  if (!regras.value.permiteSubstituicao) return
   try {
     substituicao.value = await getSubstituicao(documentoId.value)
   } catch {

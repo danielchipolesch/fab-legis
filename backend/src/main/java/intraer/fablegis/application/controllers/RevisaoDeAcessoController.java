@@ -30,6 +30,6 @@ public class RevisaoDeAcessoController {
     @PostMapping("/{usuarioId}")
     public ResponseEntity<UsuarioResponseDto> revisar(@PathVariable Long usuarioId,
                                                               @RequestBody @Valid RevisaoDeAcessoRequestDto pedido) {
-        return ResponseEntity.ok(revisaoDeAcessoService.revisar(usuarioId, pedido.papeis()));
+        return ResponseEntity.ok(revisaoDeAcessoService.revisar(usuarioId, pedido.perfis()));
     }
 }

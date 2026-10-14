@@ -130,7 +130,7 @@ import { ref, computed } from 'vue'
 import { useAuthStore } from '@/stores/auth.js'
 import PainelCard from '@/components/hub/PainelCard.vue'
 import DetalhesDoDocumentoDialog from '@/components/hub/DetalhesDoDocumentoDialog.vue'
-import { MODULOS } from '@/perfis/index.js'
+import { MODULOS } from '@/regras/index.js'
 
 // O hub, a tela inicial do sistema: três cards do trabalho da pessoa (de qualquer módulo) e, embaixo, o acesso a cada
 // módulo. Nada aqui altera um documento -- as ações acontecem nos módulos, nas telas de Revisão/Publicação ou no editor.

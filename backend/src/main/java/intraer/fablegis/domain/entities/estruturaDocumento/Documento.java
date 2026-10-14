@@ -145,7 +145,7 @@ public class Documento extends RepresentationModel<Documento> {
     @EqualsAndHashCode.Exclude
     private Documento documentoSubstituido;
 
-    // Pessoa específica (papel APROV) escolhida por quem enviou para revisão -- só ela
+    // Pessoa específica (perfil APROV) escolhida por quem enviou para revisão -- só ela
     // pode agir no documento enquanto ele estiver em EM_REVISAO/ANALISE_REVOGACAO (ver
     // DocumentoAcessoService.podeMudarStatus). Reaproveitado nas duas etapas de revisão
     // (fluxo normal e revogação), sempre sobrescrito a cada novo envio.
@@ -153,7 +153,7 @@ public class Documento extends RepresentationModel<Documento> {
     @JoinColumn(name = "aprovador_id")
     private Usuario aprovador;
 
-    // Pessoa específica (papel PUBLIC) escolhida pelo APROV ao aprovar -- só ela pode
+    // Pessoa específica (perfil PUBLIC) escolhida pelo APROV ao aprovar -- só ela pode
     // agir no documento enquanto ele estiver em EM_PUBLICACAO/EM_REVOGACAO. Mesmo
     // padrão de aprovador, reaproveitado nas duas etapas de publicação.
     @ManyToOne(fetch = FetchType.EAGER)

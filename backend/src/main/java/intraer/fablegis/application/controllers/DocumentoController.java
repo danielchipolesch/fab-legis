@@ -110,7 +110,7 @@ public class DocumentoController {
         );
     }
 
-    // Criar (e clonar, que cria uma cópia nova) exige o papel EDIT -- ver PapelEnum.
+    // Criar (e clonar, que cria uma cópia nova) exige o perfil EDIT -- ver PerfilEnum.
     // Nenhuma outra regra de posse se aplica aqui (não há documento prévio do
     // usuário a checar), então a authority sozinha já basta.
     @PreAuthorize("hasRole('ELB')")
@@ -131,7 +131,7 @@ public class DocumentoController {
         return ResponseEntity.status(HttpStatus.CREATED).body(toModel(dto));
     }
 
-    // "Substituir" (NPA publicada): cria a NPA nova, ligada à substituída. Criar um documento exige o papel EDIT (e a OM
+    // "Substituir" (NPA publicada): cria a NPA nova, ligada à substituída. Criar um documento exige o perfil EDIT (e a OM
     // habilitada, se a espécie pedir), como clonar.
     @PreAuthorize("hasRole('ELB')")
     @PostMapping("{id}/substituir")

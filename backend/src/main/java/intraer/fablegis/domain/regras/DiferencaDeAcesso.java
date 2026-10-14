@@ -1,7 +1,7 @@
 package intraer.fablegis.domain.regras;
 
 import intraer.fablegis.domain.entities.auditoria.AcaoDeAcessoEnum;
-import intraer.fablegis.domain.entities.usuario.PapelEnum;
+import intraer.fablegis.domain.entities.usuario.PerfilEnum;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -18,25 +18,25 @@ public final class DiferencaDeAcesso {
     public record Evento(AcaoDeAcessoEnum acao, String detalhe) {}
 
     // O estado de acesso de um usuário num instante.
-    public record Estado(Set<PapelEnum> papeis, boolean ativo, String omSigla) {}
+    public record Estado(Set<PerfilEnum> perfis, boolean ativo, String omSigla) {}
 
     private DiferencaDeAcesso() {}
 
     public static List<Evento> entre(Estado antes, Estado depois) {
         var eventos = new ArrayList<Evento>();
 
-        Set<PapelEnum> concedidos = EnumSet.noneOf(PapelEnum.class);
-        concedidos.addAll(depois.papeis());
-        concedidos.removeAll(antes.papeis());
-        Set<PapelEnum> retirados = EnumSet.noneOf(PapelEnum.class);
-        retirados.addAll(antes.papeis());
-        retirados.removeAll(depois.papeis());
+        Set<PerfilEnum> concedidos = EnumSet.noneOf(PerfilEnum.class);
+        concedidos.addAll(depois.perfis());
+        concedidos.removeAll(antes.perfis());
+        Set<PerfilEnum> retirados = EnumSet.noneOf(PerfilEnum.class);
+        retirados.addAll(antes.perfis());
+        retirados.removeAll(depois.perfis());
         if (!concedidos.isEmpty() || !retirados.isEmpty()) {
             var partes = new ArrayList<String>();
             if (!concedidos.isEmpty()) partes.add("Concedido(s): " + lista(concedidos));
             if (!retirados.isEmpty()) partes.add("Retirado(s): " + lista(retirados));
-            eventos.add(new Evento(AcaoDeAcessoEnum.ALTEROU_PAPEIS,
-                    String.join(". ", partes) + ". Perfis agora: " + lista(depois.papeis())));
+            eventos.add(new Evento(AcaoDeAcessoEnum.ALTEROU_PERFIS,
+                    String.join(". ", partes) + ". Perfis agora: " + lista(depois.perfis())));
         }
 
         if (antes.ativo() != depois.ativo()) {
@@ -50,8 +50,8 @@ public final class DiferencaDeAcesso {
     }
 
     // Os perfis em ordem alfabética, ou "nenhum".
-    public static String lista(Set<PapelEnum> papeis) {
-        if (papeis == null || papeis.isEmpty()) return "nenhum";
-        return papeis.stream().sorted(Comparator.comparing(Enum::name)).map(Enum::name).collect(Collectors.joining(", "));
+    public static String lista(Set<PerfilEnum> perfis) {
+        if (perfis == null || perfis.isEmpty()) return "nenhum";
+        return perfis.stream().sorted(Comparator.comparing(Enum::name)).map(Enum::name).collect(Collectors.joining(", "));
     }
 }

@@ -443,7 +443,7 @@ Os testes de integração (PostgreSQL de verdade via Testcontainers, precisam de
 O desenvolvimento ocorre na branch **`desenvolvimento`**. Ao contribuir:
 
 1. Crie sua branch a partir de `desenvolvimento`;
-2. Mantenha o padrão de camadas do backend e a separação de responsabilidades do frontend (ver [Arquitetura](docs/arquitetura.md)); o que varia por espécie normativa entra por interface (`domain.regras` no backend, `frontend/src/perfis/` no frontend), nunca por `if` na sigla da espécie;
+2. Mantenha o padrão de camadas do backend e a separação de responsabilidades do frontend (ver [Arquitetura](docs/arquitetura.md)); o que varia por espécie normativa entra por interface (`domain.regras` no backend, `frontend/src/regras/` no frontend), nunca por `if` na sigla da espécie;
 3. Mudou uma regra de negócio? Atualize na mesma tarefa o **teste unitário** correspondente e a **página de `docs/`** que a descreve — as convenções (linguagem ubíqua em português para o domínio, consistência entre PDF, HTML e prévia) estão no [`CLAUDE.md`](CLAUDE.md);
 4. Escreva mensagens de commit descritivas em português;
 5. Abra um Pull Request para `desenvolvimento`.

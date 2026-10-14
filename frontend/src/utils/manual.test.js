@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { slugDeTitulo, slugDaPagina, secoesDe, montarPaginas, nomesDosPerfis, ehParaMim, buscarNoManual } from './manual.js'
 import { renderizarManual } from './manualMarkdown.js'
-import { PAPEIS } from './papeis.js'
+import { PERFIS } from './perfis.js'
 
 const arquivos = {
   '/src/manual/02-segunda.md': '<!-- perfis: ELB APR_OM -->\n# Segunda página\n\nIntrodução da segunda.\n\n## Aprovar um documento\n\nO **Aprovador da OM** decide.\n\n## Publicação\n\nSó no CENDOC.',
@@ -107,7 +107,7 @@ describe('manual: o conteúdo de verdade', () => {
   })
 
   it('os perfis citados existem', () => {
-    for (const p of paginas) for (const codigo of p.perfis) expect(PAPEIS[codigo], `${p.slug}: ${codigo}`).toBeTruthy()
+    for (const p of paginas) for (const codigo of p.perfis) expect(PERFIS[codigo], `${p.slug}: ${codigo}`).toBeTruthy()
   })
 
   it('todo link entre páginas aponta para uma página e uma seção que existem', () => {
@@ -129,7 +129,7 @@ describe('manual: o conteúdo de verdade', () => {
 
 describe('manual: a ajuda de cada tela', () => {
   // Cada rota (e cada módulo) diz em `manual` a página (e a seção) do manual que a explica: 'pagina' ou 'pagina#secao'.
-  const fontes = import.meta.glob(['../router/index.js', '../perfis/index.js'], { query: '?raw', import: 'default', eager: true })
+  const fontes = import.meta.glob(['../router/index.js', '../regras/index.js'], { query: '?raw', import: 'default', eager: true })
   const brutos = import.meta.glob('../manual/*.md', { query: '?raw', import: 'default', eager: true })
   const paginas = montarPaginas(brutos)
   const referencias = Object.values(fontes).flatMap(texto => [...texto.matchAll(/manual: '([^']+)'/g)].map(m => m[1]))

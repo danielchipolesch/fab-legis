@@ -160,7 +160,7 @@ A OM é decidida no servidor: o Painel Gerencial Geral usa `omId` (ausente = tod
 
 | Método | Rota | Descrição |
 |---|---|---|
-| `POST` | `/{usuarioId}` | Devolve o usuário atualizado. Resultado da revisão `{ "papeis": [...] }`: os perfis que a pessoa **mantém** (os elevados ausentes são retirados; incluir um perfil que ela não tem → 406). Quem não a revisa, ou a si mesmo → 403. Grava a data e registra a revisão na auditoria de acessos |
+| `POST` | `/{usuarioId}` | Devolve o usuário atualizado. Resultado da revisão `{ "perfis": [...] }`: os perfis que a pessoa **mantém** (os elevados ausentes são retirados; incluir um perfil que ela não tem → 406). Quem não a revisa, ou a si mesmo → 403. Grava a data e registra a revisão na auditoria de acessos |
 
 Ver [Revisão periódica de acessos](autenticacao.md#revisão-periódica-de-acessos).
 

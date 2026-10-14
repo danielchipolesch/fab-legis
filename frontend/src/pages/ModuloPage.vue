@@ -563,9 +563,9 @@ import { gerarPdf } from '@/services/pdfService.js'
 import { listEspeciesNormativas, normalizeEspecie } from '@/api/referencias.js'
 import { SITUACAO_BCA_META, SITUACAO_LOCAL_META } from '@/utils/statusDocumento.js'
 import { rotaBuscaConteudo } from '@/utils/buscaTextual.js'
-import { perfilDoDocumento, moduloDe } from '@/perfis/index.js'
+import { regrasDoDocumento, moduloDe } from '@/regras/index.js'
 
-// A tela é a mesma para todos os módulos (perfis/index.js): o tipo de espécie, vindo da rota, decide quais documentos
+// A tela é a mesma para todos os módulos (regras/index.js): o tipo de espécie, vindo da rota, decide quais documentos
 // entram, as colunas e os rótulos. Nunca se testa a sigla da espécie aqui.
 const props = defineProps({
   tipoDeEspecie: { type: String, required: true },
@@ -819,8 +819,8 @@ function statusActions(doc) {
       ]
     case 'SEM_ETAPA':
       return publicado ? [
-        // A NPA não tem alteração: para mudá-la cria-se outra e revoga-se a anterior (perfis/index.js).
-        ...(auth.isAprovador && perfilDoDocumento(doc).permiteAlteracao ? [{ destino: 'EM_ALTERACAO', label: 'Iniciar Alteração', icon: 'mdi-pencil-lock-outline', rotuloDestino: 'Em Alteração' }] : []),
+        // A NPA não tem alteração: para mudá-la cria-se outra e revoga-se a anterior (regras/index.js).
+        ...(auth.isAprovador && regrasDoDocumento(doc).permiteAlteracao ? [{ destino: 'EM_ALTERACAO', label: 'Iniciar Alteração', icon: 'mdi-pencil-lock-outline', rotuloDestino: 'Em Alteração' }] : []),
         ...(auth.isElaborador ? [{
           destino: 'ANALISE_REVOGACAO', label: 'Enviar para Revogação', icon: 'mdi-file-remove-outline',
           descricao: 'terá a revogação enviada para análise: qualquer aprovador da OM poderá aprová-la ou recusá-la. Ninguém precisa ser escolhido.',

@@ -1,7 +1,7 @@
 package intraer.fablegis.application.controllers;
 
 import intraer.fablegis.IntegracaoComPostgresBase;
-import intraer.fablegis.domain.entities.usuario.PapelEnum;
+import intraer.fablegis.domain.entities.usuario.PerfilEnum;
 import intraer.fablegis.domain.entities.usuario.Usuario;
 import intraer.fablegis.infrastructure.repositories.EspecieNormativaRepository;
 import intraer.fablegis.infrastructure.repositories.OrganizacaoMilitarRepository;
@@ -57,16 +57,16 @@ class EnvioParaAprovacaoIntegracaoTest extends IntegracaoComPostgresBase {
         return usuarioRepository.findAll().stream().filter(u -> !u.isSistema()).findFirst().orElseThrow();
     }
 
-    private Usuario pessoa(String sigla, String cpf, PapelEnum... papeis) {
+    private Usuario pessoa(String sigla, String cpf, PerfilEnum... perfis) {
         return usuarioRepository.findByCpf(cpf).orElseGet(() -> {
             var u = new Usuario();
             u.setNome("Pessoa " + cpf);
             u.setCpf(cpf);
             u.setSenhaHash("{noop}x");
             u.setOm(omRepository.findBySigla(sigla).orElseThrow());
-            var conjunto = EnumSet.noneOf(PapelEnum.class);
-            conjunto.addAll(java.util.List.of(papeis));
-            u.setPapeis(conjunto);
+            var conjunto = EnumSet.noneOf(PerfilEnum.class);
+            conjunto.addAll(java.util.List.of(perfis));
+            u.setPerfis(conjunto);
             return usuarioRepository.save(u);
         });
     }
@@ -95,8 +95,8 @@ class EnvioParaAprovacaoIntegracaoTest extends IntegracaoComPostgresBase {
     @Test
     void enviarParaAprovacaoNaoEscolheNinguemEQualquerAprovadorDaOmAprova() throws Exception {
         long id = novaNpaMinutada("NPA-APROV-01");
-        var aprovador = pessoa("CENDOC", CPF_APROVADOR, PapelEnum.ELB, PapelEnum.APR_OM);
-        var deOutraOm = pessoa("EMAER", CPF_APROVADOR_DE_OUTRA_OM, PapelEnum.ELB, PapelEnum.APR_OM);
+        var aprovador = pessoa("CENDOC", CPF_APROVADOR, PerfilEnum.ELB, PerfilEnum.APR_OM);
+        var deOutraOm = pessoa("EMAER", CPF_APROVADOR_DE_OUTRA_OM, PerfilEnum.ELB, PerfilEnum.APR_OM);
 
         // sem revisorId nenhum: "Enviar para aprovação"
         mvc.perform(patch("/v1/documentos/" + id + "/status").with(como(autor())).contentType(MediaType.APPLICATION_JSON)
@@ -127,8 +127,8 @@ class EnvioParaAprovacaoIntegracaoTest extends IntegracaoComPostgresBase {
     @Test
     void qualquerPublicadorVeAFilaDePublicacaoESoOPublicadorVe() throws Exception {
         long id = novaNpaMinutada("NPA-APROV-02");
-        var aprovador = pessoa("CENDOC", CPF_APROVADOR, PapelEnum.ELB, PapelEnum.APR_OM);
-        var publicador = pessoa("CENDOC", CPF_PUBLICADOR, PapelEnum.ELB, PapelEnum.PUB_BCA);
+        var aprovador = pessoa("CENDOC", CPF_APROVADOR, PerfilEnum.ELB, PerfilEnum.APR_OM);
+        var publicador = pessoa("CENDOC", CPF_PUBLICADOR, PerfilEnum.ELB, PerfilEnum.PUB_BCA);
         mvc.perform(patch("/v1/documentos/" + id + "/status").with(como(autor())).contentType(MediaType.APPLICATION_JSON)
                         .content("{\"situacaoLocal\":\"EM_REVISAO\"}"))
                 .andExpect(status().isOk());

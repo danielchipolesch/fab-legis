@@ -51,7 +51,7 @@ intraer.fablegis
 │   │   │                            Anexo, EmendaHistorico, DocumentoCompartilhamento,
 │   │   │                            PortariaPublicacao + enums
 │   │   ├── numeracaoDocumento/   ← EspecieNormativa, AssuntoBasico
-│   │   ├── usuario/              ← Usuario, OrganizacaoMilitar, PapelEnum
+│   │   ├── usuario/              ← Usuario, OrganizacaoMilitar, PerfilEnum
 │   │   ├── auditoria/             ← LogAuditoria, AcaoAuditoriaEnum
 │   │   └── notificacao/           ← Notificacao, TipoNotificacaoEnum
 │   ├── services/          ← Regras de negócio (DocumentoService, DocumentoStatusService,
@@ -120,7 +120,7 @@ frontend/src
 │   ├── hub/        ← PainelCard, DetalhesDoDocumentoDialog, EtapasDoCiclo (tela inicial)
 │   └── common/     ← AppTopBar (menu de usuário, sino de notificações),
 │                      StatusBadge, NewDocumentDialog
-├── perfis/         ← as regras que variam por espécie no frontend (hierarquia dos elementos,
+├── regras/         ← as regras que variam por espécie no frontend (hierarquia dos elementos,
 │                      numeração, cabeçalho da NPA), escolhidas pelo `tipoDeEspecie` que o backend
 │                      informa: espelho das interfaces de `domain.regras` (ver abaixo)
 ├── stores/         ← Pinia: auth (sessão) · documents (acervo) · editor (documento em edição)
@@ -134,7 +134,7 @@ frontend/src
 └── router/         ← Rotas SPA, com guarda de autenticação e de perfil (admin/auditor)
 ```
 
-**Perfis por espécie no frontend.** `perfis/index.js` entrega, para o `tipo_de_especie` de um documento, o perfil com o que a tela precisa decidir: `filhosPermitidos(tipoPai)` (menu "adicionar"), `rotuloDoAnexo(ordem)` (o rótulo do anexo: ANEXO II… nas convencionais, ANEXO A… na NPA; usado na barra lateral), `renumerar(elementos, documento)`, se admite promover/rebaixar, alteração e a ordem livre entre irmãos. `convencional.js` envolve `utils/numbering.js`; `npa.js` espelha `HierarquiaDeNpa`, `NumeracaoDeNpa` e `CabecalhoDaNpa` do backend — com os **mesmos cenários de teste** (`npa.test.js`), como já é a regra da numeração dos atos. Tela nenhuma testa a sigla da espécie.
+**Regras por espécie no frontend.** `regras/index.js` entrega, para o `tipo_de_especie` de um documento, as regras com o que a tela precisa decidir: `filhosPermitidos(tipoPai)` (menu "adicionar"), `rotuloDoAnexo(ordem)` (o rótulo do anexo: ANEXO II… nas convencionais, ANEXO A… na NPA; usado na barra lateral), `renumerar(elementos, documento)`, se admite promover/rebaixar, alteração e a ordem livre entre irmãos. `convencional.js` envolve `utils/numbering.js`; `npa.js` espelha `HierarquiaDeNpa`, `NumeracaoDeNpa` e `CabecalhoDaNpa` do backend — com os **mesmos cenários de teste** (`npa.test.js`), como já é a regra da numeração dos atos. Tela nenhuma testa a sigla da espécie.
 
 **Estado com Pinia — três stores complementares:**
 

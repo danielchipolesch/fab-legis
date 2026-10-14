@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { renumerarElementos, perfilDoDocumento } from '@/perfis/index.js'
+import { renumerarElementos, regrasDoDocumento } from '@/regras/index.js'
 import { removeById, findById, promoteType, demoteType, canDemoteSubtree, formatLabel } from '@/utils/numbering.js'
 import { idPersistido } from '@/api/documentos.js'
 import { useDocumentosStore } from './documentos.js'
@@ -131,7 +131,7 @@ export const useEditorStore = defineStore('editor', {
       // que já tem subgrupos), insere ANTES do primeiro subgrupo em vez de no final —
       // evita que ele apareça, na renderização, como se pertencesse ao último subgrupo.
       // Na NPA seção, subseção e parágrafo do mesmo pai dividem a sequência, em qualquer ordem: acrescenta no fim.
-      if (perfilDoDocumento(this.documento).conteudoAntesDosAgrupamentos
+      if (regrasDoDocumento(this.documento).conteudoAntesDosAgrupamentos
           && GROUPING_TYPES.has(parent.tipo) && !GROUPING_TYPES.has(tipo)) {
         const firstGroupIdx = filhosAtual.findIndex(f => GROUPING_TYPES.has(f.tipo))
         parent.filhos = firstGroupIdx === -1
@@ -272,7 +272,7 @@ export const useEditorStore = defineStore('editor', {
     },
 
     promote(id) {
-      if (!perfilDoDocumento(this.documento).permitePromoverRebaixar) return { ok: false, reason: 'nao-se-aplica' }
+      if (!regrasDoDocumento(this.documento).permitePromoverRebaixar) return { ok: false, reason: 'nao-se-aplica' }
       const normSecao = this.normativaSecao
       for (const secao of this.documento.secoes) {
         const result = promoteInTree(secao.elementos, id)
@@ -288,7 +288,7 @@ export const useEditorStore = defineStore('editor', {
     },
 
     demote(id) {
-      if (!perfilDoDocumento(this.documento).permitePromoverRebaixar) return { ok: false, reason: 'nao-se-aplica' }
+      if (!regrasDoDocumento(this.documento).permitePromoverRebaixar) return { ok: false, reason: 'nao-se-aplica' }
       const el = this.findElement(id)
       if (!el) return { ok: false }
       if (!canDemoteSubtree(el)) return { ok: false, reason: 'at-bottom' }
@@ -467,13 +467,13 @@ const VALID_MOVE_PARENT_TYPES_NPA = {
 }
 
 function regrasDeMoverPara(documento) {
-  return perfilDoDocumento(documento).ehNpa ? VALID_MOVE_PARENT_TYPES_NPA : VALID_MOVE_PARENT_TYPES
+  return regrasDoDocumento(documento).ehNpa ? VALID_MOVE_PARENT_TYPES_NPA : VALID_MOVE_PARENT_TYPES
 }
 
 // Na NPA seção, subseção e parágrafo dividem a mesma sequência e trocam de lugar livremente; nos atos normativos o conteúdo
 // vem antes dos agrupamentos. É a regra que moveUp/moveDown aplicam e que canMoveUp/canMoveDown (os botões) refletem.
 function trocaLivreDoDocumento(documento) {
-  return !perfilDoDocumento(documento).conteudoAntesDosAgrupamentos
+  return !regrasDoDocumento(documento).conteudoAntesDosAgrupamentos
 }
 
 function isSameOrDescendant(el, id) {

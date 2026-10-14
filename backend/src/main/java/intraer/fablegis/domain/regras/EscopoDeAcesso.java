@@ -1,6 +1,6 @@
 package intraer.fablegis.domain.regras;
 
-import intraer.fablegis.domain.entities.usuario.PapelEnum;
+import intraer.fablegis.domain.entities.usuario.PerfilEnum;
 import intraer.fablegis.domain.entities.usuario.Usuario;
 import intraer.fablegis.domain.handlers.exceptions.OperacaoNaoAutorizadaException;
 
@@ -19,8 +19,8 @@ public final class EscopoDeAcesso {
     public static final String OM_GERAL = "CENDOC";
 
     // Perfis que só existem lotados no CENDOC, e os que só existem fora dele.
-    public static final Set<PapelEnum> SO_NO_CENDOC = EnumSet.of(PapelEnum.PUB_BCA, PapelEnum.ADM_GER, PapelEnum.AUD_GER, PapelEnum.PNL_GER);
-    public static final Set<PapelEnum> SO_FORA_DO_CENDOC = EnumSet.of(PapelEnum.ADM_OM, PapelEnum.AUD_OM, PapelEnum.PNL_OM);
+    public static final Set<PerfilEnum> SO_NO_CENDOC = EnumSet.of(PerfilEnum.PUB_BCA, PerfilEnum.ADM_GER, PerfilEnum.AUD_GER, PerfilEnum.PNL_GER);
+    public static final Set<PerfilEnum> SO_FORA_DO_CENDOC = EnumSet.of(PerfilEnum.ADM_OM, PerfilEnum.AUD_OM, PerfilEnum.PNL_OM);
 
     private EscopoDeAcesso() {}
 
@@ -38,11 +38,11 @@ public final class EscopoDeAcesso {
     }
 
     public static boolean ehAdminGeral(Usuario usuario) {
-        return usuario.getPapeis().contains(PapelEnum.ADM_GER);
+        return usuario.getPerfis().contains(PerfilEnum.ADM_GER);
     }
 
     public static boolean ehAdminLocal(Usuario usuario) {
-        return usuario.getPapeis().contains(PapelEnum.ADM_OM);
+        return usuario.getPerfis().contains(PerfilEnum.ADM_OM);
     }
 
     // Administrador de qualquer escopo.
@@ -64,10 +64,10 @@ public final class EscopoDeAcesso {
     public static void exigirPodeAdministrar(Usuario ator, Usuario alvo) {
         if (ehAdminGeral(ator)) return;
         if (!mesmaOm(ator, alvo)) {
-            throw new OperacaoNaoAutorizadaException("O " + PapelEnum.ADM_OM.nome() + " só gerencia usuários da própria OM.");
+            throw new OperacaoNaoAutorizadaException("O " + PerfilEnum.ADM_OM.nome() + " só gerencia usuários da própria OM.");
         }
         if (ehAdmin(alvo)) {
-            throw new OperacaoNaoAutorizadaException("Os administradores são mantidos pelo " + PapelEnum.ADM_GER.nome() + " (CENDOC).");
+            throw new OperacaoNaoAutorizadaException("Os administradores são mantidos pelo " + PerfilEnum.ADM_GER.nome() + " (CENDOC).");
         }
     }
 
@@ -75,46 +75,46 @@ public final class EscopoDeAcesso {
     // ser desativado ou mudar de OM -- se houver outro ativo. `adminsGeraisAtivos` conta os de agora, ele incluído.
     public static void exigirAoMenosUmAdminGeral(boolean eraAdminGeralAtivo, boolean continuaAdminGeralAtivo, long adminsGeraisAtivos) {
         if (eraAdminGeralAtivo && !continuaAdminGeralAtivo && adminsGeraisAtivos <= 1) {
-            throw new OperacaoNaoAutorizadaException("É preciso manter ao menos um " + PapelEnum.ADM_GER.nome()
+            throw new OperacaoNaoAutorizadaException("É preciso manter ao menos um " + PerfilEnum.ADM_GER.nome()
                     + " ativo (lotado no CENDOC). Conceda o perfil a outra pessoa do CENDOC antes.");
         }
     }
 
     // Cada perfil só combina com a lotação certa: os do CENDOC (ADM_GER, AUD_GER, PUB_BCA) só nele; ADM_OM e AUD_OM nunca nele.
-    public static void exigirPerfisDaLotacao(String siglaDaOm, Set<PapelEnum> papeis) {
+    public static void exigirPerfisDaLotacao(String siglaDaOm, Set<PerfilEnum> perfis) {
         boolean cendoc = ehOmGeral(siglaDaOm);
-        for (PapelEnum papel : papeis) {
-            if (!cendoc && SO_NO_CENDOC.contains(papel)) {
-                throw new OperacaoNaoAutorizadaException("O perfil " + papel.nome() + " é exclusivo do CENDOC: só quem é lotado no CENDOC o recebe.");
+        for (PerfilEnum perfil : perfis) {
+            if (!cendoc && SO_NO_CENDOC.contains(perfil)) {
+                throw new OperacaoNaoAutorizadaException("O perfil " + perfil.nome() + " é exclusivo do CENDOC: só quem é lotado no CENDOC o recebe.");
             }
-            if (cendoc && SO_FORA_DO_CENDOC.contains(papel)) {
-                throw new OperacaoNaoAutorizadaException("No CENDOC não existe o perfil " + papel.nome() + ": use "
-                        + geralCorrespondente(papel).nome() + ".");
+            if (cendoc && SO_FORA_DO_CENDOC.contains(perfil)) {
+                throw new OperacaoNaoAutorizadaException("No CENDOC não existe o perfil " + perfil.nome() + ": use "
+                        + geralCorrespondente(perfil).nome() + ".");
             }
         }
     }
 
     // O perfil geral que corresponde ao da OM (no CENDOC não existem os da OM).
-    private static PapelEnum geralCorrespondente(PapelEnum papelDaOm) {
-        return switch (papelDaOm) {
-            case ADM_OM -> PapelEnum.ADM_GER;
-            case AUD_OM -> PapelEnum.AUD_GER;
-            default -> PapelEnum.PNL_GER;
+    private static PerfilEnum geralCorrespondente(PerfilEnum perfilDaOm) {
+        return switch (perfilDaOm) {
+            case ADM_OM -> PerfilEnum.ADM_GER;
+            case AUD_OM -> PerfilEnum.AUD_GER;
+            default -> PerfilEnum.PNL_GER;
         };
     }
 
     // Valida uma criação (alvo == null) ou alteração de usuário -- OM de destino e perfis que ele passa a ter. Lança
     // OperacaoNaoAutorizadaException (403) com a regra violada; não lança se a operação é permitida.
-    public static void exigirPodeGerenciar(Usuario ator, Usuario alvo, String siglaDaOmDeDestino, Set<PapelEnum> papeisDepois) {
-        exigirPerfisDaLotacao(siglaDaOmDeDestino, papeisDepois);
+    public static void exigirPodeGerenciar(Usuario ator, Usuario alvo, String siglaDaOmDeDestino, Set<PerfilEnum> perfisDepois) {
+        exigirPerfisDaLotacao(siglaDaOmDeDestino, perfisDepois);
         if (ehAdminGeral(ator)) return;
 
         if (siglaDaOmDeDestino == null || !siglaDaOmDeDestino.equalsIgnoreCase(String.valueOf(siglaDaOm(ator)))) {
-            throw new OperacaoNaoAutorizadaException("O " + PapelEnum.ADM_OM.nome() + " só gerencia usuários da própria OM.");
+            throw new OperacaoNaoAutorizadaException("O " + PerfilEnum.ADM_OM.nome() + " só gerencia usuários da própria OM.");
         }
         if (alvo != null) exigirPodeAdministrar(ator, alvo);
-        if (papeisDepois.contains(PapelEnum.ADM_OM)) {
-            throw new OperacaoNaoAutorizadaException("Só o " + PapelEnum.ADM_GER.nome() + " (CENDOC) concede o perfil de administrador.");
+        if (perfisDepois.contains(PerfilEnum.ADM_OM)) {
+            throw new OperacaoNaoAutorizadaException("Só o " + PerfilEnum.ADM_GER.nome() + " (CENDOC) concede o perfil de administrador.");
         }
     }
 }

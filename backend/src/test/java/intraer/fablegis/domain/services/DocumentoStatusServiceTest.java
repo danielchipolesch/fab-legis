@@ -25,7 +25,7 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import intraer.fablegis.domain.entities.notificacao.TipoNotificacaoEnum;
-import intraer.fablegis.domain.entities.usuario.PapelEnum;
+import intraer.fablegis.domain.entities.usuario.PerfilEnum;
 import intraer.fablegis.infrastructure.security.UsuarioPrincipal;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -426,9 +426,9 @@ class DocumentoStatusServiceTest {
 
     // ─── Sem atribuição pessoal: qualquer aprovador da OM, qualquer publicador ─────────────────
 
-    private static Usuario comPapel(long id, String nome, PapelEnum papel) {
+    private static Usuario comPerfil(long id, String nome, PerfilEnum perfil) {
         var u = usuario(id, nome);
-        u.setPapeis(EnumSet.of(papel));
+        u.setPerfis(EnumSet.of(perfil));
         return u;
     }
 
@@ -446,9 +446,9 @@ class DocumentoStatusServiceTest {
     @Test
     void enviarParaAprovacaoNaoEscolheNinguemEAvisaOsAprovadoresDaOm() {
         var doc = documentoEm(NAO_PUBLICADO, MINUTA);
-        var a1 = comPapel(10L, "Aprovador 1", PapelEnum.APR_OM);
-        var a2 = comPapel(11L, "Aprovador 2", PapelEnum.APR_OM);
-        when(usuarioRepository.findByOmIdAndPapel(1L, PapelEnum.APR_OM)).thenReturn(List.of(a1, a2));
+        var a1 = comPerfil(10L, "Aprovador 1", PerfilEnum.APR_OM);
+        var a2 = comPerfil(11L, "Aprovador 2", PerfilEnum.APR_OM);
+        when(usuarioRepository.findByOmIdAndPerfil(1L, PerfilEnum.APR_OM)).thenReturn(List.of(a1, a2));
 
         service.changeStatus(DOC_ID, apenas(EM_REVISAO));
 
@@ -461,9 +461,9 @@ class DocumentoStatusServiceTest {
     @Test
     void quemEnviouNaoEAvisadoDeSuaPropriaAcao() {
         documentoEm(NAO_PUBLICADO, MINUTA);
-        var eu = comPapel(10L, "Autor e aprovador", PapelEnum.APR_OM);
-        var outro = comPapel(11L, "Outro aprovador", PapelEnum.APR_OM);
-        when(usuarioRepository.findByOmIdAndPapel(1L, PapelEnum.APR_OM)).thenReturn(List.of(eu, outro));
+        var eu = comPerfil(10L, "Autor e aprovador", PerfilEnum.APR_OM);
+        var outro = comPerfil(11L, "Outro aprovador", PerfilEnum.APR_OM);
+        when(usuarioRepository.findByOmIdAndPerfil(1L, PerfilEnum.APR_OM)).thenReturn(List.of(eu, outro));
         autenticarComo(eu);
 
         service.changeStatus(DOC_ID, apenas(EM_REVISAO));
@@ -477,7 +477,7 @@ class DocumentoStatusServiceTest {
         var doc = documentoEm(PUBLICADO, SEM_ETAPA);
         var quemAprovou = usuario(30L, "Quem aprovou o texto");
         doc.setAprovador(quemAprovou);
-        when(usuarioRepository.findByOmIdAndPapel(1L, PapelEnum.APR_OM)).thenReturn(List.of(comPapel(10L, "Aprovador", PapelEnum.APR_OM)));
+        when(usuarioRepository.findByOmIdAndPerfil(1L, PerfilEnum.APR_OM)).thenReturn(List.of(comPerfil(10L, "Aprovador", PerfilEnum.APR_OM)));
 
         service.changeStatus(DOC_ID, apenas(ANALISE_REVOGACAO));
 
@@ -490,10 +490,10 @@ class DocumentoStatusServiceTest {
     @Test
     void aprovarRegistraQuemAprovouEAvisaOsPublicadoresDoCendoc() {
         var doc = documentoEm(NAO_PUBLICADO, EM_REVISAO);
-        var aprovador = comPapel(10L, "Aprovador", PapelEnum.APR_OM);
-        var p1 = comPapel(20L, "Publicador 1", PapelEnum.PUB_BCA);
-        var p2 = comPapel(21L, "Publicador 2", PapelEnum.PUB_BCA);
-        when(usuarioRepository.findAtivosByPapel(PapelEnum.PUB_BCA)).thenReturn(List.of(p1, p2));
+        var aprovador = comPerfil(10L, "Aprovador", PerfilEnum.APR_OM);
+        var p1 = comPerfil(20L, "Publicador 1", PerfilEnum.PUB_BCA);
+        var p2 = comPerfil(21L, "Publicador 2", PerfilEnum.PUB_BCA);
+        when(usuarioRepository.findAtivosByPerfil(PerfilEnum.PUB_BCA)).thenReturn(List.of(p1, p2));
         autenticarComo(aprovador);
 
         service.changeStatus(DOC_ID, apenas(EM_PUBLICACAO));
@@ -512,9 +512,9 @@ class DocumentoStatusServiceTest {
         var doc = documentoEm(PUBLICADO, ANALISE_REVOGACAO);
         var quemAprovou = usuario(30L, "Quem aprovou o texto");
         doc.setAprovador(quemAprovou);
-        var p1 = comPapel(20L, "Publicador", PapelEnum.PUB_BCA);
-        when(usuarioRepository.findAtivosByPapel(PapelEnum.PUB_BCA)).thenReturn(List.of(p1));
-        autenticarComo(comPapel(10L, "Aprovador da revogação", PapelEnum.APR_OM));
+        var p1 = comPerfil(20L, "Publicador", PerfilEnum.PUB_BCA);
+        when(usuarioRepository.findAtivosByPerfil(PerfilEnum.PUB_BCA)).thenReturn(List.of(p1));
+        autenticarComo(comPerfil(10L, "Aprovador da revogação", PerfilEnum.APR_OM));
 
         service.changeStatus(DOC_ID, apenas(EM_REVOGACAO));
 
@@ -527,7 +527,7 @@ class DocumentoStatusServiceTest {
     @Test
     void publicarRegistraQuemPublicou() {
         var doc = documentoEm(NAO_PUBLICADO, EM_PUBLICACAO);
-        var publicador = comPapel(20L, "Publicador", PapelEnum.PUB_BCA);
+        var publicador = comPerfil(20L, "Publicador", PerfilEnum.PUB_BCA);
         autenticarComo(publicador);
 
         service.changeStatus(DOC_ID, publicacaoValida());

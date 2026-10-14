@@ -46,7 +46,7 @@
 import { computed, ref, watch } from 'vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import EtapasDoCiclo from '@/components/hub/EtapasDoCiclo.vue'
-import { moduloDoDocumento } from '@/perfis/index.js'
+import { moduloDoDocumento } from '@/regras/index.js'
 import { detalhesDoDocumento } from '@/utils/painel.js'
 import { listCompartilhamentos } from '@/api/documentos.js'
 import { caixaAlta } from '@/utils/texto.js'

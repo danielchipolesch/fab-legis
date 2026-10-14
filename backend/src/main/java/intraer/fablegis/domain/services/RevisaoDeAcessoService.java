@@ -2,7 +2,7 @@ package intraer.fablegis.domain.services;
 
 import intraer.fablegis.application.dtos.usuarioDtos.UsuarioResponseDto;
 import intraer.fablegis.domain.entities.auditoria.AcaoDeAcessoEnum;
-import intraer.fablegis.domain.entities.usuario.PapelEnum;
+import intraer.fablegis.domain.entities.usuario.PerfilEnum;
 import intraer.fablegis.domain.entities.usuario.Usuario;
 import intraer.fablegis.domain.handlers.exceptions.InvalidInputException;
 import intraer.fablegis.domain.handlers.exceptions.OperacaoNaoAutorizadaException;
@@ -32,7 +32,7 @@ public class RevisaoDeAcessoService {
     private final AuditoriaDeAcessoService auditoriaDeAcesso;
 
     @Transactional
-    public UsuarioResponseDto revisar(Long usuarioId, Set<PapelEnum> papeisMantidos) {
+    public UsuarioResponseDto revisar(Long usuarioId, Set<PerfilEnum> perfisMantidos) {
         var revisor = AutenticacaoUtil.usuarioAtual();
         Usuario alvo = usuarioRepository.findById(usuarioId)
                 .filter(u -> !u.isSistema())
@@ -41,25 +41,25 @@ public class RevisaoDeAcessoService {
             throw new OperacaoNaoAutorizadaException("Você não revisa o acesso desta pessoa.");
         }
 
-        var antes = EnumSet.noneOf(PapelEnum.class);
-        antes.addAll(alvo.getPapeis());
-        var elevadosAntes = RevisaoDeAcesso.papeisElevados(antes);
-        var elevadosMantidos = RevisaoDeAcesso.papeisElevados(papeisMantidos);
+        var antes = EnumSet.noneOf(PerfilEnum.class);
+        antes.addAll(alvo.getPerfis());
+        var elevadosAntes = RevisaoDeAcesso.perfisElevados(antes);
+        var elevadosMantidos = RevisaoDeAcesso.perfisElevados(perfisMantidos);
         if (!elevadosAntes.containsAll(elevadosMantidos)) {
-            throw new InvalidInputException("A revisão só mantém ou retira perfis; para conceder um papel use Manter Usuários.");
+            throw new InvalidInputException("A revisão só mantém ou retira perfis; para conceder um perfil use Manter Usuários.");
         }
 
-        var depois = EnumSet.of(PapelEnum.ELB);
+        var depois = EnumSet.of(PerfilEnum.ELB);
         depois.addAll(elevadosMantidos);
-        var retirados = EnumSet.noneOf(PapelEnum.class);
+        var retirados = EnumSet.noneOf(PerfilEnum.class);
         retirados.addAll(elevadosAntes);
         retirados.removeAll(elevadosMantidos);
 
         EscopoDeAcesso.exigirAoMenosUmAdminGeral(
                 EscopoDeAcesso.ehAdminGeral(alvo) && alvo.isAtivo(),
-                depois.contains(PapelEnum.ADM_GER) && alvo.isAtivo(),
-                usuarioRepository.contarAtivosComPapel(PapelEnum.ADM_GER));
-        alvo.setPapeis(depois);
+                depois.contains(PerfilEnum.ADM_GER) && alvo.isAtivo(),
+                usuarioRepository.contarAtivosComPerfil(PerfilEnum.ADM_GER));
+        alvo.setPerfis(depois);
         alvo.setDtRevisaoAcesso(Timestamp.from(Instant.now()));
         var salvo = usuarioRepository.save(alvo);
 
@@ -72,9 +72,9 @@ public class RevisaoDeAcessoService {
         return UsuarioResponseDto.from(salvo, revisor);
     }
 
-    private static String detalhe(Set<PapelEnum> mantidos, Set<PapelEnum> retirados) {
+    private static String detalhe(Set<PerfilEnum> mantidos, Set<PerfilEnum> retirados) {
         var partes = new ArrayList<String>();
-        partes.add("Manteve: " + (mantidos.isEmpty() ? "nenhum papel elevado" : DiferencaDeAcesso.lista(mantidos)));
+        partes.add("Manteve: " + (mantidos.isEmpty() ? "nenhum perfil elevado" : DiferencaDeAcesso.lista(mantidos)));
         if (!retirados.isEmpty()) partes.add("Retirou: " + DiferencaDeAcesso.lista(retirados));
         return String.join(". ", partes);
     }

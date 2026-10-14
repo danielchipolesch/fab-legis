@@ -8,7 +8,7 @@ import intraer.fablegis.domain.entities.estruturaDocumento.SituacaoBcaEnum;
 import intraer.fablegis.domain.entities.estruturaDocumento.SituacaoLocalEnum;
 import intraer.fablegis.domain.entities.estruturaDocumento.TipoAlteracaoEnum;
 import intraer.fablegis.domain.entities.usuario.Usuario;
-import intraer.fablegis.domain.entities.usuario.PapelEnum;
+import intraer.fablegis.domain.entities.usuario.PerfilEnum;
 import intraer.fablegis.domain.entities.notificacao.TipoNotificacaoEnum;
 import intraer.fablegis.infrastructure.security.UsuarioPrincipal;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -199,18 +199,18 @@ public class DocumentoStatusService {
 
         String descricao = documento.getIdentificacao();
 
-        // Quem pode agir agora é avisado -- as pessoas com o papel, nunca uma escolhida: os aprovadores da OM do documento ao
+        // Quem pode agir agora é avisado -- as pessoas com o perfil, nunca uma escolhida: os aprovadores da OM do documento ao
         // enviar para aprovação (ou pedir a revogação); os publicadores (CENDOC) ao aprovar. Quem acabou de agir não é avisado.
         if (acao == AcaoDeEtapa.ENVIAR_PARA_REVISAO || acao == AcaoDeEtapa.PEDIR_REVOGACAO) {
-            avisar(usuarioRepository.findByOmIdAndPapel(documento.getOm().getId(), PapelEnum.APR_OM), documento, descricao,
+            avisar(usuarioRepository.findByOmIdAndPerfil(documento.getOm().getId(), PerfilEnum.APR_OM), documento, descricao,
                     "O documento " + descricao + " aguarda a aprovação da sua OM.");
         }
         if (acao == AcaoDeEtapa.APROVAR) {
-            avisar(usuarioRepository.findAtivosByPapel(PapelEnum.PUB_BCA), documento, descricao,
+            avisar(usuarioRepository.findAtivosByPerfil(PerfilEnum.PUB_BCA), documento, descricao,
                     "O documento " + descricao + " foi aprovado e aguarda publicação.");
         }
         if (acao == AcaoDeEtapa.APROVAR_REVOGACAO) {
-            avisar(usuarioRepository.findAtivosByPapel(PapelEnum.PUB_BCA), documento, descricao,
+            avisar(usuarioRepository.findAtivosByPerfil(PerfilEnum.PUB_BCA), documento, descricao,
                     "O documento " + descricao + " teve a revogação aprovada e aguarda a publicação da revogação.");
         }
 

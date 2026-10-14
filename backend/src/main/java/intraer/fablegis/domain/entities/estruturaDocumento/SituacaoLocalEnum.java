@@ -15,7 +15,7 @@ package intraer.fablegis.domain.entities.estruturaDocumento;
 public enum SituacaoLocalEnum {
     RASCUNHO,
     MINUTA,
-    // Atribuído a uma pessoa específica com papel APROV (Documento.aprovador),
+    // Atribuído a uma pessoa específica com perfil APROV (Documento.aprovador),
     // escolhida por quem enviou (EDIT) -- ver DocumentoStatusService. Alcançável a
     // partir de MINUTA (1ª publicação) ou EM_ALTERACAO (alteração); só a pessoa
     // atribuída decide o próximo passo (aprovar ou devolver), e só ela pode editar o
@@ -23,7 +23,7 @@ public enum SituacaoLocalEnum {
     EM_REVISAO,
     // Aprovado e aguardando o registro da portaria/BCA -- aprovar cascateia direto para
     // cá (não existem estados "aprovado"/"alterado" parados). Atribuído a uma pessoa
-    // específica com papel PUBLIC (Documento.publicador), escolhida pelo APROV
+    // específica com perfil PUBLIC (Documento.publicador), escolhida pelo APROV
     // no mesmo ato de aprovar. O conteúdo está congelado: ninguém mais edita. Publicar
     // (registrar portaria/BCA) leva a SEM_ETAPA e atualiza a situação BCA.
     EM_PUBLICACAO,

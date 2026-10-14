@@ -1,7 +1,7 @@
 package intraer.fablegis.infrastructure.security;
 
 import intraer.fablegis.domain.entities.usuario.OrganizacaoMilitar;
-import intraer.fablegis.domain.entities.usuario.PapelEnum;
+import intraer.fablegis.domain.entities.usuario.PerfilEnum;
 import intraer.fablegis.domain.entities.usuario.PostoGraduacao;
 import intraer.fablegis.domain.entities.usuario.Usuario;
 import intraer.fablegis.infrastructure.repositories.OrganizacaoMilitarRepository;
@@ -65,9 +65,9 @@ class DataSeederTest {
         assertEquals("CHIPOLESCH", u.getNomeGuerra());
         assertEquals("chipoleschdaca@fab.mil.br", u.getEmail());
         assertEquals("11144477735", u.getCpf());
-        assertTrue(u.getPapeis().contains(PapelEnum.ADM_GER));
-        assertTrue(u.getPapeis().contains(PapelEnum.PNL_GER));
-        assertTrue(u.getPapeis().contains(PapelEnum.ELB));
+        assertTrue(u.getPerfis().contains(PerfilEnum.ADM_GER));
+        assertTrue(u.getPerfis().contains(PerfilEnum.PNL_GER));
+        assertTrue(u.getPerfis().contains(PerfilEnum.ELB));
     }
 
     @Test

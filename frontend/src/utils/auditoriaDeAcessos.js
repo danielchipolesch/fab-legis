@@ -1,7 +1,7 @@
 // Rótulos e cores da trilha dos acessos (espelha AcaoDeAcessoEnum, backend).
 export const ACAO_DE_ACESSO = {
   CRIOU_USUARIO:     { label: 'Criou usuário',     color: 'green-8' },
-  ALTEROU_PAPEIS:    { label: 'Alterou perfis',    color: 'primary' },
+  ALTEROU_PERFIS:    { label: 'Alterou perfis',    color: 'primary' },
   ATIVOU_USUARIO:    { label: 'Ativou',            color: 'teal-8' },
   DESATIVOU_USUARIO: { label: 'Desativou',         color: 'negative' },
   TROCOU_OM:         { label: 'Trocou de OM',      color: 'deep-orange-8' },

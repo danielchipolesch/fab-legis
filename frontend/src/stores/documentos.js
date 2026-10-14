@@ -1,12 +1,12 @@
 import { defineStore } from 'pinia'
 import { v4 as uuidv4 } from 'uuid'
-import { renumerarElementos } from '@/perfis/index.js'
+import { renumerarElementos } from '@/regras/index.js'
 import * as api from '@/api/documentos.js'
 
 function renumerarSecaoNormativa(doc) {
   const normativa = doc.secoes?.find(s => s.tipo === 'parte_normativa')
   if (!normativa?.elementos?.length) return
-  // A numeração é regra da espécie do documento (perfis/index.js): num ato normativo já publicado a
+  // A numeração é regra da espécie do documento (regras/index.js): num ato normativo já publicado a
   // numeração é por emenda (elemento em vigor nunca é renumerado); numa NPA, pelo caminho.
   renumerarElementos(normativa.elementos, doc)
 }

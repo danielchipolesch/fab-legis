@@ -40,7 +40,7 @@ final class DocumentoFoCorpoBuilder {
 
         // Sem número de página: ao contrário da NPA (paginada, ver DocumentoFoNpaBuilder), uma
         // Espécie Convencional se navega pelo número do artigo/capítulo, já calculado no sumário e
-        // usado nas remissões -- o número de página não tem papel nenhum aqui, então não aparece.
+        // usado nas remissões -- o número de página não tem perfil nenhum aqui, então não aparece.
         sb.append(ctx.buildStaticContentWatermark());
         sb.append("<fo:flow flow-name=\"xsl-region-body\">\n");
 

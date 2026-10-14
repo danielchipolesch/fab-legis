@@ -1,7 +1,7 @@
 package intraer.fablegis.application.controllers;
 
 import intraer.fablegis.IntegracaoComPostgresBase;
-import intraer.fablegis.domain.entities.usuario.PapelEnum;
+import intraer.fablegis.domain.entities.usuario.PerfilEnum;
 import intraer.fablegis.domain.entities.usuario.Usuario;
 import intraer.fablegis.infrastructure.repositories.OrganizacaoMilitarRepository;
 import intraer.fablegis.infrastructure.repositories.UsuarioRepository;
@@ -28,7 +28,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-// Auditoria dos acessos de ponta a ponta (docs/autenticacao.md): criar usuário, conceder papel e redefinir senha deixam
+// Auditoria dos acessos de ponta a ponta (docs/autenticacao.md): criar usuário, conceder perfil e redefinir senha deixam
 // rastro, que só o AUDITOR lê.
 class AuditoriaDeAcessosIntegracaoTest extends IntegracaoComPostgresBase {
 
@@ -57,7 +57,7 @@ class AuditoriaDeAcessosIntegracaoTest extends IntegracaoComPostgresBase {
             u.setCpf("11122233396");
             u.setSenhaHash("{noop}x");
             u.setOm(omRepository.findBySigla("CENDOC").orElseThrow());
-            u.setPapeis(new HashSet<>(Set.of(PapelEnum.ELB, PapelEnum.AUD_GER)));
+            u.setPerfis(new HashSet<>(Set.of(PerfilEnum.ELB, PerfilEnum.AUD_GER)));
             return usuarioRepository.save(u);
         });
     }
@@ -71,12 +71,12 @@ class AuditoriaDeAcessosIntegracaoTest extends IntegracaoComPostgresBase {
     void criarConcederERedefinirSenhaFicamRegistradosEQuemNaoEAuditorNaoLe() throws Exception {
         long omId = omRepository.findBySigla("EMAER").orElseThrow().getId();
         var criado = mvc.perform(post("/v1/usuarios").with(como(administrador())).contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"nome\":\"Beltrano\",\"cpf\":\"" + CPF_NOVO + "\",\"senha\":\"senha-forte-1\",\"omId\":" + omId + ",\"papeis\":[\"ELB\"]}"))
+                        .content("{\"nome\":\"Beltrano\",\"cpf\":\"" + CPF_NOVO + "\",\"senha\":\"senha-forte-1\",\"omId\":" + omId + ",\"perfis\":[\"ELB\"]}"))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
         long id = Long.parseLong(criado.replaceAll("(?s).*\"id\":(\\d+).*", "$1"));
 
         mvc.perform(put("/v1/usuarios/" + id).with(como(administrador())).contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"nome\":\"Beltrano\",\"omId\":" + omId + ",\"ativo\":true,\"papeis\":[\"ELB\",\"APR_OM\"]}"))
+                        .content("{\"nome\":\"Beltrano\",\"omId\":" + omId + ",\"ativo\":true,\"perfis\":[\"ELB\",\"APR_OM\"]}"))
                 .andExpect(status().isOk());
         mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch("/v1/usuarios/" + id + "/senha")
                         .with(como(administrador())).contentType(MediaType.APPLICATION_JSON).content("{\"novaSenha\":\"outra-senha-2\"}"))
@@ -86,7 +86,7 @@ class AuditoriaDeAcessosIntegracaoTest extends IntegracaoComPostgresBase {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalElements").value(3))
                 .andExpect(jsonPath("$.content[?(@.acao == 'CRIOU_USUARIO')]").isNotEmpty())
-                .andExpect(jsonPath("$.content[?(@.acao == 'ALTEROU_PAPEIS')].detalhe").value(org.hamcrest.Matchers.hasItem(containsString("Concedido(s): APR_OM"))))
+                .andExpect(jsonPath("$.content[?(@.acao == 'ALTEROU_PERFIS')].detalhe").value(org.hamcrest.Matchers.hasItem(containsString("Concedido(s): APR_OM"))))
                 .andExpect(jsonPath("$.content[?(@.acao == 'REDEFINIU_SENHA')]").isNotEmpty())
                 .andExpect(jsonPath("$.content[0].atorId").value(administrador().getId()))
                 .andExpect(jsonPath("$.content[0].omSigla").value("EMAER"));

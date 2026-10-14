@@ -1,9 +1,9 @@
-// Os perfis (perfis) de acesso, com o CÓDIGO e o NOME POR EXTENSO (espelha PapelEnum, backend, e a tabela t_papel; o teste papeis.test.js
-// e o PapelEnumIntegracaoTest guardam o mesmo conjunto). O escopo geral/local está no próprio perfil: ADM_GER, AUD_GER e PUB_BCA só existem
+// Os perfis de acesso, com o CÓDIGO e o NOME POR EXTENSO (espelha PerfilEnum, backend, e a tabela t_perfil; o teste perfis.test.js
+// e o PerfilEnumIntegracaoTest guardam o mesmo conjunto). O escopo geral/local está no próprio perfil: ADM_GER, AUD_GER e PUB_BCA só existem
 // lotados no CENDOC; ADM_OM e AUD_OM, nas demais OMs.
 export const OM_GERAL = 'CENDOC'
 
-export const PAPEIS = {
+export const PERFIS = {
   ELB:     { codigo: 'ELB',     nome: 'Elaborador',          cor: 'blue-2',        corDoTexto: 'secondary' },
   APR_OM:  { codigo: 'APR_OM',  nome: 'Aprovador da OM',     cor: 'teal-2',        corDoTexto: 'teal-10' },
   PUB_BCA: { codigo: 'PUB_BCA', nome: 'Publicador do BCA',   cor: 'purple-2',      corDoTexto: 'purple-10' },
@@ -15,23 +15,23 @@ export const PAPEIS = {
   PNL_GER: { codigo: 'PNL_GER', nome: 'Painel Gerencial Geral',        cor: 'cyan-3',        corDoTexto: 'cyan-10' },
 }
 
-export const nomeDoPapel = (codigo) => PAPEIS[codigo]?.nome ?? codigo
+export const nomeDoPerfil = (codigo) => PERFIS[codigo]?.nome ?? codigo
 
-const tem = (papeis, ...codigos) => (papeis ?? []).some(p => codigos.includes(p))
+const tem = (perfis, ...codigos) => (perfis ?? []).some(p => codigos.includes(p))
 
-export const ehAdmin = (papeis) => tem(papeis, 'ADM_OM', 'ADM_GER')
-export const ehAdminGeral = (papeis) => tem(papeis, 'ADM_GER')
-export const ehAuditor = (papeis) => tem(papeis, 'AUD_OM', 'AUD_GER')
+export const ehAdmin = (perfis) => tem(perfis, 'ADM_OM', 'ADM_GER')
+export const ehAdminGeral = (perfis) => tem(perfis, 'ADM_GER')
+export const ehAuditor = (perfis) => tem(perfis, 'AUD_OM', 'AUD_GER')
 
 // O perfil de administrador/auditor que vale para a lotação: no CENDOC, o geral; em qualquer outra OM, o da OM.
 export const noCendoc = (siglaDaOm) => (siglaDaOm ?? '').toUpperCase() === OM_GERAL
-export const papelDeAdmin = (siglaDaOm) => (noCendoc(siglaDaOm) ? 'ADM_GER' : 'ADM_OM')
-export const papelDeAuditor = (siglaDaOm) => (noCendoc(siglaDaOm) ? 'AUD_GER' : 'AUD_OM')
-export const papelDoPainelGerencial = (siglaDaOm) => (noCendoc(siglaDaOm) ? 'PNL_GER' : 'PNL_OM')
+export const perfilDeAdmin = (siglaDaOm) => (noCendoc(siglaDaOm) ? 'ADM_GER' : 'ADM_OM')
+export const perfilDeAuditor = (siglaDaOm) => (noCendoc(siglaDaOm) ? 'AUD_GER' : 'AUD_OM')
+export const perfilDoPainelGerencial = (siglaDaOm) => (noCendoc(siglaDaOm) ? 'PNL_GER' : 'PNL_OM')
 
 // Perfil do Painel Gerencial (PNL_OM ou PNL_GER), de qualquer escopo; o Painel Gerencial Geral também filtra por OM.
-export const ehPainelGerencial = (papeis) => tem(papeis, 'PNL_OM', 'PNL_GER')
-export const ehPainelGerencialGeral = (papeis) => tem(papeis, 'PNL_GER')
+export const ehPainelGerencial = (perfis) => tem(perfis, 'PNL_OM', 'PNL_GER')
+export const ehPainelGerencialGeral = (perfis) => tem(perfis, 'PNL_GER')
 
 // Os perfis que exigem revisão periódica: todos menos o Elaborador, que todo usuário tem.
-export const papeisElevados = (papeis) => (papeis ?? []).filter(p => p !== 'ELB').sort()
+export const perfisElevados = (perfis) => (perfis ?? []).filter(p => p !== 'ELB').sort()

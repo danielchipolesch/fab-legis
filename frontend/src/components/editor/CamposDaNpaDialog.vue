@@ -116,7 +116,7 @@
 
 <script setup>
 import { computed, nextTick, reactive, ref, watch } from 'vue'
-import { rotuloReservado } from '@/perfis/npa.js'
+import { rotuloReservado } from '@/regras/npa.js'
 
 // Espelham os limites de CamposDaNpaDto/AssinaturaDaNpaDto no backend.
 const LIMITE_DE_BLOCOS = 10

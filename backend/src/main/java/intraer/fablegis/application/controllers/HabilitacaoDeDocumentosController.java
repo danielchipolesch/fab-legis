@@ -23,7 +23,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 
 // Habilitação de documentos: quais espécies convencionais cada OM pode criar. Quem gerencia é o administrador (CENDOC,
-// papel ADMIN); qualquer pessoa autenticada consulta o que a SUA OM pode criar (a tela esconde o botão de criar do resto).
+// perfil ADMIN); qualquer pessoa autenticada consulta o que a SUA OM pode criar (a tela esconde o botão de criar do resto).
 @RestController
 @RequestMapping(value = "/v1/habilitacao-de-documentos", produces = MediaType.APPLICATION_JSON_VALUE)
 @Tag(name = "Habilitação de documentos", description = "Quais espécies normativas cada OM pode criar")

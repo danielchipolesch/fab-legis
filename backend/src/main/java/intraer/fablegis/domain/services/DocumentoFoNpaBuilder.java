@@ -172,7 +172,7 @@ public class DocumentoFoNpaBuilder implements LeiauteDoPdf {
     // coluna que não é a última. Todas com a mesma espessura da moldura.
     //
     // As alturas são as do modelo (Anexo XII) e valem para o conteúdo da linha; o FOP soma o padding de cima e de baixo
-    // (3 pt cada), então "48" é uma linha de 54 pt no papel. Não dependem de o conteúdo caber: são mínimos.
+    // (3 pt cada), então "48" é uma linha de 54 pt no perfil. Não dependem de o conteúdo caber: são mínimos.
     private static String celula(String conteudo, int colunas, int linhas, boolean bordaDireita,
                                  String alinhamentoVertical, String padding) {
         return "<fo:table-cell padding=\"" + padding + "\" border-bottom=\"" + LINHA + "\""

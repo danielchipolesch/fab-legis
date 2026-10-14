@@ -1,6 +1,6 @@
 // Manual do usuário: o conteúdo são arquivos Markdown em src/manual/ (NN-nome-da-pagina.md). Aqui ficam as funções puras que
 // montam as páginas e as seções a partir deles e que fazem a busca; quem desenha é pages/ManualPage.vue.
-import { PAPEIS } from '@/utils/papeis.js'
+import { PERFIS } from '@/utils/perfis.js'
 
 // 'Área de Trabalho' -> 'area-de-trabalho' (o id de cada título, usado nos links com #)
 export function slugDeTitulo(texto) {
@@ -58,7 +58,7 @@ export function montarPaginas(arquivos) {
 
 // Os nomes por extenso dos perfis a que a página se dirige ('ELB' -> 'Elaborador'); código desconhecido é ignorado.
 export function nomesDosPerfis(perfis) {
-  return (perfis ?? []).map(codigo => PAPEIS[codigo]?.nome).filter(Boolean)
+  return (perfis ?? []).map(codigo => PERFIS[codigo]?.nome).filter(Boolean)
 }
 
 // A página é para quem tem algum dos perfis dela? (uma página sem perfis é para todos)
