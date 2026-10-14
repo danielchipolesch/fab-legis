@@ -440,13 +440,14 @@ Os testes de integração (PostgreSQL de verdade via Testcontainers, precisam de
 
 ## Contribuindo
 
-O desenvolvimento ocorre na branch **`desenvolvimento`**. Ao contribuir:
+O projeto tem **uma branch só, a `master`** (desenvolvimento baseado no tronco). Ao contribuir:
 
-1. Crie sua branch a partir de `desenvolvimento`;
-2. Mantenha o padrão de camadas do backend e a separação de responsabilidades do frontend (ver [Arquitetura](docs/arquitetura.md)); o que varia por espécie normativa entra por interface (`domain.regras` no backend, `frontend/src/regras/` no frontend), nunca por `if` na sigla da espécie;
-3. Mudou uma regra de negócio? Atualize na mesma tarefa o **teste unitário** correspondente e a **página de `docs/`** que a descreve — as convenções (linguagem ubíqua em português para o domínio, consistência entre PDF, HTML e prévia) estão no [`CLAUDE.md`](CLAUDE.md);
-4. Escreva mensagens de commit descritivas em português;
-5. Abra um Pull Request para `desenvolvimento`.
+1. Crie uma **branch curta** a partir da `master` (`feat/…`, `fix/…`, `docs/…`) e abra um **Pull Request para a `master`** assim que a mudança estiver pronta; PRs pequenos e frequentes, sem branches de longa duração;
+2. A `master` só recebe PR com o **CI verde** (backend, integração e frontend) e fica sempre em condição de ser lançada — não se faz commit direto nela;
+3. Mantenha o padrão de camadas do backend e a separação de responsabilidades do frontend (ver [Arquitetura](docs/arquitetura.md)); o que varia por espécie normativa entra por interface (`domain.regras` no backend, `frontend/src/regras/` no frontend), nunca por `if` na sigla da espécie;
+4. Mudou uma regra de negócio? Atualize na mesma tarefa o **teste unitário** correspondente e a **página de `docs/`** que a descreve — as convenções (linguagem ubíqua em português para o domínio, consistência entre PDF, HTML e prévia) estão no [`CLAUDE.md`](CLAUDE.md);
+5. Escreva mensagens de commit no formato **Conventional Commits**, em português (`feat:`, `fix:`, `docs:`…): é delas que sai a versão e o `CHANGELOG.md` (ver [Versionamento](docs/testes.md#versionamento));
+6. **O que vai para produção é uma tag, não uma branch:** o release-please mantém aberto um PR de release; mergeá-lo é o ato de lançar (cria a tag `vX.Y.Z` e a release), e se implanta sempre uma tag.
 
 ## Licença
 
