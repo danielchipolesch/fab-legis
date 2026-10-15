@@ -1,3 +1,5 @@
+import { regrasDe } from '@/regras/index.js'
+
 // Apresentação dos indicadores do Painel Gerencial (os números vêm prontos do servidor, ver PainelGerencialService).
 
 // Largura (0 a 100) de uma barra, em relação ao maior valor da série; barra vazia se não há nada a comparar.
@@ -40,4 +42,14 @@ export function periodoPadrao(hoje = new Date()) {
 export function larguraDaBarra(valor, maximo) {
   if (!maximo || maximo <= 0 || !valor || valor <= 0) return 0
   return Math.max(2, percentual(valor, maximo))
+}
+
+// As espécies que o filtro do painel oferece. O Painel Gerencial Geral nunca conta as NPAs (de uso interno de cada OM): só as espécies
+// que não são de uso interno. O da OM vê só as espécies da sua OM -- as que ela está habilitada a criar, mais a NPA (`criaveis`, de
+// stores/auth.js) --, restritas ao módulo escolhido, se houver.
+export function especiesDoFiltro(especies, criaveis, { geral, tipoDeEspecie } = {}) {
+  const todas = especies ?? []
+  if (geral) return todas.filter(e => !regrasDe(e.tipoDeEspecie).usoInternoDaOm)
+  const siglas = new Set((criaveis ?? []).map(e => e.sigla))
+  return todas.filter(e => siglas.has(e.sigla) && (!tipoDeEspecie || e.tipoDeEspecie === tipoDeEspecie))
 }

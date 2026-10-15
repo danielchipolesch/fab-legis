@@ -137,7 +137,9 @@ describe('detalhesDoDocumento', () => {
   it('em tramitação: com quem o documento está', () => {
     expect(valor(detalhesDoDocumento('minhas_em_tramitacao', doc({ situacao_local: 'MINUTA' })), 'Com')).toBe('Autor e coautores')
     expect(valor(detalhesDoDocumento('minhas_em_tramitacao', doc({ situacao_local: 'EM_REVISAO', aprovador_nome: 'Ana' })), 'Com')).toBe('Aprovadores da OM')
-    expect(valor(detalhesDoDocumento('minhas_em_tramitacao', doc({ situacao_local: 'EM_PUBLICACAO', publicador_nome: 'Rui' })), 'Com')).toBe('Publicadores (CENDOC)')
+    expect(valor(detalhesDoDocumento('minhas_em_tramitacao', doc({ situacao_local: 'EM_PUBLICACAO', publicador_nome: 'Rui' })), 'Com')).toBe('Publicadores do BCA (CENDOC)')
+    // a NPA é publicada na própria OM, no Boletim Interno
+    expect(valor(detalhesDoDocumento('minhas_em_tramitacao', doc({ tipo_de_especie: 'COMUNICACAO_OFICIAL_PADRONIZADA', situacao_local: 'EM_PUBLICACAO' })), 'Com')).toBe('Publicadores do Boletim Interno da OM')
   })
 
   it('aguardando: o que se espera da pessoa', () => {

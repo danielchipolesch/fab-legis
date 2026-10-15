@@ -44,3 +44,17 @@ describe('rótulo do anexo por espécie', () => {
     expect([1, 2, 3, 26, 27].map(rotuloDoAnexo)).toEqual(['ANEXO A', 'ANEXO B', 'ANEXO C', 'ANEXO Z', 'ANEXO AA'])
   })
 })
+
+// Quem publica cada espécie e se ela é de uso interno da OM (espelha RegrasDaEspecieNormativa/RegrasDoCicloDeVidaDoDocumento, backend):
+// as convencionais, o Publicador do BCA (CENDOC); a NPA, o Publicador do Boletim Interno da própria OM -- e ela fica fora do painel geral.
+describe('quem publica e uso interno da OM', () => {
+  it('a convencional é publicada pelo CENDOC e tem âmbito do COMAER', () => {
+    expect(regrasDe('CONVENCIONAL').quemPublica).toBe('Publicadores do BCA (CENDOC)')
+    expect(regrasDe('CONVENCIONAL').usoInternoDaOm).toBe(false)
+  })
+
+  it('a NPA é publicada pela própria OM e é de uso interno dela', () => {
+    expect(regrasDe('COMUNICACAO_OFICIAL_PADRONIZADA').quemPublica).toBe('Publicadores do Boletim Interno da OM')
+    expect(regrasDe('COMUNICACAO_OFICIAL_PADRONIZADA').usoInternoDaOm).toBe(true)
+  })
+})

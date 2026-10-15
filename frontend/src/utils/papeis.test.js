@@ -1,12 +1,13 @@
 import { describe, it, expect } from 'vitest'
-import { PAPEIS, nomeDoPapel, ehAdmin, ehAdminGeral, ehAuditor, ehPainelGerencial, ehPainelGerencialGeral, papelDeAdmin, papelDeAuditor, papelDoPainelGerencial, papeisElevados } from './papeis.js'
+import { PAPEIS, nomeDoPapel, ehAdmin, ehAdminGeral, ehAuditor, ehPublicador, ehPainelGerencial, ehPainelGerencialGeral, papelDeAdmin, papelDeAuditor, papelDoPainelGerencial, papeisElevados } from './papeis.js'
 
 describe('papéis', () => {
   it('cada papel tem código e nome por extenso (o mesmo de PapelEnum e da tabela t_papel)', () => {
-    expect(Object.keys(PAPEIS).sort()).toEqual(['ADM_GER', 'ADM_OM', 'APR_OM', 'AUD_GER', 'AUD_OM', 'ELB', 'PNL_GER', 'PNL_OM', 'PUB_BCA'])
+    expect(Object.keys(PAPEIS).sort()).toEqual(['ADM_GER', 'ADM_OM', 'APR_OM', 'AUD_GER', 'AUD_OM', 'ELB', 'PNL_GER', 'PNL_OM', 'PUB_BCA', 'PUB_BI'])
     expect(nomeDoPapel('ELB')).toBe('Elaborador')
     expect(nomeDoPapel('APR_OM')).toBe('Aprovador da OM')
     expect(nomeDoPapel('PUB_BCA')).toBe('Publicador do BCA')
+    expect(nomeDoPapel('PUB_BI')).toBe('Publicador do Boletim Interno')
     expect(nomeDoPapel('AUD_OM')).toBe('Auditor da OM')
     expect(nomeDoPapel('AUD_GER')).toBe('Auditor Geral')
     expect(nomeDoPapel('ADM_OM')).toBe('Administrador da OM')
@@ -15,6 +16,13 @@ describe('papéis', () => {
     expect(nomeDoPapel('PNL_GER')).toBe('Painel Gerencial Geral')
     expect(nomeDoPapel('XYZ')).toBe('XYZ')
     for (const [codigo, papel] of Object.entries(PAPEIS)) expect(papel.codigo).toBe(codigo)
+  })
+
+  it('publica quem tem o papel do BCA (convencionais) ou o do Boletim Interno (NPA da própria OM)', () => {
+    expect(ehPublicador(['ELB', 'PUB_BCA'])).toBe(true)
+    expect(ehPublicador(['ELB', 'PUB_BI'])).toBe(true)
+    expect(ehPublicador(['ELB', 'APR_OM', 'ADM_GER'])).toBe(false)
+    expect(ehPublicador(undefined)).toBe(false)
   })
 
   it('administrador e auditor, de qualquer escopo', () => {

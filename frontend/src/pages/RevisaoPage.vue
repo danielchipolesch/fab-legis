@@ -78,7 +78,7 @@
       </q-table>
     </q-card>
 
-    <!-- Aprovar: ninguém é escolhido -- o documento vai para a fila de publicação do CENDOC, onde qualquer publicador age. -->
+    <!-- Aprovar: ninguém é escolhido -- o documento vai para a fila de publicação -- a do CENDOC (espécie convencional) ou a da própria OM (NPA) --, onde qualquer publicador age. -->
     <q-dialog v-model="dialogAprovar" :persistent="enviando">
       <q-card style="min-width:400px;max-width:480px">
         <q-card-section class="row items-center q-pb-none">
@@ -88,7 +88,7 @@
         <q-card-section class="q-pt-md">
           <div class="text-weight-medium">{{ alvo?.codigo_documento }}</div>
           <div class="text-body2 text-grey-8 q-mt-sm">
-            Ao aprovar, o documento segue para a fila de publicação do CENDOC (qualquer publicador pode publicá-lo) e o seu nome fica registrado como quem aprovou.
+            Ao aprovar, o documento segue para a fila de publicação (do CENDOC, se for espécie convencional; da sua OM, se for NPA; qualquer publicador pode publicá-lo) e o seu nome fica registrado como quem aprovou.
           </div>
         </q-card-section>
         <q-card-actions align="right">
