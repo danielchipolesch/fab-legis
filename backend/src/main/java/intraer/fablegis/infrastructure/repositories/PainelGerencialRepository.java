@@ -14,10 +14,11 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 import java.sql.Timestamp;
+import java.util.Collection;
 import java.util.List;
 
 // As consultas agregadas do Painel Gerencial (PainelGerencialService), em SQL: contagens e percentis no banco, nunca em laço em Java.
-// Todas aceitam o filtro por OM e por espécie (nulo = todas); as de período usam [inicio, fim) -- o fim já vem como o início do dia seguinte.
+// Todas aceitam o filtro por OM, por espécie e por tipo de espécie (nulo = todos); as de período usam [inicio, fim) -- o fim já vem como o início do dia seguinte.
 @Repository
 @RequiredArgsConstructor
 public class PainelGerencialRepository {
@@ -28,15 +29,24 @@ public class PainelGerencialRepository {
 
     private final NamedParameterJdbcTemplate jdbc;
 
-    // Os filtros de OM e espécie, como trecho de WHERE (d = t_documento).
-    private static String filtro(Long omId, Long especieId) {
-        return (omId != null ? " AND d.om_id = :omId" : "") + (especieId != null ? " AND d.especie_normativa_id = :especieId" : "");
+    // O que os indicadores consideram: a OM, a espécie e os TIPOS de espécie (CONVENCIONAL, COMUNICACAO_OFICIAL_PADRONIZADA) dos documentos;
+    // nulo ou vazio = todos. Quais tipos valem para quem pergunta é regra de EscopoDoPainel (o Painel Gerencial Geral não conta as NPAs).
+    public record Filtro(Long omId, Long especieId, Collection<String> tipos) {
+        boolean temTipos() { return tipos != null && !tipos.isEmpty(); }
     }
 
-    private static MapSqlParameterSource params(Long omId, Long especieId, Timestamp inicio, Timestamp fim) {
+    // Os filtros, como trecho de WHERE (d = t_documento).
+    private static String clausula(Filtro filtro) {
+        return (filtro.omId() != null ? " AND d.om_id = :omId" : "")
+                + (filtro.especieId() != null ? " AND d.especie_normativa_id = :especieId" : "")
+                + (filtro.temTipos() ? " AND d.especie_normativa_id IN (SELECT e.id_especie_normativa FROM t_especie_normativa e WHERE e.st_tipo_especie IN (:tipos))" : "");
+    }
+
+    private static MapSqlParameterSource params(Filtro filtro, Timestamp inicio, Timestamp fim) {
         var p = new MapSqlParameterSource();
-        if (omId != null) p.addValue("omId", omId);
-        if (especieId != null) p.addValue("especieId", especieId);
+        if (filtro.omId() != null) p.addValue("omId", filtro.omId());
+        if (filtro.especieId() != null) p.addValue("especieId", filtro.especieId());
+        if (filtro.temTipos()) p.addValue("tipos", filtro.tipos());
         if (inicio != null) p.addValue("inicio", inicio);
         if (fim != null) p.addValue("fim", fim);
         return p;
@@ -47,9 +57,9 @@ public class PainelGerencialRepository {
         return n == null ? 0 : n;
     }
 
-    public Totais totais(Long omId, Long especieId, Timestamp inicio, Timestamp fim) {
-        var p = params(omId, especieId, inicio, fim);
-        String f = filtro(omId, especieId);
+    public Totais totais(Filtro filtro, Timestamp inicio, Timestamp fim) {
+        var p = params(filtro, inicio, fim);
+        String f = clausula(filtro);
         String base = "SELECT count(*) FROM t_documento d WHERE 1=1" + f;
         long criados = contar(base + " AND d.dt_criacao >= :inicio AND d.dt_criacao < :fim", p);
         long publicados = contar(base + " AND d.dt_publicacao >= :inicio AND d.dt_publicacao < :fim", p);
@@ -63,40 +73,40 @@ public class PainelGerencialRepository {
         return new Totais(criados, publicados, revogados, devolvidos, emTramitacao, vigentes);
     }
 
-    public List<PorEspecie> porEspecie(Long omId, Long especieId, Timestamp inicio, Timestamp fim) {
+    public List<PorEspecie> porEspecie(Filtro filtro, Timestamp inicio, Timestamp fim) {
         return jdbc.query("SELECT e.sg_especie_normativa AS sigla, count(*) AS n FROM t_documento d"
                         + " JOIN t_especie_normativa e ON e.id_especie_normativa = d.especie_normativa_id"
-                        + " WHERE d.dt_criacao >= :inicio AND d.dt_criacao < :fim" + filtro(omId, especieId)
-                        + " GROUP BY e.sg_especie_normativa ORDER BY n DESC, sigla", params(omId, especieId, inicio, fim),
+                        + " WHERE d.dt_criacao >= :inicio AND d.dt_criacao < :fim" + clausula(filtro)
+                        + " GROUP BY e.sg_especie_normativa ORDER BY n DESC, sigla", params(filtro, inicio, fim),
                 (rs, i) -> new PorEspecie(rs.getString("sigla"), rs.getLong("n")));
     }
 
     // Criados e publicados por mês, de cada mês do período (inclusive os de zero).
-    public List<PorMes> porMes(Long omId, Long especieId, Timestamp inicio, Timestamp fim) {
-        String f = filtro(omId, especieId);
+    public List<PorMes> porMes(Filtro filtro, Timestamp inicio, Timestamp fim) {
+        String f = clausula(filtro);
         return jdbc.query("SELECT to_char(m.mes, 'YYYY-MM') AS mes,"
                         + " (SELECT count(*) FROM t_documento d WHERE d.dt_criacao >= m.mes AND d.dt_criacao < m.mes + interval '1 month'" + f + ") AS criados,"
                         + " (SELECT count(*) FROM t_documento d WHERE d.dt_publicacao >= m.mes AND d.dt_publicacao < m.mes + interval '1 month'" + f + ") AS publicados"
                         + " FROM generate_series(date_trunc('month', CAST(:inicio AS timestamp)), CAST(:fim AS timestamp) - interval '1 second', interval '1 month') AS m(mes)"
-                        + " ORDER BY m.mes", params(omId, especieId, inicio, fim),
+                        + " ORDER BY m.mes", params(filtro, inicio, fim),
                 (rs, i) -> new PorMes(rs.getString("mes"), rs.getLong("criados"), rs.getLong("publicados")));
     }
 
-    public List<PorSituacao> situacaoAtual(Long omId, Long especieId) {
-        return jdbc.query("SELECT d.st_situacao_local AS situacao, count(*) AS n FROM t_documento d WHERE 1=1" + filtro(omId, especieId)
-                        + " GROUP BY d.st_situacao_local ORDER BY n DESC, situacao", params(omId, especieId, null, null),
+    public List<PorSituacao> situacaoAtual(Filtro filtro) {
+        return jdbc.query("SELECT d.st_situacao_local AS situacao, count(*) AS n FROM t_documento d WHERE 1=1" + clausula(filtro)
+                        + " GROUP BY d.st_situacao_local ORDER BY n DESC, situacao", params(filtro, null, null),
                 (rs, i) -> new PorSituacao(rs.getString("situacao"), rs.getLong("n")));
     }
 
     // Mediana e percentil 90 (em dias) do intervalo entre duas datas de t_documento, nos documentos criados no período em que as duas existem.
     // `de` e `ate` são nomes de coluna fixos do código (nunca vêm do usuário).
-    public Tempo tempo(String de, String ate, Long omId, Long especieId, Timestamp inicio, Timestamp fim) {
+    public Tempo tempo(String de, String ate, Filtro filtro, Timestamp inicio, Timestamp fim) {
         String dias = "EXTRACT(EPOCH FROM (d." + ate + " - d." + de + ")) / 86400.0";
         return jdbc.queryForObject("SELECT percentile_cont(0.5) WITHIN GROUP (ORDER BY x.dias) AS mediana,"
                         + " percentile_cont(0.9) WITHIN GROUP (ORDER BY x.dias) AS p90, count(*) AS n FROM"
                         + " (SELECT " + dias + " AS dias FROM t_documento d WHERE d." + de + " IS NOT NULL AND d." + ate + " IS NOT NULL"
-                        + " AND d." + ate + " >= d." + de + " AND d.dt_criacao >= :inicio AND d.dt_criacao < :fim" + filtro(omId, especieId) + ") x",
-                params(omId, especieId, inicio, fim),
+                        + " AND d." + ate + " >= d." + de + " AND d.dt_criacao >= :inicio AND d.dt_criacao < :fim" + clausula(filtro) + ") x",
+                params(filtro, inicio, fim),
                 (rs, i) -> new Tempo(arredondar(rs.getObject("mediana")), arredondar(rs.getObject("p90")), rs.getLong("n")));
     }
 
@@ -104,16 +114,16 @@ public class PainelGerencialRepository {
         return valor == null ? null : Math.round(((Number) valor).doubleValue() * 10.0) / 10.0;
     }
 
-    public Fila filas(Long omId, Long especieId) {
-        var p = params(omId, especieId, null, null);
-        String base = "SELECT count(*) FROM t_documento d WHERE 1=1" + filtro(omId, especieId);
+    public Fila filas(Filtro filtro) {
+        var p = params(filtro, null, null);
+        String base = "SELECT count(*) FROM t_documento d WHERE 1=1" + clausula(filtro);
         return new Fila(contar(base + " AND d.st_situacao_local IN ('EM_REVISAO','ANALISE_REVOGACAO')", p),
                 contar(base + " AND d.st_situacao_local IN ('EM_PUBLICACAO','EM_REVOGACAO')", p));
     }
 
     // Os `limite` documentos parados há mais tempo na aprovação ou na publicação (desde a entrada na etapa).
-    public List<Gargalo> gargalos(Long omId, Long especieId, int limite) {
-        var p = params(omId, especieId, null, null);
+    public List<Gargalo> gargalos(Filtro filtro, int limite) {
+        var p = params(filtro, null, null);
         p.addValue("limite", limite);
         return jdbc.query("SELECT d.id_documento AS id, d.tx_identificacao AS identificacao, o.sg_organizacao_militar AS om,"
                         + " CASE WHEN d.st_situacao_local IN ('EM_REVISAO','ANALISE_REVOGACAO') THEN 'APROVACAO' ELSE 'PUBLICACAO' END AS etapa,"
@@ -121,14 +131,14 @@ public class PainelGerencialRepository {
                         + " WHEN 'ANALISE_REVOGACAO' THEN d.dt_analise_revogacao WHEN 'EM_PUBLICACAO' THEN d.dt_em_publicacao"
                         + " WHEN 'EM_REVOGACAO' THEN d.dt_em_revogacao END, d.dt_alteracao, d.dt_criacao))) / 86400) AS bigint) AS dias"
                         + " FROM t_documento d JOIN t_organizacao_militar o ON o.id_organizacao_militar = d.om_id"
-                        + " WHERE d.st_situacao_local IN ('EM_REVISAO','ANALISE_REVOGACAO','EM_PUBLICACAO','EM_REVOGACAO')" + filtro(omId, especieId)
+                        + " WHERE d.st_situacao_local IN ('EM_REVISAO','ANALISE_REVOGACAO','EM_PUBLICACAO','EM_REVOGACAO')" + clausula(filtro)
                         + " ORDER BY dias DESC, d.id_documento LIMIT :limite", p,
                 (rs, i) -> new Gargalo(rs.getLong("id"), rs.getString("identificacao"), rs.getString("om"), rs.getString("etapa"), rs.getLong("dias")));
     }
 
     // Por OM (a visão geral): criados e publicados no período e o que está em tramitação agora. Só as OMs com algum movimento.
-    public List<PorOm> porOm(Long omId, Long especieId, Timestamp inicio, Timestamp fim, int limite) {
-        var p = params(omId, especieId, inicio, fim);
+    public List<PorOm> porOm(Filtro filtro, Timestamp inicio, Timestamp fim, int limite) {
+        var p = params(filtro, inicio, fim);
         p.addValue("limite", limite);
         String criados = "count(*) FILTER (WHERE d.dt_criacao >= :inicio AND d.dt_criacao < :fim)";
         String emTramitacao = "count(*) FILTER (WHERE d.st_situacao_local IN (" + EM_TRAMITACAO + "))";
@@ -136,7 +146,7 @@ public class PainelGerencialRepository {
                         + " " + criados + " AS criados,"
                         + " count(*) FILTER (WHERE d.dt_publicacao >= :inicio AND d.dt_publicacao < :fim) AS publicados,"
                         + " " + emTramitacao + " AS em_tramitacao"
-                        + " FROM t_documento d JOIN t_organizacao_militar o ON o.id_organizacao_militar = d.om_id WHERE 1=1" + filtro(omId, especieId)
+                        + " FROM t_documento d JOIN t_organizacao_militar o ON o.id_organizacao_militar = d.om_id WHERE 1=1" + clausula(filtro)
                         + " GROUP BY o.id_organizacao_militar, o.sg_organizacao_militar"
                         + " HAVING " + criados + " > 0 OR " + emTramitacao + " > 0"
                         + " ORDER BY criados DESC, sigla LIMIT :limite", p,

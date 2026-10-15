@@ -3,9 +3,13 @@ package intraer.fablegis.domain.services;
 import intraer.fablegis.domain.entities.estruturaDocumento.Documento;
 import intraer.fablegis.domain.entities.estruturaDocumento.SituacaoBcaEnum;
 import intraer.fablegis.domain.entities.estruturaDocumento.SituacaoLocalEnum;
+import intraer.fablegis.domain.entities.numeracaoDocumento.EspecieNormativa;
 import intraer.fablegis.domain.entities.usuario.OrganizacaoMilitar;
 import intraer.fablegis.domain.entities.usuario.PapelEnum;
 import intraer.fablegis.domain.entities.usuario.Usuario;
+import intraer.fablegis.domain.regras.RegrasDaEspecieNormativa;
+import intraer.fablegis.domain.regras.RegrasDasEspecies;
+import intraer.fablegis.domain.regras.RegrasDoCicloDeVidaDoDocumento;
 import intraer.fablegis.infrastructure.repositories.DocumentoCompartilhamentoRepository;
 import intraer.fablegis.infrastructure.repositories.DocumentoRepository;
 import intraer.fablegis.infrastructure.security.UsuarioPrincipal;
@@ -27,7 +31,11 @@ import java.util.Optional;
 
 import static intraer.fablegis.domain.entities.estruturaDocumento.SituacaoLocalEnum.*;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.withSettings;
 import static org.mockito.Mockito.when;
+import static org.mockito.Answers.CALLS_REAL_METHODS;
 
 // Quem pode pedir cada mudança de etapa (docs/autenticacao.md). Se a transição em si é válida é
 // coisa do DocumentoStatusService; aqui é só posse/atribuição.
@@ -40,6 +48,7 @@ class DocumentoAcessoServiceTest {
 
     @Mock DocumentoRepository documentoRepository;
     @Mock DocumentoCompartilhamentoRepository compartilhamentoRepository;
+    @Mock RegrasDasEspecies regras;
     @InjectMocks DocumentoAcessoService service;
 
     private Usuario autor;
@@ -50,6 +59,8 @@ class DocumentoAcessoServiceTest {
     private Usuario coautor;
     private Usuario estranho;
     private Documento doc;
+    private EspecieNormativa convencional;
+    private EspecieNormativa npa;
 
     private static Usuario usuario(long id, long omId, PapelEnum papel) {
         var om = new OrganizacaoMilitar();
@@ -82,8 +93,28 @@ class DocumentoAcessoServiceTest {
         doc.setOm(om);
         doc.setAutor(autor);
         doc.setSituacaoBca(SituacaoBcaEnum.NAO_PUBLICADO);
+        // Quem publica vem da espécie: o Publicador do BCA (CENDOC, qualquer OM) nas convencionais; o do Boletim Interno, só o da OM do
+        // documento, nas NPAs (uso interno da OM). CALLS_REAL_METHODS para valer o podePublicar de verdade, que é a regra testada.
+        convencional = new EspecieNormativa();
+        npa = new EspecieNormativa();
+        convencional.setId(1L); // distintas entre si (a igualdade da entidade olha os campos)
+        npa.setId(2L);
+        var regrasDasConvencionais = regrasDe(PapelEnum.PUB_BCA, false);
+        var regrasDaNpa = regrasDe(PapelEnum.PUB_BI, true);
+        when(regras.para(convencional)).thenReturn(regrasDasConvencionais);
+        when(regras.para(npa)).thenReturn(regrasDaNpa);
+        doc.setEspecieNormativa(convencional);
         when(documentoRepository.findById(DOC_ID)).thenReturn(Optional.of(doc));
         when(compartilhamentoRepository.existsByDocumentoIdAndUsuarioId(DOC_ID, coautor.getId())).thenReturn(true);
+    }
+
+    private static RegrasDaEspecieNormativa regrasDe(PapelEnum quemPublica, boolean usoInterno) {
+        var regras = mock(RegrasDaEspecieNormativa.class, withSettings().defaultAnswer(CALLS_REAL_METHODS));
+        var ciclo = mock(RegrasDoCicloDeVidaDoDocumento.class);
+        when(ciclo.papelQuePublica()).thenReturn(quemPublica);
+        doReturn(ciclo).when(regras).cicloDeVida();
+        doReturn(usoInterno).when(regras).deUsoInternoDaOm();
+        return regras;
     }
 
     private boolean pode(Usuario u, SituacaoLocalEnum destino) {
@@ -173,7 +204,7 @@ class DocumentoAcessoServiceTest {
         assertThat(pode(aprovadorDeOutraOm, SEM_ETAPA)).isFalse();
     }
 
-    // ─── Publicação e revogação: QUALQUER publicador decide (o papel só existe no CENDOC) ────────
+    // ─── Espécie convencional, publicação e revogação: QUALQUER Publicador do BCA decide (o papel só existe no CENDOC) ────────
 
     @ParameterizedTest
     @EnumSource(value = SituacaoLocalEnum.class, names = {"SEM_ETAPA", "MINUTA", "EM_ALTERACAO"})
@@ -195,6 +226,42 @@ class DocumentoAcessoServiceTest {
         assertThat(pode(publicador, SEM_ETAPA)).isTrue();
         assertThat(pode(usuario(60, 99, PapelEnum.PUB_BCA), SEM_ETAPA)).isTrue();
         assertThat(pode(revisor, SEM_ETAPA)).isFalse();
+    }
+
+    // ─── NPA: quem publica é o Publicador do Boletim Interno da PRÓPRIA OM, não o CENDOC ────────────
+
+    @ParameterizedTest
+    @EnumSource(value = SituacaoLocalEnum.class, names = {"SEM_ETAPA", "MINUTA"})
+    void aNpaEPublicadaPeloPublicadorDoBoletimInternoDaPropriaOm(SituacaoLocalEnum destino) {
+        doc.setEspecieNormativa(npa);
+        doc.setSituacaoLocal(EM_PUBLICACAO);
+
+        assertThat(pode(usuario(61, OM_ID, PapelEnum.PUB_BI), destino)).isTrue();
+        // o de outra OM não: a NPA é de uso interno da OM
+        assertThat(pode(usuario(62, 99, PapelEnum.PUB_BI), destino)).isFalse();
+        // o Publicador do BCA (CENDOC) não publica NPA, mesmo sendo da mesma OM do documento
+        assertThat(pode(publicador, destino)).isFalse();
+        assertThat(pode(revisor, destino)).isFalse();
+    }
+
+    @Test
+    void aNpaTambemERevogadaPeloPublicadorDoBoletimInternoDaPropriaOm() {
+        doc.setEspecieNormativa(npa);
+        doc.setSituacaoBca(SituacaoBcaEnum.PUBLICADO);
+        doc.setSituacaoLocal(EM_REVOGACAO);
+
+        assertThat(pode(usuario(61, OM_ID, PapelEnum.PUB_BI), SEM_ETAPA)).isTrue();
+        assertThat(pode(usuario(62, 99, PapelEnum.PUB_BI), SEM_ETAPA)).isFalse();
+        assertThat(pode(publicador, SEM_ETAPA)).isFalse();
+    }
+
+    @ParameterizedTest
+    @EnumSource(value = SituacaoLocalEnum.class, names = {"SEM_ETAPA", "MINUTA", "EM_ALTERACAO"})
+    void oPublicadorDoBoletimInternoNaoPublicaEspecieConvencional(SituacaoLocalEnum destino) {
+        doc.setSituacaoLocal(EM_PUBLICACAO);
+
+        assertThat(pode(usuario(61, OM_ID, PapelEnum.PUB_BI), destino)).isFalse();
+        assertThat(pode(publicador, destino)).isTrue();
     }
 
     // ─── Demais transições: posse de editar ──────────────────────────────────────

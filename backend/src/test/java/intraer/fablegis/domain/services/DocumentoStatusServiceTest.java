@@ -35,6 +35,9 @@ import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 import intraer.fablegis.domain.regras.RegrasDasEspecies;
+import intraer.fablegis.domain.regras.TipoDeEspecie;
+import intraer.fablegis.domain.regras.comunicacaooficialpadronizada.CicloDeVidaDeNpa;
+import intraer.fablegis.domain.regras.comunicacaooficialpadronizada.RegrasDeComunicacaoOficialPadronizada;
 import intraer.fablegis.domain.regras.convencional.RegrasDeEspecieConvencional;
 import intraer.fablegis.domain.regras.convencional.CicloDeVidaDeEspecieConvencional;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -103,7 +106,8 @@ class DocumentoStatusServiceTest {
         // declaram tipo de regras, e o padrão é CONVENCIONAL).
         ReflectionTestUtils.setField(service, "regras", new RegrasDasEspecies(List.of(
                 new RegrasDeEspecieConvencional(null, null, null, new PublicacaoDeEspecieConvencional(portariaPublicacaoService,
-                        documentoParteNormativaService, emendaService), null, null, null, null, null, new CicloDeVidaDeEspecieConvencional()))));
+                        documentoParteNormativaService, emendaService), null, null, null, null, null, new CicloDeVidaDeEspecieConvencional()),
+                new RegrasDeComunicacaoOficialPadronizada(null, null, null, null, null, null, null, null, null, new CicloDeVidaDeNpa()))));
         when(documentoPdfService.gerarEArmazenarPdf(any())).thenReturn("pdf-gerado");
         when(documentoHtmlService.gerarEArmazenarHtml(any())).thenReturn("html-gerado");
     }

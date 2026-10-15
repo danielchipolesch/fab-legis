@@ -2,6 +2,7 @@ package intraer.fablegis.domain.regras.comunicacaooficialpadronizada;
 
 import intraer.fablegis.domain.entities.estruturaDocumento.SituacaoBcaEnum;
 import intraer.fablegis.domain.entities.estruturaDocumento.SituacaoLocalEnum;
+import intraer.fablegis.domain.entities.usuario.PapelEnum;
 import intraer.fablegis.domain.regras.AcaoDeEtapa;
 import intraer.fablegis.domain.regras.RegrasDoCicloDeVidaDoDocumento;
 import org.springframework.stereotype.Component;
@@ -41,5 +42,11 @@ public class CicloDeVidaDeNpa implements RegrasDoCicloDeVidaDoDocumento {
     @Override
     public boolean podeSerSubstituido(SituacaoLocalEnum atual, SituacaoBcaEnum bca) {
         return atual == SEM_ETAPA && bca == SituacaoBcaEnum.PUBLICADO;
+    }
+
+    // Quem publica e revoga: a própria OM, no Boletim Interno (não o CENDOC).
+    @Override
+    public PapelEnum papelQuePublica() {
+        return PapelEnum.PUB_BI;
     }
 }

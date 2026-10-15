@@ -4,7 +4,8 @@ import java.time.LocalDate;
 import java.util.List;
 
 // Os indicadores do Painel Gerencial (docs/funcionalidades.md). `escopo` diz a OM pela qual tudo foi filtrado (nulo = todas) e se quem
-// pergunta pode trocar de OM (`podeFiltrarPorOm`: só o papel Painel Gerencial Geral). Tempos em dias.
+// pergunta pode trocar de OM (`podeFiltrarPorOm`: só o papel Painel Gerencial Geral) ou de módulo (`podeFiltrarPorTipo`: só o da OM; o Geral nunca conta as NPAs,
+// de uso interno de cada OM). `tipoDeEspecie` é o módulo pedido (nulo = todos os que valem para quem pergunta). Tempos em dias.
 public record PainelGerencialResponseDto(
         Escopo escopo,
         Totais totais,
@@ -16,7 +17,8 @@ public record PainelGerencialResponseDto(
         List<Gargalo> gargalos,
         List<PorOm> porOm
 ) {
-    public record Escopo(Long omId, String omSigla, boolean podeFiltrarPorOm, LocalDate dataInicio, LocalDate dataFim) {}
+    public record Escopo(Long omId, String omSigla, boolean podeFiltrarPorOm, boolean podeFiltrarPorTipo, String tipoDeEspecie,
+                  LocalDate dataInicio, LocalDate dataFim) {}
 
     // criados / publicados / revogados / devolvidos: no período; emTramitacao e vigentes: a situação de agora.
     public record Totais(long criados, long publicados, long revogados, long devolvidos, long emTramitacao, long vigentes) {}

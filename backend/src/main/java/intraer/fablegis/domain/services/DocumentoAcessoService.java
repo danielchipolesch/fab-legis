@@ -6,6 +6,7 @@ import intraer.fablegis.domain.entities.estruturaDocumento.SituacaoBcaEnum;
 import intraer.fablegis.domain.entities.estruturaDocumento.SituacaoLocalEnum;
 import intraer.fablegis.domain.entities.usuario.PapelEnum;
 import intraer.fablegis.domain.entities.usuario.Usuario;
+import intraer.fablegis.domain.regras.RegrasDasEspecies;
 import intraer.fablegis.infrastructure.repositories.DocumentoCompartilhamentoRepository;
 import intraer.fablegis.infrastructure.repositories.DocumentoRepository;
 import intraer.fablegis.infrastructure.security.AutenticacaoUtil;
@@ -35,6 +36,8 @@ public class DocumentoAcessoService {
     private final DocumentoRepository documentoRepository;
 
     private final DocumentoCompartilhamentoRepository compartilhamentoRepository;
+
+    private final RegrasDasEspecies regras;
 
     // Pode editar o que COMPÕE o documento (texto de cada elemento, estrutura, metadados, anexos, cabeçalho da NPA, emendas)
     // AGORA -- a etapa manda, e é aqui, na única fonte de checagem de acesso, que ela é barrada (antes, só alguns serviços
@@ -66,13 +69,13 @@ public class DocumentoAcessoService {
         if (doc.getSituacaoLocal() != SituacaoLocalEnum.EM_PUBLICACAO && doc.getSituacaoLocal() != SituacaoLocalEnum.EM_REVOGACAO) {
             return false;
         }
-        Usuario usuario = usuarioDe(auth);
-        return ehPublicador(usuario);
+        return ehPublicador(doc, usuarioDe(auth));
     }
 
-    // Publicador: qualquer pessoa com o papel PUBLIC -- e esse papel só existe no CENDOC (EscopoDeAcesso), que publica no BCA.
-    private boolean ehPublicador(Usuario usuario) {
-        return usuario.getPapeis().contains(PapelEnum.PUB_BCA);
+    // Publicador: quem a espécie do documento manda publicar -- o Publicador do BCA (CENDOC) nas convencionais, de qualquer OM; o
+    // Publicador do Boletim Interno nas NPAs, só o da OM do documento (RegrasDaEspecieNormativa.podePublicar).
+    private boolean ehPublicador(Documento doc, Usuario usuario) {
+        return regras.para(doc.getEspecieNormativa()).podePublicar(usuario, doc.getOm().getId());
     }
 
     // Posse do documento, SEM olhar a etapa: autor/coautor com papel EDIT ou, durante EM_REVISAO, a pessoa atribuída
@@ -159,7 +162,7 @@ public class DocumentoAcessoService {
         // próximo passo (publicar, revogar ou devolver).
         if (atual == SituacaoLocalEnum.EM_PUBLICACAO || atual == SituacaoLocalEnum.EM_REVOGACAO) {
             if (!DESTINOS_ACAO_PUBLICADOR.contains(destino)) return false;
-            return ehPublicador(usuario);
+            return ehPublicador(doc, usuario);
         }
 
         // Demais transições (ex.: RASCUNHO/MINUTA -> CANCELADO) seguem a mesma posse de editar --

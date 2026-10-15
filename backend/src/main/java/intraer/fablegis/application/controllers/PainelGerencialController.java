@@ -1,6 +1,7 @@
 package intraer.fablegis.application.controllers;
 
 import intraer.fablegis.application.dtos.painelGerencialDtos.PainelGerencialResponseDto;
+import intraer.fablegis.domain.regras.TipoDeEspecie;
 import intraer.fablegis.domain.services.PainelGerencialService;
 import intraer.fablegis.infrastructure.security.AutenticacaoUtil;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -32,10 +33,11 @@ public class PainelGerencialController {
     public ResponseEntity<PainelGerencialResponseDto> indicadores(
             @RequestParam(required = false) Long omId,
             @RequestParam(required = false) Long especieId,
+            @RequestParam(required = false) TipoDeEspecie tipoDeEspecie,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dataInicio,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dataFim,
             Authentication authentication) {
         return ResponseEntity.ok(painelGerencialService.indicadores(
-                AutenticacaoUtil.usuarioDe(authentication), omId, especieId, dataInicio, dataFim));
+                AutenticacaoUtil.usuarioDe(authentication), omId, especieId, tipoDeEspecie, dataInicio, dataFim));
     }
 }

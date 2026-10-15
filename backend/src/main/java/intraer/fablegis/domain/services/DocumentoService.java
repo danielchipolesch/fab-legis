@@ -130,11 +130,11 @@ public class DocumentoService {
                 .stream().map(this::toFilaResponseDto).toList();
     }
 
-    // Fila da tela de Publicação (PublicacaoPage.vue): o que aguarda publicação, de TODAS as OMs -- a publicação é do CENDOC (o papel
-    // PUBLIC só existe lá) -- no fluxo normal (EM_PUBLICACAO) e na revogação (EM_REVOGACAO).
+    // Fila da tela de Publicação (PublicacaoPage.vue): o que aguarda publicação e quem pergunta publica -- o Publicador do BCA (CENDOC) vê as
+    // espécies convencionais de TODAS as OMs; o Publicador do Boletim Interno vê as NPAs da PRÓPRIA OM. No fluxo normal (EM_PUBLICACAO) e na
+    // revogação (EM_REVOGACAO).
     public List<DocumentoFilaResponseDto> getFilaDePublicacao(Usuario usuario) {
-        if (!usuario.getPapeis().contains(PapelEnum.PUB_BCA)) return List.of();
-        return documentoRepository.findBySituacaoLocalIn(List.copyOf(DocumentoSpecifications.SITUACOES_DE_PUBLICACAO))
+        return documentoRepository.findAll(DocumentoSpecifications.aguardandoPublicacaoDe(usuario, regras))
                 .stream().map(this::toFilaResponseDto).toList();
     }
 
@@ -190,7 +190,7 @@ public class DocumentoService {
     }
 
     public Page<Documento> getPainelAguardandoAcao(Usuario usuario, Pageable pageable) {
-        return documentoRepository.findAll(DocumentoSpecifications.aguardandoAcaoDe(usuario), pageable);
+        return documentoRepository.findAll(DocumentoSpecifications.aguardandoAcaoDe(usuario, regras), pageable);
     }
 
     public Page<Documento> getPainelPublicadosERevogados(Pageable pageable) {

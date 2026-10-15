@@ -6,6 +6,7 @@ import intraer.fablegis.domain.entities.estruturaDocumento.SituacaoBcaEnum;
 import intraer.fablegis.domain.entities.estruturaDocumento.SituacaoLocalEnum;
 import intraer.fablegis.domain.entities.usuario.PapelEnum;
 import intraer.fablegis.domain.entities.usuario.Usuario;
+import intraer.fablegis.domain.regras.RegrasDasEspecies;
 import intraer.fablegis.domain.regras.TipoDeEspecie;
 import jakarta.persistence.criteria.CommonAbstractCriteria;
 import jakarta.persistence.criteria.CriteriaBuilder;
@@ -14,8 +15,10 @@ import jakarta.persistence.criteria.Root;
 import jakarta.persistence.criteria.Subquery;
 import org.springframework.data.jpa.domain.Specification;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.EnumSet;
+import java.util.List;
 import java.util.Set;
 
 // Predicados dinâmicos pra listagem paginada de documentos (ver
@@ -60,19 +63,45 @@ public class DocumentoSpecifications {
     }
 
     // Card "Aguardando Minha Ação": o que espera a decisão de quem pergunta -- como aprovador, o que está em revisão na SUA OM (qualquer
-    // aprovador da OM age); como publicador, o que está em publicação (de qualquer OM: a publicação é do CENDOC). Sem esses papéis, nada.
-    public static Specification<Documento> aguardandoAcaoDe(Usuario usuario) {
+    // aprovador da OM age); como publicador, o que está em publicação e ele publica (aguardandoPublicacaoDe). Sem esses papéis, nada.
+    public static Specification<Documento> aguardandoAcaoDe(Usuario usuario, RegrasDasEspecies regras) {
         return (root, query, cb) -> {
             boolean aprovador = usuario.getPapeis().contains(PapelEnum.APR_OM);
-            boolean publicador = usuario.getPapeis().contains(PapelEnum.PUB_BCA);
+            boolean publicador = publicaAlgumaEspecie(usuario, regras);
             if (!aprovador && !publicador) return cb.disjunction();
 
             Predicate comoAprovador = !aprovador ? null : cb.and(
                     root.get("situacaoLocal").in(SITUACOES_DE_REVISAO),
                     cb.equal(root.get("om").get("id"), usuario.getOm().getId()));
-            Predicate comoPublicador = !publicador ? null : root.get("situacaoLocal").in(SITUACOES_DE_PUBLICACAO);
-            if (comoPublicador == null) return comoAprovador;
+            if (!publicador) return comoAprovador;
+            Predicate comoPublicador = aguardandoPublicacaoDe(usuario, regras).toPredicate(root, query, cb);
             return comoAprovador == null ? comoPublicador : cb.or(comoAprovador, comoPublicador);
+        };
+    }
+
+    private static boolean publicaAlgumaEspecie(Usuario usuario, RegrasDasEspecies regras) {
+        for (TipoDeEspecie tipo : TipoDeEspecie.values()) {
+            if (usuario.getPapeis().contains(regras.para(tipo).cicloDeVida().papelQuePublica())) return true;
+        }
+        return false;
+    }
+
+    // O que está em publicação ou revogação e ESTA pessoa publica: por tipo de espécie, o que o papel dela (Publicador do BCA ou do
+    // Boletim Interno) publica -- e, se a espécie é de uso interno da OM (NPA), só o que é da própria OM. Quem não publica nada: nada.
+    public static Specification<Documento> aguardandoPublicacaoDe(Usuario usuario, RegrasDasEspecies regras) {
+        return (root, query, cb) -> {
+            List<Predicate> porTipo = new ArrayList<>();
+            for (TipoDeEspecie tipo : TipoDeEspecie.values()) {
+                var regrasDoTipo = regras.para(tipo);
+                if (!usuario.getPapeis().contains(regrasDoTipo.cicloDeVida().papelQuePublica())) continue;
+                Predicate dessaEspecie = cb.equal(root.get("especieNormativa").get("tipoDeEspecie"), tipo);
+                if (regrasDoTipo.deUsoInternoDaOm()) {
+                    dessaEspecie = cb.and(dessaEspecie, cb.equal(root.get("om").get("id"), usuario.getOm().getId()));
+                }
+                porTipo.add(dessaEspecie);
+            }
+            if (porTipo.isEmpty()) return cb.disjunction();
+            return cb.and(root.get("situacaoLocal").in(SITUACOES_DE_PUBLICACAO), cb.or(porTipo.toArray(Predicate[]::new)));
         };
     }
 

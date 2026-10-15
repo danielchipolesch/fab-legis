@@ -59,4 +59,33 @@ class EscopoDoPainelTest {
         assertThatThrownBy(() -> EscopoDoPainel.omDosIndicadores(usuario(2, PapelEnum.ELB), null))
                 .isInstanceOf(OperacaoNaoAutorizadaException.class).hasMessageContaining("Painel Gerencial");
     }
+
+    // ─── Quais tipos de espécie os indicadores contam: as NPAs são de uso interno da OM ─────────────
+
+    private static final java.util.Set<TipoDeEspecie> USO_INTERNO = java.util.Set.of(TipoDeEspecie.COMUNICACAO_OFICIAL_PADRONIZADA);
+
+    @Test
+    void oPapelGeralNuncaContaAsNpas() {
+        var geral = usuario(1, PapelEnum.PNL_GER);
+
+        assertThat(EscopoDoPainel.tiposDosIndicadores(geral, null, USO_INTERNO)).containsExactly(TipoDeEspecie.CONVENCIONAL);
+        assertThat(EscopoDoPainel.tiposDosIndicadores(geral, TipoDeEspecie.CONVENCIONAL, USO_INTERNO)).containsExactly(TipoDeEspecie.CONVENCIONAL);
+    }
+
+    @Test
+    void oPapelGeralNaoPedeOModuloDasNpas() {
+        assertThatThrownBy(() -> EscopoDoPainel.tiposDosIndicadores(usuario(1, PapelEnum.PNL_GER), TipoDeEspecie.COMUNICACAO_OFICIAL_PADRONIZADA, USO_INTERNO))
+                .isInstanceOf(OperacaoNaoAutorizadaException.class).hasMessageContaining("não considera as NPAs");
+    }
+
+    @Test
+    void oPapelDaOmContaTodosOsModulosOuOQuePedir() {
+        var daOm = usuario(2, PapelEnum.PNL_OM);
+
+        assertThat(EscopoDoPainel.tiposDosIndicadores(daOm, null, USO_INTERNO))
+                .containsExactlyInAnyOrder(TipoDeEspecie.CONVENCIONAL, TipoDeEspecie.COMUNICACAO_OFICIAL_PADRONIZADA);
+        assertThat(EscopoDoPainel.tiposDosIndicadores(daOm, TipoDeEspecie.COMUNICACAO_OFICIAL_PADRONIZADA, USO_INTERNO))
+                .containsExactly(TipoDeEspecie.COMUNICACAO_OFICIAL_PADRONIZADA);
+        assertThat(EscopoDoPainel.tiposDosIndicadores(daOm, TipoDeEspecie.CONVENCIONAL, USO_INTERNO)).containsExactly(TipoDeEspecie.CONVENCIONAL);
+    }
 }
