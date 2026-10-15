@@ -70,7 +70,7 @@ A tela inicial (`/`, `HubPage`) é o **ponto único de acesso** aos módulos e a
 | Card | Documentos | Ação da linha |
 |---|---|---|
 | **Meus Documentos em Tramitação** | Autoria ou coautoria, em `RASCUNHO`, `MINUTA`, `EM_ALTERACAO`, `EM_REVISAO`, `EM_PUBLICACAO`, `ANALISE_REVOGACAO` ou `EM_REVOGACAO` | *Editar* (etapa de escrita e a pessoa é autora/coautora) ou *Acompanhar* (está com outra pessoa) |
-| **Aguardando Minha Ação** | Como aprovador, o que aguarda aprovação na minha OM (`EM_REVISAO`, `ANALISE_REVOGACAO`); como publicador (CENDOC), o que aguarda publicação (`EM_PUBLICACAO`, `EM_REVOGACAO`). Sem nenhum: "Nenhuma ação pendente" | *Revisar* (abre o documento), *Analisar revogação*, *Publicar* ou *Revogar* (tela de Publicação), sempre com o aviso ⚠ |
+| **Aguardando Minha Ação** | Como aprovador, o que aguarda aprovação na minha OM (`EM_REVISAO`, `ANALISE_REVOGACAO`); como publicador, o que aguarda publicação e ele publica (`EM_PUBLICACAO`, `EM_REVOGACAO`): o Publicador do BCA (CENDOC), as espécies convencionais de qualquer OM; o Publicador do Boletim Interno, as NPAs da própria OM. Sem nenhum: "Nenhuma ação pendente" | *Revisar* (abre o documento), *Analisar revogação*, *Publicar* ou *Revogar* (tela de Publicação), sempre com o aviso ⚠ |
 | **Documentos em Tramitação nas OMs** | O que está em tramitação (as mesmas etapas do primeiro card), **de qualquer OM**, **exceto** onde sou autor ou coautor — esses já estão no primeiro card. É o panorama do que os outros estão fazendo | Sempre *Acompanhar*: **só visualizo** — editar exige ser autor ou coautor |
 | **Publicados e Revogados** | `PUBLICADO` e `REVOGADO` **sem tramitação** (`SEM_ETAPA`), **de todas as OMs**, mais recentes primeiro | *Visualizar* |
 
@@ -110,10 +110,10 @@ Implementada com **`tsvector`/`GIN` do próprio PostgreSQL** (sem Elasticsearch)
 
 ## Revisão e Publicação
 
-Duas telas dedicadas, cada uma restrita a quem tem o papel correspondente e mostrando só a **fila** da etapa (nunca o acervo inteiro) — ninguém é "atribuído": a de aprovação é da OM de quem pergunta, a de publicação é do CENDOC:
+Duas telas dedicadas, cada uma restrita a quem tem o papel correspondente e mostrando só a **fila** da etapa (nunca o acervo inteiro) — ninguém é "atribuído": a de aprovação é da OM de quem pergunta; a de publicação é do CENDOC (espécies convencionais) ou da própria OM (NPA):
 
 - **Manter Revisão de Documento** (`/revisao`, `RevisaoPage.vue`, papel Aprovador) — tabela com **código, título, autores, situação e ações**; documentos em `EM_REVISAO`/`ANALISE_REVOGACAO` da **OM do usuário** (qualquer aprovador da OM age). Abrir (editável enquanto `EM_REVISAO`), Aprovar (sem escolher o publicador: segue para a fila do CENDOC) e Devolver.
-- **Manter Publicação de Documento** (`/publicacao`, `PublicacaoPage.vue`, papel Publicador, só no CENDOC) — mesma tabela; documentos em `EM_PUBLICACAO`/`EM_REVOGACAO` de todas as OMs (qualquer publicador age). Abrir (só leitura), Publicar/Revogar (formulário de Portaria/BCA e parte preliminar, `PublicarDialog.vue`) e Devolver (só para `EM_PUBLICACAO`; uma revogação aprovada só pode ser formalizada).
+- **Manter Publicação de Documento** (`/publicacao`, `PublicacaoPage.vue`, papel Publicador do BCA ou Publicador do Boletim Interno) — mesma tabela; documentos em `EM_PUBLICACAO`/`EM_REVOGACAO` que a pessoa publica: o Publicador do BCA (só no CENDOC) vê as **espécies convencionais de todas as OMs**; o Publicador do Boletim Interno (qualquer OM) vê **as NPAs da própria OM** (qualquer publicador daquela fila age). Abrir (só leitura), Publicar/Revogar (formulário de Portaria/BCA e parte preliminar, `PublicarDialog.vue`) e Devolver (só para `EM_PUBLICACAO`; uma revogação aprovada só pode ser formalizada).
 
 Cada uma tem seu próprio breadcrumb (Início → Área de Trabalho → Manter Revisão/Publicação de Documento), e um documento aberto a partir de qualquer uma delas carrega essa origem consigo (`?origem=revisao|publicacao`) — o breadcrumb do editor/visualizador então volta para a fila de onde a pessoa veio, não para o acervo do módulo.
 
@@ -125,12 +125,14 @@ O **Painel Gerencial** é o terceiro módulo do sistema (`/painel-gerencial`, `P
 
 | Papel | O que vê |
 |---|---|
-| **Painel Gerencial Geral** (`PNL_GER`, só no CENDOC) | Os indicadores de **todas as OMs**, com filtro por OM (e a tabela *Por OM*) |
-| **Painel Gerencial da OM** (`PNL_OM`) | Só os da **própria OM**, filtrados **automaticamente** — não há campo de OM nem visão geral. O servidor fixa a OM (`EscopoDoPainel`): pedir outra responde `403` |
+| **Painel Gerencial Geral** (`PNL_GER`, só no CENDOC) | Os indicadores de **todas as OMs**, com filtro por OM (e a tabela *Por OM*), **sem as NPAs**: são de uso interno de cada OM e não entram no painel do CENDOC, nem filtrando por uma OM |
+| **Painel Gerencial da OM** (`PNL_OM`) | Só os da **própria OM**, filtrados **automaticamente** — não há campo de OM nem visão geral. O servidor fixa a OM (`EscopoDoPainel`): pedir outra responde `403`. **Inclui as NPAs** da OM, e tem o filtro de **módulo** (Espécies Convencionais, NPA ou todos) |
 
 O usuário padrão do sistema (o administrador do primeiro boot) já nasce com o Painel Gerencial Geral.
 
-**Filtros:** período (abre nos últimos 12 meses), espécie e — só o Painel Gerencial Geral — OM.
+**Filtros:** período (abre nos últimos 12 meses), espécie e — só o Painel Gerencial Geral — OM; — só o Painel Gerencial da OM — módulo (`tipoDeEspecie`). O seletor de espécie traz só o que cabe a quem pergunta: o Geral, as espécies convencionais; o da OM, as espécies da sua OM (as que ela está habilitada a criar, mais a NPA), do módulo escolhido. Uma OM não habilitada numa espécie convencional simplesmente não a tem nos indicadores.
+
+A exclusão das NPAs do painel geral é só dos **indicadores**: qualquer OM continua vendo qualquer documento, NPA inclusive (premissa do sistema, inegociável).
 
 **O que mostra:**
 - **Gráficos** (Apache ECharts): cada gráfico tem o botão de **baixar a imagem** (PNG) no canto superior direito. Abaixo, o que cada cartão mostra.

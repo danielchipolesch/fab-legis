@@ -1,7 +1,7 @@
 <!-- papeis: ELB APR_OM PUB_BCA -->
 # NPA — Norma Padrão de Ação
 
-A NPA é uma Comunicação Oficial Padronizada, com regras próprias. Ela fica no módulo **NPA**, separada das espécies convencionais, e **qualquer OM pode criá-la**.
+A NPA é uma Comunicação Oficial Padronizada, com regras próprias. Ela fica no módulo **NPA**, separada das espécies convencionais, e **qualquer OM pode criá-la**. Ela é de **uso interno da OM**: cada OM a produz e a **publica**, e ela não aparece nos indicadores do Painel Gerencial do CENDOC, só no da OM. Qualquer OM, porém, **pode ler a NPA de outra**: a leitura aberta estimula as boas práticas.
 
 ## O que muda em relação às espécies convencionais
 
@@ -23,7 +23,7 @@ O botão **Cabeçalho e assinaturas** do editor preenche o **setor emissor**, o 
 | **Minutar** | Elaborador | Passo de organização. Pode cancelar até aqui |
 | **Enviar para aprovação** | Elaborador | Qualquer Aprovador da OM pode aprovar |
 | **Aprovar** | Aprovador da OM | Pode editar o texto ao revisar. Ao aprovar, grava a **data de aprovação** (que vira a EMISSÃO) e o nome de quem aprovou. Pode **devolver** para a Minuta |
-| **Publicar** | Publicador do BCA (CENDOC) | Informa só o **número (1 a 9999) e a data do Boletim Interno**. Depois de publicada, o conteúdo não muda mais |
+| **Publicar** | Publicador do Boletim Interno (da própria OM) | Informa só o **número (1 a 9999) e a data do Boletim Interno**. Depois de publicada, o conteúdo não muda mais |
 | **Pedir revogação** | Elaborador | Só de NPA publicada; vai ao Aprovador da OM |
 | **Aprovar a revogação** | Aprovador da OM | Se devolver, a NPA segue publicada |
-| **Revogar** | Publicador do BCA (CENDOC) | Informa o Boletim Interno da revogação (a data não pode ser anterior à da publicação). A NPA ganha o selo *Revogada* |
+| **Revogar** | Publicador do Boletim Interno (da própria OM) | Informa o Boletim Interno da revogação (a data não pode ser anterior à da publicação). A NPA ganha o selo *Revogada* |

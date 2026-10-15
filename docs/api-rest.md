@@ -38,7 +38,7 @@ Endpoints padrão do Spring Authorization Server (`AuthorizationServerConfig`), 
 | `GET` | `/{id}/pdf` | Gera o PDF oficial do documento sob demanda (Apache FOP) |
 | `GET` | `/{id}/html` | Gera o HTML oficial do documento sob demanda (regras da NSCA 5-3 para a versão eletrônica — ver [Exportação HTML](exportacao-pdf.md#exportação-html)) |
 | `GET` | `/{id}/portarias` | Lista todas as portarias registradas do documento (edição, alterações numeradas, revogação) |
-| `POST` | `/{id}/portaria-pdf` | Sobe o PDF da portaria (multipart `arquivo`) antes de confirmar a publicação/revogação; só devolve a URL, não grava nada no documento. Só um **publicador** (CENDOC), com o documento em `EM_PUBLICACAO` ou `EM_REVOGACAO` (`403` nas demais situações) — ver [Autenticação](autenticacao.md) |
+| `POST` | `/{id}/portaria-pdf` | Sobe o PDF da portaria (multipart `arquivo`) antes de confirmar a publicação/revogação; só devolve a URL, não grava nada no documento. Só um **publicador da espécie** (o Publicador do BCA, no CENDOC, nas convencionais; a NPA não tem portaria), com o documento em `EM_PUBLICACAO` ou `EM_REVOGACAO` (`403` nas demais situações) — ver [Autenticação](autenticacao.md) |
 | `DELETE` | `/{id}` | Remove o documento e seus itens em cascata (somente Rascunho/Minuta, autor/coautor) |
 | `GET`/`POST` | `/{id}/compartilhamentos` | Lista ou adiciona um coautor (só o autor) |
 | `DELETE` | `/{id}/compartilhamentos/{usuarioId}` | Remove um coautor (só o autor) |
@@ -72,7 +72,7 @@ Os quatro cards do hub, de qualquer módulo; qualquer usuário autenticado. Devo
 | Método | Rota | Descrição |
 |---|---|---|
 | `GET` | `/minhas-em-tramitacao` | Meus documentos (autoria ou coautoria) em etapa de trabalho |
-| `GET` | `/aguardando-acao` | O que espera a minha decisão: como aprovador, o que está em revisão (`EM_REVISAO`, `ANALISE_REVOGACAO`) **na minha OM**; como publicador, o que está em publicação (`EM_PUBLICACAO`, `EM_REVOGACAO`) de qualquer OM |
+| `GET` | `/aguardando-acao` | O que espera a minha decisão: como aprovador, o que está em revisão (`EM_REVISAO`, `ANALISE_REVOGACAO`) **na minha OM**; como publicador, o que está em publicação (`EM_PUBLICACAO`, `EM_REVOGACAO`) e ele publica: o Publicador do BCA, as convencionais de qualquer OM; o Publicador do Boletim Interno, as NPAs da **própria OM** |
 | `GET` | `/em-tramitacao-de-outros` | Documentos em etapa de trabalho, de qualquer OM, dos quais não sou autor nem coautor (só visualização) |
 | `GET` | `/publicados-e-revogados` | `PUBLICADO` e `REVOGADO` sem tramitação (`SEM_ETAPA`), de todas as OMs |
 
@@ -146,9 +146,9 @@ Criar (`POST /v1/documentos`) ou clonar (`POST /v1/documentos/{id}/clonar`) sem 
 
 ## Painel Gerencial — `/v1/painel-gerencial`
 
-`GET /` — os indicadores do [Painel Gerencial](funcionalidades.md#painel-gerencial). Só os papéis **Painel Gerencial da OM** (`PNL_OM`) e **Painel Gerencial Geral** (`PNL_GER`). Parâmetros opcionais: `omId`, `especieId`, `dataInicio` e `dataFim` (`AAAA-MM-DD`; sem datas, os últimos 365 dias; início depois do fim → `406`).
+`GET /` — os indicadores do [Painel Gerencial](funcionalidades.md#painel-gerencial). Só os papéis **Painel Gerencial da OM** (`PNL_OM`) e **Painel Gerencial Geral** (`PNL_GER`). Parâmetros opcionais: `omId`, `especieId`, `tipoDeEspecie` (`CONVENCIONAL` ou `COMUNICACAO_OFICIAL_PADRONIZADA`, o módulo), `dataInicio` e `dataFim` (`AAAA-MM-DD`; sem datas, os últimos 365 dias; início depois do fim → `406`).
 
-A OM é decidida no servidor: o Painel Gerencial Geral usa `omId` (ausente = todas as OMs); o Painel Gerencial da OM sempre vê a própria — mandar `omId` de outra OM responde `403`. A resposta traz `escopo` (a OM usada e se quem pergunta pode trocar de OM), `totais`, `porEspecie`, `porMes`, `situacaoAtual`, `tempos` (mediana e p90 de cada etapa, em dias), `filas`, `gargalos` e `porOm`.
+A OM é decidida no servidor: o Painel Gerencial Geral usa `omId` (ausente = todas as OMs); o Painel Gerencial da OM sempre vê a própria — mandar `omId` de outra OM responde `403`. As NPAs são de uso interno de cada OM: o Painel Gerencial Geral **nunca as conta** (pedir `tipoDeEspecie=COMUNICACAO_OFICIAL_PADRONIZADA` responde `403`), e o da OM conta as da própria OM e pode filtrar por módulo. A resposta traz `escopo` (a OM usada, se quem pergunta pode trocar de OM — `podeFiltrarPorOm` — ou de módulo — `podeFiltrarPorTipo` — e o `tipoDeEspecie` pedido), `totais`, `porEspecie`, `porMes`, `situacaoAtual`, `tempos` (mediana e p90 de cada etapa, em dias), `filas`, `gargalos` e `porOm`.
 
 ## Auditoria — `/v1/auditoria` *(Auditor)*
 
