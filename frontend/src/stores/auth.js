@@ -1,7 +1,7 @@
 import { defineStore, getActivePinia } from 'pinia'
 import { limparCachesDaSessao } from '@/utils/limparSessao.js'
 import { temEscopoGeral } from '@/utils/escopo.js'
-import { ehAdmin, ehAdminGeral, ehAuditor, ehPainelGerencial, ehPainelGerencialGeral } from '@/utils/papeis.js'
+import { ehAdmin, ehAdminGeral, ehAuditor, ehPublicador, ehPainelGerencial, ehPainelGerencialGeral } from '@/utils/papeis.js'
 import { podeCriarNoModulo, podeCriarEspecie } from '@/utils/habilitacao.js'
 import { listMinhasEspeciesCriaveis } from '@/api/habilitacao.js'
 import { setAuthTokenGetter, setUnauthorizedHandler, setRefreshHandler } from '@/api/client.js'
@@ -105,7 +105,8 @@ export const useAuthStore = defineStore('auth', {
     temEscopoGeral: (state) => temEscopoGeral(state.usuario?.omSigla),
     isElaborador: (state) => state.usuario?.papeis?.includes('ELB') ?? false,
     isAprovador: (state) => state.usuario?.papeis?.includes('APR_OM') ?? false,
-    isPublicador: (state) => state.usuario?.papeis?.includes('PUB_BCA') ?? false,
+    // Publica alguma espécie: o Publicador do BCA (CENDOC, as convencionais) ou o do Boletim Interno (qualquer OM, as NPAs da própria OM).
+    isPublicador: (state) => ehPublicador(state.usuario?.papeis),
     // Espelha o backend (hasAnyRole('AUD_OM', 'AUD_GER') -- ver AuditoriaController): papel
     // independente de ADMIN, precisa estar marcado no próprio cadastro.
     isAuditor: (state) => ehAuditor(state.usuario?.papeis),

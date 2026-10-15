@@ -62,4 +62,5 @@ public class RegrasDeComunicacaoOficialPadronizada implements RegrasDaEspecieNor
     @Override public RegrasDoCicloDeVidaDoDocumento cicloDeVida() { return cicloDeVida; }
     // Toda OM cria NPA (ver RegraDeHabilitacaoDaOm).
     @Override public RegraDeHabilitacaoDaOm habilitacao() { return () -> false; }
+    @Override public boolean deUsoInternoDaOm() { return true; }
 }

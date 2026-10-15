@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { percentual, larguraDaBarra, maiorValor, rotuloDaEtapa, formatarDias, rotuloDoMes, periodoPadrao } from './painelGerencial.js'
+import { percentual, larguraDaBarra, maiorValor, rotuloDaEtapa, formatarDias, rotuloDoMes, periodoPadrao, especiesDoFiltro } from './painelGerencial.js'
 
 describe('Painel Gerencial (apresentação)', () => {
   it('a largura da barra é proporcional ao maior valor', () => {
@@ -40,5 +40,33 @@ describe('larguraDaBarra', () => {
     expect(larguraDaBarra(0, 1000)).toBe(0)
     expect(larguraDaBarra(500, 1000)).toBe(50)
     expect(larguraDaBarra(5, 0)).toBe(0)
+  })
+})
+
+describe('espécies do filtro do painel', () => {
+  const dca = { id: 1, sigla: 'DCA', tipoDeEspecie: 'CONVENCIONAL' }
+  const ica = { id: 2, sigla: 'ICA', tipoDeEspecie: 'CONVENCIONAL' }
+  const npa = { id: 3, sigla: 'NPA', tipoDeEspecie: 'COMUNICACAO_OFICIAL_PADRONIZADA' }
+  const todas = [dca, ica, npa]
+
+  it('o painel geral não oferece as NPAs: são de uso interno de cada OM', () => {
+    expect(especiesDoFiltro(todas, [], { geral: true })).toEqual([dca, ica])
+  })
+
+  it('o painel da OM oferece só as espécies da OM: as habilitadas e a NPA', () => {
+    // a maioria das OMs não cria convencional: só a NPA
+    expect(especiesDoFiltro(todas, [{ sigla: 'NPA' }], { geral: false })).toEqual([npa])
+    expect(especiesDoFiltro(todas, [{ sigla: 'DCA' }, { sigla: 'NPA' }], { geral: false })).toEqual([dca, npa])
+  })
+
+  it('o painel da OM restringe ao módulo escolhido', () => {
+    const criaveis = [{ sigla: 'DCA' }, { sigla: 'NPA' }]
+    expect(especiesDoFiltro(todas, criaveis, { geral: false, tipoDeEspecie: 'CONVENCIONAL' })).toEqual([dca])
+    expect(especiesDoFiltro(todas, criaveis, { geral: false, tipoDeEspecie: 'COMUNICACAO_OFICIAL_PADRONIZADA' })).toEqual([npa])
+  })
+
+  it('sem lista não há o que oferecer', () => {
+    expect(especiesDoFiltro(undefined, undefined, { geral: false })).toEqual([])
+    expect(especiesDoFiltro(undefined, undefined, { geral: true })).toEqual([])
   })
 })

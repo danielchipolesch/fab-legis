@@ -31,8 +31,12 @@
         <div class="col-6 col-md-2">
           <q-input v-model="filtros.dataFim" type="date" label="Até" outlined dense hide-bottom-space data-testid="filtro-fim" />
         </div>
+        <div v-if="painel?.escopo.podeFiltrarPorTipo" class="col-12 col-md-2">
+          <q-select v-model="filtros.tipoDeEspecie" :options="modulos" option-value="tipoDeEspecie" option-label="nome" emit-value map-options
+                    label="Módulo (todos, se vazio)" outlined dense clearable hide-bottom-space data-testid="filtro-modulo" />
+        </div>
         <div class="col-12 col-md-3">
-          <q-select v-model="filtros.especieId" :options="especies" option-value="id" option-label="sigla" emit-value map-options
+          <q-select v-model="filtros.especieId" :options="especiesDoSelect" option-value="id" option-label="sigla" emit-value map-options
                     label="Espécie" outlined dense clearable hide-bottom-space data-testid="filtro-especie" />
         </div>
         <div v-if="painel?.escopo.podeFiltrarPorOm" class="col-12 col-md-3">
@@ -192,7 +196,9 @@ import { listOrganizacoesMilitares } from '@/api/usuarios.js'
 import { listEspeciesNormativas, normalizeEspecie } from '@/api/referencias.js'
 import { situacaoLocalMeta } from '@/utils/statusDocumento.js'
 import { filtrarOpcoesDeOm } from '@/utils/habilitacao.js'
-import { rotuloDaEtapa, formatarDias, periodoPadrao } from '@/utils/painelGerencial.js'
+import { rotuloDaEtapa, formatarDias, periodoPadrao, especiesDoFiltro } from '@/utils/painelGerencial.js'
+import { MODULOS } from '@/regras/index.js'
+import { useAuthStore } from '@/stores/auth.js'
 import {
   CORES, opcaoPorMes, opcaoPorEspecie, opcaoSituacaoAtual, opcaoTempos, opcaoPorOm, opcaoFila,
 } from '@/utils/painelGerencialGraficos.js'
@@ -201,9 +207,11 @@ const painel = ref(null)
 const carregando = ref(false)
 const erro = ref('')
 const especies = ref([])
+const auth = useAuthStore()
+const modulos = MODULOS
 const oms = ref([])
 const omsFiltradas = ref([])
-const filtros = reactive({ ...periodoPadrao(), especieId: null, omId: null })
+const filtros = reactive({ ...periodoPadrao(), especieId: null, omId: null, tipoDeEspecie: null })
 
 const formatarData = (aaaaMmDd) => (aaaaMmDd ? aaaaMmDd.split('-').reverse().join('/') : '')
 
@@ -249,6 +257,12 @@ const opcoes = computed(() => {
 const alturaDaSituacao = computed(() => `${Math.max(220, (painel.value?.situacaoAtual.length ?? 0) * 34 + 24)}px`)
 const alturaPorOm = computed(() => `${Math.max(240, (painel.value?.porOm.length ?? 0) * 46 + 60)}px`)
 
+// As espécies do seletor: o Painel Gerencial Geral não tem as NPAs; o da OM só as da sua OM (habilitadas, mais a NPA), do módulo escolhido.
+const especiesDoSelect = computed(() => especiesDoFiltro(especies.value, auth.especiesCriaveis, {
+  geral: !!painel.value?.escopo.podeFiltrarPorOm,
+  tipoDeEspecie: filtros.tipoDeEspecie,
+}))
+
 function filtrarOms(valor, update) {
   update(() => { omsFiltradas.value = filtrarOpcoesDeOm(oms.value, valor) })
 }
@@ -270,6 +284,10 @@ function restaurarPeriodo() {
 }
 
 // Recarrega a cada mudança de filtro (datas incompletas esperam).
+// Trocar de módulo tira a espécie escolhida se ela não é do módulo novo.
+watch(() => filtros.tipoDeEspecie, () => {
+  if (filtros.especieId && !especiesDoSelect.value.some(e => e.id === filtros.especieId)) filtros.especieId = null
+})
 watch(filtros, () => { if (filtros.dataInicio && filtros.dataFim) carregar() })
 
 onMounted(async () => {

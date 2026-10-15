@@ -2,6 +2,7 @@ package intraer.fablegis.domain.regras.convencional;
 
 import intraer.fablegis.domain.entities.estruturaDocumento.SituacaoBcaEnum;
 import intraer.fablegis.domain.entities.estruturaDocumento.SituacaoLocalEnum;
+import intraer.fablegis.domain.entities.usuario.PapelEnum;
 import intraer.fablegis.domain.regras.AcaoDeEtapa;
 import intraer.fablegis.domain.regras.RegrasDoCicloDeVidaDoDocumento;
 import org.springframework.stereotype.Component;
@@ -52,5 +53,11 @@ public class CicloDeVidaDeEspecieConvencional implements RegrasDoCicloDeVidaDoDo
     @Override
     public boolean podeSerSubstituido(SituacaoLocalEnum atual, SituacaoBcaEnum bca) {
         return false;
+    }
+
+    // Quem publica e revoga: o CENDOC, no BCA (de qualquer OM).
+    @Override
+    public PapelEnum papelQuePublica() {
+        return PapelEnum.PUB_BCA;
     }
 }

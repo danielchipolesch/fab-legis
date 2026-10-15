@@ -7,7 +7,7 @@
 | Quadro | O que mostra |
 |---|---|
 | **Meus Documentos em Tramitação** | Os documentos de que você é autor ou coautor e que ainda estão em andamento. O botão da linha é *Editar* (se a etapa permite escrever) ou *Acompanhar* |
-| **Aguardando Minha Ação** | O que espera por você: se é Aprovador, os documentos da sua OM para aprovar; se é Publicador (CENDOC), os que aguardam publicação |
+| **Aguardando Minha Ação** | O que espera por você: se é Aprovador, os documentos da sua OM para aprovar; se é Publicador (do BCA, no CENDOC, ou do Boletim Interno, na sua OM), os que aguardam a sua publicação |
 | **Documentos em Tramitação nas OMs** | O que os outros estão fazendo, de qualquer OM. Você só **visualiza**: para editar é preciso ser autor ou coautor |
 | **Publicados e Revogados** | Os atos publicados ou revogados, de todas as OMs, do mais recente para o mais antigo |
 

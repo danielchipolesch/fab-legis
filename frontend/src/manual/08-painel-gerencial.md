@@ -7,12 +7,12 @@ Para quem tem o papel **Painel Gerencial da OM** ou **Painel Gerencial Geral**. 
 
 | Papel | Alcance |
 |---|---|
-| **Painel Gerencial Geral** (CENDOC) | Os indicadores de **todas as OMs**, com filtro por OM e a tabela *Por OM* |
-| **Painel Gerencial da OM** | Só os da **própria OM**. Não há campo de OM nem visão geral |
+| **Painel Gerencial Geral** (CENDOC) | Os indicadores de **todas as OMs**, com filtro por OM e a tabela *Por OM*, **sem as NPAs** (são de uso interno de cada OM) |
+| **Painel Gerencial da OM** | Só os da **própria OM**, **com as NPAs dela**. Não há campo de OM nem visão geral |
 
 ## Filtros
 
-**Período** (abre nos últimos 12 meses), **espécie** e, só para o papel Geral, **OM**. O botão **Últimos 12 meses** volta ao período padrão. Os números se atualizam a cada mudança.
+**Período** (abre nos últimos 12 meses), **espécie** e, só para o papel Geral, **OM**; só para o papel da OM, também o **módulo** (Espécies Convencionais, NPA ou todos). O seletor de espécie traz só as da sua OM: as que ela está habilitada a criar e a NPA. Uma OM que não cria espécie convencional simplesmente não as tem nos indicadores. O botão **Últimos 12 meses** volta ao período padrão. Os números se atualizam a cada mudança.
 
 ## Os indicadores
 

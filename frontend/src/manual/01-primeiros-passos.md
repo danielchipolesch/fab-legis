@@ -28,12 +28,13 @@ O que você vê e faz depende dos **papéis** que o administrador deu a você. Q
 |---|---|
 | **Elaborador** | Cria e edita os documentos de que é autor ou coautor e os envia para aprovação. Todo usuário tem este papel |
 | **Aprovador da OM** | Aprova ou devolve os documentos da própria OM que aguardam aprovação |
-| **Publicador do BCA** | Só no CENDOC: registra a publicação e a revogação |
+| **Publicador do BCA** | Só no CENDOC: registra a publicação e a revogação das espécies convencionais, de qualquer OM |
+| **Publicador do Boletim Interno** | Em qualquer OM: registra a publicação e a revogação das NPAs da própria OM |
 | **Auditor da OM / Auditor Geral** | Consulta a trilha de auditoria (da própria OM ou de todas) |
 | **Administrador da OM / Administrador Geral** | Gerencia os usuários (da própria OM ou de todas) |
 | **Painel Gerencial da OM / Geral** | Consulta os indicadores do Painel Gerencial |
 
-O papel **Geral** existe só no CENDOC; os da **OM**, nas demais OMs. Cada pessoa pode ter vários papéis. O que cada um faz está explicado nas páginas seguintes, sempre com a indicação de **para quem** vale.
+O papel **Geral** existe só no CENDOC; os da **OM**, nas demais OMs; o **Publicador do Boletim Interno** existe em qualquer OM. Cada pessoa pode ter vários papéis. O que cada um faz está explicado nas páginas seguintes, sempre com a indicação de **para quem** vale.
 
 ## Conceitos que aparecem em todo o sistema
 

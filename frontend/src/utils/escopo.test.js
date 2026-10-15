@@ -16,11 +16,14 @@ describe('escopo de acesso', () => {
     expect(omsDoEscopo(undefined, 'BAGL')).toEqual([])
   })
 
-  it('o local concede aprovador e auditor; admin só o geral; publicador só no CENDOC', () => {
-    expect(papeisConcediveis('BAGL', 'BAGL')).toEqual({ elaborador: true, aprovador: true, auditor: true, painel: true, admin: false, publicador: false })
-    expect(papeisConcediveis('CENDOC', 'BAGL')).toEqual({ elaborador: true, aprovador: true, auditor: true, painel: true, admin: true, publicador: false })
+  it('o local concede aprovador e auditor; admin só o geral; publicador do BCA só no CENDOC; o do Boletim Interno, em qualquer OM', () => {
+    expect(papeisConcediveis('BAGL', 'BAGL')).toEqual({ elaborador: true, aprovador: true, auditor: true, painel: true, admin: false, publicador: false, publicadorBi: true })
+    expect(papeisConcediveis('CENDOC', 'BAGL')).toEqual({ elaborador: true, aprovador: true, auditor: true, painel: true, admin: true, publicador: false, publicadorBi: true })
     expect(papeisConcediveis('CENDOC', 'CENDOC').publicador).toBe(true)
     expect(papeisConcediveis('BAGL', 'CENDOC').publicador).toBe(false)
+    // o Publicador do Boletim Interno (publica as NPAs da própria OM) é concedido em qualquer OM, inclusive pelo admin da OM
+    expect(papeisConcediveis('BAGL', 'BAGL').publicadorBi).toBe(true)
+    expect(papeisConcediveis('CENDOC', 'BAGL').publicadorBi).toBe(true)
   })
 
   it('o local não administra outros administradores nem outra OM', () => {

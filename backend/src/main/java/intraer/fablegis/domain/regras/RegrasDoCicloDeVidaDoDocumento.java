@@ -2,6 +2,7 @@ package intraer.fablegis.domain.regras;
 
 import intraer.fablegis.domain.entities.estruturaDocumento.SituacaoBcaEnum;
 import intraer.fablegis.domain.entities.estruturaDocumento.SituacaoLocalEnum;
+import intraer.fablegis.domain.entities.usuario.PapelEnum;
 
 import java.util.Optional;
 
@@ -16,4 +17,8 @@ public interface RegrasDoCicloDeVidaDoDocumento {
     // "Substituir": o documento publicado pode ser substituído por outro, ligado a ele? Só a NPA (que não passa por
     // alteração: para mudá-la cria-se outra e revoga-se a anterior). Convencional: nunca -- ela tem o ciclo de emenda.
     boolean podeSerSubstituido(SituacaoLocalEnum atual, SituacaoBcaEnum bca);
+
+    // O papel de quem publica (e revoga) os documentos da espécie: o Publicador do BCA (CENDOC) nas convencionais, o Publicador do
+    // Boletim Interno (da própria OM) na NPA. Quem pode publicar um documento: RegrasDaEspecieNormativa.podePublicar.
+    PapelEnum papelQuePublica();
 }

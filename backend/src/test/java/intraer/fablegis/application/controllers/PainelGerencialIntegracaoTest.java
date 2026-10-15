@@ -21,6 +21,7 @@ import org.springframework.web.context.WebApplicationContext;
 import java.util.EnumSet;
 
 import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.not;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -44,6 +45,7 @@ class PainelGerencialIntegracaoTest extends IntegracaoComPostgresBase {
     MockMvc mvc;
     long bant;
     long bafl;
+    String identificacaoEmAprovacao;
 
     @BeforeEach
     void preparar() throws Exception {
@@ -53,15 +55,22 @@ class PainelGerencialIntegracaoTest extends IntegracaoComPostgresBase {
         // Cenário determinístico nas duas OMs do teste: o que um teste anterior da classe deixou nelas vai para o CENDOC.
         long cendoc = omRepository.findBySigla("CENDOC").orElseThrow().getId();
         jdbc.update("update t_documento set om_id = ? where om_id in (?, ?)", cendoc, bant, bafl);
-        long publicada = novaNpa("NPA-PAINEL-01");
-        long emAprovacao = novaNpa("NPA-PAINEL-02");
-        long rascunho = novaNpa("NPA-PAINEL-03");
+        // Três espécies convencionais (publicada, em aprovação e rascunho) e duas NPAs (uma em cada OM): as NPAs são de uso interno da OM e
+        // não entram no Painel Gerencial Geral.
+        long publicada = novoDocumento("DCA", null);
+        long emAprovacao = novoDocumento("DCA", null);
+        long rascunho = novoDocumento("DCA", null);
+        long npaDaBant = novoDocumento("NPA", "NPA-PAINEL-01");
+        long npaDaBafl = novoDocumento("NPA", "NPA-PAINEL-02");
+        identificacaoEmAprovacao = jdbc.queryForObject("select tx_identificacao from t_documento where id_documento = ?", String.class, emAprovacao);
         jdbc.update("update t_documento set om_id = ?, st_situacao_local = 'SEM_ETAPA', st_situacao_bca = 'PUBLICADO',"
                 + " dt_criacao = now() - interval '10 days', dt_em_revisao = now() - interval '8 days', dt_aprovacao = now() - interval '6 days',"
                 + " dt_em_publicacao = now() - interval '6 days', dt_publicacao = now() - interval '4 days' where id_documento = ?", bant, publicada);
         jdbc.update("update t_documento set om_id = ?, st_situacao_local = 'EM_REVISAO', dt_criacao = now() - interval '5 days',"
                 + " dt_em_revisao = now() - interval '3 days' where id_documento = ?", bant, emAprovacao);
         jdbc.update("update t_documento set om_id = ?, dt_criacao = now() - interval '2 days' where id_documento = ?", bafl, rascunho);
+        jdbc.update("update t_documento set om_id = ? where id_documento = ?", bant, npaDaBant);
+        jdbc.update("update t_documento set om_id = ? where id_documento = ?", bafl, npaDaBafl);
     }
 
     private Usuario painelGeral() {
@@ -82,25 +91,34 @@ class PainelGerencialIntegracaoTest extends IntegracaoComPostgresBase {
         });
     }
 
+    private long assuntoBasico() {
+        return jdbc.queryForObject("select min(id_assunto_basico) from t_assunto_basico", Long.class);
+    }
+
     private static RequestPostProcessor como(Usuario usuario) {
         var principal = new UsuarioPrincipal(usuario);
         return authentication(new UsernamePasswordAuthenticationToken(principal, null, principal.getAuthorities()));
     }
 
-    private long novaNpa(String identificacao) throws Exception {
-        long npa = especieRepository.findAll().stream().filter(e -> "NPA".equals(e.getSigla())).findFirst().orElseThrow().getId();
-        var criado = mvc.perform(post("/v1/documentos").with(como(painelGeral())).contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"idEspecieNormativa\": " + npa + ", \"identificacao\": \"" + identificacao + "\", \"tituloDocumento\": \"Teste\"}"))
+    // Cria um documento da espécie pela API: convencional (com um assunto básico) ou NPA (com a identificação em texto livre).
+    private long novoDocumento(String sigla, String identificacao) throws Exception {
+        long especie = especieRepository.findAll().stream().filter(e -> sigla.equals(e.getSigla())).findFirst().orElseThrow().getId();
+        String corpo = identificacao != null
+                ? "{\"idEspecieNormativa\": " + especie + ", \"identificacao\": \"" + identificacao + "\", \"tituloDocumento\": \"Teste\"}"
+                : "{\"idEspecieNormativa\": " + especie + ", \"idAssuntoBasico\": " + assuntoBasico() + ", \"tituloDocumento\": \"Teste\"}";
+        var criado = mvc.perform(post("/v1/documentos").with(como(painelGeral())).contentType(MediaType.APPLICATION_JSON).content(corpo))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
         return Long.parseLong(criado.replaceAll("(?s).*\"idDocumento\":(\\d+).*", "$1"));
     }
 
     @Test
     void oPapelGeralDoPainelVeUmaOmEFiltraPorEla() throws Exception {
+        // As NPAs são de uso interno da OM: o Painel Gerencial Geral nunca as conta, nem filtrando por uma OM -- só as 2 convencionais da BANT.
         mvc.perform(get("/v1/painel-gerencial").param("omId", String.valueOf(bant)).with(como(painelGeral())))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.escopo.omSigla").value("BANT"))
                 .andExpect(jsonPath("$.escopo.podeFiltrarPorOm").value(true))
+                .andExpect(jsonPath("$.escopo.podeFiltrarPorTipo").value(false))
                 .andExpect(jsonPath("$.totais.criados").value(2))
                 .andExpect(jsonPath("$.totais.publicados").value(1))
                 .andExpect(jsonPath("$.totais.emTramitacao").value(1))
@@ -112,10 +130,11 @@ class PainelGerencialIntegracaoTest extends IntegracaoComPostgresBase {
                 .andExpect(jsonPath("$.tempos.aprovacao.n").value(1))
                 .andExpect(jsonPath("$.tempos.aprovacao.mediana").value(2.0))
                 .andExpect(jsonPath("$.tempos.publicacao.mediana").value(2.0))
-                .andExpect(jsonPath("$.gargalos[0].identificacao").value("NPA-PAINEL-02"))
+                .andExpect(jsonPath("$.gargalos[0].identificacao").value(identificacaoEmAprovacao))
                 .andExpect(jsonPath("$.gargalos[0].etapa").value("APROVACAO"))
                 .andExpect(jsonPath("$.gargalos[0].dias").value(3))
-                .andExpect(jsonPath("$.porEspecie[0].sigla").value("NPA"))
+                .andExpect(jsonPath("$.porEspecie[0].sigla").value("DCA"))
+                .andExpect(jsonPath("$.porEspecie.length()").value(1))
                 .andExpect(jsonPath("$.porOm.length()").value(1));
     }
 
@@ -125,19 +144,40 @@ class PainelGerencialIntegracaoTest extends IntegracaoComPostgresBase {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.escopo.omId").doesNotExist())
                 .andExpect(jsonPath("$.porOm[*].sigla", hasItem("BANT")))
-                .andExpect(jsonPath("$.porOm[*].sigla", hasItem("BAFL")));
+                .andExpect(jsonPath("$.porOm[*].sigla", hasItem("BAFL")))
+                .andExpect(jsonPath("$.porEspecie[*].sigla", not(hasItem("NPA"))));
     }
 
     @Test
-    void oPapelDaOmDoPainelVeSoAPropriaOmSemVisaoGeral() throws Exception {
+    void oPapelGeralNaoPedeOModuloDasNpas() throws Exception {
+        mvc.perform(get("/v1/painel-gerencial").param("tipoDeEspecie", "COMUNICACAO_OFICIAL_PADRONIZADA").with(como(painelGeral())))
+                .andExpect(status().isForbidden());
+        mvc.perform(get("/v1/painel-gerencial").param("tipoDeEspecie", "CONVENCIONAL").with(como(painelGeral())))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void oPapelDaOmDoPainelVeSoAPropriaOmComAsNpasEFiltraPorModulo() throws Exception {
         var daOm = pessoa("BANT", CPF_PNL_DA_OM, PapelEnum.ELB, PapelEnum.PNL_OM);
 
+        // as 2 convencionais e a NPA da BANT (a NPA da BAFL não é dele)
         mvc.perform(get("/v1/painel-gerencial").with(como(daOm)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.escopo.omSigla").value("BANT"))
                 .andExpect(jsonPath("$.escopo.podeFiltrarPorOm").value(false))
-                .andExpect(jsonPath("$.totais.criados").value(2))
+                .andExpect(jsonPath("$.escopo.podeFiltrarPorTipo").value(true))
+                .andExpect(jsonPath("$.totais.criados").value(3))
+                .andExpect(jsonPath("$.porEspecie[*].sigla", hasItem("NPA")))
                 .andExpect(jsonPath("$.porOm.length()").value(1));
+        mvc.perform(get("/v1/painel-gerencial").param("tipoDeEspecie", "COMUNICACAO_OFICIAL_PADRONIZADA").with(como(daOm)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.escopo.tipoDeEspecie").value("COMUNICACAO_OFICIAL_PADRONIZADA"))
+                .andExpect(jsonPath("$.totais.criados").value(1))
+                .andExpect(jsonPath("$.porEspecie[0].sigla").value("NPA"));
+        mvc.perform(get("/v1/painel-gerencial").param("tipoDeEspecie", "CONVENCIONAL").with(como(daOm)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totais.criados").value(2))
+                .andExpect(jsonPath("$.porEspecie[*].sigla", not(hasItem("NPA"))));
 
         // pedir a própria OM é aceito; pedir outra (a visão geral não existe para ele), não
         mvc.perform(get("/v1/painel-gerencial").param("omId", String.valueOf(bant)).with(como(daOm))).andExpect(status().isOk());

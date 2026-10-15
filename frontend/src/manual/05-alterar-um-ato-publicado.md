@@ -10,7 +10,7 @@ Um ato publicado **não é editado diretamente**: abre-se uma **alteração**, q
 1. **Iniciar a alteração.** Um **Aprovador da OM** do documento abre o menu **⋮** de um ato publicado e escolhe **Iniciar alteração**. O documento passa a *Em alteração* e continua *Publicado*.
 2. **Alterar.** O autor e os coautores editam o texto. Cada elemento alterado é registrado, e o sistema guarda o que mudou.
 3. **Enviar para aprovação.** Como em qualquer documento: o Aprovador da OM revisa e aprova (ou devolve, e o documento volta a *Em alteração*).
-4. **Publicar.** O Publicador do CENDOC registra a **Portaria de alteração** e o BCA. As portarias de alteração são numeradas em sequência (1ª, 2ª, 3ª…) e aparecem como cláusula em cada elemento alterado.
+4. **Publicar.** O Publicador do BCA (CENDOC) registra a **Portaria de alteração** e o BCA. As portarias de alteração são numeradas em sequência (1ª, 2ª, 3ª…) e aparecem como cláusula em cada elemento alterado.
 
 ## Cancelar uma alteração
 
