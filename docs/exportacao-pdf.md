@@ -96,6 +96,8 @@ Passada a espera, o pedido recebe **`503` com `Retry-After`** e a mensagem "O si
 
 Métricas no Actuator/Prometheus: `fab.pdf.geracoes.em.andamento` e `fab.pdf.geracoes.aguardando`. Uma thread esperando por vaga já pode estar segurando uma conexão do pool do banco (transação aberta): não configure `max-concorrentes` e a espera de modo que as threads em espera esgotem o pool do Hikari.
 
+**A criação do Fop é serializada.** O `FopFactory` é compartilhado, mas a configuração do renderizador (um DOM) é lida a cada `Fop` novo e essa leitura **não é thread-safe**: duas gerações começando ao mesmo tempo corrompiam a leitura e o PDF passava a falhar (`font without font-triplet`, `NullPointerException`) até o servidor reiniciar. `RenderizadorDePdf` serializa só a criação do `Fop`; a renderização em si segue em paralelo, dentro do limite acima. O teste `RenderizadorDePdfTest.geracoesSimultaneasNuncaQuebramOPdf` dispara gerações simultâneas desde a primeira. Foi achado pelo [teste de carga](testes.md#testes-de-carga-e-métricas).
+
 ## Cache de PDF/HTML em tramitação
 
 Enquanto o documento está em tramitação sem cópia congelada (ou seja, cai no caminho de renderização ao vivo descrito acima), reabrir a mesma minuta sem editá-la não precisa gerar o PDF/HTML de novo: `DocumentoRenderCacheService` guarda o resultado no próprio MinIO, sob o prefixo `cache/pdf/` ou `cache/html/`, e `DocumentoPdfService.streamPdf`/`DocumentoHtmlService.streamHtml` tentam esse cache antes de renderizar (um acerto não passa pelo `LimitadorGeracaoPdf` — é exatamente o custo que o cache evita).
