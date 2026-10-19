@@ -16,10 +16,10 @@ O que cada administrador alcança:
 | | Administrador Geral (CENDOC) | Administrador da OM |
 |---|---|---|
 | Usuários | De **todas** as OMs | Só os da **própria OM** |
-| Papéis que concede | Todos, respeitando a lotação | **Elaborador, Aprovador da OM, Auditor da OM e Painel Gerencial da OM** |
+| Papéis que concede | Todos, respeitando a lotação | **Elaborador, Aprovador da OM, Publicador do Boletim Interno, Auditor da OM e Painel Gerencial da OM** |
 | Administradores | Mantém os administradores das OMs | **Não altera outro administrador** |
 
-Regras de lotação, que o sistema recusa se não forem cumpridas: **Administrador Geral, Auditor Geral, Publicador do BCA e Painel Gerencial Geral** só existem para quem é do **CENDOC**; **Administrador da OM, Auditor da OM e Painel Gerencial da OM**, para quem é de **outras OMs**. O CENDOC **nunca fica sem Administrador Geral**: o último não pode perder o papel, ser desativado nem mudar de OM. Conceda o papel a outra pessoa antes.
+Regras de lotação, que o sistema recusa se não forem cumpridas: **Administrador Geral, Auditor Geral, Publicador do BCA e Painel Gerencial Geral** só existem para quem é do **CENDOC**; o **Publicador do Boletim Interno** existe em **qualquer OM**; **Administrador da OM, Auditor da OM e Painel Gerencial da OM**, para quem é de **outras OMs**. O CENDOC **nunca fica sem Administrador Geral**: o último não pode perder o papel, ser desativado nem mudar de OM. Conceda o papel a outra pessoa antes.
 
 O CPF aparece parcialmente oculto nas telas (`111.***.***-35`).
 

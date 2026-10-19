@@ -3,10 +3,10 @@
 //
 // Os três cards são por trabalho da pessoa, não por espécie -- cada linha se identifica pelo módulo dela (regras/index.js):
 //   minhas_em_tramitacao    : meus documentos (autoria ou coautoria) ainda em trabalho
-//   aguardando              : o que espera a minha decisão: aprovação (aprovador, na minha OM) ou publicação (publicador, CENDOC)
+//   aguardando              : o que espera a minha decisão: aprovação (aprovador, na minha OM) ou publicação (publicador: o do BCA, no CENDOC, nas convencionais; o do Boletim Interno da OM, nas NPAs)
 //   em_tramitacao_de_outros : em tramitação, de qualquer OM, dos quais não sou autor nem coautor (só visualizo)
 //   publicados              : publicados e revogados, de qualquer OM, sem tramitação em curso
-import { moduloDoDocumento } from '@/regras/index.js'
+import { moduloDoDocumento, regrasDoDocumento } from '@/regras/index.js'
 
 export const CARTOES = ['minhas_em_tramitacao', 'aguardando', 'em_tramitacao_de_outros', 'publicados']
 
@@ -62,7 +62,7 @@ function comQuem(doc) {
     case 'EM_REVISAO':
     case 'ANALISE_REVOGACAO':  return 'Aprovadores da OM'
     case 'EM_PUBLICACAO':
-    case 'EM_REVOGACAO':       return 'Publicadores (CENDOC)'
+    case 'EM_REVOGACAO':       return regrasDoDocumento(doc).quemPublica
     default:                   return 'Autor e coautores'
   }
 }

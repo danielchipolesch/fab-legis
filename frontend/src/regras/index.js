@@ -45,11 +45,15 @@ const MODULO_COMUNICACAO_OFICIAL_PADRONIZADA = {
   colunasOcultas: ['especie', 'assunto_basico'],
 }
 
-const PAPÉIS = {
+const REGRAS_POR_TIPO = {
   [CONVENCIONAL]: {
     tipo: CONVENCIONAL,
     modulo: MODULO_CONVENCIONAL,
     ehNpa: false,
+    // Quem publica (e revoga): o Publicador do BCA, do CENDOC, de qualquer OM (espelha RegrasDoCicloDeVidaDoDocumento.papelQuePublica).
+    quemPublica: 'Publicadores do BCA (CENDOC)',
+    // De uso interno da OM? A convencional não: tem âmbito do COMAER (espelha RegrasDaEspecieNormativa.deUsoInternoDaOm).
+    usoInternoDaOm: false,
     filhosPermitidos: convencional.filhosPermitidos,
     tiposDeAgrupamento: convencional.TIPOS_DE_AGRUPAMENTO,
     renumerar: convencional.renumerar,
@@ -67,6 +71,10 @@ const PAPÉIS = {
     tipo: COMUNICACAO_OFICIAL_PADRONIZADA,
     modulo: MODULO_COMUNICACAO_OFICIAL_PADRONIZADA,
     ehNpa: true,
+    // A NPA é de uso interno da OM: quem a publica (e revoga), no Boletim Interno, é o Publicador do Boletim Interno da PRÓPRIA OM.
+    quemPublica: 'Publicadores do Boletim Interno da OM',
+    // A NPA é de uso interno da OM: fora do Painel Gerencial Geral, só no da OM.
+    usoInternoDaOm: true,
     filhosPermitidos: npa.filhosPermitidos,
     tiposDeAgrupamento: npa.TIPOS_DE_AGRUPAMENTO,
     renumerar: npa.renumerar,
@@ -82,11 +90,11 @@ const PAPÉIS = {
 }
 
 export function regrasDe(tipoDeEspecie) {
-  return PAPÉIS[tipoDeEspecie] ?? PAPÉIS[CONVENCIONAL]
+  return REGRAS_POR_TIPO[tipoDeEspecie] ?? REGRAS_POR_TIPO[CONVENCIONAL]
 }
 
 // Os módulos do sistema, na ordem em que aparecem no hub e no menu.
-export const MODULOS = Object.values(PAPÉIS).map(p => p.modulo)
+export const MODULOS = Object.values(REGRAS_POR_TIPO).map(p => p.modulo)
 
 export function moduloDe(tipoDeEspecie) {
   return regrasDe(tipoDeEspecie).modulo

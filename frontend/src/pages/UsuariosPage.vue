@@ -233,7 +233,10 @@
                 </q-checkbox>
                 <q-checkbox v-model="form.aprovador" label="Aprovador da OM" :disable="salvando || !concediveis.aprovador" />
                 <q-checkbox v-model="form.publicador" label="Publicador do BCA" :disable="salvando || !concediveis.publicador">
-                  <q-tooltip>A publicação é exclusiva do CENDOC: só quem é lotado no CENDOC (e só o Administrador Geral) recebe este papel.</q-tooltip>
+                  <q-tooltip>A publicação no BCA (espécies convencionais) é exclusiva do CENDOC: só quem é lotado no CENDOC (e só o Administrador Geral) recebe este papel.</q-tooltip>
+                </q-checkbox>
+                <q-checkbox v-model="form.publicadorBi" label="Publicador do Boletim Interno" :disable="salvando || !concediveis.publicadorBi">
+                  <q-tooltip>Publica e revoga as NPAs da própria OM, no Boletim Interno. Existe em qualquer OM, e o Administrador da OM o concede.</q-tooltip>
                 </q-checkbox>
                 <q-checkbox v-model="form.admin" :label="nomeDoPapel(papelDeAdmin(siglaDaOmDeDestino))" :disable="salvando || !concediveis.admin">
                   <q-tooltip>Só o Administrador Geral (CENDOC) concede o papel de administrador.</q-tooltip>
@@ -473,10 +476,10 @@ const mostrarSenha = ref(false)
 // que vier daqui (mesma regra em duas camadas, não só decoração de tela).
 const form = reactive({
   nome: '', nomeGuerra: '', cpf: '', email: '', postoGraduacaoId: null, senha: '',
-  omId: null, editor: true, aprovador: false, publicador: false, admin: false, auditor: false, painel: false, ativo: true,
+  omId: null, editor: true, aprovador: false, publicador: false, publicadorBi: false, admin: false, auditor: false, painel: false, ativo: true,
 })
 
-// Escopo (utils/escopo.js): o admin local só gerencia a própria OM e não concede Administrador nem Publicador; o geral (CENDOC) gerencia
+// Escopo (utils/escopo.js): o admin local só gerencia a própria OM e não concede Administrador nem Publicador do BCA; o geral (CENDOC) gerencia
 // todas. A tela esconde o que o servidor recusaria -- o servidor é quem garante.
 const siglaDaOmDeDestino = computed(() => oms.value.find(o => o.id === form.omId)?.sigla)
 const concediveis = computed(() => papeisConcediveis(auth.usuario?.omSigla, siglaDaOmDeDestino.value))
@@ -484,13 +487,14 @@ const podeAdministrarEste = (usuario) => podeAdministrar(auth.usuario?.omSigla, 
 // Trocar a OM de destino para uma que não admite o papel desmarca o que deixou de valer (ex.: Publicador fora do CENDOC).
 watch(concediveis, (c) => {
   if (!c.publicador) form.publicador = false
+  if (!c.publicadorBi) form.publicadorBi = false
   if (!c.admin) form.admin = false
 })
 
 function resetForm() {
   Object.assign(form, {
     nome: '', nomeGuerra: '', cpf: '', email: '', postoGraduacaoId: null, senha: '',
-    omId: null, editor: true, aprovador: false, publicador: false, admin: false, auditor: false, painel: false, ativo: true,
+    omId: null, editor: true, aprovador: false, publicador: false, publicadorBi: false, admin: false, auditor: false, painel: false, ativo: true,
   })
   formRef.value?.resetValidation()
 }
@@ -516,6 +520,7 @@ function abrirEdicao(usuario) {
     editor: true, // sempre -- ver comentário no form acima
     aprovador: usuario.papeis.includes('APR_OM'),
     publicador: usuario.papeis.includes('PUB_BCA'),
+    publicadorBi: usuario.papeis.includes('PUB_BI'),
     admin: ehAdmin(usuario.papeis),
     auditor: ehAuditor(usuario.papeis),
     painel: ehPainelGerencial(usuario.papeis),
@@ -530,6 +535,7 @@ function papeisSelecionados() {
   if (form.editor) papeis.push('ELB')
   if (form.aprovador) papeis.push('APR_OM')
   if (form.publicador) papeis.push('PUB_BCA')
+  if (form.publicadorBi) papeis.push('PUB_BI')
   // Administrador e Auditor existem em duas versões; vale a da lotação de destino (CENDOC = geral).
   if (form.admin) papeis.push(papelDeAdmin(siglaDaOmDeDestino.value))
   if (form.auditor) papeis.push(papelDeAuditor(siglaDaOmDeDestino.value))

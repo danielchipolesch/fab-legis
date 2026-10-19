@@ -307,7 +307,7 @@ function filaParaFrontend(doc) {
   }
 }
 
-// Filas das telas de Revisão (aguardando aprovação na OM de quem pergunta) e de Publicação (aguardando publicação, CENDOC) --
+// Filas das telas de Revisão (aguardando aprovação na OM de quem pergunta) e de Publicação (aguardando publicação: convencionais no CENDOC, NPAs na própria OM) --
 // ver DocumentoService.getFilaDeRevisao/getFilaDePublicacao (backend).
 export async function listMinhaRevisao() {
   const resp = await http.get('/documentos/minha-revisao')

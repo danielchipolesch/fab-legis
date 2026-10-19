@@ -38,6 +38,8 @@ class EnvioParaAprovacaoIntegracaoTest extends IntegracaoComPostgresBase {
     private static final String CPF_APROVADOR = "10120230364";
     private static final String CPF_APROVADOR_DE_OUTRA_OM = "20230340431";
     private static final String CPF_PUBLICADOR = "30340450509";
+    private static final String CPF_PUBLICADOR_DO_BCA = "40450560600";
+    private static final String CPF_PUBLICADOR_DE_OUTRA_OM = "50560670701";
 
     @Autowired WebApplicationContext contexto;
     @Autowired UsuarioRepository usuarioRepository;
@@ -124,11 +126,15 @@ class EnvioParaAprovacaoIntegracaoTest extends IntegracaoComPostgresBase {
         assertThat(situacaoDe(id)).isEqualTo("EM_PUBLICACAO");
     }
 
+    // A NPA é de uso interno da OM: quem a publica é o Publicador do Boletim Interno da PRÓPRIA OM do documento -- não o Publicador do BCA
+    // (CENDOC) nem o de outra OM.
     @Test
-    void qualquerPublicadorVeAFilaDePublicacaoESoOPublicadorVe() throws Exception {
+    void aNpaAprovadaVaiParaAFilaDoPublicadorDoBoletimInternoDaPropriaOm() throws Exception {
         long id = novaNpaMinutada("NPA-APROV-02");
         var aprovador = pessoa("CENDOC", CPF_APROVADOR, PapelEnum.ELB, PapelEnum.APR_OM);
-        var publicador = pessoa("CENDOC", CPF_PUBLICADOR, PapelEnum.ELB, PapelEnum.PUB_BCA);
+        var publicadorDaOm = pessoa("CENDOC", CPF_PUBLICADOR, PapelEnum.ELB, PapelEnum.PUB_BI);
+        var publicadorDoBca = pessoa("CENDOC", CPF_PUBLICADOR_DO_BCA, PapelEnum.ELB, PapelEnum.PUB_BCA);
+        var publicadorDeOutraOm = pessoa("EMAER", CPF_PUBLICADOR_DE_OUTRA_OM, PapelEnum.ELB, PapelEnum.PUB_BI);
         mvc.perform(patch("/v1/documentos/" + id + "/status").with(como(autor())).contentType(MediaType.APPLICATION_JSON)
                         .content("{\"situacaoLocal\":\"EM_REVISAO\"}"))
                 .andExpect(status().isOk());
@@ -136,12 +142,27 @@ class EnvioParaAprovacaoIntegracaoTest extends IntegracaoComPostgresBase {
                         .content("{\"situacaoLocal\":\"EM_PUBLICACAO\"}"))
                 .andExpect(status().isOk());
 
-        mvc.perform(get("/v1/documentos/minha-publicacao").with(como(publicador)))
+        // a fila de publicação: só o publicador do Boletim Interno da OM do documento a tem
+        mvc.perform(get("/v1/documentos/minha-publicacao").with(como(publicadorDaOm)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[*].idDocumento", hasItem((int) id)));
-        // quem não é publicador (nem o aprovador) não tem fila de publicação
-        mvc.perform(get("/v1/documentos/minha-publicacao").with(como(aprovador)))
+        for (var semAcesso : new Usuario[]{publicadorDoBca, publicadorDeOutraOm, aprovador}) {
+            mvc.perform(get("/v1/documentos/minha-publicacao").with(como(semAcesso)))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$[*].idDocumento", not(hasItem((int) id))));
+        }
+
+        // e só ele publica (Boletim Interno: número e data), nunca o do BCA nem o de outra OM
+        String publicar = "{\"situacaoLocal\":\"SEM_ETAPA\",\"numeroBoletimInterno\":15,\"dataBoletimInterno\":\"2026-10-14\"}";
+        mvc.perform(patch("/v1/documentos/" + id + "/status").with(como(publicadorDoBca)).contentType(MediaType.APPLICATION_JSON).content(publicar))
+                .andExpect(status().isForbidden());
+        mvc.perform(patch("/v1/documentos/" + id + "/status").with(como(publicadorDeOutraOm)).contentType(MediaType.APPLICATION_JSON).content(publicar))
+                .andExpect(status().isForbidden());
+        mvc.perform(patch("/v1/documentos/" + id + "/status").with(como(publicadorDaOm)).contentType(MediaType.APPLICATION_JSON).content(publicar))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(0));
+                .andExpect(jsonPath("$.situacaoBca").value("PUBLICADO"));
     }
+
+    // Já o Publicador do BCA (CENDOC) vê e publica as espécies convencionais: a fila dele não traz NPA (coberto acima) e a do Publicador do
+    // Boletim Interno não traz convencional (DocumentoSpecificationsTest e DocumentoAcessoServiceTest).
 }

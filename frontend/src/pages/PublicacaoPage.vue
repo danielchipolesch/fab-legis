@@ -13,7 +13,7 @@
       <div>
         <h1 class="text-h5 text-weight-bold text-primary q-my-none">Manter Publicação de Documento</h1>
         <p class="text-body2 text-grey-7 q-mb-none">
-          Documentos aprovados aguardando publicação: qualquer publicador do CENDOC pode publicá-los, revogá-los ou devolvê-los.
+          Documentos aprovados aguardando publicação. O Publicador do BCA (CENDOC) vê as espécies convencionais de todas as OMs; o Publicador do Boletim Interno vê as NPAs da própria OM. Qualquer um deles pode publicar, revogar ou devolver o que lhe cabe.
         </p>
       </div>
     </div>

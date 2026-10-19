@@ -16,7 +16,8 @@ export function omsDoEscopo(oms, siglaDoAtor) {
 
 // Quais papéis o ator pode conceder ao usuário que ficará na OM de destino. Elaborador é sempre; Aprovador da OM, dentro do escopo; Auditor e
 // Administrador existem em duas versões (geral no CENDOC, da OM nas demais) e o admin da OM só concede o Auditor da OM; Administrador só o
-// geral; Publicador do BCA só no CENDOC (e só o geral concede).
+// geral; Publicador do BCA só no CENDOC (e só o geral concede); Publicador do Boletim Interno (das NPAs da própria OM), em qualquer OM e
+// concedido também pelo admin da OM.
 export function papeisConcediveis(siglaDoAtor, siglaDaOmDeDestino) {
   const geral = temEscopoGeral(siglaDoAtor)
   return {
@@ -26,6 +27,7 @@ export function papeisConcediveis(siglaDoAtor, siglaDaOmDeDestino) {
     painel: true,
     admin: geral,
     publicador: geral && ehOmGeral(siglaDaOmDeDestino),
+    publicadorBi: true,
   }
 }
 

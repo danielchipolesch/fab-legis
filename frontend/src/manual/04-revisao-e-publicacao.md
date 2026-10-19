@@ -8,16 +8,16 @@ O documento percorre estas etapas, e em cada uma há **quem age**:
 | Rascunho → Minuta | Autor ou coautor |
 | Enviar para aprovação (**Em revisão**) | Autor ou coautor |
 | Aprovar ou devolver | **Aprovador da OM** do documento |
-| Publicar (**Em publicação**) | **Publicador do BCA** (CENDOC) |
+| Publicar (**Em publicação**) | **Publicador do BCA** (CENDOC), nas espécies convencionais; **Publicador do Boletim Interno**, nas NPAs, na própria OM |
 
-Ninguém é "atribuído": quem envia não escolhe uma pessoa. Qualquer Aprovador da OM age sobre os documentos da própria OM, e qualquer Publicador do CENDOC age sobre os de todas as OMs.
+Ninguém é "atribuído": quem envia não escolhe uma pessoa. Qualquer Aprovador da OM age sobre os documentos da própria OM, e qualquer Publicador age sobre a fila da sua espécie: o do CENDOC, sobre as espécies convencionais de todas as OMs; o do Boletim Interno, sobre as NPAs da própria OM.
 
 ## Aprovar (Aprovador da OM)
 
 Para quem tem o papel **Aprovador da OM**. Abra **Manter Revisão de Documento** (pelo quadro **Aguardando Minha Ação** da Área de Trabalho ou pelo menu). A fila mostra os documentos da sua OM em **Em revisão** ou **Análise de revogação**, com código, título, autores e situação.
 
 - **Abrir:** enquanto o documento está em revisão, você pode **editar o texto** (o autor não).
-- **Aprovar:** o documento segue para a fila de publicação do CENDOC. Fica registrado **quem aprovou**. Você não escolhe o publicador.
+- **Aprovar:** o documento segue para a fila de publicação: a do CENDOC, se for espécie convencional; a da sua OM, se for NPA. Fica registrado **quem aprovou**. Você não escolhe o publicador.
 - **Devolver:** o documento volta para a Minuta (ou para Em alteração, se já foi publicado), para o autor corrigir.
 
 Você só age nos documentos da **sua OM**: o aprovador de outra OM não.
@@ -32,11 +32,19 @@ Para quem tem o papel **Publicador do BCA**, só no CENDOC. Abra **Manter Public
 
 Quando o documento é publicado, a **situação BCA** passa a *Publicado*, e a etapa local fica *sem etapa*. Todas as portarias registradas aparecem na seção **Portarias** da tela de visualização.
 
-> **NPA:** a NPA não usa Portaria nem BCA. Ela é publicada e revogada no **Boletim Interno**. Ver [NPA](npa).
+## Publicar uma NPA (Publicador do Boletim Interno)
+
+Para quem tem o papel **Publicador do Boletim Interno**, em qualquer OM. A NPA é de uso interno da OM e é publicada nela, e não pelo CENDOC. Em **Manter Publicação de Documento** você vê as **NPAs da sua OM** em *Em publicação* ou *Em revogação* (as de outra OM não aparecem para você publicar, embora qualquer um possa lê-las).
+
+- **Publicar:** informe o **número** (1 a 9999) e a **data do Boletim Interno**. A NPA não usa Portaria nem BCA.
+- **Devolver:** volta para a Minuta, para o autor corrigir.
+- **Revogar:** informe o Boletim Interno da revogação (a data não pode ser anterior à da publicação).
+
+Ver [NPA](npa).
 
 ## Pedir a revogação de um ato publicado
 
-Para o **Elaborador** de um ato *Publicado* sem etapa em curso: use o menu **⋮ › Pedir revogação**. O pedido vai a qualquer Aprovador da OM, que pode **aprovar** (segue ao CENDOC para revogar) ou **devolver** (o ato segue *Publicado*). Uma revogação aprovada nunca volta a *Publicado*: o Publicador a formaliza.
+Para o **Elaborador** de um ato *Publicado* sem etapa em curso: use o menu **⋮ › Pedir revogação**. O pedido vai a qualquer Aprovador da OM, que pode **aprovar** (segue para a fila de publicação para revogar: a do CENDOC, nas convencionais; a da própria OM, na NPA) ou **devolver** (o ato segue *Publicado*). Uma revogação aprovada nunca volta a *Publicado*: o publicador da espécie a formaliza.
 
 Não se pede revogação **durante uma alteração**: primeiro conclua ou cancele a alteração.
 

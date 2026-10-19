@@ -25,6 +25,11 @@ public class RegrasDasEspecies {
         return para(especie.getTipoDeEspecie());
     }
 
+    // Os tipos de espécie que são (ou não) de uso interno da OM -- para as consultas que separam as NPAs do resto.
+    public List<TipoDeEspecie> tipos(boolean deUsoInternoDaOm) {
+        return porTipo.values().stream().filter(r -> r.deUsoInternoDaOm() == deUsoInternoDaOm).map(RegrasDaEspecieNormativa::tipo).toList();
+    }
+
     public RegrasDaEspecieNormativa para(TipoDeEspecie tipo) {
         var encontrada = porTipo.get(tipo != null ? tipo : TipoDeEspecie.CONVENCIONAL);
         if (encontrada == null) {

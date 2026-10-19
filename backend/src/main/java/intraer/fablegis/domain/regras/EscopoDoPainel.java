@@ -4,9 +4,14 @@ import intraer.fablegis.domain.entities.usuario.PapelEnum;
 import intraer.fablegis.domain.entities.usuario.Usuario;
 import intraer.fablegis.domain.handlers.exceptions.OperacaoNaoAutorizadaException;
 
+import java.util.Collection;
+import java.util.EnumSet;
+import java.util.Set;
+
 // O que o Painel Gerencial mostra a quem pergunta (docs/funcionalidades.md, "Painel Gerencial"): o Painel Gerencial Geral (PNL_GER, só no CENDOC)
 // vê os indicadores de todas as OMs e pode filtrar por uma; o Painel Gerencial da OM (PNL_OM) vê SÓ os da própria OM, sem visão geral -- o servidor
-// fixa a OM, o filtro que a tela mandar não vale.
+// fixa a OM, o filtro que a tela mandar não vale. As NPAs são de uso interno de cada OM (RegrasDaEspecieNormativa.deUsoInternoDaOm): só o painel
+// da OM as conta -- o Geral nunca, nem filtrando por uma OM. (Isso é dos indicadores: qualquer OM continua vendo qualquer documento.)
 public final class EscopoDoPainel {
 
     private EscopoDoPainel() {}
@@ -31,5 +36,20 @@ public final class EscopoDoPainel {
             throw new OperacaoNaoAutorizadaException("O " + PapelEnum.PNL_OM.nome() + " só vê os indicadores da própria OM.");
         }
         return propria;
+    }
+
+    // Os TIPOS de espécie que os indicadores contam: para o Painel Gerencial Geral, os de âmbito do COMAER (todos menos os de uso interno
+    // da OM); para o da OM, todos ou o módulo que ele pedir. O Geral pedir um módulo de uso interno é 403.
+    public static Set<TipoDeEspecie> tiposDosIndicadores(Usuario usuario, TipoDeEspecie pedido, Collection<TipoDeEspecie> deUsoInternoDaOm) {
+        if (!ehGeral(usuario)) {
+            return pedido == null ? EnumSet.allOf(TipoDeEspecie.class) : EnumSet.of(pedido);
+        }
+        if (pedido != null && deUsoInternoDaOm.contains(pedido)) {
+            throw new OperacaoNaoAutorizadaException("O " + PapelEnum.PNL_GER.nome() + " não considera as NPAs: são de uso interno de cada OM e aparecem no "
+                    + PapelEnum.PNL_OM.nome() + ".");
+        }
+        Set<TipoDeEspecie> tipos = pedido == null ? EnumSet.allOf(TipoDeEspecie.class) : EnumSet.of(pedido);
+        tipos.removeAll(deUsoInternoDaOm);
+        return tipos;
     }
 }

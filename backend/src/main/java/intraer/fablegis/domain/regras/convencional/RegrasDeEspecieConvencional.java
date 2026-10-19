@@ -70,4 +70,5 @@ public class RegrasDeEspecieConvencional implements RegrasDaEspecieNormativa {
     @Override public RegrasDoCicloDeVidaDoDocumento cicloDeVida() { return cicloDeVida; }
     // As Espécies Convencionais só são criadas pelas OMs habilitadas (ver RegraDeHabilitacaoDaOm).
     @Override public RegraDeHabilitacaoDaOm habilitacao() { return () -> true; }
+    @Override public boolean deUsoInternoDaOm() { return false; }
 }

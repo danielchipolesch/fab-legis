@@ -18,7 +18,7 @@ Para um ato publicado, abra uma **alteração** (ver [Alterar um ato publicado](
 
 ## Enviei para aprovação. Quem recebe?
 
-Todos os Aprovadores da OM do documento, que são avisados por notificação. Você não escolhe ninguém, e qualquer um deles pode agir. Ao aprovar, o documento vai para a fila do CENDOC, onde qualquer Publicador age.
+Todos os Aprovadores da OM do documento, que são avisados por notificação. Você não escolhe ninguém, e qualquer um deles pode agir. Ao aprovar, o documento vai para a fila de publicação: a do CENDOC (Publicador do BCA), se for espécie convencional; a da sua própria OM (Publicador do Boletim Interno), se for NPA. Qualquer publicador daquela fila pode agir.
 
 ## O que significam as duas situações do documento?
 

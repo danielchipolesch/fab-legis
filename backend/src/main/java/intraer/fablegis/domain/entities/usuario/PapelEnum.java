@@ -6,13 +6,14 @@ package intraer.fablegis.domain.entities.usuario;
 //
 // Todo usuário autenticado pode visualizar qualquer documento -- isso não depende de nenhum papel, é o que "estar logado" já garante
 // (DocumentoAcessoService). Os demais poderes são concedidos explicitamente por papel, sem implícito nenhum. O escopo vem da OM de
-// quem tem o papel (EscopoDeAcesso): os gerais (_GER) só existem no CENDOC; os da OM (_OM), em qualquer outra; a publicação (PUB_BCA),
-// só no CENDOC.
+// quem tem o papel (EscopoDeAcesso): os gerais (_GER) só existem no CENDOC; os da OM (_OM), em qualquer outra; a publicação no BCA (PUB_BCA),
+// só no CENDOC; a publicação no Boletim Interno (PUB_BI, da NPA), em qualquer OM -- cada OM publica as suas.
 public enum PapelEnum {
 
     ELB("Elaborador", "Cria e edita documentos como autor ou coautor e os envia para aprovação"),
     APR_OM("Aprovador da OM", "Aprova ou devolve os documentos da própria OM (qualquer aprovador da OM age)"),
-    PUB_BCA("Publicador do BCA", "Registra a publicação e a revogação de documentos (papel exclusivo do CENDOC)"),
+    PUB_BCA("Publicador do BCA", "Registra a publicação e a revogação das espécies convencionais, de qualquer OM (papel exclusivo do CENDOC)"),
+    PUB_BI("Publicador do Boletim Interno", "Registra a publicação e a revogação das NPAs da própria OM, no Boletim Interno (qualquer OM)"),
     AUD_OM("Auditor da OM", "Consulta a trilha de auditoria da própria OM"),
     AUD_GER("Auditor Geral", "Consulta a trilha de auditoria de todas as OMs (papel exclusivo do CENDOC)"),
     ADM_OM("Administrador da OM", "Gerencia os usuários da própria OM; não altera outros administradores"),
