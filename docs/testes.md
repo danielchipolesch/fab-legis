@@ -110,7 +110,7 @@ MSYS_NO_PATHCONV=1 docker run --rm --network fab-legis_default -v "$(pwd -W):/r"
 
 ### Métricas para o Prometheus
 
-- **Backend:** `/actuator/prometheus` (Spring Boot Actuator/Micrometer): `http_server_requests_seconds` (taxa, erros e p95/p99 por endpoint), `hikaricp_connections_*` (o pool do banco; `pending` > 0 é fila), `jvm_memory_*`, `jvm_gc_*` e `process_cpu_usage`. **Exige autenticação** (é protegido como o resto da API): configure a raspagem com um token, ou deixe-o acessível só pela rede interna.
+- **Backend:** `/actuator/prometheus` (Spring Boot Actuator/Micrometer): `http_server_requests_seconds` (taxa, erros e p95/p99 por endpoint), `hikaricp_connections_*` (o pool do banco; `pending` > 0 é fila), `jvm_memory_*`, `jvm_gc_*` e `process_cpu_usage`. Fica na **porta de gerenciamento (8082)**, interna: não é publicada pelo Compose nem repassada pelo Nginx, e nela não se pede token (ver [Infraestrutura](infraestrutura.md#monitoramento-a-porta-de-gerenciamento)).
 - **Collab:** um serviço Node separado, que **não** passa pelo backend nem pelo frontend, então tem o **seu próprio** `/metrics`, na porta interna `METRICS_PORT` (padrão `9464`, não publicada pelo Compose nem repassada pelo Nginx — só a rede interna a alcança). Traz as métricas padrão do Node (CPU, memória, atraso do *event loop*, GC) e as do que importa à colaboração: `collab_conexoes_abertas`, `collab_salas_abertas`, `collab_autenticacoes_total{resultado}`, `collab_persistencias_total{resultado}` e os tempos de `collab_persistencia_segundos` e `collab_carregamento_segundos`.
 
 O Prometheus raspa os dois endereços, e os dois aparecem juntos no mesmo painel (Grafana):
@@ -119,8 +119,7 @@ O Prometheus raspa os dois endereços, e os dois aparecem juntos no mesmo painel
 scrape_configs:
   - job_name: fab-legis-backend
     metrics_path: /actuator/prometheus
-    authorization: { credentials: <token> }
-    static_configs: [{ targets: ['backend:8081'] }]
+    static_configs: [{ targets: ['backend:8082'] }]
   - job_name: fab-legis-collab
     static_configs: [{ targets: ['collab:9464'] }]
 ```

@@ -17,7 +17,7 @@ Este projeto mantém a documentação técnica em `docs/`, em Markdown, **lida s
 | `docs/exportacao-pdf.md` | Geração de PDF (Apache FOP) e HTML, fontes, texto sugerido de portaria, regra de consistência entre PDF e HTML |
 | `docs/api-rest.md` | Endpoints |
 | `docs/testes.md` | Como testar (unitários, integração, frontend), análise estática, CI e como ler e editar a documentação |
-| `docs/replicas.md` | Quais serviços podem ter réplicas (Kubernetes) e quais não, e por quê |
+| `docs/infraestrutura.md` | Dimensionamento das máquinas, porta de gerenciamento/monitoramento e quais serviços podem ter réplicas (Kubernetes), e por quê |
 | `docs/roadmap.md` | Perspectivas futuras — mova um item para cá quando virar decisão adiada, ou remova-o quando for implementado |
 
 **Arquivos de configuração por ambiente (`.env`, `nginx/nginx.conf`) ficam fora do git**; o que se versiona são os modelos (`.env.example`, `nginx/nginx.conf.example`) — mudou um, atualize o outro. **Instalação, configuração e variáveis de ambiente ficam no `README.md`** (seções "Instalação em desenvolvimento", "Instalação em produção" e "Variáveis de ambiente"), não em `docs/` — quem precisa instalar o sistema ainda não tem a documentação no ar. Mudou uma variável de ambiente, uma porta, um serviço do Compose ou um passo de deploy? Atualize o README na mesma tarefa.
