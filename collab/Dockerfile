@@ -7,7 +7,7 @@ WORKDIR /app/collab
 COPY collab/package.json collab/package-lock.json ./
 RUN npm ci --omit=dev
 
-COPY collab/server.js collab/schema.js ./
+COPY collab/server.js collab/schema.js collab/metricas.js ./
 
 # O modelo do documento (compartilhado com o editor), no mesmo caminho relativo que tem no repositório. O package.json do
 # frontend só informa "type": "module"; o link faz os imports de @tiptap/* desses arquivos acharem o node_modules do collab.

@@ -2,9 +2,11 @@ import { Server } from '@hocuspocus/server'
 import { createRemoteJWKSet, jwtVerify } from 'jose'
 import { prosemirrorJSONToYDoc, yDocToProsemirrorJSON } from 'y-prosemirror'
 import { schema } from './schema.js'
+import { autenticacoes, persistencias, duracaoDaPersistencia, duracaoDoCarregamento, publicarMetricas } from './metricas.js'
 
 const PORT = Number(process.env.PORT ?? 1234)
 const BACKEND_URL = process.env.BACKEND_URL ?? 'http://backend:8081/v1'
+const METRICS_PORT = Number(process.env.METRICS_PORT ?? 9464)
 
 // ISSUER precisa bater com o claim "iss" do token -- o endereço que o
 // NAVEGADOR usa (ver APP_OAUTH2_ISSUER no backend), não necessariamente
@@ -50,13 +52,14 @@ function conteudoPadrao() {
 // backend acontece EM NOME do usuário conectado, então a autorização
 // (podeEditar) vale pra cada uma, não só na entrada da sala.
 async function onAuthenticate({ token, documentName }) {
-  if (!token) throw new Error('Token ausente.')
+  if (!token) { autenticacoes.inc({ resultado: 'recusada' }); throw new Error('Token ausente.') }
 
   let claims
   try {
     const { payload } = await jwtVerify(token, JWKS, { issuer: OAUTH2_ISSUER })
     claims = payload
   } catch {
+    autenticacoes.inc({ resultado: 'recusada' })
     throw new Error('Token invalido ou expirado.')
   }
 
@@ -64,7 +67,11 @@ async function onAuthenticate({ token, documentName }) {
   const resposta = await fetch(`${BACKEND_URL}/documentos/${documentoId}/pode-editar`, {
     headers: { Authorization: `Bearer ${token}` },
   })
-  if (!resposta.ok) throw new Error(`Sem permissao para editar o documento ${documentoId}.`)
+  if (!resposta.ok) {
+    autenticacoes.inc({ resultado: 'recusada' })
+    throw new Error(`Sem permissao para editar o documento ${documentoId}.`)
+  }
+  autenticacoes.inc({ resultado: 'aceita' })
 
   return {
     usuarioId: claims.sub,
@@ -87,9 +94,11 @@ async function onAuthenticate({ token, documentName }) {
 async function onLoadDocument({ documentName, context }) {
   const { documentoId, elementoId } = parseNomeSala(documentName)
 
+  const fimDoCarregamento = duracaoDoCarregamento.startTimer()
   const resposta = await fetch(`${BACKEND_URL}/documentos/${documentoId}/elementos/${elementoId}/conteudo`, {
     headers: { Authorization: `Bearer ${context.token}` },
   })
+  fimDoCarregamento()
   if (!resposta.ok) throw new Error(`Falha ao carregar elemento ${elementoId} do documento ${documentoId}: HTTP ${resposta.status}`)
 
   const { conteudo: conteudoBruto } = await resposta.json()
@@ -137,6 +146,7 @@ async function onChange({ document }) {
 async function onStoreDocument({ documentName, document, context }) {
   const { documentoId, elementoId } = parseNomeSala(documentName)
 
+  const fimDaPersistencia = duracaoDaPersistencia.startTimer()
   try {
     const json = yDocToProsemirrorJSON(document, CAMPO_YJS)
     const resposta = await fetch(`${BACKEND_URL}/documentos/${documentoId}/elementos/${elementoId}/conteudo`, {
@@ -148,14 +158,20 @@ async function onStoreDocument({ documentName, document, context }) {
       body: JSON.stringify({ conteudo: JSON.stringify(json) }),
     })
     if (!resposta.ok) {
-      console.error(`[onStoreDocument] Falha ao persistir elemento ${elementoId}: HTTP ${resposta.status}`)
+      const detalhe = (await resposta.text().catch(() => '')).slice(0, 200)
+      console.error(`[onStoreDocument] Falha ao persistir elemento ${elementoId}: HTTP ${resposta.status} ${detalhe}`)
+      persistencias.inc({ resultado: 'erro' })
       avisarStatus(document, 'error')
       return
     }
+    persistencias.inc({ resultado: 'ok' })
     avisarStatus(document, 'saved')
   } catch (err) {
     console.error(`[onStoreDocument] Falha ao persistir elemento ${elementoId}:`, err)
+    persistencias.inc({ resultado: 'erro' })
     avisarStatus(document, 'error')
+  } finally {
+    fimDaPersistencia()
   }
 }
 
@@ -170,7 +186,7 @@ process.on('uncaughtException', (err) => {
   console.error('[uncaughtException]', err)
 })
 
-Server.configure({
+const servidor = Server.configure({
   port: PORT,
   debounce: 2000,
   maxDebounce: 10000,
@@ -178,4 +194,11 @@ Server.configure({
   onLoadDocument,
   onChange,
   onStoreDocument,
-}).listen()
+})
+servidor.listen()
+
+// Métricas do Prometheus, numa porta interna (ver metricas.js).
+publicarMetricas(METRICS_PORT, () => ({
+  conexoes: servidor.getConnectionsCount(),
+  salas: servidor.getDocumentsCount(),
+}))

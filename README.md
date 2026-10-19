@@ -396,6 +396,7 @@ Via Docker Compose, todas as variáveis abaixo (exceto `PORT` do collab, que nã
 | `OAUTH2_JWKS_URL` | `http://backend:8081/oauth2/jwks` | Endereço **interno** (rede Docker) de onde o `collab` busca as chaves públicas para validar o token — pode ser diferente do `OAUTH2_ISSUER` |
 | `BACKEND_URL` | `http://backend:8081/v1` | Onde o `collab` busca/persiste o conteúdo de cada elemento (`GET`/`PATCH /documentos/.../elementos/.../conteudo`) |
 | `PORT` | `1234` | Porta do servidor WebSocket (Hocuspocus) |
+| `METRICS_PORT` | `9464` | Porta **interna** do `/metrics` do collab para o Prometheus (o Compose não a publica e o Nginx não a repassa) — ver [Testes de carga e métricas](docs/testes.md#testes-de-carga-e-métricas) |
 
 **Frontend**
 
