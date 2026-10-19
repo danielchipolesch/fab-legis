@@ -15,7 +15,7 @@ import java.util.function.Supplier;
 // (trava do PostgreSQL, vale entre réplicas), então a criação simultânea espera a outra terminar em vez de escolher o mesmo número;
 // (2) o índice único ux_documento_numero (migração V25) recusa o número repetido mesmo que a trava falhe por algum motivo. Esta classe é
 // a rede de segurança da camada 2: se o índice recusar, a criação inteira é refeita, cada tentativa na sua própria transação (a que
-// falhou no banco não serve mais), e a nova leitura já enxerga o número da outra. Ver docs/replicas.md (numeração).
+// falhou no banco não serve mais), e a nova leitura já enxerga o número da outra. Ver docs/infraestrutura.md (numeração).
 @Component
 public class CriacaoComNumeracaoUnica {
 

@@ -20,6 +20,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -75,6 +76,22 @@ public class SecurityConfig {
         return source;
     }
 
+    // Actuator numa porta própria (management.server.port, application.properties), que o Compose não publica e o Nginx não
+    // repassa: só a rede interna a alcança (o Prometheus, o healthcheck). Por isso, nela, nada pede token -- o coletor automatizado
+    // não faz login interativo, e quem chega a essa porta já está dentro da rede. Na porta pública, /actuator nem existe. O
+    // critério é a porta local da conexão (não o caminho), para que esta liberação nunca valha para a API.
+    @Bean
+    @Order(0)
+    public SecurityFilterChain gerenciamentoFilterChain(HttpSecurity http,
+                                                        @Value("${management.server.port}") int portaDeGerenciamento) throws Exception {
+        http
+            .securityMatcher((RequestMatcher) request -> request.getLocalPort() == portaDeGerenciamento)
+            .csrf(csrf -> csrf.disable())
+            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            .authorizeHttpRequests(auth -> auth.anyRequest().permitAll());
+        return http.build();
+    }
+
     @Bean
     @Order(3)
     public SecurityFilterChain filterChain(HttpSecurity http, JwtDecoder jwtDecoder) throws Exception {
@@ -85,17 +102,6 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                 .requestMatchers("/v1/fab-legis-api/**", "/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**").permitAll()
-                // Só /health sem token -- é o que o healthcheck do backend no
-                // docker-compose.yml usa, e não tem como carregar um JWT (nem
-                // sentido faria, já que é o próprio orquestrador perguntando se o
-                // container está de pé). show-details=never (application.properties)
-                // garante que a resposta aqui seja só {"status":"UP"}, sem detalhe de
-                // dependência nenhum. /metrics e /prometheus continuam batendo em
-                // .anyRequest().authenticated() abaixo -- exigem login igual a
-                // qualquer outro endpoint da API, não há coletor externo hospedado
-                // como parte deste projeto hoje que precise entrar sem isso (ver
-                // README.md, seção "Instalação em produção").
-                .requestMatchers(HttpMethod.GET, "/actuator/health", "/actuator/health/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/v1/versao").permitAll()
                 // Raiz do backend não é rota de API nenhuma -- só existe pra
                 // dar um destino gracioso (ver RootRedirectController) quando

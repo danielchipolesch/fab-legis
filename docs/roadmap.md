@@ -26,7 +26,7 @@ O FAB Legis foi desenhado para crescer. As linhas de evolução abaixo estão or
 - **Consolidação automática** — geração da versão vigente de um ato a partir da aplicação sucessiva de todas as suas alterações.
 - **API pública e interoperabilidade** — adoção do padrão **LexML/Akoma Ntoso** para intercâmbio de atos normativos com outros órgãos da Administração.
 - **Assistente de escrita por IA, on-premise** — modelo de linguagem hospedado na própria infraestrutura do COMAER (sem enviar texto normativo a serviços externos), integrado ao editor para sugestão de redação conforme a técnica legislativa, detecção de ambiguidades e contradições, verificação de conformidade com a LC 95/1998 e o Decreto 12.002/2024, e resumo automático de ementas.
-- **Backend com várias réplicas** — o login em andamento (Authorization Server) e as conexões em tempo real vivem na memória de uma instância, e a numeração dos documentos tem uma corrida; ver o roteiro em [Réplicas e escalabilidade](replicas.md).
+- **Backend com várias réplicas** — o login em andamento (Authorization Server) e as conexões em tempo real vivem na memória de uma instância, (a numeração dos documentos já é única no banco); ver o roteiro em [Infraestrutura](infraestrutura.md#para-ir-além-de-uma-réplica-do-backend-o-roteiro).
 
 ## Contingência — se o MinIO deixar de servir
 

@@ -22,4 +22,8 @@ EXPOSE 8081
 # container (UTC), e exibir esse Timestamp de volta em America/Sao_Paulo pode
 # cruzar a meia-noite e mostrar o dia errado.
 ENV TZ=America/Sao_Paulo
+# O heap padrão da JVM é 25% da memória do contêiner (num limite de 2 GB, só 512 MB), pouco para o Apache FOP gerando PDF. 65%
+# deixa o restante para a memória fora do heap (metaspace, threads, buffers) e para o sistema. Só vale com limite de memória no
+# contêiner; para trocar, defina JAVA_TOOL_OPTIONS no ambiente (ver "Infraestrutura" em docs/infraestrutura.md).
+ENV JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=65"
 ENTRYPOINT ["java", "-jar", "app.jar"]

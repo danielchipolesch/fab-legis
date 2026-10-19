@@ -1,13 +1,58 @@
-# Réplicas e escalabilidade
+# Infraestrutura
 
-Este documento responde a uma pergunta de implantação: **quais serviços do sistema podem rodar em várias instâncias (réplicas) — por exemplo num cluster Kubernetes — e quais não podem**, e por quê. A regra de ouro: um serviço só pode ter réplicas se **nenhuma informação de que ele depende vive só na memória de uma instância**. Hoje isso vale para alguns serviços e **não** vale para outros.
+Esta página trata do que o sistema pede da infraestrutura onde roda: **quanta máquina cada serviço precisa** (dimensionamento), **como o monitoramento enxerga o sistema** e **quais serviços podem ter várias instâncias (réplicas)**. O que ela diz sobre capacidade vem das medições do [teste de carga](testes.md#testes-de-carga-e-métricas); onde é estimativa, está escrito.
+
+## Dimensionamento das máquinas
+
+**Premissa:** 10 a 50 usuários simultâneos (algumas centenas de cadastrados), com uma instância de cada serviço. É folga de cerca de 10 vezes sobre o que a medição mostrou ser suportado.
+
+### O que foi medido
+
+Numa máquina de 16 CPUs, tudo em contêineres, com o perfil **pico** do teste de carga (leitura com 100 usuários virtuais, 30 gravações/s, 5 criações/s e gerações de PDF, cerca de 240 requisições/s no total):
+
+| Serviço | Uso observado |
+|---|---|
+| **Backend** | cerca de **1 núcleo** de CPU e 780 MiB de memória; p95 entre 190 e 450 ms, 0% de erros |
+| PostgreSQL | cerca de 5% de CPU e 200 MiB |
+| Collab (120 conexões, ~350 teclas/s) | menos de 1% de CPU e 28 MiB; propagação com p95 de 19 ms |
+
+**O primeiro recurso a saturar é a CPU do backend** (a geração de PDF pelo Apache FOP e as requisições), muito antes do banco e do collab. Por isso o `APP_PDF_MAX_CONCORRENTES` (padrão 2) limita quantos PDFs são gerados ao mesmo tempo em cada instância: cada geração ocupa um núcleo e centenas de MiB.
+
+### Recomendação
+
+Uma instância de cada serviço. Os números abaixo já descontam que um vCPU de servidor rende cerca de metade do núcleo de uma máquina de desenvolvimento.
+
+| Serviço | vCPU | Memória | Disco | Observações |
+|---|---|---|---|---|
+| **Backend** | 2 | 2 GB | 10 GB | A imagem já define `-XX:MaxRAMPercentage=65` (`JAVA_TOOL_OPTIONS`), que reserva ~1,3 GB de heap e deixa o resto para a memória fora do heap. Sem isso o heap seria de só 25% do limite |
+| **PostgreSQL** | 2 | 4 GB | 50 GB SSD | Cresce com os documentos e o histórico de versões; backup à parte (ver o README) |
+| **MinIO** | 1 a 2 | 2 GB | 100 GB ou mais | O disco depende do volume de imagens, anexos e PDFs em cache |
+| **Collab** | 1 | 512 MB a 1 GB | 1 GB | Uma instância só (ver abaixo) |
+| **Nginx e frontend** | 0,5 | 256 MB | 1 GB | Arquivos estáticos e proxy reverso |
+
+- **Numa máquina virtual só** (Docker Compose): **8 vCPU, 16 GB de memória e 200 GB de disco SSD**. Para um piloto ou homologação, **4 vCPU e 8 GB** bastam.
+- **No Kubernetes:** os valores da tabela viram *requests* e *limits* de cada pod (o *limit* de memória do backend precisa existir para o `MaxRAMPercentage` valer). Veja [Como ficaria no Kubernetes](#como-ficaria-no-kubernetes).
+- **Rede:** os serviços conversam entre si na rede interna; o tráfego é pequeno (JSON, texto e PDFs ocasionais). Um enlace comum de datacenter basta.
+
+> [!NOTE]
+> **Isto é uma estimativa, não uma garantia.** Ela parte de medições feitas numa máquina de desenvolvimento e da escala esperada. **Antes da produção, repita o teste de carga no servidor real** (comandos em [Testes](testes.md#testes-de-carga-e-métricas)) e ajuste esta tabela com o número medido. Ao crescer a base de usuários, o primeiro ajuste é a CPU do backend (mais vCPU, ou mais instâncias se a FAB exigir disponibilidade, conforme a seção seguinte).
+
+## Monitoramento: a porta de gerenciamento
+
+O backend publica as métricas em formato Prometheus numa **porta própria, a 8082** (`management.server.port`), separada da API (8081). O Compose **não publica** essa porta e o Nginx **não a repassa**: só a rede interna a alcança. Por isso, nela, `/actuator/health` e `/actuator/prometheus` **não pedem token** (um coletor automatizado não faz login interativo, e quem chega a essa porta já está dentro da rede). Na porta pública, `/actuator` não existe. A regra é do `SecurityConfig.gerenciamentoFilterChain`, que libera pela **porta da conexão** e não pelo caminho, para que a liberação nunca valha para a API.
+
+O collab é um serviço Node separado e tem o **seu próprio** `/metrics`, na porta interna `METRICS_PORT` (9464). O Prometheus raspa os dois endereços (exemplo em [Testes](testes.md#testes-de-carga-e-métricas)). No Kubernetes, não crie `Service`/`Ingress` para essas portas e use `ServiceMonitor`/`PodMonitor` ou o endereço do pod; o healthcheck e a *readiness* do backend usam `:8082/actuator/health`.
+
+## Réplicas e escalabilidade
+
+Esta seção responde a uma pergunta de implantação: **quais serviços do sistema podem rodar em várias instâncias (réplicas) — por exemplo num cluster Kubernetes — e quais não podem**, e por quê. A regra de ouro: um serviço só pode ter réplicas se **nenhuma informação de que ele depende vive só na memória de uma instância**. Hoje isso vale para alguns serviços e **não** vale para outros.
 
 > [!NOTE]
 > **Antes de tudo: réplica não é desempenho**
 >
 > Para a escala esperada (dezenas a poucas centenas de usuários), **uma instância de cada serviço** dá conta, e é a configuração mais simples e segura. Réplicas servem principalmente à **disponibilidade** (um pod cai, outro assume; atualização sem parar o serviço). Só vale a pena enfrentar a complexidade abaixo se a FAB exigir isso.
 
-## Resumo
+### Resumo
 
 | Serviço | Réplicas? | Por quê |
 |---|---|---|
@@ -80,7 +125,7 @@ Também é um armazenamento de dados, não um serviço sem estado: réplicas do 
 | Recurso | Tipo | Réplicas | Observações |
 |---|---|---|---|
 | Frontend (Nginx) | `Deployment` | 2+ | *readiness* em `/health` |
-| Backend | `Deployment` | **1** hoje; 2+ só após os pontos 1 e 3 acima | *readiness/liveness* em `/actuator/health`; `Secret` com a chave RSA; `Job` de migração |
+| Backend | `Deployment` | **1** hoje; 2+ só após os pontos 1 e 3 acima | *readiness/liveness* em `:8082/actuator/health` (porta de gerenciamento); `Secret` com a chave RSA; `Job` de migração |
 | Collab | `Deployment` | **1** (`strategy: Recreate`) | WebSocket: *timeouts* longos no Ingress |
 | PostgreSQL | operador ou serviço gerenciado | conforme o operador | o backend usa o endereço do primário |
 | MinIO / S3 | serviço de armazenamento da FAB, ou MinIO distribuído | — | `MINIO_PUBLIC_URL` com HTTPS |

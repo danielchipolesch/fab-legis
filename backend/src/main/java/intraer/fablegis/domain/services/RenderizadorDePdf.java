@@ -18,6 +18,8 @@ import java.io.StringReader;
 // declaração DOCTYPE nem entidades externas (XXE).
 final class RenderizadorDePdf {
 
+    private static final Object CRIACAO_DO_FOP = new Object();
+
     private RenderizadorDePdf() {
     }
 
@@ -25,7 +27,13 @@ final class RenderizadorDePdf {
     static byte[] renderizar(String fo, String descricao) {
         try (var saida = new ByteArrayOutputStream()) {
             var fabrica = FopFactoryProvider.get();
-            Fop fop = fabrica.newFop(MimeConstants.MIME_PDF, fabrica.newFOUserAgent(), saida);
+            // O FopFactory é compartilhado, mas a configuração do renderizador (um DOM) é lida a cada Fop novo e essa leitura NÃO é
+            // thread-safe: duas gerações começando juntas corrompiam a leitura e o PDF passava a falhar até reiniciar o servidor.
+            // Só a criação do Fop é serializada; a renderização em si segue em paralelo (limitada por LimitadorGeracaoPdf).
+            Fop fop;
+            synchronized (CRIACAO_DO_FOP) {
+                fop = fabrica.newFop(MimeConstants.MIME_PDF, fabrica.newFOUserAgent(), saida);
+            }
             XMLReader leitor = leitorSeguro();
             leitor.setContentHandler(fop.getDefaultHandler());
             leitor.parse(new InputSource(new StringReader(fo)));

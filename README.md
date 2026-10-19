@@ -51,7 +51,7 @@ A documentação técnica são arquivos Markdown na pasta [`docs/`](docs/), lido
 | Entender como o PDF/portaria são gerados | [Geração de PDF e Portarias](docs/exportacao-pdf.md) |
 | Consultar os endpoints da API | [API REST](docs/api-rest.md) |
 | Testar e analisar o código | [Testes e qualidade](docs/testes.md) |
-| Saber o que pode ter réplicas (Kubernetes) | [Réplicas e escalabilidade](docs/replicas.md) |
+| Dimensionar as máquinas, monitorar e saber o que pode ter réplicas (Kubernetes) | [Infraestrutura](docs/infraestrutura.md) |
 | Ver o que está planejado para o futuro | [Roadmap](docs/roadmap.md) |
 | Ler (ou escrever) o manual do usuário, que fica dentro do sistema, em `/manual` | [Manual do usuário e ajuda](docs/funcionalidades.md#manual-do-usuário-e-ajuda); o texto está em `frontend/src/manual/` |
 | Instalar e rodar o projeto (desenvolvimento e produção) | as seções abaixo, neste README |
@@ -311,7 +311,7 @@ O sistema **nunca grava chave em disco por conta própria**: a chave persistente
 
 **Conferir:** `curl http://127.0.0.1:8081/oauth2/jwks` mostra o `kid` (a impressão digital da chave). Reinicie o backend e consulte de novo: com chave persistente o `kid` **não muda**; com a efêmera, muda.
 
-**Várias réplicas do backend** (Kubernetes): todas **precisam usar a mesma chave**, senão um token emitido por uma réplica seria recusado por outra. Monte o mesmo arquivo em todas (um *Secret* do Kubernetes) — ver [Réplicas e escalabilidade](docs/replicas.md).
+**Várias réplicas do backend** (Kubernetes): todas **precisam usar a mesma chave**, senão um token emitido por uma réplica seria recusado por outra. Monte o mesmo arquivo em todas (um *Secret* do Kubernetes) — ver [Infraestrutura](docs/infraestrutura.md).
 
 **Trocar a chave (rotação):** substitua o arquivo e reinicie o backend; todos os tokens antigos deixam de valer e as pessoas entram de novo. Faça num horário tranquilo.
 
@@ -338,16 +338,16 @@ O backend expõe **Spring Boot Actuator** com **Micrometer** (`spring-boot-start
 
 | Endpoint | Acesso | Uso |
 |---|---|---|
-| `GET /actuator/health` | **Sem autenticação** (ver `SecurityConfig`) | Usado pelo healthcheck do `docker-compose.yml` — o orquestrador não tem como enviar um token. `management.endpoint.health.show-details=never` garante que a resposta seja só `{"status":"UP"}`, nunca o detalhe de cada dependência (banco, disco etc.), mesmo sem login |
-| `GET /actuator/metrics` | Exige autenticação (JWT, igual a qualquer endpoint de `/v1/**`) | Métricas em JSON, navegáveis uma a uma |
-| `GET /actuator/prometheus` | Exige autenticação | Mesmas métricas, formato texto Prometheus — pronto pra qualquer coletor Prometheus-compatible fazer *scrape* |
-| `GET /actuator/info` | Exige autenticação | Metadados da build (vazio hoje, sem `spring-boot-maven-plugin` build-info configurado) |
+| `GET /actuator/health` | **Sem autenticação**, na porta de gerenciamento | Usado pelo healthcheck do `docker-compose.yml` — o orquestrador não tem como enviar um token. `management.endpoint.health.show-details=never` garante que a resposta seja só `{"status":"UP"}`, nunca o detalhe de cada dependência (banco, disco etc.), mesmo sem login |
+| `GET /actuator/metrics` | Sem autenticação, na porta de gerenciamento | Métricas em JSON, navegáveis uma a uma |
+| `GET /actuator/prometheus` | Sem autenticação, na porta de gerenciamento | Mesmas métricas, formato texto Prometheus — pronto pra qualquer coletor Prometheus-compatible fazer *scrape* |
+| `GET /actuator/info` | Sem autenticação, na porta de gerenciamento | Metadados da build (vazio hoje, sem `spring-boot-maven-plugin` build-info configurado) |
 
 > **Nenhum coletor/visualizador faz parte deste repositório de propósito**
 >
 > Prometheus, Grafana, Zabbix, Datadog ou o que a organização já usa pra monitorar outros sistemas — a escolha e a hospedagem desse serviço são decisão de infraestrutura de quem hospeda o FAB Legis, o mesmo raciocínio de "lugar único pra configurar hostname" já explicado acima. Este projeto só garante o lado de **expor** dados de forma padrão (`/actuator/prometheus`); **coletar/visualizar** é responsabilidade externa.
 >
-> `/actuator/metrics` e `/actuator/prometheus` hoje exigem o mesmo login OAuth2 de qualquer usuário do sistema — não há uma credencial de serviço dedicada. Um coletor automatizado (ex.: um *scraper* do Prometheus) **não consegue fazer login interativo**, então, ao conectar um coletor de verdade, quem administra a infraestrutura precisa escolher entre: (a) isolar esses endpoints numa rede interna que o coletor já alcança sem passar pelo proxy público (mais comum — ex.: `management.server.port` numa porta separada, não exposta no `docker-compose.yml`), ou (b) implementar uma credencial de serviço dedicada. Nenhuma das duas está implementada — decisão para quando houver um coletor real a conectar.
+> **Porta de gerenciamento.** O Actuator roda numa porta própria, a **8082** (`management.server.port`), que o `docker-compose.yml` **não publica** e o Nginx **não repassa**: só a rede interna a alcança (o coletor e o healthcheck). Por isso, nela, nada pede token — um coletor automatizado não faz login interativo, e quem chega a essa porta já está dentro da rede. Na porta pública (8081) `/actuator` não existe. **Nunca publique a 8082 nem a repasse no proxy público.** No Kubernetes, não crie `Service`/`Ingress` para ela; o Prometheus raspa o endereço do pod. O `collab` tem o seu próprio `/metrics`, na porta interna `METRICS_PORT`. Detalhes em [Infraestrutura](docs/infraestrutura.md#monitoramento-a-porta-de-gerenciamento).
 >
 ### Checklist antes de expor ao público
 
@@ -356,7 +356,7 @@ O backend expõe **Spring Boot Actuator** com **Micrometer** (`spring-boot-start
 3. Todas as variáveis da tabela acima (inclusive `APP_CORS_ALLOWED_ORIGINS` vazio) apontando para o domínio público com `https://`/`wss://`.
 4. Frontend reconstruído (não só reiniciado) depois de qualquer mudança em `VITE_*`.
 5. Testar o fluxo de login completo (não só que a tela carrega) — é o único jeito de pegar um `Host` sobrescrito ou uma rota de proxy faltando antes que um usuário real esbarre nisso.
-6. Se for conectar um coletor de métricas externo, decidir como ele vai autenticar contra `/actuator/prometheus` (ver passo 5) — não deixar a decisão pra depois do deploy.
+6. Se for conectar um coletor de métricas externo, apontá-lo para a **porta de gerenciamento** do backend (`backend:8082`, interna) — nunca publicar essa porta nem repassá-la no proxy público.
 
 ---
 
@@ -396,6 +396,7 @@ Via Docker Compose, todas as variáveis abaixo (exceto `PORT` do collab, que nã
 | `OAUTH2_JWKS_URL` | `http://backend:8081/oauth2/jwks` | Endereço **interno** (rede Docker) de onde o `collab` busca as chaves públicas para validar o token — pode ser diferente do `OAUTH2_ISSUER` |
 | `BACKEND_URL` | `http://backend:8081/v1` | Onde o `collab` busca/persiste o conteúdo de cada elemento (`GET`/`PATCH /documentos/.../elementos/.../conteudo`) |
 | `PORT` | `1234` | Porta do servidor WebSocket (Hocuspocus) |
+| `METRICS_PORT` | `9464` | Porta **interna** do `/metrics` do collab para o Prometheus (o Compose não a publica e o Nginx não a repassa) — ver [Testes de carga e métricas](docs/testes.md#testes-de-carga-e-métricas) |
 
 **Frontend**
 

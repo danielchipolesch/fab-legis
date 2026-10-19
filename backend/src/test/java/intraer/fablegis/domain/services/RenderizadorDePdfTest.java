@@ -4,6 +4,12 @@ import intraer.fablegis.domain.handlers.exceptions.FalhaNaRenderizacaoException;
 import org.junit.jupiter.api.Test;
 
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -31,6 +37,37 @@ class RenderizadorDePdfTest {
         byte[] pdf = RenderizadorDePdf.renderizar(FO_MINIMO.formatted("Olá"), "PDF");
 
         assertThat(new String(pdf, 0, 5, StandardCharsets.ISO_8859_1)).isEqualTo("%PDF-");
+    }
+
+    // O FopFactory é compartilhado e a configuração do renderizador é lida a cada PDF: gerações simultâneas logo no início (o que os
+    // limites de PDF permitem) corrompiam essa leitura e o PDF passava a falhar ("font without font-triplet", NullPointerException em
+    // DefaultConfiguration) até reiniciar o servidor. O teste dispara várias gerações ao mesmo tempo, desde a primeira.
+    @Test
+    void geracoesSimultaneasNuncaQuebramOPdf() throws Exception {
+        int threads = 12, porThread = 15;
+        var largada = new CountDownLatch(1);
+        ExecutorService pool = Executors.newFixedThreadPool(threads);
+        try {
+            List<Future<Integer>> resultados = new ArrayList<>();
+            for (int t = 0; t < threads; t++) {
+                final int id = t;
+                resultados.add(pool.submit(() -> {
+                    largada.await();
+                    int ok = 0;
+                    for (int i = 0; i < porThread; i++) {
+                        byte[] pdf = RenderizadorDePdf.renderizar(FO_MINIMO.formatted("Texto " + id + "/" + i), "PDF");
+                        if (new String(pdf, 0, 5, StandardCharsets.ISO_8859_1).equals("%PDF-")) ok++;
+                    }
+                    return ok;
+                }));
+            }
+            largada.countDown();
+            int total = 0;
+            for (var r : resultados) total += r.get();
+            assertThat(total).isEqualTo(threads * porThread);
+        } finally {
+            pool.shutdownNow();
+        }
     }
 
     @Test

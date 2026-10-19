@@ -84,6 +84,48 @@ Ao editar, valem estas convenções (o que o GitHub entende, e nada além):
 - avisos usam `> [!NOTE]` (ou `[!WARNING]`), nunca a sintaxe `!!!` do MkDocs; variantes em abas viram subtítulos;
 - página nova entra na tabela do [README](../README.md#documentação-técnica) e em `CLAUDE.md`.
 
+## Testes de carga e métricas
+
+Os testes de carga dizem quanto o sistema aguenta e **onde ele satura primeiro**, medindo o que o mercado usa: vazão (requisições por segundo), latência em percentis (**p95** e **p99**, não a média), taxa de erros e a utilização dos recursos (CPU, memória, conexões do banco). Ficam em `loadtest/` (backend, com [k6](https://k6.io)) e em `collab/teste-de-carga.mjs` (colaboração em tempo real). **Rode sempre contra um ambiente de teste, nunca contra produção**: eles criam documentos (com o título "Teste de carga…") e os apagam no fim.
+
+Os dois rodam em contêineres, dentro da rede do Docker Compose (nada para instalar), falando direto com o backend. Troque `CPF` e `SENHA` pelos de um usuário que possa criar documentos (o administrador padrão, em desenvolvimento):
+
+```bash
+# Backend (k6). PERFIL: leve (10 usuários), medio (50) ou pico (100); DURACAO em segundos
+MSYS_NO_PATHCONV=1 docker run --rm --network fab-legis_default -v "$(pwd -W)/loadtest:/loadtest" \
+  -e BASE_URL=http://backend:8081 -e CPF=<cpf> -e SENHA=<senha> -e PERFIL=medio -e DURACAO=60 \
+  grafana/k6 run --quiet /loadtest/k6/api.js
+
+# Collab: SALAS salas x CLIENTES por sala, todos digitando por DURACAO segundos
+MSYS_NO_PATHCONV=1 docker run --rm --network fab-legis_default -v "$(pwd -W):/r" \
+  -e CPF=<cpf> -e SENHA=<senha> -e SALAS=30 -e CLIENTES=4 -e DURACAO=30 node:20-alpine \
+  sh -c "mkdir /t && cp -r /r/collab /r/loadtest /t/ && cd /t/collab && npm ci --silent && node teste-de-carga.mjs"
+```
+
+(O nome da rede, `fab-legis_default`, é o do projeto do Compose; em Linux use `$(pwd)` no lugar de `$(pwd -W)` e tire o `MSYS_NO_PATHCONV`.)
+
+**O que o k6 exercita, ao mesmo tempo:** leitura (as telas do dia a dia: Área de Trabalho, listas, busca, abrir documento), gravação do conteúdo de um elemento (o que o collab faz a cada pausa de digitação), criação de documento (a numeração com trava), PDF em cache e PDF a gerar (o Apache FOP, o ponto que satura primeiro). As **metas** (`thresholds`) são as usuais de uma API interna: p95 < 500 ms na leitura, < 800 ms na gravação, < 1,5 s na criação, < 10 s na geração de PDF, e erros < 1%. O teste termina com falha se alguma não for cumprida. Um `503` na geração de PDF (o limite de gerações simultâneas esgotou a espera) é contado à parte (`pdf_ocupado_503`), porque é a condição que o sistema deve avisar, não um erro.
+
+**O que o teste do collab mede:** quantas conexões abrem, o tempo de conexão, e a **latência de propagação** (da edição de um cliente até ela chegar aos outros da sala), com meta de **p95 < 100 ms**. Cada cliente tem o seu WebSocket, e as teclas vão para o parágrafo de verdade, de modo que o collab também grava no backend como em produção.
+
+### Métricas para o Prometheus
+
+- **Backend:** `/actuator/prometheus` (Spring Boot Actuator/Micrometer): `http_server_requests_seconds` (taxa, erros e p95/p99 por endpoint), `hikaricp_connections_*` (o pool do banco; `pending` > 0 é fila), `jvm_memory_*`, `jvm_gc_*` e `process_cpu_usage`. Fica na **porta de gerenciamento (8082)**, interna: não é publicada pelo Compose nem repassada pelo Nginx, e nela não se pede token (ver [Infraestrutura](infraestrutura.md#monitoramento-a-porta-de-gerenciamento)).
+- **Collab:** um serviço Node separado, que **não** passa pelo backend nem pelo frontend, então tem o **seu próprio** `/metrics`, na porta interna `METRICS_PORT` (padrão `9464`, não publicada pelo Compose nem repassada pelo Nginx — só a rede interna a alcança). Traz as métricas padrão do Node (CPU, memória, atraso do *event loop*, GC) e as do que importa à colaboração: `collab_conexoes_abertas`, `collab_salas_abertas`, `collab_autenticacoes_total{resultado}`, `collab_persistencias_total{resultado}` e os tempos de `collab_persistencia_segundos` e `collab_carregamento_segundos`.
+
+O Prometheus raspa os dois endereços, e os dois aparecem juntos no mesmo painel (Grafana):
+
+```yaml
+scrape_configs:
+  - job_name: fab-legis-backend
+    metrics_path: /actuator/prometheus
+    static_configs: [{ targets: ['backend:8082'] }]
+  - job_name: fab-legis-collab
+    static_configs: [{ targets: ['collab:9464'] }]
+```
+
+**Sinais para olhar (método USE/RED):** p95 de `http_server_requests_seconds` acima de 500 ms; `hikaricp_connections_pending` acima de zero; CPU do backend acima de 70%; heap da JVM perto do limite do contêiner; no collab, atraso do *event loop* (`collab_node_eventloop_lag_p99_seconds`) acima de 100 ms e `collab_persistencias_total{resultado="erro"}` subindo.
+
 ## Versionamento
 
 O sistema segue [SemVer](https://semver.org/lang/pt-BR/) com [Conventional Commits](https://www.conventionalcommits.org/pt-br/) (`feat:`, `fix:`, `feat!:`…). Enquanto não entra em produção a versão é `0.x.y`: `feat` e mudança incompatível sobem o MINOR, `fix` sobe o PATCH; o `1.0.0` é a primeira versão em produção (commit com `Release-As: 1.0.0` no rodapé) e, a partir dela, mudança incompatível sobe o MAJOR e migrations já publicadas não são mais reescritas.

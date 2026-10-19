@@ -31,7 +31,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 
-// O número de um ato normativo é único no banco (V25) e a criação simultânea nunca repete número (docs/replicas.md, docs/dominio.md).
+// O número de um ato normativo é único no banco (V25) e a criação simultânea nunca repete número (docs/infraestrutura.md, docs/dominio.md).
 class NumeracaoUnicaIntegracaoTest extends IntegracaoComPostgresBase {
 
     @Autowired WebApplicationContext contexto;
