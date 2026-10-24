@@ -418,9 +418,13 @@ if (colaborativo) {
   // perdendo tudo que foi digitado antes do remount.
   let reconciliadoInicial = false
   let usuarioEditouAntesDoSync = false
+  // content-live só vale depois do primeiro 'synced': o editor colaborativo nasce vazio (um parágrafo em branco) e emitir esse
+  // estado inicial fazia a árvore lateral mostrar o alerta de "Vazio" em todo elemento clicado, até o conteúdo real chegar.
+  let sincronizadoUmaVez = false
   provider.on('synced', () => {
     if (reconciliadoInicial) return
     reconciliadoInicial = true
+    sincronizadoUmaVez = true
     if (!usuarioEditouAntesDoSync && editor.value) {
       const localParsed = parseContent(props.modelValue)
       if (localParsed) {
@@ -436,6 +440,8 @@ if (colaborativo) {
     // que só acontece nesta primeira vez.
     editor.value?.setEditable(!props.readonly)
     if (deveDevolverFoco) editor.value?.commands.focus('end')
+    // Já com o conteúdo da sala (o que mais alguém tenha editado desde o carregamento do documento): espelha uma vez.
+    if (editor.value) emitirContentLive?.({ editor: editor.value })
   })
   // 'saving' | 'saved' | 'error' -- emitido pelo collab/server.js (avisarStatus em
   // onChange/onStoreDocument). unsyncedChanges (contador de updates locais ainda
@@ -516,7 +522,7 @@ if (colaborativo) {
     ],
     onUpdate(payload) {
       usuarioEditouAntesDoSync = true
-      emitirContentLive(payload)
+      if (sincronizadoUmaVez) emitirContentLive(payload)
     },
   })
 } else {
