@@ -254,6 +254,24 @@ class EmendaServiceCicloTest {
         verify(normativaRepository, never()).save(any());
     }
 
+    // O pai (cascade ALL) re-persistiria o filho apagado no flush: desfazer a inclusão de um
+    // artigo dentro de um capítulo só vale se o filho sair da coleção do pai.
+    @Test
+    void desfazerUmaInclusaoPendenteDentroDeUmCapituloTiraOElementoDosFilhosDoPai() {
+        var capitulo = normativo(artigo(10, ElementoEmendaStatusEnum.INALTERADO, null, 1));
+        capitulo.setTipo(ItemAnexoParteNormativaTipoEnum.CAPITULO);
+        var existente = artigo(11, ElementoEmendaStatusEnum.INALTERADO, null, 1);
+        var incluido = normativo(artigo(12, ElementoEmendaStatusEnum.INCLUIDO, null, 2));
+        existente.setParent(capitulo);
+        incluido.setParent(capitulo);
+        capitulo.setChildren(new java.util.ArrayList<>(List.of(existente, incluido)));
+
+        emendarNormativo(12, pedido(EmendaAcaoEnum.DESFAZER, null, null, null));
+
+        verify(normativaRepository).delete(incluido);
+        assertThat(capitulo.getChildren()).containsExactly(existente);
+    }
+
     @Test
     void emendaJaPublicadaNaoSeDesfaz() {
         normativo(artigo(1, ElementoEmendaStatusEnum.ALTERADO, CLAUSULA, 1));

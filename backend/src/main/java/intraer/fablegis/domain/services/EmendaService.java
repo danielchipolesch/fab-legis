@@ -177,6 +177,11 @@ public class EmendaService {
             if (item.getEmendaStatus() == ElementoEmendaStatusEnum.INCLUIDO) {
                 registrarHistorico(docId, secao, elementoId, EmendaAcaoEnum.DESFAZER,
                         item.getConteudo(), null, item.getTitulo(), null, null);
+                // Sem sair da coleção do pai (cascade ALL), o flush re-persiste o filho apagado.
+                // Compara por identidade: o equals do @Data percorre pai e filhos.
+                if (item.getParent() != null && item.getParent().getChildren() != null) {
+                    item.getParent().getChildren().removeIf(filho -> filho == item);
+                }
                 normativaRepository.delete(item);
                 return;
             }
