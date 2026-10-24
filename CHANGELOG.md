@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.3.0](https://github.com/danielchipolesch/fab-legis/compare/v0.2.0...v0.3.0) (2026-10-24)
+
+
+### Features
+
+* **carga:** testes de carga do backend (k6) e do collab, métricas do collab para o Prometheus e documentação ([f262331](https://github.com/danielchipolesch/fab-legis/commit/f26233181ef229f557df09b82b233abd590bea08))
+* **carga:** testes de carga do backend e do collab, métricas do collab para o Prometheus; fix(pdf): gerações simultâneas ([bedcbef](https://github.com/danielchipolesch/fab-legis/commit/bedcbef8a13e7b5c90b5b2a29e90c54b7ccaf61d))
+* **infra:** Actuator em porta de gerenciamento interna (8082) e página de Infraestrutura com o dimensionamento das máquinas ([5976c87](https://github.com/danielchipolesch/fab-legis/commit/5976c876f32d67cac27f971936eddefc74bfde20))
+* **npa:** a NPA é publicada pela própria OM (novo papel PUB_BI, Publicador do Boletim Interno) e fica fora do Painel Gerencial Geral ([0439caf](https://github.com/danielchipolesch/fab-legis/commit/0439caf96bae1a8b7e26bc770f6cd9a609cdc5a9))
+* **npa:** a NPA é publicada pela própria OM (PUB_BI) e fica fora do Painel Gerencial Geral ([8971d35](https://github.com/danielchipolesch/fab-legis/commit/8971d35337a81fcd2cd25d3497e2e0ec41ee7db1))
+* **npa:** frontend do Publicador do Boletim Interno e do módulo no Painel Gerencial da OM ([5be41ed](https://github.com/danielchipolesch/fab-legis/commit/5be41edbcbc2030dba71ba9747fd7ab87ebf9052))
+
+
+### Bug Fixes
+
+* **editor:** alerta de vazio piscava na árvore a cada clique em um elemento ([742cb73](https://github.com/danielchipolesch/fab-legis/commit/742cb73b7dc37be0ec40ce70389a4c7d90031f9f))
+* **editor:** alerta de vazio piscava na árvore a cada clique em um elemento ([709ccca](https://github.com/danielchipolesch/fab-legis/commit/709ccca139b6c39aa48a81ed965c9254887c2572))
+* **emenda:** desfazer inclusão pendente dentro de um capítulo apagava só no papel ([0e4e600](https://github.com/danielchipolesch/fab-legis/commit/0e4e600a73c98abf7d51f10d7fc309610f118858))
+* **emenda:** desfazer inclusão pendente dentro de um capítulo não apagava o elemento ([94191e5](https://github.com/danielchipolesch/fab-legis/commit/94191e5f070b7044bfd4d21927dfb9a04238f0ea))
+* **pdf:** serializa a criação do Fop — gerações simultâneas corrompiam a leitura da configuração e o PDF falhava até reiniciar ([824ab05](https://github.com/danielchipolesch/fab-legis/commit/824ab054819080825f45e3a69b08c6ee4d41e854))
+
 ## [0.2.0](https://github.com/danielchipolesch/fab-legis/compare/v0.1.0...v0.2.0) (2026-10-14)
 
 
