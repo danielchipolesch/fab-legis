@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.0](https://github.com/danielchipolesch/fab-legis/compare/v0.3.0...v0.4.0) (2026-11-02)
+
+
+### Features
+
+* **painel:** o CENDOC também pode ter o Painel Gerencial da OM, ao lado do Geral ([78fa818](https://github.com/danielchipolesch/fab-legis/commit/78fa8183c3ce4dbed510f77d214dba315f182a03))
+
 ## [0.3.0](https://github.com/danielchipolesch/fab-legis/compare/v0.2.0...v0.3.0) (2026-10-24)
 
 
