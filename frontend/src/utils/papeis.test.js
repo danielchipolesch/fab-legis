@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { PAPEIS, nomeDoPapel, ehAdmin, ehAdminGeral, ehAuditor, ehPublicador, ehPainelGerencial, ehPainelGerencialGeral, papelDeAdmin, papelDeAuditor, papelDoPainelGerencial, papeisElevados } from './papeis.js'
+import { PAPEIS, nomeDoPapel, ehAdmin, ehAdminGeral, ehAuditor, ehPublicador, ehPainelGerencial, ehPainelGerencialGeral, ehPainelGerencialDaOm, visoesDoPainel, papelDeAdmin, papelDeAuditor, papelDoPainelGerencial, papeisElevados } from './papeis.js'
 
 describe('papéis', () => {
   it('cada papel tem código e nome por extenso (o mesmo de PapelEnum e da tabela t_papel)', () => {
@@ -64,5 +64,16 @@ describe('Papéis do Painel Gerencial', () => {
     expect(ehPainelGerencial(['ELB', 'ADM_GER', 'AUD_GER'])).toBe(false)
     expect(ehPainelGerencialGeral(['PNL_GER'])).toBe(true)
     expect(ehPainelGerencialGeral(['PNL_OM'])).toBe(false)
+    expect(ehPainelGerencialDaOm(['PNL_OM'])).toBe(true)
+    expect(ehPainelGerencialDaOm(['PNL_GER'])).toBe(false)
+  })
+
+  // O CENDOC é uma OM como as outras (pode ter o PNL_OM); a visão geral é a exceção da sua função. Quem tem os dois escolhe, e a geral é a padrão.
+  it('as visões do painel seguem os papéis: só um papel, só a visão dele; o CENDOC com os dois escolhe, a geral primeiro', () => {
+    expect(visoesDoPainel(['ELB', 'PNL_OM'])).toEqual(['OM'])
+    expect(visoesDoPainel(['ELB', 'PNL_GER'])).toEqual(['GERAL'])
+    expect(visoesDoPainel(['PNL_OM', 'PNL_GER'])).toEqual(['GERAL', 'OM'])
+    expect(visoesDoPainel(['ELB'])).toEqual([])
+    expect(visoesDoPainel(undefined)).toEqual([])
   })
 })

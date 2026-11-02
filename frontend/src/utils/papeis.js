@@ -1,6 +1,7 @@
 // Os papéis de acesso, com o CÓDIGO e o NOME POR EXTENSO (espelha PapelEnum, backend, e a tabela t_papel; o teste papeis.test.js
 // e o PapelEnumIntegracaoTest guardam o mesmo conjunto). O escopo geral/local está no próprio papel: ADM_GER, AUD_GER e PUB_BCA só existem
-// lotados no CENDOC; ADM_OM e AUD_OM, nas demais OMs; PUB_BI (publica as NPAs da própria OM) existe em qualquer OM.
+// lotados no CENDOC (como PNL_GER); ADM_OM e AUD_OM, nas demais OMs; PUB_BI (publica as NPAs da própria OM) e PNL_OM (Painel Gerencial da OM)
+// existem em qualquer OM, o CENDOC inclusive.
 export const OM_GERAL = 'CENDOC'
 
 export const PAPEIS = {
@@ -36,6 +37,15 @@ export const papelDoPainelGerencial = (siglaDaOm) => (noCendoc(siglaDaOm) ? 'PNL
 // Papel do Painel Gerencial (PNL_OM ou PNL_GER), de qualquer escopo; o Painel Gerencial Geral também filtra por OM.
 export const ehPainelGerencial = (papeis) => tem(papeis, 'PNL_OM', 'PNL_GER')
 export const ehPainelGerencialGeral = (papeis) => tem(papeis, 'PNL_GER')
+export const ehPainelGerencialDaOm = (papeis) => tem(papeis, 'PNL_OM')
+
+// As visões do Painel Gerencial a que o usuário tem direito (espelha EscopoDoPainel.visaoDe, backend): 'GERAL' (PNL_GER, só no CENDOC) e 'OM' (PNL_OM,
+// em toda OM, o CENDOC inclusive: ele é uma OM como as outras, e a visão geral é a exceção da sua função de órgão central). Quem tem as duas
+// escolhe, e a geral vem primeiro (é a padrão).
+export const visoesDoPainel = (papeis) => [
+  ...(ehPainelGerencialGeral(papeis) ? ['GERAL'] : []),
+  ...(ehPainelGerencialDaOm(papeis) ? ['OM'] : []),
+]
 
 // Os papéis que exigem revisão periódica: todos menos o Elaborador, que todo usuário tem.
 export const papeisElevados = (papeis) => (papeis ?? []).filter(p => p !== 'ELB').sort()

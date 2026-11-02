@@ -20,6 +20,10 @@
         <template v-else>Indicadores da gestão normativa.</template>
         <span v-if="painel && !painel.escopo.podeFiltrarPorOm"> Você vê só a sua OM.</span>
       </p>
+      <!-- O CENDOC é uma OM como as outras e pode ter o painel da OM; quem tem também o Geral escolhe a visão. -->
+      <q-btn-toggle v-if="visoes.length > 1" v-model="filtros.visao" class="q-mt-md" no-caps unelevated toggle-color="primary" color="white" text-color="primary"
+                    :options="[{ label: 'Geral (todas as OMs)', value: 'GERAL' }, { label: `Da minha OM (${auth.usuario?.omSigla})`, value: 'OM' }]"
+                    data-testid="visao-do-painel" />
     </div>
 
     <!-- Filtros: o Painel Gerencial Geral escolhe a OM; o Painel Gerencial da OM não tem esse campo (o servidor fixa a própria OM). -->
@@ -198,6 +202,7 @@ import { situacaoLocalMeta } from '@/utils/statusDocumento.js'
 import { filtrarOpcoesDeOm } from '@/utils/habilitacao.js'
 import { rotuloDaEtapa, formatarDias, periodoPadrao, especiesDoFiltro } from '@/utils/painelGerencial.js'
 import { MODULOS } from '@/regras/index.js'
+import { visoesDoPainel } from '@/utils/papeis.js'
 import { useAuthStore } from '@/stores/auth.js'
 import {
   CORES, opcaoPorMes, opcaoPorEspecie, opcaoSituacaoAtual, opcaoTempos, opcaoPorOm, opcaoFila,
@@ -211,7 +216,9 @@ const auth = useAuthStore()
 const modulos = MODULOS
 const oms = ref([])
 const omsFiltradas = ref([])
-const filtros = reactive({ ...periodoPadrao(), especieId: null, omId: null, tipoDeEspecie: null })
+// As visões a que o papel dá direito (o CENDOC pode ter as duas, a geral primeiro) e a que abre o painel.
+const visoes = visoesDoPainel(auth.usuario?.papeis)
+const filtros = reactive({ ...periodoPadrao(), especieId: null, omId: null, tipoDeEspecie: null, visao: visoes[0] ?? null })
 
 const formatarData = (aaaaMmDd) => (aaaaMmDd ? aaaaMmDd.split('-').reverse().join('/') : '')
 
@@ -279,12 +286,26 @@ async function carregar() {
   }
 }
 
+// A lista de OMs do filtro só existe na visão geral; carrega uma vez.
+async function carregarOms(precisa) {
+  if (!precisa || oms.value.length) return
+  oms.value = (await listOrganizacoesMilitares()).sort((a, b) => a.sigla.localeCompare(b.sigla))
+  omsFiltradas.value = oms.value
+}
+
 function restaurarPeriodo() {
   Object.assign(filtros, periodoPadrao())
 }
 
 // Recarrega a cada mudança de filtro (datas incompletas esperam).
 // Trocar de módulo tira a espécie escolhida se ela não é do módulo novo.
+// Trocar de visão recomeça os filtros que não valem na outra (OM, módulo e espécie) e carrega a lista de OMs se a visão geral a pede.
+watch(() => filtros.visao, async () => {
+  filtros.omId = null
+  filtros.tipoDeEspecie = null
+  filtros.especieId = null
+  await carregarOms(filtros.visao === 'GERAL')
+})
 watch(() => filtros.tipoDeEspecie, () => {
   if (filtros.especieId && !especiesDoSelect.value.some(e => e.id === filtros.especieId)) filtros.especieId = null
 })
@@ -294,10 +315,7 @@ onMounted(async () => {
   await carregar()
   try {
     especies.value = (await listEspeciesNormativas()).map(normalizeEspecie).sort((a, b) => a.sigla.localeCompare(b.sigla))
-    if (painel.value?.escopo.podeFiltrarPorOm) {
-      oms.value = (await listOrganizacoesMilitares()).sort((a, b) => a.sigla.localeCompare(b.sigla))
-      omsFiltradas.value = oms.value
-    }
+    await carregarOms(!!painel.value?.escopo.podeFiltrarPorOm)
   } catch {
     // sem as listas, só os filtros de espécie e de OM ficam vazios; os indicadores já estão na tela
   }

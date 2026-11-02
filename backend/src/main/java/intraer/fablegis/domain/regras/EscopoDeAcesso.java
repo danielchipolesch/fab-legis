@@ -14,13 +14,15 @@ import java.util.Set;
 //   Administrador da OM (ADM_OM): só os usuários da própria OM; concede ELB, APR_OM e AUD_OM, e nunca ADM_OM, ADM_GER nem PUB_BCA; não
 //                altera outros administradores (esses são mantidos pelo administrador geral).
 //   Publicador do BCA (PUB_BCA): só no CENDOC -- a publicação no BCA é do CENDOC.
+//   Painel Gerencial Geral (PNL_GER): só no CENDOC. O Painel Gerencial da OM (PNL_OM) existe em TODA OM, o CENDOC inclusive: ele é uma OM sujeita
+//                às mesmas regras das demais, e a visão geral é a exceção inerente à sua função de órgão central (quem tem os dois escolhe a visão).
 public final class EscopoDeAcesso {
 
     public static final String OM_GERAL = "CENDOC";
 
     // Papéis que só existem lotados no CENDOC, e os que só existem fora dele.
     public static final Set<PapelEnum> SO_NO_CENDOC = EnumSet.of(PapelEnum.PUB_BCA, PapelEnum.ADM_GER, PapelEnum.AUD_GER, PapelEnum.PNL_GER);
-    public static final Set<PapelEnum> SO_FORA_DO_CENDOC = EnumSet.of(PapelEnum.ADM_OM, PapelEnum.AUD_OM, PapelEnum.PNL_OM);
+    public static final Set<PapelEnum> SO_FORA_DO_CENDOC = EnumSet.of(PapelEnum.ADM_OM, PapelEnum.AUD_OM);
 
     private EscopoDeAcesso() {}
 
@@ -99,7 +101,7 @@ public final class EscopoDeAcesso {
         return switch (papelDaOm) {
             case ADM_OM -> PapelEnum.ADM_GER;
             case AUD_OM -> PapelEnum.AUD_GER;
-            default -> PapelEnum.PNL_GER;
+            default -> throw new IllegalArgumentException("O papel " + papelDaOm + " existe também no CENDOC.");
         };
     }
 

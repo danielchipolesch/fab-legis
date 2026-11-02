@@ -6,6 +6,7 @@ import intraer.fablegis.application.dtos.painelGerencialDtos.PainelGerencialResp
 import intraer.fablegis.domain.entities.usuario.Usuario;
 import intraer.fablegis.domain.handlers.exceptions.InvalidInputException;
 import intraer.fablegis.domain.regras.EscopoDoPainel;
+import intraer.fablegis.domain.regras.EscopoDoPainel.Visao;
 import intraer.fablegis.domain.regras.RegrasDasEspecies;
 import intraer.fablegis.domain.regras.TipoDeEspecie;
 import intraer.fablegis.infrastructure.repositories.OrganizacaoMilitarRepository;
@@ -37,10 +38,11 @@ public class PainelGerencialService {
 
     // Sem datas, os últimos 365 dias até hoje. O fim é inclusivo (o dia inteiro).
     @Transactional(readOnly = true)
-    public PainelGerencialResponseDto indicadores(Usuario usuario, Long omPedida, Long especieId, TipoDeEspecie tipoPedido,
+    public PainelGerencialResponseDto indicadores(Usuario usuario, Visao visaoPedida, Long omPedida, Long especieId, TipoDeEspecie tipoPedido,
                                                   LocalDate dataInicio, LocalDate dataFim) {
-        Long omId = EscopoDoPainel.omDosIndicadores(usuario, omPedida);
-        Set<TipoDeEspecie> tipos = EscopoDoPainel.tiposDosIndicadores(usuario, tipoPedido, regras.tipos(true));
+        Visao visao = EscopoDoPainel.visaoDe(usuario, visaoPedida);
+        Long omId = EscopoDoPainel.omDosIndicadores(usuario, visao, omPedida);
+        Set<TipoDeEspecie> tipos = EscopoDoPainel.tiposDosIndicadores(visao, tipoPedido, regras.tipos(true));
         var filtro = new Filtro(omId, especieId, tipos.stream().map(Enum::name).toList());
         LocalDate fimDoPeriodo = dataFim != null ? dataFim : LocalDate.now();
         LocalDate inicioDoPeriodo = dataInicio != null ? dataInicio : fimDoPeriodo.minusDays(DIAS_DO_PERIODO_PADRAO);
@@ -51,8 +53,8 @@ public class PainelGerencialService {
         Timestamp fim = Timestamp.valueOf(fimDoPeriodo.plusDays(1).atTime(LocalTime.MIN));
 
         String sigla = omId == null ? null : organizacaoMilitarRepository.findById(omId).map(om -> om.getSigla()).orElse(null);
-        boolean geral = EscopoDoPainel.ehGeral(usuario);
-        var escopo = new Escopo(omId, sigla, geral, !geral, tipoPedido == null ? null : tipoPedido.name(), inicioDoPeriodo, fimDoPeriodo);
+        boolean geral = visao == Visao.GERAL;
+        var escopo = new Escopo(visao.name(), omId, sigla, geral, !geral, tipoPedido == null ? null : tipoPedido.name(), inicioDoPeriodo, fimDoPeriodo);
         var tempos = new Tempos(
                 repositorio.tempo("dt_criacao", "dt_em_revisao", filtro, inicio, fim),
                 repositorio.tempo("dt_em_revisao", "dt_aprovacao", filtro, inicio, fim),

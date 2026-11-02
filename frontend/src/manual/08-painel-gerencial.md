@@ -8,7 +8,7 @@ Para quem tem o papel **Painel Gerencial da OM** ou **Painel Gerencial Geral**. 
 | Papel | Alcance |
 |---|---|
 | **Painel Gerencial Geral** (CENDOC) | Os indicadores de **todas as OMs**, com filtro por OM e a tabela *Por OM*, **sem as NPAs** (são de uso interno de cada OM) |
-| **Painel Gerencial da OM** | Só os da **própria OM**, **com as NPAs dela**. Não há campo de OM nem visão geral |
+| **Painel Gerencial da OM** (qualquer OM, o CENDOC inclusive) | Só os da **própria OM**, **com as NPAs dela**. Não há campo de OM nem visão geral |\n\nO CENDOC também é uma OM: quem lá tem o **Painel Gerencial da OM** vê os indicadores do CENDOC, e quem tem os **dois papéis** escolhe, no alto da página, entre a visão **Geral (todas as OMs)** e **Da minha OM (CENDOC)**. Ao trocar de visão, os filtros de OM, módulo e espécie recomeçam.
 
 ## Filtros
 

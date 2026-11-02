@@ -121,14 +121,14 @@ Ver [Ciclo de Vida do Documento](ciclo-de-vida.md) para o fluxo completo (enviar
 
 ## Painel Gerencial
 
-O **Painel Gerencial** é o terceiro módulo do sistema (`/painel-gerencial`, `PainelGerencialPage.vue`), ao lado de *Espécies Convencionais* e *NPA*: indicadores da gestão normativa, calculados na hora a partir do que o sistema já registra (documentos, a data de cada etapa e o histórico) — nada é digitado. Fica **primeiro** no *Acesso Rápido* da Área de Trabalho e **só aparece** para quem tem um dos papéis do painel (`PNL_OM` ou `PNL_GER`).
+O **Painel Gerencial** é o terceiro módulo do sistema (`/painel-gerencial`, `PainelGerencialPage.vue`), ao lado de *Espécies Convencionais* e *NPA*: indicadores da gestão normativa, calculados na hora a partir do que o sistema já registra (documentos, a data de cada etapa e o histórico) — nada é digitado. Fica **primeiro** no *Acesso Rápido* da Área de Trabalho e **só aparece** para quem tem um dos papéis do painel (`PNL_OM` ou `PNL_GER`). O **CENDOC é uma OM como as outras**, então também pode ter o `PNL_OM`; a visão geral (`PNL_GER`) é a exceção inerente à sua função de órgão central.
 
 | Papel | O que vê |
 |---|---|
 | **Painel Gerencial Geral** (`PNL_GER`, só no CENDOC) | Os indicadores de **todas as OMs**, com filtro por OM (e a tabela *Por OM*), **sem as NPAs**: são de uso interno de cada OM e não entram no painel do CENDOC, nem filtrando por uma OM |
-| **Painel Gerencial da OM** (`PNL_OM`) | Só os da **própria OM**, filtrados **automaticamente** — não há campo de OM nem visão geral. O servidor fixa a OM (`EscopoDoPainel`): pedir outra responde `403`. **Inclui as NPAs** da OM, e tem o filtro de **módulo** (Espécies Convencionais, NPA ou todos) |
+| **Painel Gerencial da OM** (`PNL_OM`, em qualquer OM, o CENDOC inclusive) | Só os da **própria OM**, filtrados **automaticamente** — não há campo de OM nem visão geral. O servidor fixa a OM (`EscopoDoPainel`): pedir outra responde `403`. **Inclui as NPAs** da OM, e tem o filtro de **módulo** (Espécies Convencionais, NPA ou todos) |
 
-O usuário padrão do sistema (o administrador do primeiro boot) já nasce com o Painel Gerencial Geral.
+O usuário padrão do sistema (o administrador do primeiro boot) já nasce com o Painel Gerencial Geral.\n\n**Quem tem os dois papéis (no CENDOC) escolhe a visão** num seletor no alto da página: *Geral (todas as OMs)*, a padrão, ou *Da minha OM (CENDOC)*, que conta só os documentos do CENDOC, NPAs inclusive. Quem tem só um dos papéis tem só a visão dele. A visão é decidida no servidor (`EscopoDoPainel.visaoDe`): pedir a visão de um papel que não se tem responde `403`. Trocar de visão recomeça os filtros de OM, módulo e espécie, que não valem na outra.
 
 **Filtros:** período (abre nos últimos 12 meses), espécie e — só o Painel Gerencial Geral — OM; — só o Painel Gerencial da OM — módulo (`tipoDeEspecie`). O seletor de espécie traz só o que cabe a quem pergunta: o Geral, as espécies convencionais; o da OM, as espécies da sua OM (as que ela está habilitada a criar, mais a NPA), do módulo escolhido. Uma OM não habilitada numa espécie convencional simplesmente não a tem nos indicadores.
 

@@ -2,6 +2,7 @@ package intraer.fablegis.application.controllers;
 
 import intraer.fablegis.application.dtos.painelGerencialDtos.PainelGerencialResponseDto;
 import intraer.fablegis.domain.regras.TipoDeEspecie;
+import intraer.fablegis.domain.regras.EscopoDoPainel.Visao;
 import intraer.fablegis.domain.services.PainelGerencialService;
 import intraer.fablegis.infrastructure.security.AutenticacaoUtil;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -31,6 +32,8 @@ public class PainelGerencialController {
 
     @GetMapping
     public ResponseEntity<PainelGerencialResponseDto> indicadores(
+            // GERAL ou OM: só quem tem os dois papéis (o CENDOC) escolhe; os demais têm a única visão do próprio papel.
+            @RequestParam(required = false) Visao visao,
             @RequestParam(required = false) Long omId,
             @RequestParam(required = false) Long especieId,
             @RequestParam(required = false) TipoDeEspecie tipoDeEspecie,
@@ -38,6 +41,6 @@ public class PainelGerencialController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dataFim,
             Authentication authentication) {
         return ResponseEntity.ok(painelGerencialService.indicadores(
-                AutenticacaoUtil.usuarioDe(authentication), omId, especieId, tipoDeEspecie, dataInicio, dataFim));
+                AutenticacaoUtil.usuarioDe(authentication), visao, omId, especieId, tipoDeEspecie, dataInicio, dataFim));
     }
 }
