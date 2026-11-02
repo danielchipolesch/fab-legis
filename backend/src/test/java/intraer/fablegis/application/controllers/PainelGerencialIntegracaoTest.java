@@ -35,6 +35,8 @@ class PainelGerencialIntegracaoTest extends IntegracaoComPostgresBase {
 
     private static final String CPF_PNL_DA_OM = "50617283916";
     private static final String CPF_SEM_PAPEL = "61728394027";
+    private static final String CPF_PNL_DO_CENDOC = "73849512673";
+    private static final String CPF_PNL_SO_DA_OM_DO_CENDOC = "29518476373";
 
     @Autowired WebApplicationContext contexto;
     @Autowired UsuarioRepository usuarioRepository;
@@ -182,6 +184,37 @@ class PainelGerencialIntegracaoTest extends IntegracaoComPostgresBase {
         // pedir a própria OM é aceito; pedir outra (a visão geral não existe para ele), não
         mvc.perform(get("/v1/painel-gerencial").param("omId", String.valueOf(bant)).with(como(daOm))).andExpect(status().isOk());
         mvc.perform(get("/v1/painel-gerencial").param("omId", String.valueOf(bafl)).with(como(daOm))).andExpect(status().isForbidden());
+    }
+
+    // O CENDOC é uma OM como as outras: o PNL_OM dele mostra só os documentos do CENDOC (NPAs inclusive); a visão geral (PNL_GER) é a exceção. Quem tem os
+    // dois escolhe a visão, e o padrão é a geral.
+    @Test
+    void oCendocComOsDoisPapeisEscolheAVisaoGeralOuADaPropriaOm() throws Exception {
+        var cendoc = pessoa("CENDOC", CPF_PNL_DO_CENDOC, PapelEnum.ELB, PapelEnum.PNL_GER, PapelEnum.PNL_OM);
+
+        mvc.perform(get("/v1/painel-gerencial").with(como(cendoc)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.escopo.visao").value("GERAL"))
+                .andExpect(jsonPath("$.escopo.podeFiltrarPorOm").value(true))
+                .andExpect(jsonPath("$.porEspecie[*].sigla", not(hasItem("NPA"))));
+        mvc.perform(get("/v1/painel-gerencial").param("visao", "OM").with(como(cendoc)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.escopo.visao").value("OM"))
+                .andExpect(jsonPath("$.escopo.omSigla").value("CENDOC"))
+                .andExpect(jsonPath("$.escopo.podeFiltrarPorOm").value(false))
+                .andExpect(jsonPath("$.escopo.podeFiltrarPorTipo").value(true));
+        mvc.perform(get("/v1/painel-gerencial").param("visao", "OM").param("omId", String.valueOf(bant)).with(como(cendoc)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void oCendocSoComOPainelDaOmTemSoAVisaoDaOm() throws Exception {
+        var soDaOm = pessoa("CENDOC", CPF_PNL_SO_DA_OM_DO_CENDOC, PapelEnum.ELB, PapelEnum.PNL_OM);
+        mvc.perform(get("/v1/painel-gerencial").with(como(soDaOm)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.escopo.visao").value("OM"))
+                .andExpect(jsonPath("$.escopo.omSigla").value("CENDOC"));
+        mvc.perform(get("/v1/painel-gerencial").param("visao", "GERAL").with(como(soDaOm))).andExpect(status().isForbidden());
     }
 
     @Test

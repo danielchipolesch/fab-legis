@@ -155,13 +155,27 @@ class EscopoDeAcessoTest {
     }
 
     @Test
-    void oPapelGeralDoPainelSoNoCendocEODaOmNuncaNele() {
+    void oPapelGeralDoPainelSoNoCendocEODaOmEmQualquerOm() {
         assertThatThrownBy(() -> EscopoDeAcesso.exigirPapeisDaLotacao("BAGL", EnumSet.of(PapelEnum.ELB, PapelEnum.PNL_GER)))
                 .isInstanceOf(OperacaoNaoAutorizadaException.class).hasMessageContaining("exclusivo do CENDOC");
-        assertThatThrownBy(() -> EscopoDeAcesso.exigirPapeisDaLotacao("CENDOC", EnumSet.of(PapelEnum.ELB, PapelEnum.PNL_OM)))
-                .isInstanceOf(OperacaoNaoAutorizadaException.class).hasMessageContaining("use Painel Gerencial Geral");
         assertThatCode(() -> EscopoDeAcesso.exigirPapeisDaLotacao("CENDOC", EnumSet.of(PapelEnum.ELB, PapelEnum.PNL_GER))).doesNotThrowAnyException();
         assertThatCode(() -> EscopoDeAcesso.exigirPapeisDaLotacao("BAGL", EnumSet.of(PapelEnum.ELB, PapelEnum.PNL_OM))).doesNotThrowAnyException();
+    }
+
+    // O CENDOC é uma OM como as outras: pode ter o Painel Gerencial da OM, e a visão geral (PNL_GER) é a exceção inerente à sua função. Os dois juntos valem.
+    @Test
+    void oCendocTambemTemOPainelDaOmEPodeTerOsDois() {
+        assertThatCode(() -> EscopoDeAcesso.exigirPapeisDaLotacao("CENDOC", EnumSet.of(PapelEnum.ELB, PapelEnum.PNL_OM))).doesNotThrowAnyException();
+        assertThatCode(() -> EscopoDeAcesso.exigirPapeisDaLotacao("CENDOC", EnumSet.of(PapelEnum.ELB, PapelEnum.PNL_OM, PapelEnum.PNL_GER))).doesNotThrowAnyException();
+    }
+
+    // Administrador e auditor da OM continuam não existindo no CENDOC (lá são o geral).
+    @Test
+    void oAdminEOAuditorDaOmNaoExistemNoCendoc() {
+        assertThatThrownBy(() -> EscopoDeAcesso.exigirPapeisDaLotacao("CENDOC", EnumSet.of(PapelEnum.ELB, PapelEnum.ADM_OM)))
+                .isInstanceOf(OperacaoNaoAutorizadaException.class).hasMessageContaining("use Administrador Geral");
+        assertThatThrownBy(() -> EscopoDeAcesso.exigirPapeisDaLotacao("CENDOC", EnumSet.of(PapelEnum.ELB, PapelEnum.AUD_OM)))
+                .isInstanceOf(OperacaoNaoAutorizadaException.class).hasMessageContaining("use Auditor Geral");
     }
 
     @Test

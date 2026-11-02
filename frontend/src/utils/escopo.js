@@ -25,6 +25,8 @@ export function papeisConcediveis(siglaDoAtor, siglaDaOmDeDestino) {
     aprovador: true,
     auditor: true,
     painel: true,
+    // O Painel Gerencial da OM no CENDOC (que lá convive com o Geral): só o administrador geral concede, e só a quem é lotado no CENDOC.
+    painelDaOm: geral && ehOmGeral(siglaDaOmDeDestino),
     admin: geral,
     publicador: geral && ehOmGeral(siglaDaOmDeDestino),
     publicadorBi: true,
