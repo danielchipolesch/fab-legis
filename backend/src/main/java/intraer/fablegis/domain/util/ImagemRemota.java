@@ -9,7 +9,7 @@ import java.util.Base64;
 import java.util.Locale;
 
 // Baixa uma imagem por HTTP e a devolve como data URI -- o último recurso dos geradores de PDF e HTML quando a imagem não é
-// do MinIO (que tem leitura própria: ImagemService.getImageAsDataUri) e precisa ir embutida no arquivo. Antes, o
+// do armazenamento (que tem leitura própria: ImagemService.getImageAsDataUri) e precisa ir embutida no arquivo. Antes, o
 // XslFoContentRenderer e o LeiauteHtmlDeEspecieConvencional tinham, cada um, a sua cópia deste código.
 public final class ImagemRemota {
 

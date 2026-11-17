@@ -20,25 +20,42 @@ services:
       retries: 5
     restart: unless-stopped
 
-  # ── MinIO — armazenamento de objetos on-premise ─────────────────────────────
-  minio:
-    image: minio/minio:latest
-    container_name: fab-legis-minio
-    command: server /data --console-address ":9001"
+  # ── Armazenamento de objetos on-premise (API S3) — SeaweedFS ────────────────
+  # Guarda imagens, anexos, distintivos das OMs, PDFs e HTML. Um servidor só (master, volume, filer e S3 no mesmo processo).
+  # O nome do serviço é neutro de propósito: trocar o servidor S3 não mexe no Nginx nem no backend.
+  armazenamento:
+    # Versão fixa: o armazenamento guarda registro oficial, então ele só muda de versão quando alguém decide (e testa).
+    image: chrislusf/seaweedfs:4.54
+    container_name: fab-legis-armazenamento
+    command:
+      - server
+      - -dir=/data
+      - -s3
+      - -s3.port=9000
+      # Cada volume do SeaweedFS guarda até 1 GB de objetos; a quantidade de volumes (-volume.max=0) acompanha o espaço livre do disco.
+      - -master.volumeSizeLimitMB=1024
+      - -volume.max=0
+      # Sem enviar estatísticas anônimas de uso ao fornecedor (o ambiente da FAB não deve falar com a internet).
+      - -master.telemetry=false
     ports:
-      # O navegador baixa as imagens direto daqui (URLs assinadas, MINIO_PUBLIC_URL): em produção MINIO_BIND=0.0.0.0 (ver README).
-      - "${MINIO_BIND:-127.0.0.1}:9000:9000"   # API S3
-      - "127.0.0.1:9001:9001"   # Console web (só a própria máquina)
+      # O navegador baixa as imagens direto daqui (URLs assinadas, ARMAZENAMENTO_PUBLIC_URL): atrás do Nginx (README, recomendado)
+      # a porta fica em 127.0.0.1; ARMAZENAMENTO_BIND=0.0.0.0 só se o navegador for chegar a ela direto.
+      # SÓ a API S3 é publicada. As portas internas do SeaweedFS (master 9333, filer 8888, volume 8080 e as gRPC) NUNCA devem
+      # ser publicadas: o filer aceita criar usuários sem autenticação a quem o alcançar.
+      - "${ARMAZENAMENTO_BIND:-127.0.0.1}:9000:9000"   # API S3
     environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin123}
+      # O SeaweedFS cria o usuário administrador da API S3 com este par de chaves (o mesmo que o backend usa).
+      AWS_ACCESS_KEY_ID: ${ARMAZENAMENTO_ACCESS_KEY:-fablegis-dev}
+      AWS_SECRET_ACCESS_KEY: ${ARMAZENAMENTO_SECRET_KEY:-fablegis-dev-secret-123}
     volumes:
-      - minio_data:/data
+      - armazenamento_data:/data
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
-      interval: 30s
-      timeout: 20s
-      retries: 3
+      # 127.0.0.1, não localhost: dentro do contêiner "localhost" resolve para IPv6 e o SeaweedFS só escuta em IPv4.
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1:9000/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
     restart: unless-stopped
 
   # ── Backend Spring Boot ─────────────────────────────────────────────────────
@@ -59,11 +76,12 @@ services:
       DB_NAME: ${POSTGRES_DB:-fab-legis-dev}
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-postgres}
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-123456}
-      MINIO_ENDPOINT: http://minio:9000
-      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
-      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin123}
-      MINIO_BUCKET: ${MINIO_BUCKET:-fab-legis-imagens}
-      MINIO_PUBLIC_URL: http://localhost:9000
+      ARMAZENAMENTO_ENDPOINT: http://armazenamento:9000
+      ARMAZENAMENTO_ACCESS_KEY: ${ARMAZENAMENTO_ACCESS_KEY:-fablegis-dev}
+      ARMAZENAMENTO_SECRET_KEY: ${ARMAZENAMENTO_SECRET_KEY:-fablegis-dev-secret-123}
+      ARMAZENAMENTO_BUCKET: ${ARMAZENAMENTO_BUCKET:-fab-legis-imagens}
+      # O endereço que o NAVEGADOR usa para baixar as imagens (vai dentro das URLs assinadas e nas URLs gravadas no banco).
+      ARMAZENAMENTO_PUBLIC_URL: ${ARMAZENAMENTO_PUBLIC_URL:-http://localhost:9000}
       APP_OAUTH2_ISSUER: ${APP_OAUTH2_ISSUER:-http://127.0.0.1:8081}
       # Chave de assinatura dos tokens: se /app/chaves/jwt-rsa.pem existe (pasta ./segredos/jwt do servidor, montada abaixo), é a chave
       # persistente; senão a chave é efêmera. APP_OAUTH2_CHAVE_OBRIGATORIA=true (produção) faz o boot falhar sem o arquivo.
@@ -87,8 +105,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      minio:
-        condition: service_started
+      armazenamento:
+        condition: service_healthy
     # /actuator/health (Spring Boot Actuator), na porta de gerenciamento 8082 -- interna,
     # não publicada aqui nem repassada pelo Nginx; é a mesma porta que o Prometheus raspa
     # (/actuator/prometheus). Sem healthcheck, frontend/collab só esperariam o container
@@ -197,4 +215,4 @@ services:
 
 volumes:
   postgres_18_data:
-  minio_data:
+  armazenamento_data:

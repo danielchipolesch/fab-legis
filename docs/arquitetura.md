@@ -13,7 +13,7 @@ graph TB
         A["Backend<br/>Spring Boot<br/>:8081"]
         C["collab<br/>Node.js + Hocuspocus (Yjs)<br/>:1234"]
         P[("PostgreSQL 18<br/>:5432")]
-        M[("MinIO<br/>:9000 API · :9001 console")]
+        M[("SeaweedFS (armazenamento)<br/>:9000 API S3")]
     end
 
     B -->|HTTP| F
@@ -27,7 +27,11 @@ graph TB
 
 O serviço **collab** (`collab/`, `Node.js` + [Hocuspocus](https://tiptap.dev/docs/hocuspocus/introduction)) implementa a edição colaborativa em tempo real (CRDT/Yjs) do editor: cada elemento aberto para edição vira uma sala Yjs própria (`documento:{id}:elemento:{elementoId}`), sincronizada por WebSocket entre todos os navegadores conectados a ela — duas pessoas editando o mesmo elemento fazem *merge* automático caractere a caractere, sem bloqueio otimista. Existe como serviço separado (não embutido no backend Java) porque o Yjs só tem implementação madura em JavaScript; ele reaproveita o **mesmo modelo do documento do editor**, sem cópia: a lista de extensões e os nós de tabela e figura vivem em `frontend/src/editor/modelo/` e são importados pelos dois (o editor acrescenta as views do navegador; o `collab/schema.js` usa os nós base com `getSchema` do `@tiptap/core`) para converter entre o `Y.Doc` e o JSON TipTap sem duplicar/divergir a definição do documento. Autenticação e autorização reaproveitam o backend: o `collab` valida o JWT do usuário via JWKS (`GET /oauth2/jwks`, mesma chave pública RSA que o Authorization Server embutido usa — ver `AuthorizationServerConfig`/`autenticacao.md`) e confirma a permissão de edição chamando `GET /v1/documentos/{id}/pode-editar` (mesma regra de `DocumentoAcessoService.podeEditar` usada em todo o resto da API) antes de aceitar a conexão a uma sala; toda leitura/escrita subsequente no backend (`GET /v1/documentos/{id}/elementos/{elementoId}/conteudo` para carregar o conteúdo inicial, `PATCH` na mesma rota para persistir, debounced) acontece com o token do próprio usuário conectado — não existe uma credencial de serviço à parte. Mudanças estruturais da árvore (criar/mover/excluir elemento) ficam fora do Yjs — continuam passando por `PATCH /v1/documentos/{id}/secoes` (que aplica um *diff* contra o que já está persistido, nunca reescrevendo `conteudo`) e são propagadas aos demais clientes conectados via o mesmo canal SSE de presença (`event: estrutura`).
 
-O bucket do MinIO é **privado** — o navegador nunca acessa um objeto direto pela URL "canônica" devolvida no upload. Toda leitura (imagem de figura, PDF do documento, PDF de portaria) passa antes por `POST /v1/imagens/urls-assinadas` (autenticado, igual ao resto do `/v1/**`), que troca a URL canônica por uma URL assinada (S3 pre-signed, válida por 1h) — só essa é usada como `src`/`href` no navegador. O backend, por sua vez, nunca depende de acesso público: lê os objetos direto via SDK autenticado (`ImagemService.getImageAsDataUri`/`getObjectStream`), usado por exemplo na geração do PDF oficial (Apache FOP embute a imagem como *data URI*, sem depender de rede).
+O armazenamento de objetos (SeaweedFS, API S3) guarda imagens, anexos, distintivos das OMs, PDFs e HTML. O backend fala com ele pelo **SDK S3 da AWS** (`ArmazenamentoConfig`: um cliente para o endereço interno da rede Docker e um assinador de URLs para o endereço público), sem nenhuma extensão de fornecedor — só `put`/`get`/`delete` de objetos, criação de bucket e URLs pré-assinadas —, de modo que trocar de servidor S3 é trocar o `ARMAZENAMENTO_*` do ambiente. Duas configurações do cliente são obrigatórias e têm teste (`ArmazenamentoConfigTest`): o endereçamento **por caminho** (`endereço/bucket/chave`, o formato da URL gravada no banco) e o checksum **só quando a API exige** — o padrão do SDK manda um checksum em *trailer* que servidores S3 que não são da AWS recusam.
+
+O bucket é **privado** — o navegador nunca acessa um objeto direto pela URL "canônica" devolvida no upload. Toda leitura (imagem de figura, PDF do documento, PDF de portaria) passa antes por `POST /v1/imagens/urls-assinadas` (autenticado, igual ao resto do `/v1/**`), que troca a URL canônica por uma URL assinada (S3 pre-signed, válida por 1h) — só essa é usada como `src`/`href` no navegador. O backend, por sua vez, nunca depende de acesso público: lê os objetos direto via SDK autenticado (`ImagemService.getImageAsDataUri`/`getObjectStream`), usado por exemplo na geração do PDF oficial (Apache FOP embute a imagem como *data URI*, sem depender de rede).
+
+O armazenamento tem **nome próprio** (por exemplo `s3.fab-legis.intraer`, outra origem): o Nginx do sistema termina o TLS dele com o mesmo certificado e repassa ao armazenamento, só `GET`/`HEAD`, sem o cookie de sessão. Como a API de imagens aceita qualquer arquivo, a origem separada é o que impede um HTML/SVG com script de ler o token do `localStorage` do sistema (testado: na mesma origem o script lia o token); por reforço, tudo que não é imagem nem PDF sai com `Content-Security-Policy: sandbox` e `nosniff`. Detalhes no README, passo 1.
 
 ## Camadas do backend — arquitetura em cebola
 
@@ -74,7 +78,7 @@ intraer.fablegis
     │                        AutenticacaoUtil, DataSeeder (usuário admin padrão)
     ├── notificacao/       ← NotificacaoEmitterRegistry, DocumentoPresencaEmitterRegistry (SSE)
     ├── configurations/    ← Cors, Swagger, SecurityConfig (resource server),
-    │                        AuthorizationServerConfig, Minio
+    │                        AuthorizationServerConfig, Armazenamento
     ├── enums/             ← Catálogos oficiais (espécies, assuntos, cabeçalho)
     └── runners/           ← Carga inicial das tabelas de referência
 ```
@@ -150,7 +154,7 @@ frontend/src
 
 ```
 fab-legis/
-├── docker-compose.yml          # Orquestração: postgres, minio, backend, collab, frontend
+├── docker-compose.yml          # Orquestração: postgres, armazenamento (SeaweedFS), backend, collab, frontend
 ├── docs/                       # Documentação técnica em Markdown, lida no próprio repositório (índice: README.md)
 ├── nginx/                      # Borda do sistema em produção: SPA + proxy reverso (mesma origem)
 │   ├── nginx.conf.template     # BACKEND_UPSTREAM / COLLAB_UPSTREAM preenchidos ao subir o container

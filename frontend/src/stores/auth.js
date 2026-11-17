@@ -122,10 +122,13 @@ export const useAuthStore = defineStore('auth', {
     // Chamado uma vez no boot do app (main.js) -- plugueia o client HTTP no
     // token/estado deste store sem criar dependência circular entre módulos.
     inicializar() {
-      if (this.token) this.carregarEspeciesCriaveis()
+      // O client HTTP precisa estar plugado ANTES de qualquer chamada: carregarEspeciesCriaveis() dispara um GET já neste
+      // instante, e com o token ainda não plugado ele saía SEM Authorization (401). Era o 401 que, a cada recarga da página,
+      // forçava uma renovação silenciosa -- e, se ela falhasse (iframe, timeout), deslogava a pessoa.
       setAuthTokenGetter(() => this.token)
       setUnauthorizedHandler(() => this.logout())
       setRefreshHandler(() => this.refresh())
+      if (this.token) this.carregarEspeciesCriaveis()
     },
 
     // Busca no backend as espécies que a OM da pessoa pode criar. Falha em silêncio (lista vazia = sem botão de criar).

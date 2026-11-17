@@ -98,7 +98,7 @@ Os quatro cards do hub, de qualquer módulo; qualquer usuário autenticado. Devo
 
 | Método | Rota | Descrição |
 |---|---|---|
-| `POST` | `/upload` | Envia imagem (multipart, máx. 10 MB) para o MinIO e devolve a URL "canônica" do objeto |
+| `POST` | `/upload` | Envia imagem (multipart, máx. 10 MB) para o armazenamento de objetos e devolve a URL "canônica" do objeto |
 | `POST` | `/urls-assinadas` | Troca uma lista de URLs canônicas por URLs assinadas (S3 pre-signed, válidas por 1h) — necessário porque o bucket é privado |
 
 O `ImagemService` cria o bucket sob demanda na primeira execução; o bucket é **privado** (sem política de leitura pública) — a URL devolvida no upload não é diretamente acessível pelo navegador, só serve como referência estável a ser resolvida via `/urls-assinadas` no momento de exibir a imagem/PDF. Ver [Arquitetura](arquitetura.md#visão-geral-dos-serviços).

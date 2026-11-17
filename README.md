@@ -13,7 +13,7 @@
 ![Quasar](https://img.shields.io/badge/Quasar-2.17-1976D2)
 ![TipTap](https://img.shields.io/badge/TipTap-2.x%20%2B%20Yjs-0F0F0F)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-18-336791)
-![MinIO](https://img.shields.io/badge/MinIO-on--premise-C72E49)
+![SeaweedFS](https://img.shields.io/badge/SeaweedFS-S3%20on--premise-2E7D32)
 ![Docker](https://img.shields.io/badge/Docker-Compose-2496ED)
 ![License](https://img.shields.io/badge/License-GPLv3-blue.svg)
 
@@ -79,7 +79,7 @@ cd fab-legis
 # desenvolvimento os padrões servem, e é aqui que se ajusta credenciais e portas sem tocar no docker-compose.yml
 cp .env.example .env
 
-# Sobe PostgreSQL, MinIO, backend, collab (colaboração em tempo real) e frontend
+# Sobe PostgreSQL, o armazenamento de objetos (SeaweedFS), backend, collab (colaboração em tempo real) e frontend
 docker compose up -d
 
 # Acompanhar os logs
@@ -98,11 +98,11 @@ O `.env` na raiz (fora do git, só o `.env.example` é versionado) é lido autom
 | Collab (colaboração em tempo real) | ws://localhost:1234 | — |
 | OpenAPI JSON | http://localhost:8081/v1/fab-legis-api | — |
 | PostgreSQL | `localhost:5432` | `postgres` / `123456` |
-| MinIO (console) | http://localhost:9001 | `minioadmin` / `minioadmin123` |
+| Armazenamento de objetos (API S3, sem console web) | http://localhost:9000 | chaves de acesso `fablegis-dev` / `fablegis-dev-secret-123` |
 
 > **Acesse o frontend por `127.0.0.1`, nunca por `localhost`.** O login OAuth2 (`redirect_uri`, cookie de sessão e `sessionStorage`) é configurado para `127.0.0.1`; por `localhost` o fluxo trava em `{"message":"Não autenticado."}`. Ver o aviso completo em [Variáveis de ambiente](#variáveis-de-ambiente).
 
-**Habilitação de documentos:** só o GABAER e o CENDOC criam as espécies convencionais no primeiro boot (a NPA, qualquer OM); o administrador habilita as demais OMs na tela *Manter Habilitação de Espécies Normativas por OM*. O administrador padrão nasce na OM do CENDOC, por isso já cria documentos. A antiga OM provisória "SISTEMA" deixou de existir (migração `V15`: quem estava nela foi para o CENDOC).
+**Habilitação de documentos:** só o GABAER e o CENDOC criam as espécies convencionais no primeiro boot (a NPA, qualquer OM); o administrador habilita as demais OMs na tela *Manter Habilitação de Espécies Normativas por OM*. O administrador padrão nasce na OM do CENDOC, por isso já cria documentos.
 
 **Usuário administrador padrão** — criado automaticamente pelo `DataSeeder` no primeiro boot, só se nenhum usuário real ainda existir. CPF `111.444.777-35` (dígitos: `11144477735`), senha `Admin@123`, posto CP, nome de guerra CHIPOLESCH, e-mail `chipoleschdaca@fab.mil.br`, na OM CENDOC, papéis **Administrador Geral (`ADM_GER`) + Elaborador (`ELB`) + Painel Gerencial Geral (`PNL_GER`, o Painel Gerencial de todas as OMs)** (o suficiente para gerenciar usuários e já criar o primeiro documento, sem precisar se auto-conceder um papel antes de usar o sistema — ver [Autenticação e Colaboração](docs/autenticacao.md#papéis-e-posse-de-documento) sobre por que o administrador sozinho não bastaria). Troque a senha (ou os valores de `APP_ADMIN_CPF`/`APP_ADMIN_SENHA` antes do primeiro boot) assim que possível em qualquer ambiente que não seja local.
 
@@ -112,7 +112,7 @@ O `.env` na raiz (fora do git, só o `.env.example` é versionado) é lido autom
 
 ```bash
 # Suba apenas as dependências de infraestrutura
-docker compose up -d postgres minio
+docker compose up -d postgres armazenamento
 
 cd backend
 ./mvnw spring-boot:run          # Linux/macOS
@@ -146,7 +146,7 @@ Scripts disponíveis:
 
 ### Cuidados do ambiente de desenvolvimento
 
-- **Migrations reescritas.** O sistema ainda não está em produção, então as migrations (`backend/src/main/resources/db/migration`) são *reescritas* — números reaproveitados. Depois de um `git pull` que mexa nelas, recrie o volume do Postgres, senão o backend não sobe (`checksum mismatch`): `docker compose rm -sf postgres && docker volume rm fab-legis_postgres_18_data` (`docker compose down -v` apaga também o volume do MinIO). Faça backup antes se houver dado que importe.
+- **Migrations reescritas.** O sistema ainda não está em produção, então as migrations (`backend/src/main/resources/db/migration`) são *reescritas* — números reaproveitados. Depois de um `git pull` que mexa nelas, recrie o volume do Postgres, senão o backend não sobe (`checksum mismatch`): `docker compose rm -sf postgres && docker volume rm fab-legis_postgres_18_data` (`docker compose down -v` apaga também o volume do armazenamento de objetos). Faça backup antes se houver dado que importe. Se rodar o backend fora do Docker (Caminho B), faça também `mvn clean`: o `target/` guarda cópias das migrations antigas e o Flyway as aplicaria por cima da V1 consolidada.
 - **A chave RSA do Authorization Server é efêmera** (gerada a cada boot): reiniciar o backend invalida todos os tokens — é preciso logar de novo.
 - **Git Bash no Windows:** `docker exec` com caminho absoluto precisa de `MSYS_NO_PATHCONV=1`.
 
@@ -168,7 +168,7 @@ Para expor o sistema a usuários reais. A diferença entre os ambientes está em
 
 **Perfis do Compose.** Cada serviço do `docker-compose.yml` sobe sempre, menos o frontend, que tem versão de desenvolvimento (`dev`: Vite com recarga) e de produção (`production`: arquivos compilados atrás do Nginx). Quem escolhe é o `COMPOSE_PROFILES` do `.env` — em desenvolvimento `dev` (o padrão do `.env.example`), em produção `production`. Assim `docker compose up -d` faz a coisa certa em cada ambiente e o frontend de desenvolvimento nunca sobe em produção. Não há segundo arquivo de Compose.
 
-**Portas — por que só em `127.0.0.1`.** Por padrão, uma porta publicada pelo Docker (`ports: "5432:5432"`) abre para **todas as interfaces da máquina**, ou seja, para qualquer um na rede — e o Docker ainda **contorna o firewall do sistema** (ufw/firewalld) ao fazer isso. Antes, o Compose publicava assim o PostgreSQL (com a senha de desenvolvimento `123456`), o console do MinIO, a API (que permitiria falar com o backend sem passar pelo Nginx) e o `collab`: qualquer pessoa na rede podia tentar entrar neles. Era uma falha real de segurança, e por isso as portas internas agora são publicadas só em `127.0.0.1` (`"127.0.0.1:5432:5432"`): servem à depuração **na própria máquina** e não existem para a rede. **Você não precisa mudar nada** — em desenvolvimento o navegador está na mesma máquina e continua funcionando. Em produção o único caminho de fora para dentro é o Nginx (80/443); os serviços conversam entre si pela rede interna do Docker (`backend:8081`, `minio:9000`...), que não depende dessas portas publicadas. A única exceção possível é `DOCS_BIND=0.0.0.0`, se a documentação (porta 8000) for pública.
+**Portas — por que só em `127.0.0.1`.** Por padrão, uma porta publicada pelo Docker (`ports: "5432:5432"`) abre para **todas as interfaces da máquina**, ou seja, para qualquer um na rede — e o Docker ainda **contorna o firewall do sistema** (ufw/firewalld) ao fazer isso. Antes, o Compose publicava assim o PostgreSQL (com a senha de desenvolvimento `123456`), o armazenamento de objetos, a API (que permitiria falar com o backend sem passar pelo Nginx) e o `collab`: qualquer pessoa na rede podia tentar entrar neles. Era uma falha real de segurança, e por isso as portas internas agora são publicadas só em `127.0.0.1` (`"127.0.0.1:5432:5432"`): servem à depuração **na própria máquina** e não existem para a rede. **Você não precisa mudar nada** — em desenvolvimento o navegador está na mesma máquina e continua funcionando. Em produção o único caminho de fora para dentro é o Nginx (80/443); os serviços conversam entre si pela rede interna do Docker (`backend:8081`, `armazenamento:9000`...), que não depende dessas portas publicadas. A única exceção possível é `DOCS_BIND=0.0.0.0`, se a documentação (porta 8000) for pública.
 
 ```bash
 cp .env.example .env                          # ajuste: COMPOSE_PROFILES=production e os valores do passo 3
@@ -193,37 +193,42 @@ O fluxo de login (OAuth2 Authorization Code + PKCE, ver [Autenticação e Colabo
 4. **Endereços no `.env`:** todos com `https://` e `wss://` (passo 3).
 5. `docker compose up -d --build` e teste `https://fab-legis.intraer/login`.
 
-Para **experimentar** sem certificado de verdade, gere um autoassinado (o navegador vai reclamar; serve para testar o fluxo):
+Para **experimentar** sem certificado de verdade, ou numa intranet com **certificado próprio** (sem CA da FAB), prefira uma **CA própria com restrição de nomes** e o certificado do servidor emitido por ela: nas máquinas se instala só a CA, e ela só vale para os dois nomes do sistema (mesmo que a chave dela vazasse, não serve para outro site). Testado com `openssl`: a cadeia valida os dois nomes, recusa outro nome e recusa um certificado de outro site assinado pela mesma CA.
 
 ```bash
-docker run --rm -v "$(pwd)/segredos/tls:/certs" alpine/openssl req -x509 -newkey rsa:2048 -nodes -days 30 \
-  -keyout /certs/privkey.pem -out /certs/fullchain.pem -subj "/CN=fab-legis.intraer"
+# 1) CA própria (uma vez). Guarde a ca-key.pem FORA do servidor; instale nas máquinas só a ca.pem.
+openssl req -x509 -newkey rsa:4096 -nodes -days 1095 -keyout ca-key.pem -out ca.pem \
+  -subj "/CN=CA do FAB Legis" \
+  -addext "basicConstraints=critical,CA:TRUE,pathlen:0" -addext "keyUsage=critical,keyCertSign,cRLSign" \
+  -addext "nameConstraints=critical,permitted;DNS:fab-legis.intraer,permitted;DNS:s3.fab-legis.intraer"
+# 2) certificado do servidor, com os DOIS nomes (vai para segredos/tls/ como fullchain.pem e privkey.pem)
+openssl req -newkey rsa:2048 -nodes -keyout privkey.pem -out servidor.csr -subj "/CN=fab-legis.intraer"
+printf "subjectAltName=DNS:fab-legis.intraer,DNS:s3.fab-legis.intraer\nbasicConstraints=CA:FALSE\nkeyUsage=digitalSignature,keyEncipherment\nextendedKeyUsage=serverAuth\n" > ext.cnf
+openssl x509 -req -in servidor.csr -CA ca.pem -CAkey ca-key.pem -CAcreateserial -days 365 -extfile ext.cnf -out fullchain.pem
 ```
 
-**Opção B — o TLS termina antes** (um balanceador ou proxy da FAB já faz o HTTPS): use `nginx/nginx.conf.example` (só HTTP) e deixe o balanceador repassar para a porta 80 mandando `X-Forwarded-Proto: https` e **sem reescrever o `Host`**. Os endereços do `.env` continuam `https://`.
+> **Cada máquina precisa CONFIAR no certificado** (instalar a `ca.pem`; no Windows, como administrador: `certutil -addstore -f Root ca.pem`, ou por política de grupo; o Firefox tem repositório próprio) **e resolver os dois nomes** (DNS ou o arquivo `hosts`). Clicar em "continuar mesmo assim" na página do sistema **não basta**: o navegador guarda a exceção por nome, e as imagens vêm do **nome do armazenamento**, então elas simplesmente não aparecem. Gere o certificado **uma vez** e não o regere (cada troca obriga a reinstalar nas máquinas). Com o certificado de uma **CA da FAB**, que as máquinas já costumam confiar, não há nada a instalar. Detalhes de renovação e de Kubernetes em [Infraestrutura](docs/infraestrutura.md#certificados-no-docker-e-no-kubernetes).
 
-**Imagens do MinIO (e por que ele precisa de HTTPS também).** O navegador baixa as imagens **direto do MinIO**, por URLs assinadas geradas pelo backend (`MINIO_PUBLIC_URL`). Numa página HTTPS, essa URL **também precisa ser HTTPS**; senão o navegador bloqueia a imagem (conteúdo misto). Existem dois caminhos:
+**Opção B — o TLS termina antes** (um balanceador ou proxy da FAB já faz o HTTPS): use `nginx/nginx.conf.example` (só HTTP, com os dois nomes) e deixe o balanceador repassar os **dois nomes** para a porta 80 mandando `X-Forwarded-Proto: https` e **sem reescrever o `Host`**. Os endereços do `.env` continuam `https://`.
 
-| | (a) TLS no Nginx do sistema, com nome próprio para o MinIO | (b) TLS no próprio MinIO |
-|---|---|---|
-| Como | um segundo `server` no Nginx, com o nome `s3.fab-legis.intraer`, repassa para `minio:9000` | o certificado vai em `/root/.minio/certs` dentro do MinIO |
-| Certificados | **um lugar só** (o `segredos/tls/`), que cobre os dois nomes | um segundo conjunto para o MinIO, com a sua própria renovação |
-| Porta 9000 | **não precisa ser publicada** (só o Nginx fala com o MinIO, na rede interna) | precisa ser publicada para o mundo |
-| Renovação do certificado | uma só, e recarrega o Nginx | outra, e reinicia o MinIO |
-| Complexidade | baixa: já vem pronto no `nginx.https.conf.example` | média: mais um serviço com TLS |
-
-**Recomendação: (a).** O mesmo Nginx que já termina o TLS do sistema termina o do MinIO: um único certificado, uma única renovação, e o MinIO continua em HTTP puro, escondido na rede do Docker (a porta 9000 fica só em `127.0.0.1`). O `nginx/nginx.https.conf.example` já traz o bloco; falta só:
+**Imagens e arquivos do armazenamento de objetos (e por que ele tem nome próprio).** O navegador baixa as imagens por URLs assinadas geradas pelo backend (`ARMAZENAMENTO_PUBLIC_URL`). Numa página HTTPS essa URL **também precisa ser HTTPS** (senão o navegador bloqueia: conteúdo misto). O Nginx do sistema termina o TLS também do armazenamento, com **nome próprio**: um segundo `server` no Nginx, com o nome `s3.fab-legis.intraer`, repassa para `armazenamento:9000`, só `GET`/`HEAD`. Um único certificado (em `segredos/tls/`, cobrindo os dois nomes), uma única renovação, e o armazenamento continua em HTTP puro, escondido na rede do Docker (a porta 9000 não precisa ser publicada: fica só em `127.0.0.1`). O `nginx/nginx.https.conf.example` já traz o bloco; falta só:
 
 1. **DNS:** peça à rede um segundo nome (ex.: `s3.fab-legis.intraer`) apontando para o mesmo servidor.
-2. **Certificado:** ele precisa **cobrir os dois nomes** — um certificado com os dois no campo SAN, ou um curinga (`*.fab-legis.intraer`).
+2. **Certificado:** ele precisa **cobrir os dois nomes** — um certificado com os dois no campo SAN, ou um curinga (`*.fab-legis.intraer`, junto com o nome base).
 3. **Nginx:** em `nginx/nginx.conf`, troque o `server_name s3.exemplo.intraer;` do segundo bloco pelo nome real.
-4. **`.env`:** `MINIO_PUBLIC_URL=https://s3.fab-legis.intraer`.
+4. **`.env`:** `ARMAZENAMENTO_PUBLIC_URL=https://s3.fab-legis.intraer`. Esse endereço vai gravado dentro das URLs que o sistema guarda no banco (`urlPdf`, imagens, distintivos…): **defina-o antes de usar o sistema** — trocá-lo depois deixa as URLs já gravadas apontando para o endereço antigo.
 
-O bloco **preserva o `Host`** (`proxy_set_header Host $http_host`): a assinatura das URLs inclui o `Host`, e se ele chegasse trocado ao MinIO a imagem daria `403 SignatureDoesNotMatch`. Testei o roteamento (o MinIO responde através do Nginx, em HTTPS, por esse nome); a imagem real de ponta a ponta, com certificado de verdade, fica a validar no ambiente.
+O bloco **preserva o `Host`** (`proxy_set_header Host $http_host`): a assinatura das URLs inclui o `Host`, e se ele chegasse trocado ao armazenamento a imagem daria `403`.
+
+**Por que o nome é separado (segurança).** A API de imagens aceita qualquer arquivo. Um HTML ou SVG com script, aberto numa aba **na mesma origem do sistema**, rodaria com acesso ao `localStorage` — onde fica o token (**testado: o script lia o token**). Com o armazenamento em outro nome, é outra origem: o script não alcança o sistema. Por reforço, tudo que não é imagem (PNG/JPEG/GIF/WebP) nem PDF sai também com `Content-Security-Policy: sandbox` e `nosniff` (o `map` `$csp_do_armazenamento` do modelo, que o `server` do armazenamento usa; um `nginx.conf` antigo, sem ele, não sobe: recopie do modelo). Servir os arquivos no mesmo nome do sistema **não é recomendado**: tira esse isolamento e deixa a segurança dependendo só de cabeçalhos. Validar o tipo do arquivo no envio é o reforço que falta (ver o [Roadmap](docs/roadmap.md)).
 
 ### 2. Mesma origem (proxy reverso) — o `nginx/nginx.conf` de cada ambiente
 
 Em desenvolvimento, o proxy do Vite (`server.proxy` em `frontend/vite.config.js`) faz `/oauth2/**`, `/login`, `/logout` e `/.well-known/**` parecerem, para o navegador, a mesma origem do frontend — é isso que faz o cookie de sessão sobreviver ao login. O frontend de produção tem o **equivalente no próprio Nginx, versionado no repositório**: não há arquivo para criar nem editar no deploy. O que muda de um ambiente para outro é só o `.env`. Assim como o `.env`, o Nginx tem um **arquivo real por ambiente, fora do git** (`nginx/nginx.conf`), criado a partir de um modelo versionado (`nginx/nginx.conf.example`) — o mesmo padrão de `.env.example` → `.env`. Já vem com o proxy pronto: nada a escrever, só copiar e, se o ambiente exigir (hosts diferentes, TLS), ajustar.
+
+**O backend respeita o `X-Forwarded-Proto` do Nginx** (`server.forward-headers-strategy=framework`): é isso que faz o login redirecionar para `https://` quando o TLS termina no Nginx. Sem isso, o `POST /login` respondia com um redirecionamento `http://` — que só funcionava por causa do redirecionamento 80 → 443 e do HSTS, e quebrava onde a porta 80 não existe. O Nginx **reescreve** esse cabeçalho (`proxy_set_header X-Forwarded-Proto $scheme`) e a porta 8081 do backend só é publicada em `127.0.0.1`; por isso é seguro confiar nele. Mantenha as duas coisas se mexer na borda.
+
+**Os streams SSE têm regras próprias no `nginx/comum.conf`** (`/v1/notificacoes/stream` e `/v1/documentos/{id}/presenca/stream`: HTTP/1.1, sem buffer e com timeout de 1 hora). São conexões longas que vão mandando eventos aos poucos; no bloco comum do `/v1/` o Nginx guardava a resposta em buffer e a cortava em 60 s, e o navegador não recebia **nenhum** evento (medido: 0 bytes em 8 s pelo Nginx, contra o primeiro evento na hora direto no backend). Um stream novo (outro `SseEmitter`) precisa de uma regra igual lá. E o caminho exato `/v1/documentos` (sem barra) tem regra própria, senão o Nginx o redireciona (301) e quebra o `POST` de criação.
 
 | Arquivo | Papel |
 |---|---|
@@ -261,7 +266,8 @@ Todas já são parametrizáveis (ver tabelas acima), só precisam do valor certo
 |---|---|
 | `COMPOSE_PROFILES` | `production` |
 | `APP_OAUTH2_CHAVE_OBRIGATORIA` | `true` — o backend só sobe com `segredos/jwt/jwt-rsa.pem` (passo 4) |
-| `MINIO_PUBLIC_URL` | `https://s3.fab-legis.exemplo.mil.br` — o nome próprio do MinIO com TLS (passo 1) |
+| `ARMAZENAMENTO_PUBLIC_URL` | `https://s3.fab-legis.exemplo.mil.br` — o nome próprio do armazenamento com TLS (passo 1); definido **antes** do primeiro uso, pois vai dentro das URLs gravadas no banco |
+| `ARMAZENAMENTO_ACCESS_KEY` / `ARMAZENAMENTO_SECRET_KEY` | **troque os dois** (o padrão de desenvolvimento é público): são a chave de acesso ao armazenamento, a mesma no SeaweedFS e no backend |
 | `APP_CORS_ALLOWED_ORIGINS` | *(vazio)* — com tudo na mesma origem pelo Nginx, nenhum site precisa de CORS |
 | `APP_OAUTH2_ISSUER` | `https://fab-legis.exemplo.mil.br` |
 | `APP_OAUTH2_REDIRECT_URI` | `https://fab-legis.exemplo.mil.br/callback` |
@@ -317,7 +323,7 @@ O sistema **nunca grava chave em disco por conta própria**: a chave persistente
 
 ### 5. Backup — não existe rotina pronta
 
-Os dados de verdade estão em dois lugares: o **PostgreSQL** (documentos, usuários, tudo) e o **MinIO** (imagens, PDFs armazenados, portarias). Perder qualquer um é perder dados; **nada disto é feito automaticamente** — configure antes de entrar em produção.
+Os dados de verdade estão em dois lugares: o **PostgreSQL** (documentos, usuários, tudo) e o **armazenamento de objetos** (imagens, anexos, distintivos, PDFs armazenados, **PDF das portarias de publicação**). Perder qualquer um é perder dados — e o PDF da portaria é o registro oficial da publicação, que o sistema não consegue gerar de novo; **nada disto é feito automaticamente** — configure antes de entrar em produção.
 
 ```bash
 # PostgreSQL: um dump completo (rode do servidor; agende no cron, ex.: toda noite)
@@ -325,12 +331,17 @@ docker exec fab-legis-postgres pg_dump -U postgres -Fc fab-legis-dev > backup-$(
 # restaurar num banco vazio:
 docker exec -i fab-legis-postgres pg_restore -U postgres -d fab-legis-dev --clean --if-exists < backup-2026-10-12.dump
 
-# MinIO: copiar o bucket para outro lugar (cliente mc, ou rclone/rsync sobre o volume)
-docker run --rm --network fab-legis_default -v "$(pwd)/backup-minio:/dados" minio/mc sh -c \
-  "mc alias set origem http://minio:9000 USUARIO_DO_MINIO SENHA_DO_MINIO && mc mirror origem/fab-legis-imagens /dados"   # valores do .env (MINIO_ROOT_USER/PASSWORD)
+# Armazenamento de objetos: copiar o bucket para uma pasta (rclone, que fala com qualquer servidor S3).
+# ARMAZENAMENTO_ACCESS_KEY/SECRET_KEY são os valores do .env.
+docker run --rm --network fab-legis_default -v "$(pwd)/backup-armazenamento:/dados" \
+  -e RCLONE_CONFIG_ARM_TYPE=s3 -e RCLONE_CONFIG_ARM_PROVIDER=SeaweedFS -e RCLONE_CONFIG_ARM_ENDPOINT=http://armazenamento:9000 \
+  -e RCLONE_CONFIG_ARM_ACCESS_KEY_ID=<ARMAZENAMENTO_ACCESS_KEY> -e RCLONE_CONFIG_ARM_SECRET_ACCESS_KEY=<ARMAZENAMENTO_SECRET_KEY> \
+  -e RCLONE_CONFIG_ARM_FORCE_PATH_STYLE=true \
+  rclone/rclone sync ARM:fab-legis-imagens /dados
+# restaurar (pasta -> armazenamento): o mesmo comando com os dois lados trocados, "sync /dados ARM:fab-legis-imagens"
 ```
 
-Guarde os arquivos **fora do servidor** (outra máquina ou storage da FAB), mantenha várias gerações (diário por uma semana, semanal por um mês) e, principalmente, **teste a restauração** de tempos em tempos: backup que nunca foi restaurado não é garantia. Os volumes do Docker (`postgres_18_data`, `minio_data`) também podem ser copiados com o container parado, mas o `pg_dump` é o caminho mais seguro para o banco.
+Guarde os arquivos **fora do servidor** (outra máquina ou storage da FAB), mantenha várias gerações (diário por uma semana, semanal por um mês) e, principalmente, **teste a restauração** de tempos em tempos: backup que nunca foi restaurado não é garantia. Os volumes do Docker (`postgres_18_data`, `armazenamento_data`) também podem ser copiados com o container parado, mas o `pg_dump` é o caminho mais seguro para o banco. O armazenamento de objetos roda hoje num **único servidor**: não há cópia dos arquivos dentro do próprio sistema, então o backup é a única proteção contra a perda do disco.
 
 ### 6. Observabilidade — Actuator/Micrometer, sem coletor incluso
 
@@ -351,7 +362,7 @@ O backend expõe **Spring Boot Actuator** com **Micrometer** (`spring-boot-start
 >
 ### Checklist antes de expor ao público
 
-1. HTTPS ativo no domínio de produção (certificado interno serve; `nginx/nginx.https.conf.example` + `segredos/tls/`), inclusive para as imagens do MinIO.
+1. HTTPS ativo no domínio de produção (certificado interno serve; `nginx/nginx.https.conf.example` + `segredos/tls/`), inclusive para as imagens do armazenamento (segundo nome, certificado cobrindo os dois) e o `nginx/nginx.conf` recopiado do modelo.
 2. `.env` com `COMPOSE_PROFILES=production` e Nginx funcionando (`nginx/nginx.conf`, copiado de um dos modelos; confira que `GET /login` abre a SPA, `POST /login` chega ao backend e `/collab` aceita WebSocket) e, se houver outro proxy/balanceador na frente (TLS), sem reescrever o `Host`.
 3. Todas as variáveis da tabela acima (inclusive `APP_CORS_ALLOWED_ORIGINS` vazio) apontando para o domínio público com `https://`/`wss://`.
 4. Frontend reconstruído (não só reiniciado) depois de qualquer mudança em `VITE_*`.
@@ -370,14 +381,15 @@ Via Docker Compose, todas as variáveis abaixo (exceto `PORT` do collab, que nã
 |---|---|---|
 | `DB_HOST` / `DB_PORT` / `DB_NAME` | `localhost` / `5432` / `fab-legis-dev` | Conexão PostgreSQL |
 | `SPRING_DATASOURCE_USERNAME` / `_PASSWORD` | `postgres` / `123456` | Credenciais do banco |
-| `MINIO_ENDPOINT` | `http://localhost:9000` | Endpoint S3 do MinIO |
-| `MINIO_ACCESS_KEY` / `MINIO_SECRET_KEY` | `minioadmin` / `minioadmin123` | Credenciais do MinIO |
-| `MINIO_BUCKET` | `fab-legis-imagens` | Bucket das imagens |
-| `MINIO_PUBLIC_URL` | `http://localhost:9000` | URL pública para servir as imagens (em produção, `https://`) |
+| `ARMAZENAMENTO_ENDPOINT` | `http://localhost:9000` | Endpoint S3 do armazenamento de objetos (no Compose, `http://armazenamento:9000`) |
+| `ARMAZENAMENTO_ACCESS_KEY` / `ARMAZENAMENTO_SECRET_KEY` | `fablegis-dev` / `fablegis-dev-secret-123` | Chave de acesso ao armazenamento (o Compose usa o mesmo par para criar o usuário do SeaweedFS e para o backend). **Troque em produção** |
+| `ARMAZENAMENTO_BUCKET` | `fab-legis-imagens` | Bucket (imagens, anexos, distintivos, PDFs e HTML) |
+| `ARMAZENAMENTO_PUBLIC_URL` | `http://localhost:9000` | Endereço que o NAVEGADOR usa para baixar os arquivos (vai nas URLs assinadas **e nas URLs gravadas no banco**; em produção, `https://`, definido antes do primeiro uso) |
+| `ARMAZENAMENTO_REGION` | `us-east-1` | Região fixa usada na assinatura das URLs (um servidor S3 próprio não tem região de verdade; não precisa mudar) |
 | `APP_PDF_MAX_CONCORRENTES` / `APP_PDF_ESPERA_MAXIMA_SEGUNDOS` | `2` / `30` | Renderizações de PDF simultâneas por instância e quanto um pedido espera por uma vaga antes do `503` — ver [Limite de gerações simultâneas de PDF](docs/exportacao-pdf.md#limite-de-gerações-simultâneas-de-pdf) |
-| `APP_PDF_CACHE_TTL_DIAS` | `2` | Dias até o cache de PDF/HTML em tramitação expirar no MinIO — ver [Cache de PDF/HTML em tramitação](docs/exportacao-pdf.md#cache-de-pdfhtml-em-tramitação) |
+| `APP_PDF_CACHE_TTL_DIAS` | `2` | Dias até a limpeza diária apagar o cache de PDF/HTML em tramitação do armazenamento — ver [Cache de PDF/HTML em tramitação](docs/exportacao-pdf.md#cache-de-pdfhtml-em-tramitação) |
 | `COMPOSE_PROFILES` | `dev` | Quais serviços o `docker compose up` sobe: `dev` (frontend Vite) ou `production` (frontend compilado atrás do Nginx). Lida pelo próprio Compose |
-| `MINIO_BIND` | `127.0.0.1` | Em que interface o Docker publica a porta do MinIO (9000). `127.0.0.1` = só a própria máquina. Com o MinIO atrás do Nginx (passo 1, recomendado), `MINIO_BIND` fica assim também em produção; `0.0.0.0` só se o navegador for chegar ao MinIO direto |
+| `ARMAZENAMENTO_BIND` | `127.0.0.1` | Em que interface o Docker publica a porta do armazenamento (9000). `127.0.0.1` = só a própria máquina. Com o armazenamento atrás do Nginx (passo 1, recomendado), `ARMAZENAMENTO_BIND` fica assim também em produção; `0.0.0.0` só se o navegador for chegar a ele direto. **Só a API S3 é publicada**: as portas internas do SeaweedFS (9333, 8888, 8080 e as gRPC) nunca devem ser |
 | `APP_OAUTH2_CHAVE_PRIVADA` | `/app/chaves/jwt-rsa.pem` | Caminho, dentro do container, da chave RSA de assinatura dos tokens; se o arquivo existe é a chave persistente, senão a chave é efêmera (passo 4) |
 | `APP_OAUTH2_CHAVE_OBRIGATORIA` | `false` | `true` faz o backend recusar a subida sem o arquivo da chave (produção) |
 | `CHAVES_JWT` | `./segredos/jwt` | Pasta do servidor com o `jwt-rsa.pem`, montada somente para leitura no backend |

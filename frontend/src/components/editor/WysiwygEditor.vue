@@ -245,7 +245,7 @@ import { HocuspocusProvider } from '@hocuspocus/provider'
 import { editorExtensions, editorExtensionsColaborativas } from '@/editor/extensions.js'
 import { useAuthStore } from '@/stores/auth.js'
 import { useQuasar } from 'quasar'
-import { primeMinioUrlCache } from '@/utils/minioUrls.js'
+import { alimentarCacheDeUrls } from '@/utils/urlsArmazenadas.js'
 import { caixaAlta } from '@/utils/texto.js'
 import { ESTILOS_DE_TABELA, CORES_DE_TABELA, ALINHAMENTOS_VERTICAIS } from '@/utils/estiloDeTabela.js'
 
@@ -600,7 +600,7 @@ async function onFileSelected(event) {
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`)
 
     const { url, urlAssinada } = await resp.json()
-    primeMinioUrlCache(url, urlAssinada)
+    alimentarCacheDeUrls(url, urlAssinada)
     editor.value?.chain().focus().insertContent({
       type: 'figure',
       attrs: { src: url, alt: '', titulo: '', fonte: '' },

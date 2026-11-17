@@ -47,10 +47,10 @@ public class DocumentoPdfService {
     // resultado: pode aguardar bem mais por uma vaga que um pedido de tela.
     private static final java.time.Duration ESPERA_GERACAO_ARMAZENADA = java.time.Duration.ofMinutes(5);
 
-    // Cópia armazenada: transmite os bytes do MinIO direto para a resposta HTTP à
+    // Cópia armazenada: transmite os bytes do armazenamento direto para a resposta HTTP à
     // medida que chegam (StreamingResponseBody), sem materializar o PDF inteiro em
     // memória no backend — o antigo getObjectBytes() lia tudo com readAllBytes()
-    // antes de responder, dobrando a latência (espera MinIO->backend, só então
+    // antes de responder, dobrando a latência (espera armazenamento->backend, só então
     // começa backend->navegador) e retendo o arquivo inteiro no heap por requisição.
     // Renderização ao vivo (fallback): permanece como estava — o Apache FOP monta o
     // PDF inteiro em memória antes de haver qualquer byte pronto, então não há como
@@ -79,7 +79,7 @@ public class DocumentoPdfService {
             // na renderização ao vivo em vez de falhar a exportação.
         }
         // Documento em tramitação sem cópia congelada: antes de renderizar de novo (caro, pelo
-        // FOP), tenta o cache em MinIO -- ver DocumentoRenderCacheService. Cache hit não passa
+        // FOP), tenta o cache no armazenamento -- ver DocumentoRenderCacheService. Cache hit não passa
         // pelo limitador: é exatamente esse custo que o cache evita.
         var doCache = renderCacheService.buscar(doc, DocumentoRenderCacheService.TipoDeRenderizacao.PDF);
         if (doCache.isPresent()) {

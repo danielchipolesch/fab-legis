@@ -41,7 +41,7 @@ public record DocumentoStatusRequestDto(
         String fecho,
         String assinatura,
 
-        // URL (MinIO) do PDF da portaria já enviado via POST .../portaria-pdf
+        // URL (armazenamento) do PDF da portaria já enviado via POST .../portaria-pdf
         // antes deste request.
         String portariaPdfUrl,
 

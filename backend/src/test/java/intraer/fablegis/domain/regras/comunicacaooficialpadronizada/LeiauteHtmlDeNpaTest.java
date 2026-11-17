@@ -251,7 +251,7 @@ class LeiauteHtmlDeNpaTest {
         var doc = documento(SituacaoBcaEnum.NAO_PUBLICADO);
         assertThat(comImagens.gerarHtml(doc, List.of(), estrutura(), List.of())).doesNotContain("class=\"distintivo\" src=");
 
-        doc.getOm().setUrlDistintivo("http://minio/bucket/grupo.png");
+        doc.getOm().setUrlDistintivo("http://s3/bucket/grupo.png");
         assertThat(comImagens.gerarHtml(doc, List.of(), estrutura(), List.of()))
                 .contains("<img class=\"distintivo\" src=\"data:image/png;base64,AAAA\"");
     }

@@ -5,11 +5,6 @@ import intraer.fablegis.domain.entities.estruturaDocumento.Documento;
 import intraer.fablegis.infrastructure.repositories.AnexoRepository;
 import intraer.fablegis.infrastructure.repositories.ItemAnexoParteNormativaRepository;
 import intraer.fablegis.infrastructure.repositories.ItemPartePreliminarRepository;
-import io.minio.GetObjectArgs;
-import io.minio.GetObjectResponse;
-import io.minio.MinioClient;
-import io.minio.PutObjectArgs;
-import okhttp3.Headers;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -20,29 +15,45 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 import org.springframework.test.util.ReflectionTestUtils;
+import software.amazon.awssdk.core.ResponseBytes;
+import software.amazon.awssdk.core.pagination.sync.SdkIterable;
+import software.amazon.awssdk.core.sync.RequestBody;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.GetObjectResponse;
+import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
+import software.amazon.awssdk.services.s3.model.PutObjectRequest;
+import software.amazon.awssdk.services.s3.model.S3Object;
+import software.amazon.awssdk.services.s3.paginators.ListObjectsV2Iterable;
 
-import java.io.ByteArrayInputStream;
 import java.sql.Timestamp;
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.reset;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-// Cache de PDF/HTML em tramitação no MinIO (docs/exportacao-pdf.md, docs/roadmap.md): a chave do
+// Cache de PDF/HTML em tramitação no armazenamento de objetos (docs/exportacao-pdf.md, docs/roadmap.md): a chave do
 // cache tem de mudar a cada alteração de conteúdo -- a edição colaborativa (/elementos/{id}/conteudo)
 // não toca Documento.dtAlteracao/versao (ver DocumentoConcorrenciaService), então é isso que este
-// teste prende, não só o caminho feliz de cache hit/miss.
+// teste prende, não só o caminho feliz de cache hit/miss. E o cache expira: tudo em cache/ mais velho que o
+// prazo (app.pdf.cache.ttl-dias) é apagado pela limpeza diária.
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
 class DocumentoRenderCacheServiceTest {
 
-    @Mock MinioClient minioClient;
+    @Mock S3Client s3Client;
     @Mock ItemAnexoParteNormativaRepository itemAnexoParteNormativaRepository;
     @Mock ItemPartePreliminarRepository itemPartePreliminarRepository;
     @Mock AnexoRepository anexoRepository;
@@ -68,10 +79,10 @@ class DocumentoRenderCacheServiceTest {
     }
 
     @Test
-    void cacheHitDevolveOsBytesArmazenados() throws Exception {
+    void cacheHitDevolveOsBytesArmazenados() {
         byte[] bytes = "pdf-cacheado".getBytes();
-        when(minioClient.getObject(any(GetObjectArgs.class))).thenReturn(new GetObjectResponse(
-                new Headers.Builder().build(), "bucket", "region", "chave", new ByteArrayInputStream(bytes)));
+        when(s3Client.getObjectAsBytes(any(GetObjectRequest.class)))
+                .thenReturn(ResponseBytes.fromByteArray(GetObjectResponse.builder().build(), bytes));
 
         var resultado = service.buscar(documento(1L, 1, 1000L), DocumentoRenderCacheService.TipoDeRenderizacao.PDF);
 
@@ -79,8 +90,8 @@ class DocumentoRenderCacheServiceTest {
     }
 
     @Test
-    void cacheMissOuErroDeIoDevolveVazioSemLancar() throws Exception {
-        when(minioClient.getObject(any(GetObjectArgs.class))).thenThrow(new RuntimeException("objeto não encontrado"));
+    void cacheMissOuErroDeIoDevolveVazioSemLancar() {
+        when(s3Client.getObjectAsBytes(any(GetObjectRequest.class))).thenThrow(new RuntimeException("objeto não encontrado"));
 
         var resultado = service.buscar(documento(1L, 1, 1000L), DocumentoRenderCacheService.TipoDeRenderizacao.PDF);
 
@@ -88,8 +99,9 @@ class DocumentoRenderCacheServiceTest {
     }
 
     @Test
-    void salvarNuncaLancaMesmoSeOMinioFalhar() throws Exception {
-        when(minioClient.putObject(any(PutObjectArgs.class))).thenThrow(new RuntimeException("minio fora do ar"));
+    void salvarNuncaLancaMesmoSeOArmazenamentoFalhar() {
+        when(s3Client.putObject(any(PutObjectRequest.class), any(RequestBody.class)))
+                .thenThrow(new RuntimeException("armazenamento fora do ar"));
 
         assertThatCode(() -> service.salvar(
                 documento(1L, 1, 1000L), DocumentoRenderCacheService.TipoDeRenderizacao.PDF, "pdf".getBytes()))
@@ -97,7 +109,18 @@ class DocumentoRenderCacheServiceTest {
     }
 
     @Test
-    void chaveMudaQuandoAVersaoOuADataDeAlteracaoDoDocumentoMuda() throws Exception {
+    void salvarGravaSobOPrefixoCacheComOTipoDeConteudoDoFormato() {
+        service.salvar(documento(1L, 1, 1000L), DocumentoRenderCacheService.TipoDeRenderizacao.HTML, "<p>x</p>".getBytes());
+
+        ArgumentCaptor<PutObjectRequest> captor = ArgumentCaptor.forClass(PutObjectRequest.class);
+        verify(s3Client).putObject(captor.capture(), any(RequestBody.class));
+        assertThat(captor.getValue().bucket()).isEqualTo("fab-legis-teste");
+        assertThat(captor.getValue().key()).startsWith("cache/html/1/").endsWith(".html");
+        assertThat(captor.getValue().contentType()).isEqualTo("text/html; charset=UTF-8");
+    }
+
+    @Test
+    void chaveMudaQuandoAVersaoOuADataDeAlteracaoDoDocumentoMuda() {
         String chave1 = chaveUsada(documento(1L, 1, 1000L));
         String chave2 = chaveUsada(documento(1L, 2, 1000L));
         String chave3 = chaveUsada(documento(1L, 1, 2000L));
@@ -106,7 +129,7 @@ class DocumentoRenderCacheServiceTest {
     }
 
     @Test
-    void chaveMudaQuandoUmItemDeConteudoEAtualizado() throws Exception {
+    void chaveMudaQuandoUmItemDeConteudoEAtualizado() {
         when(itemAnexoParteNormativaRepository.findIdsEDataAtualizacaoByDocumentoId(1L))
                 .thenReturn(List.<Object[]>of(new Object[]{10L, LocalDateTime.of(2026, 1, 1, 0, 0)}));
         String chaveAntes = chaveUsada(documento(1L, 1, 1000L));
@@ -119,7 +142,7 @@ class DocumentoRenderCacheServiceTest {
     }
 
     @Test
-    void chaveMudaQuandoUmAnexoEAdicionadoOuRemovido() throws Exception {
+    void chaveMudaQuandoUmAnexoEAdicionadoOuRemovido() {
         String semAnexo = chaveUsada(documento(1L, 1, 1000L));
 
         Anexo anexo = new Anexo();
@@ -131,22 +154,87 @@ class DocumentoRenderCacheServiceTest {
     }
 
     @Test
-    void mesmoConteudoProduzAMesmaChaveEntreChamadas() throws Exception {
+    void mesmoConteudoProduzAMesmaChaveEntreChamadas() {
         String chave1 = chaveUsada(documento(1L, 1, 1000L));
         String chave2 = chaveUsada(documento(1L, 1, 1000L));
 
         assertThat(chave1).isEqualTo(chave2);
     }
 
-    // Força um cache miss e devolve a chave (GetObjectArgs.object()) que o serviço calculou --
+    // ── Expiração do cache (prazo em dias: app.pdf.cache.ttl-dias) ─────────────────────────────────────────────
+
+    private static S3Object objeto(String chave, Instant ultimaModificacao) {
+        return S3Object.builder().key(chave).lastModified(ultimaModificacao).build();
+    }
+
+    private void listagemDoCache(S3Object... objetos) {
+        SdkIterable<S3Object> conteudo = () -> List.of(objetos).iterator();
+        ListObjectsV2Iterable pagina = mock(ListObjectsV2Iterable.class);
+        when(pagina.contents()).thenReturn(conteudo);
+        when(s3Client.listObjectsV2Paginator(any(ListObjectsV2Request.class))).thenReturn(pagina);
+    }
+
+    @Test
+    void limpezaApagaDoCacheSoOQueTemMaisDoQueOPrazoEmDias() {
+        Instant agora = Instant.now();
+        listagemDoCache(
+                objeto("cache/pdf/1/velho.pdf", agora.minus(3, ChronoUnit.DAYS)),
+                objeto("cache/html/2/velho.html", agora.minus(10, ChronoUnit.DAYS)),
+                objeto("cache/pdf/3/recente.pdf", agora.minus(1, ChronoUnit.DAYS)));
+
+        service.removerExpirados();
+
+        ArgumentCaptor<DeleteObjectRequest> captor = ArgumentCaptor.forClass(DeleteObjectRequest.class);
+        verify(s3Client, times(2)).deleteObject(captor.capture());
+        assertThat(captor.getAllValues()).extracting(DeleteObjectRequest::key)
+                .containsExactlyInAnyOrder("cache/pdf/1/velho.pdf", "cache/html/2/velho.html");
+        assertThat(captor.getAllValues()).extracting(DeleteObjectRequest::bucket).containsOnly("fab-legis-teste");
+    }
+
+    @Test
+    void limpezaSoOlhaOPrefixoCache() {
+        listagemDoCache();
+
+        service.removerExpirados();
+
+        ArgumentCaptor<ListObjectsV2Request> captor = ArgumentCaptor.forClass(ListObjectsV2Request.class);
+        verify(s3Client).listObjectsV2Paginator(captor.capture());
+        assertThat(captor.getValue().prefix()).isEqualTo("cache/");
+        assertThat(captor.getValue().bucket()).isEqualTo("fab-legis-teste");
+    }
+
+    @Test
+    void limpezaRespeitaOPrazoConfigurado() {
+        ReflectionTestUtils.setField(service, "ttlDias", 7);
+        Instant agora = Instant.now();
+        listagemDoCache(
+                objeto("cache/pdf/1/de-5-dias.pdf", agora.minus(5, ChronoUnit.DAYS)),
+                objeto("cache/pdf/2/de-8-dias.pdf", agora.minus(8, ChronoUnit.DAYS)));
+
+        service.removerExpirados();
+
+        ArgumentCaptor<DeleteObjectRequest> captor = ArgumentCaptor.forClass(DeleteObjectRequest.class);
+        verify(s3Client).deleteObject(captor.capture());
+        assertThat(captor.getValue().key()).isEqualTo("cache/pdf/2/de-8-dias.pdf");
+    }
+
+    @Test
+    void limpezaNuncaLancaMesmoSeOArmazenamentoFalhar() {
+        when(s3Client.listObjectsV2Paginator(any(ListObjectsV2Request.class))).thenThrow(new RuntimeException("fora do ar"));
+
+        assertThatCode(() -> service.removerExpirados()).doesNotThrowAnyException();
+        verify(s3Client, never()).deleteObject(any(DeleteObjectRequest.class));
+    }
+
+    // Força um cache miss e devolve a chave (GetObjectRequest.key()) que o serviço calculou --
     // único jeito de observar o fingerprint, que é privado.
-    private String chaveUsada(Documento documento) throws Exception {
-        reset(minioClient);
-        when(minioClient.getObject(any(GetObjectArgs.class))).thenThrow(new RuntimeException("miss"));
+    private String chaveUsada(Documento documento) {
+        reset(s3Client);
+        when(s3Client.getObjectAsBytes(any(GetObjectRequest.class))).thenThrow(new RuntimeException("miss"));
         service.buscar(documento, DocumentoRenderCacheService.TipoDeRenderizacao.PDF);
 
-        ArgumentCaptor<GetObjectArgs> captor = ArgumentCaptor.forClass(GetObjectArgs.class);
-        verify(minioClient).getObject(captor.capture());
-        return captor.getValue().object();
+        ArgumentCaptor<GetObjectRequest> captor = ArgumentCaptor.forClass(GetObjectRequest.class);
+        verify(s3Client).getObjectAsBytes(captor.capture());
+        return captor.getValue().key();
     }
 }

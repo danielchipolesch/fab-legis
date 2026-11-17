@@ -133,7 +133,7 @@ function pegarPdf(dados) {
   else check(r, { 'pdf 200': (x) => x.status === 200 })
 }
 
-// PDF de um documento que não mudou: sai do cache do MinIO.
+// PDF de um documento que não mudou: sai do cache do armazenamento de objetos.
 export function pdfEmCache(dados) {
   pegarPdf(dados)
 }

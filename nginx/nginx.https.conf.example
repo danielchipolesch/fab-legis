@@ -2,6 +2,16 @@
 # o certificado em segredos/tls/ (fora do git): fullchain.pem (certificado + intermediárias) e privkey.pem (chave privada).
 # O docker-compose.yml publica 80 -> 8080 e 443 -> 8443. Tudo que é comum está em comum.conf.
 
+# Reforço de segurança dos arquivos do armazenamento (ver o `server` do nome do armazenamento, abaixo): tudo vai com `sandbox`, menos os
+# tipos que o navegador só exibe (imagens e PDF). Precisa ficar aqui, fora do `server` (um `map` só existe no nível do http).
+map $upstream_http_content_type $csp_do_armazenamento {
+    default                             "default-src 'none'; sandbox";
+    "~*^image/(png|jpeg|gif|webp)(;|$)" "";
+    "~*^application/pdf(;|$)"           "";
+}
+
+
+
 # HTTP: só redireciona para HTTPS (e responde o /health que o healthcheck do container usa).
 server {
     listen 8080;
@@ -24,8 +34,8 @@ server {
     http2 on;
     server_name _;     # troque pelo nome do host, ex.: fab-legis.intraer
 
-    ssl_certificate     /etc/segredos/tls/fullchain.pem;
-    ssl_certificate_key /etc/segredos/tls/privkey.pem;
+    ssl_certificate     /etc/nginx/certs/fullchain.pem;
+    ssl_certificate_key /etc/nginx/certs/privkey.pem;
     ssl_protocols       TLSv1.2 TLSv1.3;
     ssl_session_cache   shared:SSL:10m;
     ssl_session_timeout 1d;
@@ -36,29 +46,33 @@ server {
     include /etc/nginx/comum.conf;
 }
 
-# Imagens e arquivos do MinIO, com nome e HTTPS próprios. O navegador baixa as imagens direto do MinIO por URLs assinadas
-# (MINIO_PUBLIC_URL); numa página HTTPS essas URLs também têm de ser HTTPS (senão o navegador bloqueia: conteúdo misto). O TLS
-# fica aqui, no mesmo Nginx e com o mesmo certificado (que precisa cobrir este nome -- um certificado com os dois nomes, ou
-# curinga), e o MinIO segue em HTTP, só na rede interna do Docker (por isso a porta 9000 não precisa ser publicada).
-# Troque server_name pelo nome real e use MINIO_PUBLIC_URL=https://<esse nome> no .env.
+# Arquivos do armazenamento de objetos (SeaweedFS), com NOME e HTTPS próprios -- outra origem, de propósito. O navegador baixa as imagens
+# direto dele por URLs assinadas (ARMAZENAMENTO_PUBLIC_URL=https://<este nome>); numa página HTTPS essas URLs também têm de ser HTTPS
+# (senão o navegador bloqueia: conteúdo misto). O TLS fica aqui, no mesmo Nginx e com o mesmo certificado (que precisa cobrir os DOIS
+# nomes: SAN com os dois, ou curinga), e o armazenamento segue em HTTP, só na rede interna (por isso a porta 9000 não precisa ser publicada).
+# Troque server_name pelo nome real e use ARMAZENAMENTO_PUBLIC_URL=https://<esse nome> no .env.
+#
+# Por que um nome SEPARADO: a API de imagens aceita qualquer arquivo, e um HTML/SVG com script aberto na MESMA origem do sistema leria o
+# token do localStorage (testado). Em outra origem o script não alcança o sistema. Reforço: tudo que não é imagem nem PDF sai com
+# `Content-Security-Policy: sandbox` ($csp_do_armazenamento, o `map` do topo deste arquivo) e `nosniff`.
 server {
     listen 8443 ssl;
     http2 on;
     server_name s3.exemplo.intraer;
 
-    ssl_certificate     /etc/segredos/tls/fullchain.pem;
-    ssl_certificate_key /etc/segredos/tls/privkey.pem;
+    ssl_certificate     /etc/nginx/certs/fullchain.pem;
+    ssl_certificate_key /etc/nginx/certs/privkey.pem;
     ssl_protocols       TLSv1.2 TLSv1.3;
 
-    client_max_body_size 0;
-    proxy_buffering off;
-
     location / {
-        proxy_pass http://minio:9000;
-        # A assinatura das URLs inclui o Host: tem de chegar ao MinIO exatamente como o navegador o enviou.
-        proxy_set_header Host              $http_host;
-        proxy_set_header X-Real-IP         $remote_addr;
-        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
+        limit_except GET HEAD { deny all; }
+        proxy_pass http://armazenamento:9000;
+        # A assinatura das URLs inclui o Host: tem de chegar ao armazenamento exatamente como o navegador o enviou.
+        proxy_set_header Host   $http_host;
+        proxy_set_header Cookie "";
+        proxy_buffering off;
+        add_header Content-Security-Policy   $csp_do_armazenamento always;
+        add_header X-Content-Type-Options    nosniff always;
+        add_header Strict-Transport-Security "max-age=31536000" always;
     }
 }

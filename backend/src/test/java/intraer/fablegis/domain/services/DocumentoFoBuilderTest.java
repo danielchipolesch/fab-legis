@@ -211,7 +211,7 @@ class DocumentoFoBuilderTest {
     private static intraer.fablegis.application.dtos.anexoDtos.AnexoResponseDto anexoComImagem(
             OrientacaoDoAnexo orientacao) {
         return new intraer.fablegis.application.dtos.anexoDtos.AnexoResponseDto(
-                1L, "Imagem grande", "http://minio/bucket/imagem.png", 1, orientacao);
+                1L, "Imagem grande", "http://s3/bucket/imagem.png", 1, orientacao);
     }
 
     // Tamanho (em milésimos de ponto) que a última imagem da árvore de áreas ocupa: <viewport ... pos="x y largura altura">.

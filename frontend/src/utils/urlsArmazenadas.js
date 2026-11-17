@@ -7,7 +7,7 @@ import { resolverUrlsAssinadas } from '@/api/imagens.js'
 const TTL_MS = 50 * 60 * 1000
 const cache = new Map()
 
-// Só URLs absolutas http(s) podem ser do MinIO -- caminhos relativos (assets do
+// Só URLs absolutas http(s) podem ser do armazenamento -- caminhos relativos (assets do
 // próprio frontend, ex. /brasao-fab.png) e data: URIs não precisam passar pelo
 // backend; devolvidos como estão.
 function precisaResolver(url) {
@@ -15,9 +15,9 @@ function precisaResolver(url) {
 }
 
 // Resolve várias URLs de uma vez (um único round-trip). Devolve um Map na mesma
-// ordem de entrada; URLs que não são do MinIO (ou sem correspondência no backend)
+// ordem de entrada; URLs que não são do armazenamento (ou sem correspondência no backend)
 // voltam inalteradas.
-export async function resolveMinioUrls(urls) {
+export async function resolverUrlsArmazenadas(urls) {
   const agora = Date.now()
   const pendentes = []
   const resultado = new Map()
@@ -47,20 +47,20 @@ export async function resolveMinioUrls(urls) {
   return resultado
 }
 
-export async function resolveMinioUrl(url) {
-  const mapa = await resolveMinioUrls([url])
+export async function resolverUrlArmazenada(url) {
+  const mapa = await resolverUrlsArmazenadas([url])
   return mapa.get(url) ?? url
 }
 
 // Alimenta o cache com uma URL assinada já conhecida (ex.: devolvida junto da
 // canônica pelo próprio POST /imagens/upload) -- evita o round-trip de
-// resolveMinioUrl(s) na primeira exibição da imagem recém-enviada.
-export function primeMinioUrlCache(url, assinada) {
+// resolverUrlArmazenada(s) na primeira exibição da imagem recém-enviada.
+export function alimentarCacheDeUrls(url, assinada) {
   if (!precisaResolver(url) || !assinada) return
   cache.set(url, { assinada, expiraEm: Date.now() + TTL_MS })
 }
 
 // Esvazia o cache de URLs assinadas (ver limparCachesDaSessao: no logout nada da sessão anterior pode sobrar).
-export function limparMinioUrlCache() {
+export function limparCacheDeUrls() {
   cache.clear()
 }

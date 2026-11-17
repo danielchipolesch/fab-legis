@@ -1,12 +1,13 @@
 package intraer.fablegis;
 
-import io.minio.MinioClient;
 import org.junit.jupiter.api.Tag;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.testcontainers.postgresql.PostgreSQLContainer;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 
 // Base dos testes de integração: o contexto inteiro da aplicação (segurança, Flyway, JPA, controllers) sobre um PostgreSQL
 // de verdade num container (Testcontainers). Precisam de Docker, então ficam fora do `mvn test` padrão (@Tag("integration"));
@@ -16,8 +17,8 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
 // cache entre elas, e um contêiner por classe deixaria o contexto em cache apontando para um banco já desligado. Ele é
 // encerrado quando a JVM termina.
 //
-// O MinIO é trocado por mocks: nenhum destes testes trata de armazenamento de objetos (o cache de PDF/HTML tem o seu teste
-// unitário), e assim não há segundo container nem rede para o boot.
+// O armazenamento de objetos é trocado por mocks: nenhum destes testes trata de armazenamento (o cache de PDF/HTML e o
+// ImagemService têm os seus testes unitários), e assim não há segundo container nem rede para o boot.
 @Tag("integration")
 @SpringBootTest
 public abstract class IntegracaoComPostgresBase {
@@ -35,9 +36,9 @@ public abstract class IntegracaoComPostgresBase {
         registro.add("spring.datasource.password", POSTGRES::getPassword);
     }
 
-    @MockitoBean(name = "minioClient")
-    MinioClient minioClient;
+    @MockitoBean
+    S3Client s3Client;
 
-    @MockitoBean(name = "minioClientPublico")
-    MinioClient minioClientPublico;
+    @MockitoBean
+    S3Presigner s3Presigner;
 }

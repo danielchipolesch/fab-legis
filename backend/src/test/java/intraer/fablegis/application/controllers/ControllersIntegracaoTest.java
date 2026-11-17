@@ -92,7 +92,7 @@ class ControllersIntegracaoTest extends IntegracaoComPostgresBase {
         Integer aplicadas = jdbc.queryForObject("select count(*) from flyway_schema_history where success", Integer.class);
         Integer falhas = jdbc.queryForObject("select count(*) from flyway_schema_history where not success", Integer.class);
 
-        assertThat(aplicadas).isGreaterThanOrEqualTo(13);
+        assertThat(aplicadas).isEqualTo(1); // o esquema inteiro é a V1 (db/migration/V1__initial.sql)
         assertThat(falhas).isZero();
     }
 

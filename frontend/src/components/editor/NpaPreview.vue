@@ -46,7 +46,7 @@ import { conteudoParaHtml } from '@/editor/conteudoParaHtml.js'
 import { cabecalho, letraDoAnexo } from '@/regras/npa.js'
 import { paginar } from '@/utils/paginacaoDaNpa.js'
 import { exibeSeloRevogado } from '@/utils/fluxoDocumento.js'
-import { resolveMinioUrls } from '@/utils/minioUrls.js'
+import { resolverUrlsArmazenadas } from '@/utils/urlsArmazenadas.js'
 import { useDocumentosStore } from '@/stores/documentos.js'
 import NpaCabecalho from '@/components/editor/NpaCabecalho.vue'
 import NpaBloco from '@/components/editor/NpaBloco.vue'
@@ -201,13 +201,13 @@ onMounted(() => {
 onUnmounted(() => _ro?.disconnect())
 onUpdated(resolverImagens)
 
-// O bucket do MinIO é privado: as imagens (figuras do texto e anexos) precisam da URL assinada.
+// O bucket do armazenamento é privado: as imagens (figuras do texto e anexos) precisam da URL assinada.
 async function resolverImagens() {
   const raiz = outerRef.value
   if (!raiz) return
   const imgs = Array.from(raiz.querySelectorAll('img[src^="http"]:not([data-resolved])'))
   if (!imgs.length) return
-  const mapa = await resolveMinioUrls(imgs.map(img => img.getAttribute('src')))
+  const mapa = await resolverUrlsArmazenadas(imgs.map(img => img.getAttribute('src')))
   for (const img of imgs) {
     const resolvido = mapa.get(img.getAttribute('src'))
     if (resolvido) img.setAttribute('src', resolvido)

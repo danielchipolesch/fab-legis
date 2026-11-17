@@ -9,7 +9,7 @@ import java.util.Arrays;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-// O enum PapelEnum e a tabela t_papel (migração V21) dizem a mesma coisa: cada papel com o código e o nome por extenso.
+// O enum PapelEnum e a tabela t_papel (db/migration/V1__initial.sql) dizem a mesma coisa: cada papel com o código e o nome por extenso.
 class PapelEnumIntegracaoTest extends IntegracaoComPostgresBase {
 
     @Autowired JdbcTemplate jdbc;

@@ -15,7 +15,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 
 // Quem está editando um documento agora = quem tem uma conexão SSE aberta
 // para ele, ponto -- nada de heartbeat nem janela de tempo (ver
-// DocumentoPresencaService/migração V13, que removeu a tabela anterior). A
+// DocumentoPresencaService/uma migração antiga (hoje parte de db/migration/V1__initial.sql), que removeu a tabela anterior). A
 // desconexão (fechar aba, navegar pra outro documento, cair a rede) já
 // dispara onCompletion/onError/onTimeout do próprio SseEmitter, que é
 // exatamente o sinal "não está mais editando" de que precisamos.

@@ -1,3 +1,13 @@
+-- ════════════════════════════════════════════════════════════════════════════════════════
+-- Schema consolidado numa única versão. O sistema ainda não entrou em produção, então todo o
+-- histórico de migrations (V1 a V26) foi reunido aqui, NA MESMA ORDEM em que rodava, sem mudar
+-- nenhum comando: o banco que esta V1 cria é idêntico ao que as 26 migrations criavam (conferido
+-- comparando o esquema e os dados dos dois). Cada trecho vem marcado com o nome da migration de
+-- origem. Daqui em diante, migration nova é V2 em diante; enquanto o sistema não estiver em
+-- produção, ainda se pode reescrever esta V1 (ver README, "Cuidados do ambiente de desenvolvimento").
+-- ════════════════════════════════════════════════════════════════════════════════════════
+
+-- ── origem: V1__initial.sql ───────────────────────────────────────────────────────────────
 -- Schema inicial consolidado (o sistema ainda não entrou em produção, então todo o
 -- histórico de migrations anteriores foi agrupado numa única versão — segunda vez que
 -- isso acontece; a V1 antiga já era, ela mesma, uma consolidação de um histórico
@@ -596,7 +606,7 @@ CREATE TABLE t_notificacao (
 CREATE INDEX idx_notificacao_destinatario ON t_notificacao(destinatario_id, fl_lida);
 
 -- Cada portaria do ciclo de vida de um documento (edição, sucessivas alterações,
--- revogação) é um registro próprio, com o PDF preservado intacto no MinIO -- nunca
+-- revogação) é um registro próprio, com o PDF preservado intacto no armazenamento de objetos -- nunca
 -- mesclado com o PDF gerado do documento (mesclar invalidaria uma futura assinatura
 -- digital, que cobre um intervalo de bytes exato do arquivo original).
 --
@@ -723,3 +733,379 @@ CREATE TABLE t_item_parte_final (
     ) STORED
 );
 CREATE INDEX idx_item_parte_final_busca ON t_item_parte_final USING GIN (tsv_busca);
+
+-- ── origem: V2__situacao_bca_e_local.sql ───────────────────────────────────────────────────────────────
+-- Situação BCA (real, espelha o repositório oficial) x Situação Local (etapa interna).
+--
+-- Até aqui uma única coluna (st_documento) misturava as duas: PUBLICADO -> EM_ALTERACAO
+-- "despublicava" o ato no sistema, mesmo estando oficialmente publicado. Agora:
+--   st_situacao_bca   NAO_PUBLICADO | PUBLICADO | REVOGADO   (só muda com portaria + BCA)
+--   st_situacao_local RASCUNHO | MINUTA | EM_REVISAO | EM_PUBLICACAO | EM_ALTERACAO |
+--                     ANALISE_REVOGACAO | EM_REVOGACAO | CANCELADO | SEM_ETAPA
+-- APROVADO/ALTERADO deixam de ser estados (aprovar cascateia direto para EM_PUBLICACAO);
+-- PUBLICADO/REVOGADO viram situação BCA + SEM_ETAPA. Ver SituacaoBcaEnum/SituacaoLocalEnum.
+
+ALTER TABLE t_documento ADD COLUMN st_situacao_bca VARCHAR(30);
+ALTER TABLE t_documento RENAME COLUMN st_documento TO st_situacao_local;
+
+-- BCA: revogado se o antigo status já era REVOGADO; publicado se já houve uma primeira
+-- publicação (dt_publicacao é o discriminante que o serviço sempre usou); senão, não publicado.
+UPDATE t_documento
+SET st_situacao_bca = CASE
+        WHEN st_situacao_local = 'REVOGADO' THEN 'REVOGADO'
+        WHEN dt_publicacao IS NOT NULL      THEN 'PUBLICADO'
+        ELSE 'NAO_PUBLICADO'
+    END;
+ALTER TABLE t_documento ALTER COLUMN st_situacao_bca SET NOT NULL;
+
+-- Versão em tramitação armazenada (EM_PUBLICACAO/EM_REVOGACAO): o PDF/HTML gravado nessas
+-- etapas era regenerado na aprovação, com marca d'água -- é a cópia "em tramitação". A versão
+-- vigente anterior (se houve) já tinha sido sobrescrita por ele e não é recuperável.
+ALTER TABLE t_documento ADD COLUMN url_pdf_tramitacao  VARCHAR(255);
+ALTER TABLE t_documento ADD COLUMN url_html_tramitacao VARCHAR(255);
+UPDATE t_documento
+SET url_pdf_tramitacao  = url_pdf,
+    url_html_tramitacao = url_html,
+    url_pdf  = NULL,
+    url_html = NULL
+WHERE st_situacao_local IN ('EM_PUBLICACAO', 'APROVADO', 'ALTERADO', 'EM_REVOGACAO');
+
+UPDATE t_documento
+SET st_situacao_local = CASE st_situacao_local
+        WHEN 'APROVADO'  THEN 'EM_PUBLICACAO'
+        WHEN 'ALTERADO'  THEN 'EM_PUBLICACAO'
+        WHEN 'PUBLICADO' THEN 'SEM_ETAPA'
+        WHEN 'REVOGADO'  THEN 'SEM_ETAPA'
+        ELSE st_situacao_local
+    END;
+
+-- Histórico: mesmas conversões nas duas colunas.
+UPDATE t_historico_documento
+SET sg_status_anterior = CASE sg_status_anterior
+        WHEN 'APROVADO'  THEN 'EM_PUBLICACAO'
+        WHEN 'ALTERADO'  THEN 'EM_PUBLICACAO'
+        WHEN 'PUBLICADO' THEN 'SEM_ETAPA'
+        WHEN 'REVOGADO'  THEN 'SEM_ETAPA'
+        ELSE sg_status_anterior
+    END,
+    sg_status_novo = CASE sg_status_novo
+        WHEN 'APROVADO'  THEN 'EM_PUBLICACAO'
+        WHEN 'ALTERADO'  THEN 'EM_PUBLICACAO'
+        WHEN 'PUBLICADO' THEN 'SEM_ETAPA'
+        WHEN 'REVOGADO'  THEN 'SEM_ETAPA'
+        ELSE sg_status_novo
+    END;
+
+-- ── origem: V3__clausula_renumeracao_paragrafo_unico.sql ───────────────────────────────────────────────────────────────
+-- Parágrafo único que virou "§ 1º" quando um 2º parágrafo foi incluído por emenda (o ÚNICO caso
+-- de renumeração de parágrafo -- Decreto 12.002/2024, art. 14, IV): a linha "Parágrafo único.
+-- texto" é riscada e o texto se repete sob "§ 1º" com a cláusula "renumerado do parágrafo único
+-- pela Portaria X, publicada no BCA Y". A cláusula é congelada na publicação da alteração
+-- (EmendaService.consolidarPublicacao), como a de qualquer outra emenda.
+ALTER TABLE t_item_parte_normativa ADD COLUMN tx_clausula_renumeracao TEXT;
+
+-- ── origem: V4__clausula_alteracao_redacao_dada.sql ───────────────────────────────────────────────────────────────
+-- Cláusula das ALTERAÇÕES passa a ser "(redação dada pela Portaria X, publicada no BCA Y)" em vez de
+-- "(alterado pela ...)". As de inclusão ("incluído") e revogação ("revogado") não mudam. Só o prefixo
+-- das cláusulas já congeladas é reescrito; o restante do texto (portaria/BCA) permanece.
+UPDATE t_portaria              SET tx_clausula_emenda          = regexp_replace(tx_clausula_emenda,          '^\(alterado pela ', '(redação dada pela ') WHERE tx_clausula_emenda          LIKE '(alterado pela %';
+UPDATE t_portaria              SET tx_clausula_emenda_anterior = regexp_replace(tx_clausula_emenda_anterior, '^\(alterado pela ', '(redação dada pela ') WHERE tx_clausula_emenda_anterior LIKE '(alterado pela %';
+UPDATE t_item_parte_normativa  SET tx_clausula_emenda          = regexp_replace(tx_clausula_emenda,          '^\(alterado pela ', '(redação dada pela ') WHERE tx_clausula_emenda          LIKE '(alterado pela %';
+UPDATE t_item_parte_normativa  SET tx_clausula_emenda_anterior = regexp_replace(tx_clausula_emenda_anterior, '^\(alterado pela ', '(redação dada pela ') WHERE tx_clausula_emenda_anterior LIKE '(alterado pela %';
+UPDATE t_item_parte_final      SET tx_clausula_emenda          = regexp_replace(tx_clausula_emenda,          '^\(alterado pela ', '(redação dada pela ') WHERE tx_clausula_emenda          LIKE '(alterado pela %';
+UPDATE t_item_parte_final      SET tx_clausula_emenda_anterior = regexp_replace(tx_clausula_emenda_anterior, '^\(alterado pela ', '(redação dada pela ') WHERE tx_clausula_emenda_anterior LIKE '(alterado pela %';
+
+-- ── origem: V5__regime_normativo.sql ───────────────────────────────────────────────────────────────
+-- Regime normativo da espécie: o conjunto de regras (numeração, criação, layout, ciclo de vida) a que ela
+-- obedece. Todas as espécies existentes são atos normativos; a NPA ganhará o seu regime depois.
+ALTER TABLE t_especie_normativa ADD COLUMN st_regime VARCHAR(30) NOT NULL DEFAULT 'ATO_NORMATIVO';
+
+-- ── origem: V6__tipo_de_regras_da_especie.sql ───────────────────────────────────────────────────────────────
+-- A coluna criada em V5 (st_regime) passa a se chamar pelo que ela realmente escolhe: qual conjunto de regras
+-- (numeração, criação, layout, ciclo de vida) a espécie segue -- ATO_NORMATIVO (DCA, ICA, NSCA...) ou, no futuro, NPA.
+ALTER TABLE t_especie_normativa RENAME COLUMN st_regime TO st_tipo_regras;
+
+-- ── origem: V7__identificacao_do_documento.sql ───────────────────────────────────────────────────────────────
+-- A identificação do documento (o "DCA 11-3" que aparece em toda tela) passa a ser gravada, criada pelas regras
+-- da espécie: nos atos normativos continua sendo SIGLA + assunto básico + sequencial; numa NPA será texto livre,
+-- sem assunto básico nem sequencial -- daí as duas colunas deixarem de ser obrigatórias.
+ALTER TABLE t_documento ADD COLUMN tx_identificacao VARCHAR(120);
+
+UPDATE t_documento d
+   SET tx_identificacao = e.sg_especie_normativa || ' ' || a.cd_assunto_basico || '-' || d.nr_numero_secundario
+  FROM t_especie_normativa e, t_assunto_basico a
+ WHERE e.id_especie_normativa = d.especie_normativa_id
+   AND a.id_assunto_basico = d.assunto_basico_id;
+
+ALTER TABLE t_documento ALTER COLUMN tx_identificacao SET NOT NULL;
+ALTER TABLE t_documento ALTER COLUMN assunto_basico_id DROP NOT NULL;
+ALTER TABLE t_documento ALTER COLUMN nr_numero_secundario DROP NOT NULL;
+
+-- ── origem: V8__campos_da_npa.sql ───────────────────────────────────────────────────────────────
+-- Campos que só a NPA tem (CamposEspecificosDaEspecie): uma linha por documento, criada com o documento e removida
+-- junto com ele. Ficam fora de t_documento para os atos normativos não carregarem colunas que nunca usam.
+--   tx_setor_emissor : setor que emite a NPA (linha do cabeçalho, abaixo da OM) -- texto livre
+--   tx_local         : "Local" da linha "Local, dd de mês de aaaa" do fecho; a data é a da aprovação
+--   tx_assinaturas   : JSON com os blocos de assinatura em texto livre: [{"rotulo": "...", "linhas": ["..."]}]
+CREATE TABLE t_documento_npa (
+    documento_id     BIGINT PRIMARY KEY REFERENCES t_documento (id_documento) ON DELETE CASCADE,
+    tx_setor_emissor VARCHAR(255) NOT NULL,
+    tx_local         VARCHAR(120) NOT NULL,
+    tx_assinaturas   TEXT NOT NULL
+);
+
+-- ── origem: V9__boletim_da_revogacao_da_npa.sql ───────────────────────────────────────────────────────────────
+-- Referência do Boletim Interno em que a NPA foi revogada ("Boletim Interno Ostensivo nº 20, de 3 de maio de 2026").
+-- A da publicação fica em t_documento.tx_bca_referencia (a referência oficial da publicação), que a revogação não
+-- sobrescreve: a NPA revogada continua mostrando onde foi publicada.
+ALTER TABLE t_documento_npa ADD COLUMN tx_boletim_revogacao VARCHAR(255);
+
+-- ── origem: V10__assinaturas_automaticas_da_npa.sql ───────────────────────────────────────────────────────────────
+-- "Elaborado por" (autor e coautores) e "Aprovado por" (quem aprova) deixam de ser blocos de assinatura escritos e passam
+-- a sair do próprio documento. Os blocos gravados com esses rótulos -- inclusive os dois que toda NPA recebia ao nascer
+-- ("Elaborado por" e "Aprovo", este ainda com o texto de orientação) -- são removidos para não duplicar.
+UPDATE t_documento_npa
+SET tx_assinaturas = COALESCE((
+        SELECT jsonb_agg(bloco ORDER BY posicao)
+        FROM jsonb_array_elements(tx_assinaturas::jsonb) WITH ORDINALITY AS b(bloco, posicao)
+        WHERE lower(regexp_replace(trim(bloco ->> 'rotulo'), ':$', '')) NOT IN ('elaborado por', 'aprovado por')
+          AND NOT (lower(regexp_replace(trim(bloco ->> 'rotulo'), ':$', '')) = 'aprovo'
+                   AND bloco -> 'linhas' = '["[Nome completo, posto e função da autoridade]"]'::jsonb)
+    ), '[]'::jsonb)::text;
+
+-- ── origem: V11__tipo_de_especie.sql ───────────────────────────────────────────────────────────────
+-- O tipo da espécie passa a ter os nomes da NSCA 5-3: Espécies Convencionais (MCA, NSCA, ICA, ROCA, DCA...) e Espécies de
+-- Comunicações Oficiais Padronizadas (Capítulo VIII, Seção VIII -- hoje a NPA). A coluna deixa de falar em "regras"
+-- (st_tipo_regras) e passa a dizer o que a espécie é (st_tipo_especie); ATO_NORMATIVO vira CONVENCIONAL e NPA vira
+-- COMUNICACAO_OFICIAL_PADRONIZADA (31 letras: a coluna, de 30, é alargada antes).
+ALTER TABLE t_especie_normativa RENAME COLUMN st_tipo_regras TO st_tipo_especie;
+ALTER TABLE t_especie_normativa ALTER COLUMN st_tipo_especie TYPE VARCHAR(40);
+UPDATE t_especie_normativa SET st_tipo_especie = 'CONVENCIONAL' WHERE st_tipo_especie = 'ATO_NORMATIVO';
+UPDATE t_especie_normativa SET st_tipo_especie = 'COMUNICACAO_OFICIAL_PADRONIZADA' WHERE st_tipo_especie = 'NPA';
+
+-- ── origem: V12__indices_de_performance.sql ───────────────────────────────────────────────────────────────
+-- Índices faltando em colunas batidas o tempo todo por filtro/join, sem mudar nenhum
+-- comportamento -- só o plano de execução. Até aqui essas consultas faziam sequential scan.
+
+-- t_documento: autor/OM identificam "meus documentos"/"minha OM" (DocumentoSpecifications), as
+-- situações filtram toda aba de listagem e os 4 cards do hub, e revisor/publicador atribuído
+-- filtram o card "Aguardando Minha Ação".
+CREATE INDEX idx_documento_autor ON t_documento(autor_id);
+CREATE INDEX idx_documento_om ON t_documento(om_id);
+CREATE INDEX idx_documento_situacao_bca ON t_documento(st_situacao_bca);
+CREATE INDEX idx_documento_situacao_local ON t_documento(st_situacao_local);
+CREATE INDEX idx_documento_revisor_atribuido ON t_documento(revisor_atribuido_id);
+CREATE INDEX idx_documento_publicador_atribuido ON t_documento(publicador_atribuido_id);
+-- Composto: DocumentoSpecifications.publicadosERevogados filtra pelas duas colunas juntas.
+CREATE INDEX idx_documento_situacao_local_bca ON t_documento(st_situacao_local, st_situacao_bca);
+
+-- Itens/anexos/histórico do documento: toda abertura de documento, geração de PDF/HTML e o
+-- cache de renderização (DocumentoRenderCacheService) buscam essas tabelas por documento_id.
+CREATE INDEX idx_anexo_documento ON t_anexo(documento_id);
+CREATE INDEX idx_portaria_documento ON t_portaria(documento_id);
+CREATE INDEX idx_item_parte_normativa_documento ON t_item_parte_normativa(documento_id);
+CREATE INDEX idx_item_parte_normativa_parent ON t_item_parte_normativa(parent_id);
+CREATE INDEX idx_item_parte_final_documento ON t_item_parte_final(documento_id);
+CREATE INDEX idx_historico_documento_documento ON t_historico_documento(documento_id);
+
+-- ── origem: V13__orientacao_do_anexo.sql ───────────────────────────────────────────────────────────────
+-- Orientação da página A4 em que cada anexo de imagem é impresso no PDF (RETRATO | PAISAGEM).
+-- Os anexos já existentes continuam em retrato, que era o único comportamento até aqui.
+ALTER TABLE t_anexo ADD COLUMN sg_orientacao VARCHAR(10) NOT NULL DEFAULT 'RETRATO';
+
+-- ── origem: V14__habilitacao_de_documentos.sql ───────────────────────────────────────────────────────────────
+-- Habilitação de documentos: quais espécies normativas CONVENCIONAIS cada OM pode CRIAR. Uma linha = a OM está habilitada
+-- para a espécie. As espécies que não dependem de habilitação (a NPA e as demais Comunicações Oficiais Padronizadas) não
+-- entram aqui: toda OM as cria. Consultar, comentar e ser coautor não dependem desta tabela.
+-- A habilitação padrão (GABAER e CENDOC, em todas as espécies convencionais) é aplicada no primeiro boot por
+-- HabilitacaoPadraoRunner, porque as espécies são semeadas por EspecieNormativaRunner, depois das migrations.
+CREATE TABLE t_om_especie_habilitada (
+    organizacao_militar_id BIGINT NOT NULL REFERENCES t_organizacao_militar (id_organizacao_militar) ON DELETE CASCADE,
+    especie_normativa_id   BIGINT NOT NULL REFERENCES t_especie_normativa (id_especie_normativa) ON DELETE CASCADE,
+    dt_habilitacao         TIMESTAMP NOT NULL DEFAULT now(),
+    PRIMARY KEY (organizacao_militar_id, especie_normativa_id)
+);
+
+CREATE INDEX idx_om_especie_habilitada_especie ON t_om_especie_habilitada (especie_normativa_id);
+
+-- ── origem: V15__om_padrao_cendoc_e_usuario_padrao.sql ───────────────────────────────────────────────────────────────
+-- A organização militar padrão passa a ser o CENDOC: a OM provisória "SISTEMA" (Organização Padrão do Sistema) deixa de existir.
+-- Quem estava nela (o usuário técnico "sistema", o administrador padrão e os documentos que ele criou) vai para o CENDOC; só
+-- então a OM é removida (usuários e documentos apontam para ela por chave estrangeira).
+-- Instalações novas já nascem assim (DataSeeder cria o administrador na OM do CENDOC); esta migração acerta as que já existem.
+UPDATE t_usuario
+   SET om_id = (SELECT id_organizacao_militar FROM t_organizacao_militar WHERE sg_organizacao_militar = 'CENDOC')
+ WHERE om_id = (SELECT id_organizacao_militar FROM t_organizacao_militar WHERE sg_organizacao_militar = 'SISTEMA');
+
+UPDATE t_documento
+   SET om_id = (SELECT id_organizacao_militar FROM t_organizacao_militar WHERE sg_organizacao_militar = 'CENDOC')
+ WHERE om_id = (SELECT id_organizacao_militar FROM t_organizacao_militar WHERE sg_organizacao_militar = 'SISTEMA');
+
+DELETE FROM t_organizacao_militar WHERE sg_organizacao_militar = 'SISTEMA';
+
+-- O usuário administrador padrão (CPF 111.444.777-35, o mesmo de sempre): posto, nome completo, nome de guerra e e-mail
+-- institucional. Só mexe nele se ele existir (um banco novo o cria no primeiro boot, com os mesmos dados).
+UPDATE t_usuario
+   SET nm_usuario         = 'DANIEL ANGELO CHIPOLESCH DE ALMEIDA',
+       tx_nome_guerra     = 'CHIPOLESCH',
+       tx_email           = 'chipoleschdaca@fab.mil.br',
+       posto_graduacao_id = (SELECT id_posto_graduacao FROM t_posto_graduacao WHERE sg_bigrama = 'CP')
+ WHERE nr_cpf = '11144477735' AND fl_sistema = false;
+
+-- ── origem: V16__distintivo_da_om.sql ───────────────────────────────────────────────────────────────
+-- DOM (distintivo da organização militar): a imagem que a NPA mostra no cabeçalho (Anexo XII da NSCA 5-3). Uma por OM,
+-- cadastrada pelo administrador; fica no armazenamento de objetos e aqui só guardamos a URL. Nulo = a OM ainda não
+-- tem distintivo (o espaço fica em branco, como antes).
+ALTER TABLE t_organizacao_militar ADD COLUMN tx_url_distintivo TEXT;
+
+-- ── origem: V17__substituicao_de_npa.sql ───────────────────────────────────────────────────────────────
+-- "Substituir" uma NPA publicada: a NPA nova guarda qual NPA ela substitui. Para mudar uma NPA publicada cria-se outra e
+-- revoga-se a anterior (a NPA não passa por alteração); este vínculo registra a ligação entre as duas. Nulo = documento
+-- que não substitui nenhum outro.
+ALTER TABLE t_documento ADD COLUMN substitui_documento_id BIGINT REFERENCES t_documento (id_documento);
+CREATE INDEX idx_documento_substitui ON t_documento (substitui_documento_id);
+
+-- ── origem: V18__auditoria_de_acessos.sql ───────────────────────────────────────────────────────────────
+-- Auditoria dos acessos: quem criou usuário, concedeu ou retirou papel, ativou/desativou, trocou de OM ou redefiniu senha, e
+-- quando. Gravada na MESMA transação da mudança (uma concessão sem registro não existe). O alvo é um snapshot (id, CPF, nome
+-- e a sigla da OM no momento), como na auditoria de documentos: a trilha sobrevive a qualquer mudança posterior do cadastro.
+-- ator_id nulo = o próprio sistema (ex.: o administrador padrão criado no primeiro boot).
+CREATE TABLE t_log_acesso (
+    id_log_acesso BIGINT GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
+    ator_id       BIGINT REFERENCES t_usuario (id_usuario),
+    alvo_id       BIGINT NOT NULL,
+    alvo_cpf      VARCHAR(14) NOT NULL,
+    alvo_nome     VARCHAR(255) NOT NULL,
+    om_sigla      VARCHAR(50),
+    sg_acao       VARCHAR(30) NOT NULL,
+    tx_detalhe    VARCHAR(500),
+    dt_ocorrencia TIMESTAMP NOT NULL DEFAULT now()
+);
+
+CREATE INDEX idx_log_acesso_alvo ON t_log_acesso (alvo_cpf);
+CREATE INDEX idx_log_acesso_dt_ocorrencia ON t_log_acesso (dt_ocorrencia);
+
+-- ── origem: V19__revisao_periodica_de_acessos.sql ───────────────────────────────────────────────────────────────
+-- Revisão periódica de acessos (docs/autenticacao.md): quem tem papel elevado (aprovador, publicador, auditor, administrador)
+-- precisa ter o acesso reconfirmado a cada 6 meses, ao trocar de OM e quando a conta fica 180 dias sem entrar.
+--   dt_revisao_acesso : quando o acesso foi reconfirmado (ou concedido); NULO = a revisão está pendente (ex.: trocou de OM)
+--   dt_ultimo_acesso  : o último login com sucesso (NULO = ainda não entrou)
+-- Quem já existe começa com os dois em "agora": o prazo de 6 meses conta a partir desta migração.
+ALTER TABLE t_usuario ADD COLUMN dt_revisao_acesso TIMESTAMP;
+ALTER TABLE t_usuario ADD COLUMN dt_ultimo_acesso TIMESTAMP;
+UPDATE t_usuario SET dt_revisao_acesso = now(), dt_ultimo_acesso = now() WHERE fl_sistema = false;
+
+-- ── origem: V20__aprovador_e_publicador_sem_atribuicao.sql ───────────────────────────────────────────────────────────────
+-- "Enviar para aprovação" não escolhe mais uma pessoa: qualquer aprovador da OM do documento age, e qualquer publicador (só existe
+-- no CENDOC) publica. As colunas deixam de ser uma ATRIBUIÇÃO e passam a registrar QUEM aprovou e QUEM publicou (ou revogou):
+--   aprovador_id  : quem aprovou o texto (ou a revogação) -- é o "Aprovado por" da NPA; nulo enquanto ninguém aprovou
+--   publicador_id : quem registrou a publicação (ou a revogação)
+-- As atribuições que estavam em aberto viram "ninguém" (qualquer um pode agir), exceto onde já havia decisão tomada: o aprovador
+-- de um documento que já passou da revisão continua sendo quem foi.
+ALTER TABLE t_documento RENAME COLUMN revisor_atribuido_id TO aprovador_id;
+ALTER TABLE t_documento RENAME COLUMN publicador_atribuido_id TO publicador_id;
+ALTER INDEX idx_documento_revisor_atribuido RENAME TO idx_documento_aprovador;
+ALTER INDEX idx_documento_publicador_atribuido RENAME TO idx_documento_publicador;
+UPDATE t_documento SET aprovador_id = NULL WHERE st_situacao_local IN ('EM_REVISAO', 'ANALISE_REVOGACAO');
+UPDATE t_documento SET publicador_id = NULL WHERE st_situacao_local IN ('EM_PUBLICACAO', 'EM_REVOGACAO');
+
+-- ── origem: V21__perfis_com_codigo_e_nome.sql ───────────────────────────────────────────────────────────────
+-- Perfis (papéis) de acesso com CÓDIGO e NOME POR EXTENSO, e com o escopo no próprio código:
+--   EDIT    -> ELB      Elaborador
+--   APROV   -> APR_OM   Aprovador da OM
+--   PUBLIC  -> PUB_BCA  Publicador do BCA
+--   AUDITOR -> AUD_GER  Auditor Geral   (lotado no CENDOC)  |  AUD_OM  Auditor da OM  (demais OMs)
+--   ADMIN   -> ADM_GER  Administrador Geral (CENDOC)        |  ADM_OM  Administrador da OM (demais OMs)
+-- A tabela t_papel é o catálogo (código + nome + descrição) e t_usuario_papel passa a referenciá-la; o enum PapelEnum diz o mesmo
+-- (PapelEnumTest confere). O escopo de ADMIN e AUDITOR sai da lotação que a pessoa tem hoje.
+CREATE TABLE t_papel (
+    sg_papel VARCHAR(20)  PRIMARY KEY,
+    nm_papel VARCHAR(60)  NOT NULL UNIQUE,
+    ds_papel VARCHAR(255) NOT NULL
+);
+
+INSERT INTO t_papel (sg_papel, nm_papel, ds_papel) VALUES
+    ('ELB',     'Elaborador',          'Cria e edita documentos como autor ou coautor e os envia para aprovação'),
+    ('APR_OM',  'Aprovador da OM',     'Aprova ou devolve os documentos da própria OM (qualquer aprovador da OM age)'),
+    ('PUB_BCA', 'Publicador do BCA',   'Registra a publicação e a revogação de documentos (papel exclusivo do CENDOC)'),
+    ('AUD_OM',  'Auditor da OM',       'Consulta a trilha de auditoria da própria OM'),
+    ('AUD_GER', 'Auditor Geral',       'Consulta a trilha de auditoria de todas as OMs (papel exclusivo do CENDOC)'),
+    ('ADM_OM',  'Administrador da OM', 'Gerencia os usuários da própria OM; não altera outros administradores'),
+    ('ADM_GER', 'Administrador Geral', 'Gerencia os usuários de todas as OMs e os administradores das OMs; cadastra habilitações e DOM (papel exclusivo do CENDOC)');
+
+UPDATE t_usuario_papel SET sg_papel = 'ELB'     WHERE sg_papel = 'EDIT';
+UPDATE t_usuario_papel SET sg_papel = 'APR_OM'  WHERE sg_papel = 'APROV';
+UPDATE t_usuario_papel SET sg_papel = 'PUB_BCA' WHERE sg_papel = 'PUBLIC';
+
+UPDATE t_usuario_papel p
+   SET sg_papel = CASE WHEN o.sg_organizacao_militar = 'CENDOC' THEN 'ADM_GER' ELSE 'ADM_OM' END
+  FROM t_usuario u JOIN t_organizacao_militar o ON o.id_organizacao_militar = u.om_id
+ WHERE p.usuario_id = u.id_usuario AND p.sg_papel = 'ADMIN';
+
+UPDATE t_usuario_papel p
+   SET sg_papel = CASE WHEN o.sg_organizacao_militar = 'CENDOC' THEN 'AUD_GER' ELSE 'AUD_OM' END
+  FROM t_usuario u JOIN t_organizacao_militar o ON o.id_organizacao_militar = u.om_id
+ WHERE p.usuario_id = u.id_usuario AND p.sg_papel = 'AUDITOR';
+
+ALTER TABLE t_usuario_papel ADD CONSTRAINT fk_usuario_papel_papel FOREIGN KEY (sg_papel) REFERENCES t_papel (sg_papel);
+
+-- ── origem: V22__perfis_gestor_do_painel_gerencial.sql ───────────────────────────────────────────────────────────────
+-- Painel Gerencial (novo módulo): dois perfis novos, no mesmo padrão dos demais (trigrama + escopo, com nome por extenso):
+--   GES_OM   Gestor da OM   -- indicadores da própria OM (demais OMs)
+--   GES_GER  Gestor Geral   -- indicadores de todas as OMs, com filtro por OM (só no CENDOC)
+-- O usuário padrão do sistema (o administrador do primeiro boot) já recebe o geral, se existir e estiver no CENDOC.
+INSERT INTO t_papel (sg_papel, nm_papel, ds_papel) VALUES
+    ('GES_OM',  'Gestor da OM', 'Consulta os indicadores do Painel Gerencial da própria OM'),
+    ('GES_GER', 'Gestor Geral', 'Consulta os indicadores do Painel Gerencial de todas as OMs, com filtro por OM (perfil exclusivo do CENDOC)');
+
+UPDATE t_papel SET ds_papel = replace(ds_papel, '(papel exclusivo do CENDOC)', '(perfil exclusivo do CENDOC)');
+
+INSERT INTO t_usuario_papel (usuario_id, sg_papel)
+SELECT u.id_usuario, 'GES_GER'
+  FROM t_usuario u JOIN t_organizacao_militar o ON o.id_organizacao_militar = u.om_id
+ WHERE u.nr_cpf = '11144477735' AND u.fl_sistema = false AND o.sg_organizacao_militar = 'CENDOC'
+   AND NOT EXISTS (SELECT 1 FROM t_usuario_papel p WHERE p.usuario_id = u.id_usuario AND p.sg_papel = 'GES_GER');
+
+-- ── origem: V23__perfis_do_painel_gerencial_pnl.sql ───────────────────────────────────────────────────────────────
+-- Os perfis do Painel Gerencial passam a ter o código do próprio módulo (e deixam de se chamar "Gestor"):
+--   GES_OM  Gestor da OM  -> PNL_OM   Painel Gerencial da OM
+--   GES_GER Gestor Geral  -> PNL_GER  Painel Gerencial Geral
+-- Quem já tinha o perfil antigo passa a ter o novo. (O V22 não foi reescrito: um banco que já o aplicou acusaria checksum diferente.)
+INSERT INTO t_papel (sg_papel, nm_papel, ds_papel) VALUES
+    ('PNL_OM',  'Painel Gerencial da OM', 'Consulta os indicadores do Painel Gerencial da própria OM'),
+    ('PNL_GER', 'Painel Gerencial Geral', 'Consulta os indicadores do Painel Gerencial de todas as OMs, com filtro por OM (perfil exclusivo do CENDOC)');
+
+UPDATE t_usuario_papel SET sg_papel = 'PNL_OM'  WHERE sg_papel = 'GES_OM';
+UPDATE t_usuario_papel SET sg_papel = 'PNL_GER' WHERE sg_papel = 'GES_GER';
+
+DELETE FROM t_papel WHERE sg_papel IN ('GES_OM', 'GES_GER');
+
+-- ── origem: V24__papel_exclusivo_do_cendoc.sql ───────────────────────────────────────────────────────────────
+-- O termo do sistema é "papel": as descrições gravadas em t_papel pelas migrações V22 e V23 dizem "(perfil exclusivo do CENDOC)"
+-- e voltam a dizer "(papel exclusivo do CENDOC)", como o enum PapelEnum (PapelEnumIntegracaoTest confere).
+UPDATE t_papel SET ds_papel = replace(ds_papel, '(perfil exclusivo do CENDOC)', '(papel exclusivo do CENDOC)');
+
+-- ── origem: V25__numero_unico_do_documento.sql ───────────────────────────────────────────────────────────────
+-- O número de um ato normativo (espécie + assunto básico + sequencial, "DCA 11-3") passa a ser único NO BANCO. Até aqui o menor número livre
+-- era escolhido só na aplicação, e duas criações simultâneas podiam escolher o mesmo (docs/replicas.md). Agora a segunda é recusada pelo
+-- índice e a aplicação tenta de novo com o número seguinte (CriacaoComNumeracaoUnica).
+-- Só vale onde há assunto básico e sequencial: a NPA se identifica por texto livre e não tem nenhum dos dois.
+CREATE UNIQUE INDEX ux_documento_numero
+    ON t_documento (especie_normativa_id, assunto_basico_id, nr_numero_secundario)
+    WHERE assunto_basico_id IS NOT NULL AND nr_numero_secundario IS NOT NULL;
+
+-- ── origem: V26__publicador_do_boletim_interno.sql ───────────────────────────────────────────────────────────────
+-- A NPA é de uso interno da OM e passa a ser publicada (e revogada) na própria OM, no Boletim Interno, e não mais pelo CENDOC.
+-- Papel novo, em qualquer OM (inclusive o CENDOC, para as NPAs dele):
+--   PUB_BI  Publicador do Boletim Interno  -- publica e revoga as NPAs da própria OM
+-- O PUB_BCA continua só no CENDOC e só publica as espécies convencionais. Quem hoje é PUB_BCA (e portanto já publicava NPAs) recebe
+-- também o PUB_BI, para o CENDOC seguir publicando as NPAs dele; nas demais OMs o administrador da OM concede o papel.
+INSERT INTO t_papel (sg_papel, nm_papel, ds_papel) VALUES
+    ('PUB_BI', 'Publicador do Boletim Interno', 'Registra a publicação e a revogação das NPAs da própria OM, no Boletim Interno (qualquer OM)');
+
+UPDATE t_papel SET ds_papel = 'Registra a publicação e a revogação das espécies convencionais, de qualquer OM (papel exclusivo do CENDOC)'
+ WHERE sg_papel = 'PUB_BCA';
+
+INSERT INTO t_usuario_papel (usuario_id, sg_papel)
+SELECT usuario_id, 'PUB_BI' FROM t_usuario_papel WHERE sg_papel = 'PUB_BCA';
+

@@ -418,7 +418,7 @@ import { useAuthStore } from '@/stores/auth.js'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import { gerarPdf, gerarHtml, buscarPdfBlob } from '@/services/pdfService.js'
 import { gerarTextoSugeridoPortaria } from '@/utils/textoSugeridoPortaria.js'
-import { resolveMinioUrls } from '@/utils/minioUrls.js'
+import { resolverUrlsArmazenadas } from '@/utils/urlsArmazenadas.js'
 import BotaoBaixarVersao from '@/components/common/BotaoBaixarVersao.vue'
 import { regrasDoDocumento, moduloDoDocumento } from '@/regras/index.js'
 import { getSubstituicao } from '@/api/documentos.js'
@@ -531,12 +531,12 @@ const origemCrumb = computed(() => ORIGEM_CRUMB[route.query.origem] ?? moduloCru
 const historico = computed(() => docStore.historicoPorDocumento[String(documentoId.value)] ?? [])
 const portariasBrutas = computed(() => docStore.portariasPorDocumento[String(documentoId.value)] ?? [])
 
-// urlPdf de cada portaria também é uma URL "canônica" do MinIO (bucket privado) --
+// urlPdf de cada portaria também é uma URL "canônica" do armazenamento de objetos (bucket privado) --
 // resolve todas de uma vez (um único round-trip) sempre que a lista mudar.
 const portarias = ref([])
 watch(portariasBrutas, async (lista) => {
   if (!lista.length) { portarias.value = []; return }
-  const mapa = await resolveMinioUrls(lista.map(p => p.urlPdf))
+  const mapa = await resolverUrlsArmazenadas(lista.map(p => p.urlPdf))
   portarias.value = lista.map(p => ({ ...p, urlPdf: mapa.get(p.urlPdf) ?? p.urlPdf }))
 }, { immediate: true })
 

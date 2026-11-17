@@ -178,26 +178,26 @@ class CabecalhoDaNpaTest {
         var doc = documento(SituacaoBcaEnum.NAO_PUBLICADO);
         assertThat(CabecalhoDaNpa.de(doc, CAMPOS, List.of()).distintivoUrl()).isNull();
 
-        doc.getOm().setUrlDistintivo("http://minio/bucket/grupo.png");
-        assertThat(CabecalhoDaNpa.de(doc, CAMPOS, List.of()).distintivoUrl()).isEqualTo("http://minio/bucket/grupo.png");
+        doc.getOm().setUrlDistintivo("http://s3/bucket/grupo.png");
+        assertThat(CabecalhoDaNpa.de(doc, CAMPOS, List.of()).distintivoUrl()).isEqualTo("http://s3/bucket/grupo.png");
     }
 
     @Test
     void umaNpaClonadaMostraODistintivoDaOmDeQuemClonouNuncaODoOriginal() {
         var original = documento(SituacaoBcaEnum.PUBLICADO);
-        original.getOm().setUrlDistintivo("http://minio/bucket/original.png");
+        original.getOm().setUrlDistintivo("http://s3/bucket/original.png");
 
         var omDeQuemClona = new OrganizacaoMilitar();
         omDeQuemClona.setNome("Outra OM");
-        omDeQuemClona.setUrlDistintivo("http://minio/bucket/outra.png");
+        omDeQuemClona.setUrlDistintivo("http://s3/bucket/outra.png");
         var clone = documento(SituacaoBcaEnum.NAO_PUBLICADO);
         clone.setOm(omDeQuemClona);
 
-        assertThat(CabecalhoDaNpa.de(clone, CAMPOS, List.of()).distintivoUrl()).isEqualTo("http://minio/bucket/outra.png");
-        assertThat(CabecalhoDaNpa.de(original, CAMPOS, List.of()).distintivoUrl()).isEqualTo("http://minio/bucket/original.png");
+        assertThat(CabecalhoDaNpa.de(clone, CAMPOS, List.of()).distintivoUrl()).isEqualTo("http://s3/bucket/outra.png");
+        assertThat(CabecalhoDaNpa.de(original, CAMPOS, List.of()).distintivoUrl()).isEqualTo("http://s3/bucket/original.png");
 
         // Se a OM de quem clonou troca de distintivo depois, o clone acompanha (a consulta é pela OM do documento).
-        omDeQuemClona.setUrlDistintivo("http://minio/bucket/nova.png");
-        assertThat(CabecalhoDaNpa.de(clone, CAMPOS, List.of()).distintivoUrl()).isEqualTo("http://minio/bucket/nova.png");
+        omDeQuemClona.setUrlDistintivo("http://s3/bucket/nova.png");
+        assertThat(CabecalhoDaNpa.de(clone, CAMPOS, List.of()).distintivoUrl()).isEqualTo("http://s3/bucket/nova.png");
     }
 }

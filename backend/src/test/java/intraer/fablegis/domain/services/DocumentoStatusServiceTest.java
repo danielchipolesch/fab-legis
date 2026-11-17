@@ -160,7 +160,7 @@ class DocumentoStatusServiceTest {
     private static DocumentoStatusRequestDto pedidoCompleto(SituacaoLocalEnum destino) {
         return new DocumentoStatusRequestDto(destino,
                 "COMAER", "DIRAP", "123", LocalDate.of(2026, 3, 5), 12, LocalDate.of(2026, 3, 6),
-                "{}", "{}", "{}", "{}", "{}", "https://minio/portaria.pdf");
+                "{}", "{}", "{}", "{}", "{}", "https://s3/portaria.pdf");
     }
 
     private static DocumentoStatusRequestDto apenas(SituacaoLocalEnum destino) {
@@ -173,7 +173,7 @@ class DocumentoStatusServiceTest {
     private static DocumentoStatusRequestDto somentePortariaEBca(SituacaoLocalEnum destino) {
         return new DocumentoStatusRequestDto(destino,
                 "COMAER", "DIRAP", "123", LocalDate.of(2026, 3, 5), 12, LocalDate.of(2026, 3, 6),
-                null, null, null, null, null, "https://minio/portaria.pdf");
+                null, null, null, null, null, "https://s3/portaria.pdf");
     }
 
     private static DocumentoStatusRequestDto publicacaoCom(String orgao, String setor, String numero, LocalDate dataPortaria,
@@ -184,7 +184,7 @@ class DocumentoStatusServiceTest {
 
     private static DocumentoStatusRequestDto publicacaoValida() {
         return publicacaoCom("COMAER", "DIRAP", "123", LocalDate.of(2026, 3, 5), 12, LocalDate.of(2026, 3, 6), "{}",
-                "https://minio/portaria.pdf");
+                "https://s3/portaria.pdf");
     }
 
     // ─── Transições permitidas (docs/ciclo-de-vida.md) ────────────────────────────
@@ -893,8 +893,8 @@ class DocumentoStatusServiceTest {
     @Test
     void falhaAoGerarOsArquivosNaoDesfazAMudancaDeEtapa() {
         var doc = documentoEm(NAO_PUBLICADO, EM_REVISAO);
-        when(documentoPdfService.gerarEArmazenarPdf(any())).thenThrow(new RuntimeException("MinIO fora do ar"));
-        when(documentoHtmlService.gerarEArmazenarHtml(any())).thenThrow(new RuntimeException("MinIO fora do ar"));
+        when(documentoPdfService.gerarEArmazenarPdf(any())).thenThrow(new RuntimeException("armazenamento fora do ar"));
+        when(documentoHtmlService.gerarEArmazenarHtml(any())).thenThrow(new RuntimeException("armazenamento fora do ar"));
 
         assertThatCode(() -> service.changeStatus(DOC_ID, pedidoCompleto(EM_PUBLICACAO))).doesNotThrowAnyException();
         assertThat(doc.getSituacaoLocal()).isEqualTo(EM_PUBLICACAO);

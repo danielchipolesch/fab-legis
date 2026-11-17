@@ -271,7 +271,7 @@ import { ref, computed, watch, nextTick, onMounted, onUnmounted, onUpdated } fro
 import { conteudoParaHtml } from '@/editor/conteudoParaHtml.js'
 import { bodyLabel, toRoman, clausulaRenumeracao } from '@/utils/numbering.js'
 import { useDocumentosStore } from '@/stores/documentos.js'
-import { resolveMinioUrls } from '@/utils/minioUrls.js'
+import { resolverUrlsArmazenadas } from '@/utils/urlsArmazenadas.js'
 import { exibeSeloRevogado, exibePortaria } from '@/utils/fluxoDocumento.js'
 import { htmlEmLinha } from '@/utils/htmlEmLinha.js'
 
@@ -339,7 +339,7 @@ onUnmounted(() => _ro?.disconnect())
 
 // Figuras embutidas via v-html (conteudoToHtml/conteudoParaHtml) e os <img> de anexo
 // (:src="anexo.urlImagem") acabam, os dois, como <img src="..."> reais no DOM depois
-// da renderização -- como o bucket do MinIO é privado, cada um precisa da sua URL
+// da renderização -- como o bucket do armazenamento é privado, cada um precisa da sua URL
 // trocada por uma assinada. Mais simples resolver aqui, uma vez por atualização do
 // DOM inteiro, do que interceptar cada ponto que gera HTML (são vários). O atributo
 // data-resolved evita reprocessar o que já foi trocado.
@@ -349,7 +349,7 @@ async function resolverImagensDoPreview() {
   const imgs = Array.from(raiz.querySelectorAll('img[src^="http"]:not([data-resolved])'))
   if (!imgs.length) return
   const urls = imgs.map(img => img.getAttribute('src'))
-  const mapa = await resolveMinioUrls(urls)
+  const mapa = await resolverUrlsArmazenadas(urls)
   for (const img of imgs) {
     const resolvido = mapa.get(img.getAttribute('src'))
     if (resolvido) img.setAttribute('src', resolvido)

@@ -395,7 +395,7 @@ public class XslFoContentRenderer {
     private String resolveImageSrc(String src) {
         if (src == null || src.isBlank()) return "";
         if (src.startsWith("data:")) return src;
-        // Tenta resolver via MinIO client (autenticado) antes do fallback HTTP
+        // Tenta resolver via cliente do armazenamento (autenticado) antes do fallback HTTP
         if (imageResolver != null) {
             String resolved = imageResolver.apply(src);
             if (resolved != null && !resolved.isBlank()) return resolved;

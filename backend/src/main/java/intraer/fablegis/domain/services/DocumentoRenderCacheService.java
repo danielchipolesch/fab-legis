@@ -5,40 +5,34 @@ import intraer.fablegis.domain.entities.estruturaDocumento.Documento;
 import intraer.fablegis.infrastructure.repositories.AnexoRepository;
 import intraer.fablegis.infrastructure.repositories.ItemAnexoParteNormativaRepository;
 import intraer.fablegis.infrastructure.repositories.ItemPartePreliminarRepository;
-import io.minio.BucketExistsArgs;
-import io.minio.GetObjectArgs;
-import io.minio.MakeBucketArgs;
-import io.minio.MinioClient;
-import io.minio.PutObjectArgs;
-import io.minio.SetBucketLifecycleArgs;
-import io.minio.messages.Expiration;
-import io.minio.messages.LifecycleConfiguration;
-import io.minio.messages.LifecycleRule;
-import io.minio.messages.RuleFilter;
-import io.minio.messages.Status;
-import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import software.amazon.awssdk.core.sync.RequestBody;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
+import software.amazon.awssdk.services.s3.model.PutObjectRequest;
+import software.amazon.awssdk.services.s3.model.S3Object;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
-import java.time.ZonedDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.HexFormat;
-import java.util.List;
 import java.util.Optional;
 
-// Cache, no próprio MinIO, do PDF/HTML de um documento AINDA em tramitação (sem cópia definitiva
+// Cache, no armazenamento de objetos, do PDF/HTML de um documento AINDA em tramitação (sem cópia definitiva
 // armazenada -- ver VersoesDocumento.emTramitacaoArmazenada): hoje DocumentoPdfService.streamPdf e
 // DocumentoHtmlService.streamHtml renderizam a cada visualização enquanto o texto ainda pode
-// mudar. Reabrir a mesma minuta sem editá-la custa, com este cache, uma ida ao MinIO em vez de uma
-// renderização inteira (FOP, no caso do PDF). Era o item "Cache de PDF em tramitação no MinIO" do
+// mudar. Reabrir a mesma minuta sem editá-la custa, com este cache, uma ida ao armazenamento em vez de uma
+// renderização inteira (FOP, no caso do PDF). Era o item "Cache de PDF em tramitação" do
 // roadmap (docs/roadmap.md).
 //
 // A chave (fingerprint) tem de mudar a cada alteração de conteúdo -- o PATCH de edição
@@ -48,9 +42,12 @@ import java.util.Optional;
 // atualização de cada item de conteúdo (mudanças de texto) e os ids dos anexos de imagem
 // (adicionar/remover anexo cria/apaga linha, nunca atualiza uma existente -- ver AnexoService).
 //
-// É estritamente um atalho: qualquer falha de leitura ou escrita no MinIO só vira um cache miss
+// É estritamente um atalho: qualquer falha de leitura ou escrita no armazenamento só vira um cache miss
 // (loga warning), nunca uma falha da exportação -- o chamador sempre pode cair para a renderização
 // ao vivo que já existia antes deste cache.
+//
+// A expiração do cache é feita aqui mesmo (removerExpirados), e não por uma regra de ciclo de vida (lifecycle) do servidor:
+// assim não depende de o servidor de armazenamento implementar essa função (nem todo servidor compatível com S3 a tem).
 @Service
 @RequiredArgsConstructor
 public class DocumentoRenderCacheService {
@@ -58,7 +55,6 @@ public class DocumentoRenderCacheService {
     private static final Logger log = LoggerFactory.getLogger(DocumentoRenderCacheService.class);
 
     private static final String PREFIXO = "cache/";
-    private static final String LIFECYCLE_RULE_ID = "fab-legis-cache-ttl";
 
     public enum TipoDeRenderizacao {
         PDF("pdf", "pdf"),
@@ -73,7 +69,7 @@ public class DocumentoRenderCacheService {
         }
     }
 
-    private final MinioClient minioClient;
+    private final S3Client s3Client;
 
     private final ItemAnexoParteNormativaRepository itemAnexoParteNormativaRepository;
 
@@ -81,50 +77,44 @@ public class DocumentoRenderCacheService {
 
     private final AnexoRepository anexoRepository;
 
-    @Value("${minio.bucket}")
+    @Value("${armazenamento.bucket}")
     private String bucket;
 
     @Value("${app.pdf.cache.ttl-dias:2}")
     private int ttlDias;
 
-    // Aplica a regra de expiração (lifecycle) do prefixo cache/ ao subir a aplicação. Idempotente
-    // -- setBucketLifecycle substitui a configuração inteira, então repetir isso a cada boot é
-    // seguro (não acumula regra).
-    @PostConstruct
-    void configurarLifecycleDoCache() {
+    // Todo dia, de madrugada: apaga do cache o que tem mais de ttlDias dias. Cada instância do backend roda o seu -- apagar duas
+    // vezes o mesmo objeto é inofensivo.
+    @Scheduled(cron = "0 30 3 * * *")
+    public void removerExpirados() {
+        removerExpiradosAntesDe(Instant.now().minus(ttlDias, ChronoUnit.DAYS));
+    }
+
+    // Devolve quantos objetos apagou. Falha em silêncio (só loga): o cache só ocupa espaço, nunca estraga a exportação.
+    int removerExpiradosAntesDe(Instant limite) {
+        int removidos = 0;
         try {
-            if (!minioClient.bucketExists(BucketExistsArgs.builder().bucket(bucket).build())) {
-                minioClient.makeBucket(MakeBucketArgs.builder().bucket(bucket).build());
+            var pagina = s3Client.listObjectsV2Paginator(ListObjectsV2Request.builder().bucket(bucket).prefix(PREFIXO).build());
+            for (S3Object objeto : pagina.contents()) {
+                if (objeto.lastModified() != null && objeto.lastModified().isBefore(limite)) {
+                    s3Client.deleteObject(DeleteObjectRequest.builder().bucket(bucket).key(objeto.key()).build());
+                    removidos++;
+                }
             }
-            LifecycleRule regra = new LifecycleRule(
-                    Status.ENABLED,
-                    null,
-                    new Expiration((ZonedDateTime) null, ttlDias, null),
-                    new RuleFilter(PREFIXO),
-                    LIFECYCLE_RULE_ID,
-                    null, null, null);
-            minioClient.setBucketLifecycle(SetBucketLifecycleArgs.builder()
-                    .bucket(bucket)
-                    .config(new LifecycleConfiguration(List.of(regra)))
-                    .build());
         } catch (Exception e) {
-            // Sem a regra de expiração o cache só perde o "flush" automático -- continua
-            // funcional (os cache hits/misses não dependem disso), então não derruba o boot.
-            log.warn("Não foi possível configurar a expiração automática do cache de PDF/HTML no MinIO.", e);
+            log.warn("Não foi possível limpar o cache expirado de PDF/HTML no armazenamento (apagados até a falha: {}).", removidos, e);
         }
+        return removidos;
     }
 
     public Optional<byte[]> buscar(Documento documento, TipoDeRenderizacao tipo) {
         String chave = chaveDoCache(documento, tipo);
-        try (var objeto = minioClient.getObject(
-                GetObjectArgs.builder().bucket(bucket).object(chave).build())) {
-            try (var saida = new ByteArrayOutputStream()) {
-                objeto.transferTo(saida);
-                return Optional.of(saida.toByteArray());
-            }
+        try {
+            return Optional.of(s3Client.getObjectAsBytes(
+                    GetObjectRequest.builder().bucket(bucket).key(chave).build()).asByteArray());
         } catch (Exception e) {
             // Cobre tanto "não encontrado" (cache miss normal) quanto qualquer erro de
-            // comunicação com o MinIO -- em ambos os casos, quem chama deve renderizar ao vivo.
+            // comunicação com o armazenamento -- em ambos os casos, quem chama deve renderizar ao vivo.
             return Optional.empty();
         }
     }
@@ -132,12 +122,12 @@ public class DocumentoRenderCacheService {
     public void salvar(Documento documento, TipoDeRenderizacao tipo, byte[] conteudo) {
         String chave = chaveDoCache(documento, tipo);
         try {
-            minioClient.putObject(PutObjectArgs.builder()
-                    .bucket(bucket)
-                    .object(chave)
-                    .stream(new ByteArrayInputStream(conteudo), conteudo.length, -1)
-                    .contentType(tipo == TipoDeRenderizacao.PDF ? "application/pdf" : "text/html; charset=UTF-8")
-                    .build());
+            s3Client.putObject(PutObjectRequest.builder()
+                            .bucket(bucket)
+                            .key(chave)
+                            .contentType(tipo == TipoDeRenderizacao.PDF ? "application/pdf" : "text/html; charset=UTF-8")
+                            .build(),
+                    RequestBody.fromBytes(conteudo));
         } catch (Exception e) {
             // Idem: não guardar no cache não é um erro para quem já tem o PDF/HTML pronto na mão.
             log.warn("Não foi possível gravar o cache de {} do documento {}.", tipo, documento.getId(), e);
