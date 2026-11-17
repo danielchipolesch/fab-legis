@@ -209,35 +209,35 @@
           <!-- REVOGADO: conteúdo tachado (+ cláusula anterior tachada, se esta redação
                já havia sido publicada com sua própria emenda) + referência inline -->
           <div v-else-if="item.el.emendaStatus === 'REVOGADO'" :id="'prev-' + item.el.id" class="body-el norm-el">
-            <span class="norm-lbl emenda-strikethrough" :class="{ 'norm-lbl-bold': item.el.tipo === 'artigo' }">{{ item.label }}</span>
+            <span class="norm-lbl emenda-strikethrough">{{ item.label }}</span>
             <div class="norm-content-block emenda-strikethrough" v-html="conteudoToHtml(item.el.conteudo)"></div><span v-if="item.el.clausulaEmendaAnterior" class="emenda-ref emenda-strikethrough"> {{ item.el.clausulaEmendaAnterior }}</span><span class="emenda-ref"> {{ emendaRef(item.el) }}</span><span v-if="item.el._unicoRenumerado" class="emenda-ref"> {{ clausulaRenumeracao(item.el) }}</span>
           </div>
 
           <!-- ALTERADO: original tachado (+ cláusula anterior tachada) + nova redação + referência inline -->
           <template v-else-if="item.el.emendaStatus === 'ALTERADO'">
             <div :id="'prev-' + item.el.id" class="body-el norm-el">
-              <span class="norm-lbl emenda-strikethrough" :class="{ 'norm-lbl-bold': item.el.tipo === 'artigo' }">{{ item.label }}</span>
+              <span class="norm-lbl emenda-strikethrough">{{ item.label }}</span>
               <div class="norm-content-block emenda-strikethrough" v-html="conteudoToHtml(item.el.conteudo)"></div><span v-if="item.el.clausulaEmendaAnterior" class="emenda-ref emenda-strikethrough"> {{ item.el.clausulaEmendaAnterior }}</span>
             </div>
             <div class="body-el norm-el emenda-incluido">
-              <span class="norm-lbl" :class="{ 'norm-lbl-bold': item.el.tipo === 'artigo' }">{{ item.label }}</span>
+              <span class="norm-lbl">{{ item.label }}</span>
               <div class="norm-content-block" v-html="conteudoToHtml(item.el.conteudoEmenda)"></div><span class="emenda-ref"> {{ emendaRef(item.el) }}</span><span v-if="item.el._unicoRenumerado" class="emenda-ref"> {{ clausulaRenumeracao(item.el) }}</span>
             </div>
           </template>
 
           <!-- INCLUIDO: conteúdo em verde + referência inline -->
           <div v-else-if="item.el.emendaStatus === 'INCLUIDO'" :id="'prev-' + item.el.id" class="body-el norm-el">
-            <span class="norm-lbl emenda-incluido" :class="{ 'norm-lbl-bold': item.el.tipo === 'artigo' }">{{ item.label }}</span>
+            <span class="norm-lbl emenda-incluido">{{ item.label }}</span>
             <div class="norm-content-block emenda-incluido" v-html="conteudoToHtml(item.el.conteudo)"></div><span class="emenda-ref"> {{ emendaRef(item.el) }}</span><span v-if="item.el._unicoRenumerado" class="emenda-ref"> {{ clausulaRenumeracao(item.el) }}</span>
           </div>
 
           <!-- INALTERADO: comportamento padrão -->
           <div v-else-if="hasBlockContent(conteudoToHtml(item.el.conteudo))" :id="'prev-' + item.el.id" class="body-el norm-el">
-            <span class="norm-lbl" :class="{ 'norm-lbl-bold': item.el.tipo === 'artigo' }">{{ item.label }}</span>
+            <span class="norm-lbl">{{ item.label }}</span>
             <div class="norm-content-block" v-html="conteudoToHtml(item.el.conteudo)"></div><span v-if="item.el._unicoRenumerado" class="emenda-ref"> {{ clausulaRenumeracao(item.el) }}</span>
           </div>
           <p v-else :id="'prev-' + item.el.id" class="body-el norm-el">
-            <span class="norm-lbl" :class="{ 'norm-lbl-bold': item.el.tipo === 'artigo' }">{{ item.label }}</span><span class="norm-content" v-html="htmlEmLinha(conteudoToHtml(item.el.conteudo))"></span><span v-if="item.el._unicoRenumerado" class="emenda-ref"> {{ clausulaRenumeracao(item.el) }}</span>
+            <span class="norm-lbl">{{ item.label }}</span><span class="norm-content" v-html="htmlEmLinha(conteudoToHtml(item.el.conteudo))"></span><span v-if="item.el._unicoRenumerado" class="emenda-ref"> {{ clausulaRenumeracao(item.el) }}</span>
           </p>
 
         </template>

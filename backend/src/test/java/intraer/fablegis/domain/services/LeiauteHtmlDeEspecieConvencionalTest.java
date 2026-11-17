@@ -90,6 +90,14 @@ class LeiauteHtmlDeEspecieConvencionalTest {
         assertThat(html).contains("Art. 1º").contains("Art. 2º").doesNotContain("Art. 3º");
     }
 
+
+    @Test
+    void rotuloDoArtigoNaoVaiEmNegrito() {
+        // Nem a LC 95/1998 nem o Decreto 12.002/2024 pedem negrito no "Art. Nº": o rótulo é texto normal, como o resto do corpo.
+        var html = html(no(1, CAPITULO, no(2, ARTIGO)));
+
+        assertThat(html).doesNotContain("class=\"norm-lbl norm-lbl-bold\"");
+    }
     @Test
     void artigoIncluidoEntreDoisEmVigorRecebeLetraSemRenumerarOSeguinte() {
         var html = html(no(1, CAPITULO, no(2, ARTIGO), incluido(3, ARTIGO), no(4, ARTIGO)));
