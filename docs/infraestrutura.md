@@ -26,7 +26,7 @@ Uma instância de cada serviço. Os números abaixo já descontam que um vCPU de
 |---|---|---|---|---|
 | **Backend** | 2 | 2 GB | 10 GB | A imagem já define `-XX:MaxRAMPercentage=65` (`JAVA_TOOL_OPTIONS`), que reserva ~1,3 GB de heap e deixa o resto para a memória fora do heap. Sem isso o heap seria de só 25% do limite |
 | **PostgreSQL** | 2 | 4 GB | 50 GB SSD | Cresce com os documentos e o histórico de versões; backup à parte (ver o README) |
-| **MinIO** | 1 a 2 | 2 GB | 100 GB ou mais | O disco depende do volume de imagens, anexos e PDFs em cache |
+| **Armazenamento (SeaweedFS)** | 1 a 2 | 2 GB | 100 GB ou mais | O disco depende do volume de imagens, anexos, PDFs armazenados e cache. É o único lugar dos arquivos: disco com redundância (RAID) e backup (README) |
 | **Collab** | 1 | 512 MB a 1 GB | 1 GB | Uma instância só (ver abaixo) |
 | **Nginx e frontend** | 0,5 | 256 MB | 1 GB | Arquivos estáticos e proxy reverso |
 
@@ -60,7 +60,7 @@ Esta seção responde a uma pergunta de implantação: **quais serviços do sist
 | **Backend** | **Hoje, não** — só depois de resolver 2 pontos (abaixo) | guarda em memória o login em andamento, os códigos de autorização e as conexões de tempo real; a chave de assinatura precisa ser compartilhada |
 | **Collab** (edição colaborativa) | **Não** (1 réplica) | cada documento aberto vive na memória de **uma** instância; duas instâncias dariam versões diferentes do mesmo texto |
 | **PostgreSQL** | **Não como "réplicas do container"** | é um banco com um primário que aceita escrita; alta disponibilidade exige um operador/serviço próprio (ver abaixo) |
-| **MinIO** | **Não como "réplicas do container"** | é um armazenamento com discos; o modo distribuído é outro tipo de implantação |
+| **Armazenamento (SeaweedFS)** | **Não como "réplicas do container"** | é um armazenamento com discos; a replicação entre servidores é outro tipo de implantação |
 
 ## Serviço sem estado: Frontend (Nginx)
 
@@ -68,7 +68,7 @@ Entrega arquivos prontos (a SPA compilada) e repassam as chamadas ao backend. Qu
 
 ## Backend (Spring Boot) — o que impede as réplicas hoje
 
-O backend é *quase* sem estado: a API em si é protegida por token (`STATELESS`), o conteúdo vai para o PostgreSQL e os arquivos para o MinIO, e a edição concorrente é protegida por travas otimistas (`@Version`), que funcionam entre instâncias. Mas há **quatro** coisas que não (a quinta, a numeração, já foi resolvida):
+O backend é *quase* sem estado: a API em si é protegida por token (`STATELESS`), o conteúdo vai para o PostgreSQL e os arquivos para o armazenamento de objetos, e a edição concorrente é protegida por travas otimistas (`@Version`), que funcionam entre instâncias. Mas há **quatro** coisas que não (a quinta, a numeração, já foi resolvida):
 
 ### 1. Login em andamento e códigos de autorização (bloqueia réplicas)
 
@@ -91,7 +91,7 @@ As conexões SSE (`SseEmitter`) com o navegador — o aviso "fulano também est�
 O número sequencial de um documento novo é "o menor número livre" da espécie e do assunto (`CriacaoDeEspecieConvencional`). Escolhido só na aplicação, duas criações **simultâneas** (em réplicas diferentes ou na mesma instância) podiam escolher o **mesmo número**. Hoje há duas camadas, e a numeração **não é mais um impedimento** para réplicas:
 
 1. **Trava no banco:** quem cria um documento trava a numeração daquela espécie + assunto (`pg_advisory_xact_lock`, uma trava do PostgreSQL que cai no fim da transação) antes de ler os números existentes. A criação simultânea espera e já lê o número da outra. Vale entre réplicas, porque a trava é do banco.
-2. **Índice único:** `ux_documento_numero` (migração V25) em (espécie, assunto, número) — só onde há assunto e sequencial; a NPA, que tem identificação em texto livre, fica de fora. Se por algum motivo duas criações ainda escolherem o mesmo número, o banco recusa a segunda, e `CriacaoComNumeracaoUnica` refaz a criação inteira (até 5 vezes, cada tentativa numa transação própria); esgotadas, responde `503` com `Retry-After`.
+2. **Índice único:** `ux_documento_numero` (`db/migration/V1__initial.sql`) em (espécie, assunto, número) — só onde há assunto e sequencial; a NPA, que tem identificação em texto livre, fica de fora. Se por algum motivo duas criações ainda escolherem o mesmo número, o banco recusa a segunda, e `CriacaoComNumeracaoUnica` refaz a criação inteira (até 5 vezes, cada tentativa numa transação própria); esgotadas, responde `503` com `Retry-After`.
 
 Clonar e Substituir passam pelo mesmo caminho. Testes: `CriacaoDeEspecieConvencionalTest` (a trava vem antes da leitura), `CriacaoComNumeracaoUnicaTest` (nova tentativa) e `NumeracaoUnicaIntegracaoTest` (índice no PostgreSQL de verdade e oito criações simultâneas sem repetir número).
 
@@ -102,7 +102,7 @@ O limite de renderizações simultâneas (`APP_PDF_MAX_CONCORRENTES`, ver [Expor
 ### O que já funciona entre réplicas
 
 - **Conflito de edição** (`@Version`/trava otimista): vale no banco, entre qualquer número de instâncias.
-- **Cache de PDF/HTML em tramitação:** fica no MinIO, compartilhado.
+- **Cache de PDF/HTML em tramitação:** fica no armazenamento de objetos, compartilhado. A limpeza diária do cache (`DocumentoRenderCacheService.removerExpirados`, 3h30) roda em **cada** réplica; apagar duas vezes o mesmo objeto é inofensivo.
 - **Migrations (Flyway):** o Flyway trava o banco ao migrar; se várias réplicas sobem juntas, uma migra e as outras esperam. O ideal é rodar a migração **uma vez** (um *Job* ou *init container*) antes de escalar.
 - **Criação do administrador padrão** (`DataSeeder`): só age se não existe nenhum usuário; subindo várias réplicas ao mesmo tempo no primeiro boot há uma pequena chance de corrida — suba **uma** réplica primeiro.
 
@@ -116,9 +116,16 @@ Um processo Node atende muitas salas ao mesmo tempo, então a capacidade de uma 
 
 O banco tem **um primário** que aceita escrita; "ter duas réplicas do container" não cria um banco replicado — criaria dois bancos independentes, com dados diferentes. Alta disponibilidade de banco se faz com um **operador** (CloudNativePG, Patroni, Zalando) ou com o **serviço de banco gerenciado** da infraestrutura da FAB, que mantém um primário e réplicas de leitura/failover. O backend continua falando com **um** endereço (o primário). Se a FAB já oferece PostgreSQL como serviço, esse é o caminho.
 
-## MinIO
+## Armazenamento de objetos (SeaweedFS)
 
-Também é um armazenamento de dados, não um serviço sem estado: réplicas do container não compartilham os arquivos. O **modo distribuído** do MinIO (vários nós e discos, com *erasure coding*) é uma implantação própria, com requisitos de discos; ou use o **armazenamento de objetos S3** que a infraestrutura já tenha — o sistema só precisa de uma API S3 (ver a contingência no [Roadmap](roadmap.md)). O backend aponta para **um** endereço.
+Também é um armazenamento de dados, não um serviço sem estado: réplicas do container não compartilham os arquivos. Hoje roda como **um servidor só** (SeaweedFS, serviço `armazenamento` do Compose: master, volume, filer e API S3 no mesmo processo), com os dados no volume `armazenamento_data`. A FAB não tem outra infraestrutura de armazenamento, então ele faz parte do sistema — e **os discos desse servidor são o ponto único de falha dos arquivos** (entre eles o PDF das portarias de publicação, que não pode ser regerado): disco redundante no hospedeiro e backup (README, passo 5) são obrigatórios.
+
+Redundância própria exige uma implantação à parte (vários servidores de volume do SeaweedFS com replicação), não mais réplicas do container. E, se um dia a FAB tiver um armazenamento S3 institucional, basta apontar o backend para ele: o sistema só precisa de uma API S3 (`ARMAZENAMENTO_*`; o SDK é o da AWS, sem extensão de fornecedor). O backend aponta para **um** endereço.
+
+Duas coisas do SeaweedFS que não dão para descobrir lendo o código:
+
+- **Só a API S3 (porta 9000) é publicada.** O filer (8888), o master (9333), o volume (8080) e as portas gRPC **nunca** devem ser publicadas nem expostas: o filer aceita criar usuários e políticas sem autenticação a quem o alcançar (o próprio SeaweedFS avisa isso no log). Dentro da rede do Docker só alcançam o filer os serviços do sistema.
+- **A estatística anônima de uso está desligada** (`-master.telemetry=false` no Compose): por padrão o SeaweedFS reportaria dados ao fornecedor, e o ambiente da FAB não deve falar com a internet.
 
 ## Como ficaria no Kubernetes
 
@@ -128,7 +135,7 @@ Também é um armazenamento de dados, não um serviço sem estado: réplicas do 
 | Backend | `Deployment` | **1** hoje; 2+ só após os pontos 1 e 3 acima | *readiness/liveness* em `:8082/actuator/health` (porta de gerenciamento); `Secret` com a chave RSA; `Job` de migração |
 | Collab | `Deployment` | **1** (`strategy: Recreate`) | WebSocket: *timeouts* longos no Ingress |
 | PostgreSQL | operador ou serviço gerenciado | conforme o operador | o backend usa o endereço do primário |
-| MinIO / S3 | serviço de armazenamento da FAB, ou MinIO distribuído | — | `MINIO_PUBLIC_URL` com HTTPS |
+| Armazenamento (S3) | `StatefulSet` com volume persistente (o SeaweedFS), ou um serviço S3 institucional, se um dia existir | **1** | `ARMAZENAMENTO_PUBLIC_URL` = o nome próprio do armazenamento (HTTPS), um segundo host do mesmo Ingress; só a API S3 exposta, com `NetworkPolicy` (ver "Certificados no Docker e no Kubernetes") |
 | Entrada | `Ingress` com TLS | — | `/` → frontend; `/v1`, `/oauth2`, `/login`, `/.well-known` → backend; `/collab` → collab (com *upgrade* de WebSocket) |
 
 O `.env` vira `ConfigMap` (valores) e `Secret` (senhas e a chave RSA); o `nginx.conf` do Compose é substituído pelas regras do Ingress, que fazem o mesmo roteamento por caminho — as mesmas regras descritas no README, no passo "Mesma origem (proxy reverso)".
@@ -140,3 +147,17 @@ O `.env` vira `ConfigMap` (valores) e `Secret` (senhas e a chave RSA); o `nginx.
 3. **Tempo real:** barramento entre réplicas (ponto 3).
 4. **Chave RSA** compartilhada por *Secret* e `APP_OAUTH2_CHAVE_OBRIGATORIA=true` (ponto 2).
 5. Só então `replicas: 2` no backend, com testes de login e de edição concorrente passando por réplicas diferentes.
+
+## Certificados no Docker e no Kubernetes
+
+Em qualquer ambiente o TLS termina **num único lugar** e o tráfego interno (Nginx → backend, collab, armazenamento) segue em HTTP na rede privada; nenhum serviço da aplicação carrega certificado. O certificado precisa cobrir **os dois nomes** públicos (o do sistema e o do armazenamento): um certificado com os dois no campo SAN, ou um curinga (`*.dominio` junto com o nome base, porque o curinga não cobre o domínio "pelado").
+
+**Docker Compose (servidor único).** O certificado fica em `segredos/tls/` (`fullchain.pem` e `privkey.pem`, fora do git), montado **somente leitura** no Nginx. Renovar é trocar os dois arquivos e `docker compose exec frontend-prod nginx -s reload`, sem derrubar nada (o Compose monta a **pasta**, então os arquivos novos aparecem; um arquivo solto montado não acompanha a troca). A chave privada: permissão restrita (`chmod 600`), nunca em imagem nem no git. Anote o vencimento.
+
+**Kubernetes.** O TLS termina no **Ingress**, não nos pods:
+- O certificado vive num `Secret` do tipo TLS, **um só**, listado para os dois hosts do Ingress: `kubectl create secret tls fab-legis-tls --cert=fullchain.pem --key=privkey.pem`. Com o **cert-manager** a emissão e a renovação a partir da CA interna são automáticas.
+- Para configurar pouco, o Ingress encaminha **os dois hosts ao Service do frontend**, que é o Nginx em HTTP (`nginx/nginx.conf.example`, que traz o `server` de cada nome): o roteamento, o SSE (sem buffer, timeout de 1 hora), os cabeçalhos e o `sandbox` ficam num lugar só, já testado. Se o Ingress rotear direto ao backend, ele precisa replicar esses itens por anotações (por exemplo, sem buffer e com `proxy-read-timeout` longo para `/v1/notificacoes/stream` e `/v1/documentos/{id}/presenca/stream`).
+- O `Service` do armazenamento expõe **só a porta 9000** (nunca 8888, 9333 ou 8080: o filer aceita criar usuários sem autenticação), e uma `NetworkPolicy` deixa só o Nginx e o backend chegarem a ele.
+- Os nomes `backend`, `armazenamento` e `collab` que o `comum.conf` usa são os dos `Service` (no mesmo namespace).
+
+**Máquinas dos usuários.** Com uma CA da FAB (que as máquinas já costumam confiar) não há nada a instalar. Com certificado próprio, instale a CA em cada máquina (README, passo 1) e garanta que os dois nomes resolvam (DNS ou `hosts`). Este trecho descreve o desenho; o Compose foi testado de ponta a ponta com HTTPS, o Kubernetes não foi executado.

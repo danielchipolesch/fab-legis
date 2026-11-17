@@ -38,7 +38,7 @@ public class ImagemController {
 
     public record UrlsAssinadasRequestDto(List<String> urls) { }
 
-    // Bucket do MinIO é privado (ver ImagemService.garantirBucket) -- o navegador
+    // Bucket do armazenamento é privado (ver ImagemService.garantirBucket) -- o navegador
     // nunca acessa o objeto diretamente, precisa passar por aqui pra trocar a URL
     // "canônica" armazenada (em conteúdo TipTap, urlPdf, anexo, portaria...) por uma
     // URL assinada de curta duração. Endpoint universal (sem @PreAuthorize), mesmo

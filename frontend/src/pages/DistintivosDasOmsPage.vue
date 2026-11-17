@@ -60,7 +60,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useQuasar } from 'quasar'
 import { listOrganizacoesMilitares } from '@/api/usuarios.js'
 import { definirDistintivo, removerDistintivo } from '@/api/distintivos.js'
-import { resolveMinioUrls } from '@/utils/minioUrls.js'
+import { resolverUrlsArmazenadas } from '@/utils/urlsArmazenadas.js'
 import { erroDoDistintivo, filtrarOmsDoDistintivo } from '@/utils/distintivo.js'
 
 const $q = useQuasar()
@@ -87,7 +87,7 @@ async function resolverImagens() {
   const urls = oms.value.map(o => o.urlDistintivo).filter(Boolean)
   if (!urls.length) return
   try {
-    imagens.value = { ...imagens.value, ...Object.fromEntries(await resolveMinioUrls(urls)) }
+    imagens.value = { ...imagens.value, ...Object.fromEntries(await resolverUrlsArmazenadas(urls)) }
   } catch {
     // sem miniatura: a lista continua utilizável
   }

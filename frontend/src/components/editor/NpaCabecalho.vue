@@ -39,9 +39,9 @@
 
 <script setup>
 import { ref, watch } from 'vue'
-import { resolveMinioUrls } from '@/utils/minioUrls.js'
+import { resolverUrlsArmazenadas } from '@/utils/urlsArmazenadas.js'
 
-// c: o resultado de cabecalho() de regras/npa.js. O DOM (c.distintivoUrl) vem do MinIO: precisa de URL assinada.
+// c: o resultado de cabecalho() de regras/npa.js. O DOM (c.distintivoUrl) vem do armazenamento de objetos: precisa de URL assinada.
 const props = defineProps({ c: { type: Object, required: true } })
 
 const distintivoSrc = ref(null)
@@ -49,7 +49,7 @@ watch(() => props.c.distintivoUrl, async (url) => {
   distintivoSrc.value = null
   if (!url) return
   try {
-    distintivoSrc.value = (await resolveMinioUrls([url])).get(url) ?? null
+    distintivoSrc.value = (await resolverUrlsArmazenadas([url])).get(url) ?? null
   } catch {
     distintivoSrc.value = null
   }

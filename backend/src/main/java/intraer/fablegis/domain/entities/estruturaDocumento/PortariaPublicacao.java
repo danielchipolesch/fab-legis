@@ -10,7 +10,7 @@ import java.time.LocalDateTime;
 
 // Registro histórico e imutável de cada portaria do ciclo de vida de um
 // documento (edição, sucessivas alterações, revogação) -- ver
-// PortariaPublicacaoService. O PDF em si fica intacto no MinIO (url), nunca
+// PortariaPublicacaoService. O PDF em si fica intacto no armazenamento de objetos (url), nunca
 // mesclado com o PDF gerado do documento (ver DocumentoPdfService).
 @Entity
 @Table(name = "t_portaria_publicacao")

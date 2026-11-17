@@ -40,7 +40,7 @@
 <script setup>
 import { ref, watch } from 'vue'
 import { NodeViewWrapper } from '@tiptap/vue-3'
-import { resolveMinioUrl } from '@/utils/minioUrls.js'
+import { resolverUrlArmazenada } from '@/utils/urlsArmazenadas.js'
 
 const props = defineProps({
   node:             { type: Object, required: true },
@@ -49,12 +49,12 @@ const props = defineProps({
   editor:           { type: Object, default: null },
 })
 
-// O bucket do MinIO é privado -- a URL armazenada não é diretamente buscável pelo
+// O bucket do armazenamento é privado -- a URL armazenada não é diretamente buscável pelo
 // navegador, precisa ser trocada por uma URL assinada de curta duração antes de
-// virar src (ver utils/minioUrls.js).
+// virar src (ver utils/urlsArmazenadas.js).
 const srcResolvido = ref(props.node.attrs.src)
 watch(() => props.node.attrs.src, async (src) => {
-  srcResolvido.value = await resolveMinioUrl(src)
+  srcResolvido.value = await resolverUrlArmazenada(src)
 }, { immediate: true })
 
 function onImgError(e) {

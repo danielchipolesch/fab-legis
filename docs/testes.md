@@ -31,7 +31,7 @@ docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -e TESTCONTAINERS_R
   eclipse-temurin:25-jdk-alpine sh -c "apk add --no-cache maven >/dev/null && mvn -B test -DexcludedGroups=nenhum"
 ```
 
-No Windows (Git Bash) é o mesmo comando com `MSYS_NO_PATHCONV=1` e `$(pwd -W)`. Com JDK e Maven locais e o Docker em execução, basta `mvn test -DexcludedGroups=nenhum`. Hoje: `FabLegisApplicationTests` (o contexto sobe) e `ControllersIntegracaoTest` (migrations, dados de referência, 401/403/404/400 e criar/ler um documento). O MinIO é trocado por mocks nesses testes (`IntegracaoComPostgresBase`).
+No Windows (Git Bash) é o mesmo comando com `MSYS_NO_PATHCONV=1` e `$(pwd -W)`. Com JDK e Maven locais e o Docker em execução, basta `mvn test -DexcludedGroups=nenhum`. Hoje: `FabLegisApplicationTests` (o contexto sobe) e `ControllersIntegracaoTest` (migrations, dados de referência, 401/403/404/400 e criar/ler um documento). O armazenamento de objetos é trocado por mocks nesses testes (`IntegracaoComPostgresBase`). Já o `ArmazenamentoIntegracaoTest` sobe um **SeaweedFS de verdade num container** (a mesma versão do `docker-compose.yml`: mudou uma, mude a outra) e exercita o `ImagemService` e o cache de PDF/HTML contra ele — upload e leitura de imagem, PDF e HTML (inclusive 20 MB), URL assinada (e adulterada), bucket privado, remoção e expiração do cache. Os testes unitários do armazenamento (`ImagemServiceTest`, `DocumentoRenderCacheServiceTest`, `ArmazenamentoConfigTest`) usam mocks, ou um servidor HTTP de mentira dentro do próprio teste, e rodam no `mvn test` padrão.
 
 ## Frontend
 
@@ -59,7 +59,7 @@ Sem regra customizada em nenhuma das duas — é o primeiro passo deliberadament
 O projeto não depende do Sonar (não está no CI nem no `pom.xml`), mas dá para conferir os achados que o SonarLint do VS Code mostra com uma análise completa, num servidor descartável — o SonarLint só olha os arquivos abertos, então o total do editor é menor que o do projeto inteiro:
 
 ```bash
-# servidor local (porta 9100, para não colidir com o MinIO em 9000) e um token de análise
+# servidor local (porta 9100, para não colidir com o armazenamento de objetos em 9000) e um token de análise
 docker run -d --name sonar-tmp -p 9100:9000 -e SONAR_SEARCH_JAVAADDITIONALOPTS="-Dnode.store.allow_mmap=false" sonarqube:community
 # backend (Java): dentro do container do Maven, com o token gerado em http://127.0.0.1:9100 (admin/admin no primeiro acesso)
 mvn -B compile org.sonarsource.scanner.maven:sonar-maven-plugin:sonar -Dsonar.host.url=http://host.docker.internal:9100 -Dsonar.token=<token> -Dsonar.projectKey=fab-legis-backend

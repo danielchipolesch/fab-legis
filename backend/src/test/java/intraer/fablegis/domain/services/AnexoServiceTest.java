@@ -56,7 +56,7 @@ class AnexoServiceTest {
         documento.setId(7L);
         documento.setSituacaoLocal(SituacaoLocalEnum.MINUTA);
         when(documentoRepository.findById(7L)).thenReturn(Optional.of(documento));
-        when(imagemService.uploadImagem(any())).thenReturn("http://minio/bucket/imagem.png");
+        when(imagemService.uploadImagem(any())).thenReturn("http://s3/bucket/imagem.png");
         when(anexoRepository.findMaxOrdemByDocumentoId(7L)).thenReturn(0);
         when(anexoRepository.save(any(Anexo.class))).thenAnswer(i -> i.getArgument(0));
     }

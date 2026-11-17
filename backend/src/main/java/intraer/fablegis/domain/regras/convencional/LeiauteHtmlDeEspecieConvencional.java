@@ -765,12 +765,12 @@ public class LeiauteHtmlDeEspecieConvencional implements LeiauteDoHtml {
 
         // Substitui src="http://..." por data URIs -- garante imagens independente de
         // rede/Docker. Mesma ordem de resolução que XslFoContentRenderer usa pro PDF:
-        // MinIO autenticado primeiro (imagemService.getImageAsDataUri), HTTP cru só
-        // como fallback pra imagem genuinamente externa (fora do MinIO deste sistema).
-        // O fallback HTTP sozinho NUNCA funciona pra imagem do MinIO: minio.public-url
+        // Armazenamento autenticado primeiro (imagemService.getImageAsDataUri), HTTP cru só
+        // como fallback pra imagem genuinamente externa (fora do armazenamento deste sistema).
+        // O fallback HTTP sozinho NUNCA funciona pra imagem do armazenamento: armazenamento.public-url
         // (http://localhost:9000) é o endereço que o NAVEGADOR do usuário usa, não
         // resolve de dentro do container do backend (cada container tem seu próprio
-        // "localhost") -- é exatamente por isso que o resolvedor MinIO existe.
+        // "localhost") -- é exatamente por isso que o resolvedor do armazenamento existe.
         private String embedImgDataUris(String html) {
             return IMG_SRC_HTTP.matcher(html).replaceAll(mr -> {
                 String q   = mr.group(1);
@@ -781,8 +781,8 @@ public class LeiauteHtmlDeEspecieConvencional implements LeiauteDoHtml {
 
         private String resolveDataUri(String url) {
             if (imagemService != null) {
-                String viaMinio = imagemService.getImageAsDataUri(url);
-                if (viaMinio != null && !viaMinio.isBlank()) return viaMinio;
+                String viaArmazenamento = imagemService.getImageAsDataUri(url);
+                if (viaArmazenamento != null && !viaArmazenamento.isBlank()) return viaArmazenamento;
             }
             return ImagemRemota.comoDataUri(url);
         }

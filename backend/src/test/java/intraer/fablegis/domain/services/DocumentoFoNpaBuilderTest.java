@@ -479,7 +479,7 @@ class DocumentoFoNpaBuilderTest {
     @Test
     void oDistintivoDaOmEntraNaCelulaDoDomEOPdfRenderiza() throws Exception {
         var doc = rascunho();
-        doc.getOm().setUrlDistintivo("http://minio/bucket/grupo.png");
+        doc.getOm().setUrlDistintivo("http://s3/bucket/grupo.png");
 
         var fo = construtorComImagens(PNG_1X1).gerarFo(doc, List.of(), estruturaPequena(), List.of());
 
@@ -495,7 +495,7 @@ class DocumentoFoNpaBuilderTest {
         assertThat(construtorComImagens(PNG_1X1).gerarFo(doc, List.of(), estruturaPequena(), List.of()))
                 .doesNotContain("fo:external-graphic");
         // Distintivo cadastrado, mas arquivo ausente do armazenamento: também fica em branco, sem quebrar o PDF.
-        doc.getOm().setUrlDistintivo("http://minio/bucket/sumiu.png");
+        doc.getOm().setUrlDistintivo("http://s3/bucket/sumiu.png");
         assertThat(construtorComImagens(null).gerarFo(doc, List.of(), estruturaPequena(), List.of()))
                 .doesNotContain("fo:external-graphic");
     }

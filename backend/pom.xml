@@ -24,6 +24,7 @@
         <java.version>25</java.version>
         <maven.compiler.source>25</maven.compiler.source>
         <maven.compiler.target>25</maven.compiler.target>
+        <aws-sdk.version>2.58.0</aws-sdk.version>
         <!-- `mvn test` roda só os testes unitários (sem Spring/banco). Testes de integração
              levam @Tag("integration"); para incluí-los: mvn test -DexcludedGroups=nenhum -->
         <excludedGroups>integration</excludedGroups>
@@ -149,10 +150,27 @@
             <artifactId>jasperreports</artifactId>
             <version>7.0.1</version>
         </dependency>
+        <!-- Armazenamento de objetos: SDK S3 da AWS (Apache 2.0), que fala com qualquer servidor compatível com S3 (hoje o SeaweedFS).
+             Cliente HTTP enxuto (URLConnection) em vez dos padrões Apache e Netty: o sistema só faz chamadas síncronas. -->
         <dependency>
-            <groupId>io.minio</groupId>
-            <artifactId>minio</artifactId>
-            <version>8.5.12</version>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>s3</artifactId>
+            <version>${aws-sdk.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>software.amazon.awssdk</groupId>
+                    <artifactId>apache-client</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>software.amazon.awssdk</groupId>
+                    <artifactId>netty-nio-client</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>url-connection-client</artifactId>
+            <version>${aws-sdk.version}</version>
         </dependency>
         <dependency>
             <groupId>org.apache.xmlgraphics</groupId>

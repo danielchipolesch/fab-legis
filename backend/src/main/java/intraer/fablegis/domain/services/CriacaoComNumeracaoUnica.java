@@ -13,7 +13,7 @@ import java.util.function.Supplier;
 // O número de um ato normativo (espécie + assunto básico + sequencial) é o menor número livre, escolhido pela aplicação
 // (CriacaoDeEspecieConvencional) e GARANTIDO pelo banco, em duas camadas: (1) quem cria trava a numeração daquela espécie + assunto
 // (trava do PostgreSQL, vale entre réplicas), então a criação simultânea espera a outra terminar em vez de escolher o mesmo número;
-// (2) o índice único ux_documento_numero (migração V25) recusa o número repetido mesmo que a trava falhe por algum motivo. Esta classe é
+// (2) o índice único ux_documento_numero (db/migration/V1__initial.sql) recusa o número repetido mesmo que a trava falhe por algum motivo. Esta classe é
 // a rede de segurança da camada 2: se o índice recusar, a criação inteira é refeita, cada tentativa na sua própria transação (a que
 // falhou no banco não serve mais), e a nova leitura já enxerga o número da outra. Ver docs/infraestrutura.md (numeração).
 @Component

@@ -53,7 +53,7 @@ public class Usuario {
     private boolean ativo = true;
 
     // Usuário técnico dono dos documentos que existiam antes da introdução de
-    // autoria (ver migração V9) -- nunca autentica (fl_ativo=false, hash
+    // autoria (ver db/migration/V1__initial.sql) -- nunca autentica (fl_ativo=false, hash
     // inutilizável) e nunca aparece como opção de compartilhamento.
     @Column(name = "fl_sistema", nullable = false)
     private boolean sistema = false;

@@ -37,7 +37,7 @@ Hoje, boa parte disso é feita à mão em editores de texto genéricos — o que
 | Spring Security | 7.1.1 | Resource server (JWT/JWKS), autorização por método (`@PreAuthorize`) |
 | Spring Authorization Server | 7.1.1 | Emissão de token via OAuth2 Authorization Code + PKCE (embutido no backend) |
 | PostgreSQL | 18 | Banco de dados relacional |
-| MinIO SDK | 8.5.12 | Armazenamento de objetos (imagens e PDFs) on-premise |
+| AWS SDK para Java (S3) | 2.58.0 | Cliente S3 do armazenamento de objetos (imagens, anexos, PDFs e HTML) on-premise; não depende de nenhum fornecedor de servidor |
 | Apache FOP | 2.10 | Geração de PDF server-side via XSL-FO |
 | Apache PDFBox | 3.x | Utilitário de manipulação de PDF (dependência disponível para usos futuros) |
 | Flyway | — | Criação e evolução do esquema do banco por scripts SQL |
@@ -67,6 +67,6 @@ Hoje, boa parte disso é feita à mão em editores de texto genéricos — o que
 |---|---|
 | Docker / Docker Compose | Orquestração dos serviços |
 | Nginx | Servidor estático do frontend em produção |
-| MinIO | Object storage compatível com S3, 100% on-premise |
+| SeaweedFS | Object storage compatível com S3 (Apache 2.0), 100% on-premise |
 | Multi-stage builds | Imagens enxutas (JRE Alpine no backend, Nginx Alpine no frontend) |
 | Carlito (via Alpine `font-carlito`) | Fonte usada nos PDFs gerados, metricamente compatível com Calibri |

@@ -194,7 +194,7 @@ public class DocumentoFoNpaBuilder implements LeiauteDoPdf {
         return "<fo:table-row height=\"" + alturaDoConteudoEmPt + "pt\">\n" + String.join("", celulas) + "</fo:table-row>\n";
     }
 
-    // O DOM (distintivo da OM) como data URI, para embutir no PDF sem acesso HTTP ao MinIO; null se a OM não tem distintivo
+    // O DOM (distintivo da OM) como data URI, para embutir no PDF sem acesso HTTP ao armazenamento; null se a OM não tem distintivo
     // (ou o arquivo sumiu do armazenamento) -- o espaço fica em branco, como no modelo sem imagem.
     private String distintivoEmDataUri(CabecalhoDaNpa c) {
         if (imagemService == null || c.distintivoUrl() == null || c.distintivoUrl().isBlank()) return null;

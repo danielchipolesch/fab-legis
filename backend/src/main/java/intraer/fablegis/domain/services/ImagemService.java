@@ -1,24 +1,39 @@
 package intraer.fablegis.domain.services;
 
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
-import io.minio.*;
-import io.minio.http.Method;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
+import software.amazon.awssdk.core.sync.RequestBody;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.CreateBucketRequest;
+import software.amazon.awssdk.services.s3.model.DeleteBucketPolicyRequest;
+import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.HeadBucketRequest;
+import software.amazon.awssdk.services.s3.model.PutObjectRequest;
+import software.amazon.awssdk.services.s3.model.S3Exception;
+import software.amazon.awssdk.services.s3.presigner.S3Presigner;
+import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
 
-import java.io.ByteArrayInputStream;
 import java.io.InputStream;
+import java.time.Duration;
 import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.TimeUnit;
 
+// Todo acesso do sistema ao armazenamento de objetos (API S3; hoje o SeaweedFS) passa por aqui -- imagens, anexos, distintivos
+// das OMs, PDFs e HTML armazenados. O nome vem da primeira função; hoje a classe é o serviço de armazenamento como um todo.
 @Service
 @RequiredArgsConstructor
 public class ImagemService {
+
+    private static final Logger log = LoggerFactory.getLogger(ImagemService.class);
 
     // Validade da URL assinada devolvida ao navegador -- longa o bastante para não
     // expirar no meio de uma sessão de leitura/edição normal, curta o bastante para
@@ -26,16 +41,27 @@ public class ImagemService {
     // abaixo).
     private static final int EXPIRY_MINUTES = 60;
 
-    private final MinioClient minioClient;
+    private final S3Client s3Client;
 
-    // Usado só pra assinar URLs -- ver MinioConfig.minioClientPublico().
-    private final MinioClient minioClientPublico;
+    // Usado só pra assinar URLs -- ver ArmazenamentoConfig.s3Presigner().
+    private final S3Presigner s3Presigner;
 
-    @Value("${minio.bucket}")
+    @Value("${armazenamento.bucket}")
     private String bucket;
 
-    @Value("${minio.public-url}")
+    @Value("${armazenamento.public-url}")
     private String publicUrl;
+
+    // Cria o bucket já no boot (e não só no primeiro upload): o cache de PDF/HTML (DocumentoRenderCacheService) grava sem passar
+    // pelos uploads. Se o servidor de armazenamento ainda não estiver de pé, o boot não cai -- o próximo upload tenta de novo.
+    @PostConstruct
+    void prepararBucketNoBoot() {
+        try {
+            garantirBucket();
+        } catch (Exception e) {
+            log.warn("Não foi possível preparar o bucket de armazenamento no boot; será tentado de novo no próximo upload.", e);
+        }
+    }
 
     public String uploadImagem(MultipartFile arquivo) throws Exception {
         garantirBucket();
@@ -43,14 +69,12 @@ public class ImagemService {
         String extensao = obterExtensao(arquivo.getOriginalFilename());
         String nomeArquivo = UUID.randomUUID() + extensao;
 
-        minioClient.putObject(
-            PutObjectArgs.builder()
-                .bucket(bucket)
-                .object(nomeArquivo)
-                .stream(arquivo.getInputStream(), arquivo.getSize(), -1)
-                .contentType(arquivo.getContentType())
-                .build()
-        );
+        try (InputStream conteudo = arquivo.getInputStream()) {
+            s3Client.putObject(
+                PutObjectRequest.builder().bucket(bucket).key(nomeArquivo).contentType(arquivo.getContentType()).build(),
+                RequestBody.fromInputStream(conteudo, arquivo.getSize())
+            );
+        }
 
         return publicUrl + "/" + bucket + "/" + nomeArquivo;
     }
@@ -58,13 +82,9 @@ public class ImagemService {
     public String uploadPdf(byte[] pdfBytes, String filename) throws Exception {
         garantirBucket();
         String key = "pdf/" + filename;
-        minioClient.putObject(
-            PutObjectArgs.builder()
-                .bucket(bucket)
-                .object(key)
-                .stream(new ByteArrayInputStream(pdfBytes), pdfBytes.length, -1)
-                .contentType("application/pdf")
-                .build()
+        s3Client.putObject(
+            PutObjectRequest.builder().bucket(bucket).key(key).contentType("application/pdf").build(),
+            RequestBody.fromBytes(pdfBytes)
         );
         return publicUrl + "/" + bucket + "/" + key;
     }
@@ -74,32 +94,34 @@ public class ImagemService {
     public String uploadHtml(byte[] htmlBytes, String filename) throws Exception {
         garantirBucket();
         String key = "html/" + filename;
-        minioClient.putObject(
-            PutObjectArgs.builder()
-                .bucket(bucket)
-                .object(key)
-                .stream(new ByteArrayInputStream(htmlBytes), htmlBytes.length, -1)
-                .contentType("text/html; charset=UTF-8")
-                .build()
+        s3Client.putObject(
+            PutObjectRequest.builder().bucket(bucket).key(key).contentType("text/html; charset=UTF-8").build(),
+            RequestBody.fromBytes(htmlBytes)
         );
         return publicUrl + "/" + bucket + "/" + key;
     }
 
-    // Bucket privado -- o navegador nunca acessa o MinIO diretamente; toda leitura
+    // Bucket privado -- o navegador nunca acessa o armazenamento diretamente; toda leitura
     // passa por uma URL assinada de curta duração (ver gerarUrlAssinada), emitida só
     // por quem já está autenticado no /v1/**. A política é removida incondicionalmente
     // (não só na criação): um bucket criado antes desta mudança pode ter ficado com a
     // política pública de uma versão anterior do código, e isso não se autocorrige
-    // sozinho só porque o bucket já existe.
-    private void garantirBucket() throws Exception {
-        boolean existe = minioClient.bucketExists(
-            BucketExistsArgs.builder().bucket(bucket).build()
-        );
+    // sozinho só porque o bucket já existe. (Alguns servidores respondem erro quando não há
+    // política a remover -- por isso a falha é ignorada.)
+    void garantirBucket() {
+        boolean existe;
+        try {
+            s3Client.headBucket(HeadBucketRequest.builder().bucket(bucket).build());
+            existe = true;
+        } catch (S3Exception e) {
+            if (e.statusCode() != 404) throw e;
+            existe = false;
+        }
         if (!existe) {
-            minioClient.makeBucket(MakeBucketArgs.builder().bucket(bucket).build());
+            s3Client.createBucket(CreateBucketRequest.builder().bucket(bucket).build());
         }
         try {
-            minioClient.deleteBucketPolicy(DeleteBucketPolicyArgs.builder().bucket(bucket).build());
+            s3Client.deleteBucketPolicy(DeleteBucketPolicyRequest.builder().bucket(bucket).build());
         } catch (Exception e) {
             // Já não há política nenhuma -- nada a remover, tudo certo.
         }
@@ -108,32 +130,30 @@ public class ImagemService {
     /**
      * Gera uma URL assinada (válida por {@link #EXPIRY_MINUTES}) para um objeto já
      * armazenado, a partir da URL "canônica" devolvida no upload (ex.:
-     * http://localhost:9000/bucket/uuid.png). Usa {@code minioClientPublico} (não o
+     * http://localhost:9000/bucket/uuid.png). Usa o assinador do endereço público (não o
      * cliente interno) porque a assinatura AWS SigV4 inclui o header Host — assinar
-     * com o endpoint interno e trocar o host depois invalidaria a assinatura.
+     * com o endereço interno e trocar o host depois invalidaria a assinatura.
      *
      * @return a URL assinada, ou null se {@code urlArmazenada} não pertencer a este
-     *         bucket ou o objeto não existir.
+     *         bucket. (Não verifica se o objeto existe: o navegador recebe 404 ao baixar.)
      */
     public String gerarUrlAssinada(String urlArmazenada) {
         String objectKey = extrairObjectKey(urlArmazenada);
         if (objectKey == null) return null;
         try {
-            return minioClientPublico.getPresignedObjectUrl(
-                GetPresignedObjectUrlArgs.builder()
-                    .method(Method.GET)
-                    .bucket(bucket)
-                    .object(objectKey)
-                    .expiry(EXPIRY_MINUTES, TimeUnit.MINUTES)
+            return s3Presigner.presignGetObject(
+                GetObjectPresignRequest.builder()
+                    .signatureDuration(Duration.ofMinutes(EXPIRY_MINUTES))
+                    .getObjectRequest(GetObjectRequest.builder().bucket(bucket).key(objectKey).build())
                     .build()
-            );
+            ).url().toString();
         } catch (Exception e) {
             return null;
         }
     }
 
     /** Mesma coisa que {@link #gerarUrlAssinada}, para várias URLs de uma vez (evita
-     * um round-trip por imagem). URLs inválidas ou inexistentes são simplesmente
+     * um round-trip por imagem). URLs inválidas ou de outro bucket são simplesmente
      * omitidas do mapa devolvido -- quem chama decide o que fazer com uma URL sem
      * correspondência. */
     public Map<String, String> gerarUrlsAssinadas(List<String> urls) {
@@ -151,7 +171,7 @@ public class ImagemService {
         String objectKey = extrairObjectKey(urlArmazenada);
         if (objectKey == null) return;
         try {
-            minioClient.removeObject(RemoveObjectArgs.builder().bucket(bucket).object(objectKey).build());
+            s3Client.deleteObject(DeleteObjectRequest.builder().bucket(bucket).key(objectKey).build());
         } catch (Exception e) {
             // nada a fazer
         }
@@ -165,41 +185,38 @@ public class ImagemService {
     }
 
     /**
-     * Busca uma imagem armazenada no MinIO e retorna como data URI base64.
+     * Busca uma imagem armazenada e retorna como data URI base64.
      * Usado pelo gerador de PDF para embutir imagens sem depender de acesso HTTP público.
      *
      * @param url URL pública da imagem (ex: http://localhost:9000/bucket/uuid.png)
-     * @return data URI (data:image/png;base64,...) ou null se não for uma URL MinIO reconhecida
+     * @return data URI (data:image/png;base64,...) ou null se não for uma URL deste armazenamento ou a busca falhar
      */
     public String getImageAsDataUri(String url) {
         String objectKey = extrairObjectKey(url);
         if (objectKey == null) return null;
         try {
-            try (var response = minioClient.getObject(
-                    GetObjectArgs.builder().bucket(bucket).object(objectKey).build())) {
-                byte[] bytes = response.readAllBytes();
-                String mime = guessMimeFromKey(objectKey);
-                return "data:" + mime + ";base64," + Base64.getEncoder().encodeToString(bytes);
-            }
+            byte[] bytes = s3Client.getObjectAsBytes(GetObjectRequest.builder().bucket(bucket).key(objectKey).build()).asByteArray();
+            String mime = guessMimeFromKey(objectKey);
+            return "data:" + mime + ";base64," + Base64.getEncoder().encodeToString(bytes);
         } catch (Exception e) {
             return null;
         }
     }
 
     /**
-     * Busca um objeto armazenado no MinIO (ex: PDF já renderizado) e retorna seu InputStream
+     * Busca um objeto armazenado (ex: PDF já renderizado) e retorna seu InputStream
      * cru, sem carregá-lo inteiro em memória. Quem chama é responsável por fechar o stream.
      * Usado para transmitir um PDF já gerado direto para a resposta HTTP (ver
      * DocumentoPdfService.streamPdf) sem materializar o arquivo inteiro no backend.
      *
      * @param url URL pública do objeto (ex: http://localhost:9000/bucket/pdf/arquivo.pdf)
-     * @return InputStream do objeto, ou null se não for uma URL MinIO reconhecida ou a busca falhar
+     * @return InputStream do objeto, ou null se não for uma URL deste armazenamento ou a busca falhar
      */
     public InputStream getObjectStream(String url) {
         String objectKey = extrairObjectKey(url);
         if (objectKey == null) return null;
         try {
-            return minioClient.getObject(GetObjectArgs.builder().bucket(bucket).object(objectKey).build());
+            return s3Client.getObject(GetObjectRequest.builder().bucket(bucket).key(objectKey).build());
         } catch (Exception e) {
             return null;
         }

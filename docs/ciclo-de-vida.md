@@ -87,7 +87,7 @@ Cada documento tem até duas versões (PDF/HTML):
 
 | Versão | Existe quando | Como é obtida |
 |---|---|---|
-| **Vigente** (BCA) | O documento já foi publicado (`PUBLICADO` ou `REVOGADO`) | **Armazenada** no MinIO (`urlPdf`/`urlHtml`); só é (re)gerada ao registrar portaria/BCA (publicar ou revogar). Sem marca d'água |
+| **Vigente** (BCA) | O documento já foi publicado (`PUBLICADO` ou `REVOGADO`) | **Armazenada** no armazenamento de objetos (`urlPdf`/`urlHtml`); só é (re)gerada ao registrar portaria/BCA (publicar ou revogar). Sem marca d'água |
 | **Em tramitação** | Há etapa local em curso (`Situação Local ≠ SEM_ETAPA`) | Nas etapas em que o texto ainda muda (`RASCUNHO`, `MINUTA`, `EM_REVISAO`, `EM_ALTERACAO`, `ANALISE_REVOGACAO`) é **gerada na hora**, com marca d'água. Ao **aprovar** (`EM_PUBLICACAO`/`EM_REVOGACAO`) é **congelada** e armazenada (`urlPdfTramitacao`/`urlHtmlTramitacao`), para o publicador ver exatamente o que será publicado. É descartada ao publicar, revogar, devolver ou cancelar |
 
 Os arquivos armazenados são gerados **depois do commit** da mudança de etapa (`DocumentoStatusService.aposCommit`): a geração lê o documento numa transação própria e, antes do commit, enxergaria as cláusulas de emenda ainda pendentes (placeholder `XYZ/ABC`) e a situação BCA antiga. Falha na geração não desfaz a mudança de etapa (fica registrada no log; a exportação cai na renderização ao vivo).

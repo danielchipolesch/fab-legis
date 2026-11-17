@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { createPinia, defineStore, setActivePinia } from 'pinia'
 import { limparCachesDaSessao } from './limparSessao.js'
-import { primeMinioUrlCache, resolveMinioUrl } from './minioUrls.js'
+import { alimentarCacheDeUrls, resolverUrlArmazenada } from './urlsArmazenadas.js'
 
 const useUmaStore = defineStore('uma', { state: () => ({ itens: [1, 2], usuario: 'fulano' }) })
 const useOutraStore = defineStore('outra', { state: () => ({ cache: { a: 1 } }) })
@@ -28,13 +28,13 @@ describe('limparCachesDaSessao (logout)', () => {
   })
 
   it('esvazia o cache de URLs assinadas', async () => {
-    primeMinioUrlCache('http://minio/b/x.png', 'http://minio/b/x.png?assinada=1')
-    expect(await resolveMinioUrl('http://minio/b/x.png')).toBe('http://minio/b/x.png?assinada=1')
+    alimentarCacheDeUrls('http://s3/b/x.png', 'http://s3/b/x.png?assinada=1')
+    expect(await resolverUrlArmazenada('http://s3/b/x.png')).toBe('http://s3/b/x.png?assinada=1')
 
     limparCachesDaSessao(pinia)
 
-    // sem o cache, resolveMinioUrl voltaria a pedir ao backend (fetch indisponível aqui) -- não devolve mais a URL guardada
-    await expect(resolveMinioUrl('http://minio/b/x.png')).rejects.toBeDefined()
+    // sem o cache, resolverUrlArmazenada voltaria a pedir ao backend (fetch indisponível aqui) -- não devolve mais a URL guardada
+    await expect(resolverUrlArmazenada('http://s3/b/x.png')).rejects.toBeDefined()
   })
 
   it('aceita ausência de pinia', () => {

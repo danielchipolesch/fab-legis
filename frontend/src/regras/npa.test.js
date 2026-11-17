@@ -207,7 +207,7 @@ describe('cabeçalho e fecho', () => {
 
   it('o distintivo é o da OM do documento (espelha CabecalhoDaNpaTest): sem distintivo, nulo', () => {
     expect(cabecalho(doc(), campos, []).distintivoUrl).toBeNull()
-    expect(cabecalho(doc({ om_url_distintivo: 'http://minio/b/grupo.png' }), campos, []).distintivoUrl).toBe('http://minio/b/grupo.png')
+    expect(cabecalho(doc({ om_url_distintivo: 'http://s3/b/grupo.png' }), campos, []).distintivoUrl).toBe('http://s3/b/grupo.png')
   })
 
   it('a efetivação e a linha da publicação só existem depois de publicada', () => {
