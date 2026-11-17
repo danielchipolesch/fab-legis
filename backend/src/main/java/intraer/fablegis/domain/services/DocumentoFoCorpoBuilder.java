@@ -263,7 +263,7 @@ final class DocumentoFoCorpoBuilder {
                 renderNormItems(item.children(), sb, num);
             }
             case ARTIGO -> {
-                renderBodyEl(sb, anc, "Art. " + artLabel(item, num) + "  ", true,
+                renderBodyEl(sb, anc, "Art. " + artLabel(item, num) + "  ", false,
                         item.elementContent(), item.emendaStatus(), item.conteudoEmenda(),
                         item.clausulaEmenda(), item.clausulaEmendaAnterior());
                 renderArtigoFilhos(item.children(), sb);

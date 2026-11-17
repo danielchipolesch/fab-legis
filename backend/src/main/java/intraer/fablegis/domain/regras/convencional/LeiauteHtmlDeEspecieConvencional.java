@@ -527,7 +527,7 @@ public class LeiauteHtmlDeEspecieConvencional implements LeiauteDoHtml {
                 }
                 case ARTIGO -> {
                     sb.append("<a id=\"norm-").append(item.id()).append("\"></a>");
-                    renderBodyEl(sb, "Art. " + rotulo(item) + S2, true,
+                    renderBodyEl(sb, "Art. " + rotulo(item) + S2, false,
                             item.elementContent(), item.emendaStatus(), item.conteudoEmenda(),
                                 item.clausulaEmenda(), item.clausulaEmendaAnterior());
                     renderArtigoChildren(item.children(), sb);
