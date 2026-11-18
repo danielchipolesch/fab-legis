@@ -43,6 +43,15 @@ defineProps({
 .npa-alinea .num { font-weight: 400; }
 .texto :deep(p) { display: inline; margin: 0; }
 
+/* Figuras e tabelas (aparência e numeração em css/figuras.css e css/tabelas.css, comuns às duas prévias). Aqui só o que é
+   da NPA: a figura cabe na moldura e não herda o recuo do parágrafo/alínea que a contém. */
+.texto :deep(figure.doc-figure) { margin: 12px 0; }
+.texto :deep(figure.doc-figure p) { margin: 0; }
+.texto :deep(figure.doc-figure .figura-img) { max-height: 700px; }
+.texto :deep(table) { table-layout: fixed; width: 100%; max-width: 100%; text-indent: 0; }
+.texto :deep(td), .texto :deep(th) { overflow-wrap: anywhere; }
+.texto :deep(td p), .texto :deep(th p) { display: block; }
+
 .fecho { text-align: right; margin-top: 26px; }
 .assinatura { text-align: left; margin-top: 26px; }
 .assinatura .linhas { text-align: center; margin-top: 30px; }

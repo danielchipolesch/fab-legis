@@ -267,11 +267,11 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, nextTick, onMounted, onUnmounted, onUpdated } from 'vue'
+import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import { conteudoParaHtml } from '@/editor/conteudoParaHtml.js'
 import { bodyLabel, toRoman, clausulaRenumeracao } from '@/utils/numbering.js'
 import { useDocumentosStore } from '@/stores/documentos.js'
-import { resolverUrlsArmazenadas } from '@/utils/urlsArmazenadas.js'
+import { useImagensResolvidas } from '@/composables/useImagensResolvidas.js'
 import { exibeSeloRevogado, exibePortaria } from '@/utils/fluxoDocumento.js'
 import { htmlEmLinha } from '@/utils/htmlEmLinha.js'
 
@@ -337,27 +337,8 @@ onMounted(() => {
 })
 onUnmounted(() => _ro?.disconnect())
 
-// Figuras embutidas via v-html (conteudoToHtml/conteudoParaHtml) e os <img> de anexo
-// (:src="anexo.urlImagem") acabam, os dois, como <img src="..."> reais no DOM depois
-// da renderização -- como o bucket do armazenamento é privado, cada um precisa da sua URL
-// trocada por uma assinada. Mais simples resolver aqui, uma vez por atualização do
-// DOM inteiro, do que interceptar cada ponto que gera HTML (são vários). O atributo
-// data-resolved evita reprocessar o que já foi trocado.
-async function resolverImagensDoPreview() {
-  const raiz = outerRef.value
-  if (!raiz) return
-  const imgs = Array.from(raiz.querySelectorAll('img[src^="http"]:not([data-resolved])'))
-  if (!imgs.length) return
-  const urls = imgs.map(img => img.getAttribute('src'))
-  const mapa = await resolverUrlsArmazenadas(urls)
-  for (const img of imgs) {
-    const resolvido = mapa.get(img.getAttribute('src'))
-    if (resolvido) img.setAttribute('src', resolvido)
-    img.setAttribute('data-resolved', '1')
-  }
-}
-onMounted(resolverImagensDoPreview)
-onUpdated(resolverImagensDoPreview)
+// O bucket do armazenamento é privado: as imagens (figuras do texto e anexos) precisam da URL assinada.
+useImagensResolvidas(outerRef)
 
 // ─── Constantes ───────────────────────────────────────────
 const ESPECIE_COMPLETA = {
@@ -1077,57 +1058,6 @@ const anexosDocumento = computed(() =>
 .toc-lbl  { flex-shrink: 0; max-width: 80%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .toc-dots { flex-grow: 1; border-bottom: 1px dotted #999; margin: 0 6px 3px; min-width: 16px; }
 .toc-pg   { flex-shrink: 0; min-width: 72px; text-align: right; color: #333; }
-
-/* ═══════════════════════════════════════════════════════════
-   FIGURAS — renderização no corpo do documento
-   CSS counter numera automaticamente no preview web.
-   Para exportações (PDF, HTML), o backend percorre
-   o documento e embute o número real antes de gerar o arquivo.
-════════════════════════════════════════════════════════════ */
-
-/* Contador reseta uma vez por documento (todas as figuras
-   normativas ficam na mesma região do pages-wrap) */
-.pages-wrap {
-  counter-reset: figura tabela;
-}
-
-.norm-content-block :deep(figure.doc-figure) {
-  display: block;
-  text-align: center;
-  page-break-inside: avoid;
-  break-inside: avoid;
-  margin: 16px auto;
-  max-width: 100%;
-  counter-increment: figura;
-}
-
-/* Prefixo "Figura N — " gerado automaticamente antes da descrição */
-.norm-content-block :deep(.figura-titulo::before) {
-  content: "Figura " counter(figura) " — ";
-}
-
-.norm-content-block :deep(.figura-titulo) {
-  font-size: 13px;
-  font-style: italic;
-  margin: 0 0 6px;
-  text-indent: 0;
-  text-align: center;
-}
-.norm-content-block :deep(.figura-img) {
-  max-width: 100%;
-  max-height: 900px;
-  height: auto;
-  border: 1px solid #ddd;
-  display: block;
-  margin: 0 auto;
-}
-.norm-content-block :deep(.figura-fonte) {
-  font-size: 12px;
-  color: #555;
-  margin: 4px 0 0;
-  text-indent: 0;
-  text-align: center;
-}
 
 /* ─── Emenda ──────────────────────────────────────────────── */
 /* Todo o conteúdo (inserido, excluído ou alterado) permanece em preto — só a

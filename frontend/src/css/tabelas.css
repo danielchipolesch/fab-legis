@@ -60,10 +60,10 @@
   text-align: center;
 }
 
-/* A numeração é por documento: o contador reinicia no contêiner das folhas da prévia (a Espécie Convencional reinicia
-   junto com o das figuras, em DocumentoPreview.vue). */
+/* A numeração é por documento: os contadores (tabela e figura — figuras.css) reiniciam juntos no contêiner das folhas
+   da prévia, da Espécie Convencional e da NPA. Um só `counter-reset`: uma segunda regra com o outro contador o anularia. */
 .pages-wrap {
-  counter-reset: tabela;
+  counter-reset: tabela figura;
 }
 
 /* Editor (TabelaView): título e fonte são campos de texto acima e abaixo da tabela. Só conta no número a tabela com título. */
