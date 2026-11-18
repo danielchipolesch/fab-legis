@@ -1,0 +1,45 @@
+/* Figuras do documento nas prévias (Espécie Convencional e NPA): legenda ("Figura N — título", numerada por documento),
+   imagem que nunca passa da largura disponível e fonte. O PDF (XslFoContentRenderer) e o HTML exportado (CssDoConteudo)
+   têm as mesmas regras. Vale só para `figure.doc-figure` (o HTML de leitura); o editor usa `doc-figure-edit` (FigureView.vue).
+   O contador `figura` reinicia junto com o de tabela no `.pages-wrap` (tabelas.css). */
+
+figure.doc-figure {
+  display: block;
+  text-align: center;
+  text-indent: 0;
+  page-break-inside: avoid;
+  break-inside: avoid;
+  margin: 16px auto;
+  max-width: 100%;
+  counter-increment: figura;
+}
+
+/* Quem contém a figura pode deixar o parágrafo em linha (NPA): dentro da figura, cada linha é um bloco. */
+figure.doc-figure p {
+  display: block;
+  text-indent: 0;
+  text-align: center;
+}
+
+/* Prefixo "Figura N — " gerado automaticamente antes da descrição */
+figure.doc-figure .figura-titulo::before {
+  content: "Figura " counter(figura) " — ";
+}
+figure.doc-figure .figura-titulo {
+  font-size: 13px;
+  font-style: italic;
+  margin: 0 0 6px;
+}
+figure.doc-figure .figura-img {
+  max-width: 100%;
+  max-height: 900px;
+  height: auto;
+  border: 1px solid #ddd;
+  display: block;
+  margin: 0 auto;
+}
+figure.doc-figure .figura-fonte {
+  font-size: 12px;
+  color: #555;
+  margin: 4px 0 0;
+}

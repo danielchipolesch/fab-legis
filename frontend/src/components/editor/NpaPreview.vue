@@ -41,12 +41,12 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, nextTick, onMounted, onUnmounted, onUpdated } from 'vue'
+import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import { conteudoParaHtml } from '@/editor/conteudoParaHtml.js'
 import { cabecalho, letraDoAnexo } from '@/regras/npa.js'
 import { paginar } from '@/utils/paginacaoDaNpa.js'
 import { exibeSeloRevogado } from '@/utils/fluxoDocumento.js'
-import { resolverUrlsArmazenadas } from '@/utils/urlsArmazenadas.js'
+import { useImagensResolvidas } from '@/composables/useImagensResolvidas.js'
 import { useDocumentosStore } from '@/stores/documentos.js'
 import NpaCabecalho from '@/components/editor/NpaCabecalho.vue'
 import NpaBloco from '@/components/editor/NpaBloco.vue'
@@ -193,28 +193,15 @@ onMounted(() => {
     larguraDisponivel.value = entry.contentRect.width - 32
   })
   if (outerRef.value) _ro.observe(outerRef.value)
-  resolverImagens()
   agendarPaginacao()
   // A fonte do documento pode chegar depois da primeira medida e mudar a quebra das linhas.
   document.fonts?.ready?.then(agendarPaginacao)
 })
 onUnmounted(() => _ro?.disconnect())
-onUpdated(resolverImagens)
 
-// O bucket do armazenamento é privado: as imagens (figuras do texto e anexos) precisam da URL assinada.
-async function resolverImagens() {
-  const raiz = outerRef.value
-  if (!raiz) return
-  const imgs = Array.from(raiz.querySelectorAll('img[src^="http"]:not([data-resolved])'))
-  if (!imgs.length) return
-  const mapa = await resolverUrlsArmazenadas(imgs.map(img => img.getAttribute('src')))
-  for (const img of imgs) {
-    const resolvido = mapa.get(img.getAttribute('src'))
-    if (resolvido) img.setAttribute('src', resolvido)
-    img.setAttribute('data-resolved', '1')
-  }
-  agendarPaginacao()
-}
+// O bucket do armazenamento é privado: as imagens (figuras do texto e anexos) precisam da URL assinada; com a imagem
+// trocada, a altura do bloco muda e a paginação se refaz.
+useImagensResolvidas(outerRef, agendarPaginacao)
 </script>
 
 <style scoped>
