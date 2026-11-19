@@ -46,7 +46,8 @@ A documentação técnica são arquivos Markdown na pasta [`docs/`](docs/), lido
 | Entender o que cada tela faz | [Funcionalidades](docs/funcionalidades.md) |
 | Entender como o sistema é construído por dentro | [Arquitetura](docs/arquitetura.md) |
 | Entender como um ato normativo é modelado (partes, numeração) | [Modelo de Domínio](docs/dominio.md) |
-| Entender login, papéis e colaboração em tempo real | [Autenticação e Colaboração](docs/autenticacao.md) |
+| Entender login e colaboração em tempo real | [Autenticação e Colaboração](docs/autenticacao.md) |
+| Entender quem pode o quê (papéis, escopo, habilitação) | [Papéis e Permissões](docs/papeis-e-permissoes.md) |
 | Entender os status de um documento e o ciclo de emenda | [Ciclo de Vida do Documento](docs/ciclo-de-vida.md) |
 | Entender como o PDF/portaria são gerados | [Geração de PDF e Portarias](docs/exportacao-pdf.md) |
 | Consultar os endpoints da API | [API REST](docs/api-rest.md) |
@@ -104,7 +105,7 @@ O `.env` na raiz (fora do git, só o `.env.example` é versionado) é lido autom
 
 **Habilitação de documentos:** só o GABAER e o CENDOC criam as espécies convencionais no primeiro boot (a NPA, qualquer OM); o administrador habilita as demais OMs na tela *Manter Habilitação de Espécies Normativas por OM*. O administrador padrão nasce na OM do CENDOC, por isso já cria documentos.
 
-**Usuário administrador padrão** — criado automaticamente pelo `DataSeeder` no primeiro boot, só se nenhum usuário real ainda existir. CPF `111.444.777-35` (dígitos: `11144477735`), senha `Admin@123`, posto CP, nome de guerra CHIPOLESCH, e-mail `chipoleschdaca@fab.mil.br`, na OM CENDOC, papéis **Administrador Geral (`ADM_GER`) + Elaborador (`ELB`) + Painel Gerencial Geral (`PNL_GER`, o Painel Gerencial de todas as OMs)** (o suficiente para gerenciar usuários e já criar o primeiro documento, sem precisar se auto-conceder um papel antes de usar o sistema — ver [Autenticação e Colaboração](docs/autenticacao.md#papéis-e-posse-de-documento) sobre por que o administrador sozinho não bastaria). Troque a senha (ou os valores de `APP_ADMIN_CPF`/`APP_ADMIN_SENHA` antes do primeiro boot) assim que possível em qualquer ambiente que não seja local.
+**Usuário administrador padrão** — criado automaticamente pelo `DataSeeder` no primeiro boot, só se nenhum usuário real ainda existir. CPF `111.444.777-35` (dígitos: `11144477735`), senha `Admin@123`, posto CP, nome de guerra CHIPOLESCH, e-mail `chipoleschdaca@fab.mil.br`, na OM CENDOC, papéis **Administrador Geral (`ADM_GER`) + Elaborador (`ELB`) + Painel Gerencial Geral (`PNL_GER`, o Painel Gerencial de todas as OMs)** (o suficiente para gerenciar usuários e já criar o primeiro documento, sem precisar se auto-conceder um papel antes de usar o sistema — ver [Autenticação e Colaboração](docs/papeis-e-permissoes.md#papéis-e-posse-de-documento) sobre por que o administrador sozinho não bastaria). Troque a senha (ou os valores de `APP_ADMIN_CPF`/`APP_ADMIN_SENHA` antes do primeiro boot) assim que possível em qualquer ambiente que não seja local.
 
 ### Caminho B — backend e frontend fora do Docker
 

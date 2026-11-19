@@ -12,7 +12,8 @@ Este projeto mantém a documentação técnica em `docs/`, em Markdown, **lida s
 | `docs/funcionalidades.md` | O que cada tela faz |
 | `docs/arquitetura.md` | Camadas backend/frontend, estrutura de pastas |
 | `docs/dominio.md` | Modelo do ato normativo, regras de numeração |
-| `docs/autenticacao.md` | Login, papéis, colaboração, notificações, auditoria |
+| `docs/autenticacao.md` | Login e sessão, edição concorrente, notificações, auditoria de acessos |
+| `docs/papeis-e-permissoes.md` | Política de acesso: papéis, escopo geral/local, quem edita e quem faz cada transição, coautoria, habilitação de espécies por OM |
 | `docs/ciclo-de-vida.md` | Status do documento, portarias/BCA, ciclo de emenda |
 | `docs/exportacao-pdf.md` | Geração de PDF (Apache FOP) e HTML, fontes, texto sugerido de portaria, regra de consistência entre PDF e HTML |
 | `docs/api-rest.md` | Endpoints |

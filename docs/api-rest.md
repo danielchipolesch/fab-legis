@@ -114,7 +114,7 @@ O `ImagemService` cria o bucket sob demanda na primeira execução; o bucket é 
 
 Sem exclusão definitiva — usuários são autores de documento (FK sem `ON DELETE`), então o ciclo de vida é ativar/desativar, nunca apagar.
 
-Duas rotas sob `/v1/usuarios` sobrescrevem a restrição de Admin da classe (`isAuthenticated()`) — alimentam os seletores de pessoa por nome (CPF é dado pessoal, quase nunca sabido de cor, ver [Autenticação e Colaboração](autenticacao.md#papéis-e-posse-de-documento)):
+Duas rotas sob `/v1/usuarios` sobrescrevem a restrição de Admin da classe (`isAuthenticated()`) — alimentam os seletores de pessoa por nome (CPF é dado pessoal, quase nunca sabido de cor, ver [Autenticação e Colaboração](papeis-e-permissoes.md#papéis-e-posse-de-documento)):
 
 | Método | Rota | Descrição |
 |---|---|---|
@@ -131,7 +131,7 @@ Duas rotas sob `/v1/usuarios` sobrescrevem a restrição de Admin da classe (`is
 
 ## Habilitação de documentos — `/v1/habilitacao-de-documentos`
 
-Quais espécies convencionais cada OM pode **criar** ([regra](autenticacao.md#habilitação-de-documentos)).
+Quais espécies convencionais cada OM pode **criar** ([regra](papeis-e-permissoes.md#habilitação-de-documentos)).
 
 | Método | Caminho | Quem | O que faz |
 |---|---|---|---|
