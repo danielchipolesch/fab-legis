@@ -43,13 +43,13 @@ public class ImagemService {
 
     private final S3Client s3Client;
 
-    // Usado só pra assinar URLs -- ver ArmazenamentoConfig.s3Presigner().
+    // Usado só pra assinar URLs -- ver StorageConfig.s3Presigner().
     private final S3Presigner s3Presigner;
 
-    @Value("${armazenamento.bucket}")
+    @Value("${storage.bucket}")
     private String bucket;
 
-    @Value("${armazenamento.public-url}")
+    @Value("${storage.public-url}")
     private String publicUrl;
 
     // Cria o bucket já no boot (e não só no primeiro upload): o cache de PDF/HTML (DocumentoRenderCacheService) grava sem passar

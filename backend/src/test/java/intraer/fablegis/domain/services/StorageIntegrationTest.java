@@ -1,7 +1,7 @@
 package intraer.fablegis.domain.services;
 
 import intraer.fablegis.domain.entities.estruturaDocumento.Documento;
-import intraer.fablegis.infrastructure.configurations.ArmazenamentoConfig;
+import intraer.fablegis.infrastructure.configurations.StorageConfig;
 import intraer.fablegis.infrastructure.repositories.AnexoRepository;
 import intraer.fablegis.infrastructure.repositories.ItemAnexoParteNormativaRepository;
 import intraer.fablegis.infrastructure.repositories.ItemPartePreliminarRepository;
@@ -37,7 +37,7 @@ import static org.mockito.Mockito.when;
 //
 // A versão da imagem é a do docker-compose.yml (serviço "armazenamento"): mudou uma, mude a outra.
 @Tag("integration")
-class ArmazenamentoIntegracaoTest {
+class StorageIntegrationTest {
 
     private static final String BUCKET = "fab-legis-teste";
     private static final String CHAVE = "chave-de-teste";
@@ -60,8 +60,8 @@ class ArmazenamentoIntegracaoTest {
     static void subirServidor() {
         SEAWEEDFS.start();
         endereco = "http://" + SEAWEEDFS.getHost() + ":" + SEAWEEDFS.getMappedPort(9000);
-        s3 = ArmazenamentoConfig.criarCliente(endereco, CHAVE, SEGREDO, "us-east-1");
-        assinador = ArmazenamentoConfig.criarAssinador(endereco, CHAVE, SEGREDO, "us-east-1");
+        s3 = StorageConfig.criarCliente(endereco, CHAVE, SEGREDO, "us-east-1");
+        assinador = StorageConfig.criarAssinador(endereco, CHAVE, SEGREDO, "us-east-1");
 
         imagemService = new ImagemService(s3, assinador);
         ReflectionTestUtils.setField(imagemService, "bucket", BUCKET);

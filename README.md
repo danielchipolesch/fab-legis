@@ -112,7 +112,7 @@ O `.env` na raiz (fora do git, só o `.env.example` é versionado) é lido autom
 
 ```bash
 # Suba apenas as dependências de infraestrutura
-docker compose up -d postgres armazenamento
+docker compose up -d postgres storage
 
 cd backend
 ./mvnw spring-boot:run          # Linux/macOS
@@ -211,16 +211,16 @@ openssl x509 -req -in servidor.csr -CA ca.pem -CAkey ca-key.pem -CAcreateserial 
 
 **Opção B — o TLS termina antes** (um balanceador ou proxy da FAB já faz o HTTPS): use `nginx/nginx.conf.example` (só HTTP, com os dois nomes) e deixe o balanceador repassar os **dois nomes** para a porta 80 mandando `X-Forwarded-Proto: https` e **sem reescrever o `Host`**. Os endereços do `.env` continuam `https://`.
 
-**Imagens e arquivos do armazenamento de objetos (e por que ele tem nome próprio).** O navegador baixa as imagens por URLs assinadas geradas pelo backend (`ARMAZENAMENTO_PUBLIC_URL`). Numa página HTTPS essa URL **também precisa ser HTTPS** (senão o navegador bloqueia: conteúdo misto). O Nginx do sistema termina o TLS também do armazenamento, com **nome próprio**: um segundo `server` no Nginx, com o nome `s3.fab-legis.intraer`, repassa para `armazenamento:9000`, só `GET`/`HEAD`. Um único certificado (em `segredos/tls/`, cobrindo os dois nomes), uma única renovação, e o armazenamento continua em HTTP puro, escondido na rede do Docker (a porta 9000 não precisa ser publicada: fica só em `127.0.0.1`). O `nginx/nginx.https.conf.example` já traz o bloco; falta só:
+**Imagens e arquivos do armazenamento de objetos (e por que ele tem nome próprio).** O navegador baixa as imagens por URLs assinadas geradas pelo backend (`STORAGE_PUBLIC_URL`). Numa página HTTPS essa URL **também precisa ser HTTPS** (senão o navegador bloqueia: conteúdo misto). O Nginx do sistema termina o TLS também do armazenamento, com **nome próprio**: um segundo `server` no Nginx, com o nome `s3.fab-legis.intraer`, repassa para `armazenamento:9000`, só `GET`/`HEAD`. Um único certificado (em `segredos/tls/`, cobrindo os dois nomes), uma única renovação, e o armazenamento continua em HTTP puro, escondido na rede do Docker (a porta 9000 não precisa ser publicada: fica só em `127.0.0.1`). O `nginx/nginx.https.conf.example` já traz o bloco; falta só:
 
 1. **DNS:** peça à rede um segundo nome (ex.: `s3.fab-legis.intraer`) apontando para o mesmo servidor.
 2. **Certificado:** ele precisa **cobrir os dois nomes** — um certificado com os dois no campo SAN, ou um curinga (`*.fab-legis.intraer`, junto com o nome base).
 3. **Nginx:** em `nginx/nginx.conf`, troque o `server_name s3.exemplo.intraer;` do segundo bloco pelo nome real.
-4. **`.env`:** `ARMAZENAMENTO_PUBLIC_URL=https://s3.fab-legis.intraer`. Esse endereço vai gravado dentro das URLs que o sistema guarda no banco (`urlPdf`, imagens, distintivos…): **defina-o antes de usar o sistema** — trocá-lo depois deixa as URLs já gravadas apontando para o endereço antigo.
+4. **`.env`:** `STORAGE_PUBLIC_URL=https://s3.fab-legis.intraer`. Esse endereço vai gravado dentro das URLs que o sistema guarda no banco (`urlPdf`, imagens, distintivos…): **defina-o antes de usar o sistema** — trocá-lo depois deixa as URLs já gravadas apontando para o endereço antigo.
 
 O bloco **preserva o `Host`** (`proxy_set_header Host $http_host`): a assinatura das URLs inclui o `Host`, e se ele chegasse trocado ao armazenamento a imagem daria `403`.
 
-**Por que o nome é separado (segurança).** A API de imagens aceita qualquer arquivo. Um HTML ou SVG com script, aberto numa aba **na mesma origem do sistema**, rodaria com acesso ao `localStorage` — onde fica o token (**testado: o script lia o token**). Com o armazenamento em outro nome, é outra origem: o script não alcança o sistema. Por reforço, tudo que não é imagem (PNG/JPEG/GIF/WebP) nem PDF sai também com `Content-Security-Policy: sandbox` e `nosniff` (o `map` `$csp_do_armazenamento` do modelo, que o `server` do armazenamento usa; um `nginx.conf` antigo, sem ele, não sobe: recopie do modelo). Servir os arquivos no mesmo nome do sistema **não é recomendado**: tira esse isolamento e deixa a segurança dependendo só de cabeçalhos. Validar o tipo do arquivo no envio é o reforço que falta (ver o [Roadmap](docs/roadmap.md)).
+**Por que o nome é separado (segurança).** A API de imagens aceita qualquer arquivo. Um HTML ou SVG com script, aberto numa aba **na mesma origem do sistema**, rodaria com acesso ao `localStorage` — onde fica o token (**testado: o script lia o token**). Com o armazenamento em outro nome, é outra origem: o script não alcança o sistema. Por reforço, tudo que não é imagem (PNG/JPEG/GIF/WebP) nem PDF sai também com `Content-Security-Policy: sandbox` e `nosniff` (o `map` `$csp_storage` do modelo, que o `server` do armazenamento usa; um `nginx.conf` antigo, sem ele, não sobe: recopie do modelo). Servir os arquivos no mesmo nome do sistema **não é recomendado**: tira esse isolamento e deixa a segurança dependendo só de cabeçalhos. Validar o tipo do arquivo no envio é o reforço que falta (ver o [Roadmap](docs/roadmap.md)).
 
 ### 2. Mesma origem (proxy reverso) — o `nginx/nginx.conf` de cada ambiente
 
@@ -266,8 +266,8 @@ Todas já são parametrizáveis (ver tabelas acima), só precisam do valor certo
 |---|---|
 | `COMPOSE_PROFILES` | `production` |
 | `APP_OAUTH2_CHAVE_OBRIGATORIA` | `true` — o backend só sobe com `segredos/jwt/jwt-rsa.pem` (passo 4) |
-| `ARMAZENAMENTO_PUBLIC_URL` | `https://s3.fab-legis.exemplo.mil.br` — o nome próprio do armazenamento com TLS (passo 1); definido **antes** do primeiro uso, pois vai dentro das URLs gravadas no banco |
-| `ARMAZENAMENTO_ACCESS_KEY` / `ARMAZENAMENTO_SECRET_KEY` | **troque os dois** (o padrão de desenvolvimento é público): são a chave de acesso ao armazenamento, a mesma no SeaweedFS e no backend |
+| `STORAGE_PUBLIC_URL` | `https://s3.fab-legis.exemplo.mil.br` — o nome próprio do armazenamento com TLS (passo 1); definido **antes** do primeiro uso, pois vai dentro das URLs gravadas no banco |
+| `STORAGE_ACCESS_KEY` / `STORAGE_SECRET_KEY` | **troque os dois** (o padrão de desenvolvimento é público): são a chave de acesso ao armazenamento, a mesma no SeaweedFS e no backend |
 | `APP_CORS_ALLOWED_ORIGINS` | *(vazio)* — com tudo na mesma origem pelo Nginx, nenhum site precisa de CORS |
 | `APP_OAUTH2_ISSUER` | `https://fab-legis.exemplo.mil.br` |
 | `APP_OAUTH2_REDIRECT_URI` | `https://fab-legis.exemplo.mil.br/callback` |
@@ -332,16 +332,16 @@ docker exec fab-legis-postgres pg_dump -U postgres -Fc fab-legis-dev > backup-$(
 docker exec -i fab-legis-postgres pg_restore -U postgres -d fab-legis-dev --clean --if-exists < backup-2026-10-12.dump
 
 # Armazenamento de objetos: copiar o bucket para uma pasta (rclone, que fala com qualquer servidor S3).
-# ARMAZENAMENTO_ACCESS_KEY/SECRET_KEY são os valores do .env.
-docker run --rm --network fab-legis_default -v "$(pwd)/backup-armazenamento:/dados" \
-  -e RCLONE_CONFIG_ARM_TYPE=s3 -e RCLONE_CONFIG_ARM_PROVIDER=SeaweedFS -e RCLONE_CONFIG_ARM_ENDPOINT=http://armazenamento:9000 \
-  -e RCLONE_CONFIG_ARM_ACCESS_KEY_ID=<ARMAZENAMENTO_ACCESS_KEY> -e RCLONE_CONFIG_ARM_SECRET_ACCESS_KEY=<ARMAZENAMENTO_SECRET_KEY> \
+# STORAGE_ACCESS_KEY/SECRET_KEY são os valores do .env.
+docker run --rm --network fab-legis_default -v "$(pwd)/backup-storage:/dados" \
+  -e RCLONE_CONFIG_ARM_TYPE=s3 -e RCLONE_CONFIG_ARM_PROVIDER=SeaweedFS -e RCLONE_CONFIG_ARM_ENDPOINT=http://storage:9000 \
+  -e RCLONE_CONFIG_ARM_ACCESS_KEY_ID=<STORAGE_ACCESS_KEY> -e RCLONE_CONFIG_ARM_SECRET_ACCESS_KEY=<STORAGE_SECRET_KEY> \
   -e RCLONE_CONFIG_ARM_FORCE_PATH_STYLE=true \
   rclone/rclone sync ARM:fab-legis-imagens /dados
 # restaurar (pasta -> armazenamento): o mesmo comando com os dois lados trocados, "sync /dados ARM:fab-legis-imagens"
 ```
 
-Guarde os arquivos **fora do servidor** (outra máquina ou storage da FAB), mantenha várias gerações (diário por uma semana, semanal por um mês) e, principalmente, **teste a restauração** de tempos em tempos: backup que nunca foi restaurado não é garantia. Os volumes do Docker (`postgres_18_data`, `armazenamento_data`) também podem ser copiados com o container parado, mas o `pg_dump` é o caminho mais seguro para o banco. O armazenamento de objetos roda hoje num **único servidor**: não há cópia dos arquivos dentro do próprio sistema, então o backup é a única proteção contra a perda do disco.
+Guarde os arquivos **fora do servidor** (outra máquina ou storage da FAB), mantenha várias gerações (diário por uma semana, semanal por um mês) e, principalmente, **teste a restauração** de tempos em tempos: backup que nunca foi restaurado não é garantia. Os volumes do Docker (`postgres_18_data`, `storage_data`) também podem ser copiados com o container parado, mas o `pg_dump` é o caminho mais seguro para o banco. O armazenamento de objetos roda hoje num **único servidor**: não há cópia dos arquivos dentro do próprio sistema, então o backup é a única proteção contra a perda do disco.
 
 ### 6. Observabilidade — Actuator/Micrometer, sem coletor incluso
 
@@ -381,15 +381,15 @@ Via Docker Compose, todas as variáveis abaixo (exceto `PORT` do collab, que nã
 |---|---|---|
 | `DB_HOST` / `DB_PORT` / `DB_NAME` | `localhost` / `5432` / `fab-legis-dev` | Conexão PostgreSQL |
 | `SPRING_DATASOURCE_USERNAME` / `_PASSWORD` | `postgres` / `123456` | Credenciais do banco |
-| `ARMAZENAMENTO_ENDPOINT` | `http://localhost:9000` | Endpoint S3 do armazenamento de objetos (no Compose, `http://armazenamento:9000`) |
-| `ARMAZENAMENTO_ACCESS_KEY` / `ARMAZENAMENTO_SECRET_KEY` | `fablegis-dev` / `fablegis-dev-secret-123` | Chave de acesso ao armazenamento (o Compose usa o mesmo par para criar o usuário do SeaweedFS e para o backend). **Troque em produção** |
-| `ARMAZENAMENTO_BUCKET` | `fab-legis-imagens` | Bucket (imagens, anexos, distintivos, PDFs e HTML) |
-| `ARMAZENAMENTO_PUBLIC_URL` | `http://localhost:9000` | Endereço que o NAVEGADOR usa para baixar os arquivos (vai nas URLs assinadas **e nas URLs gravadas no banco**; em produção, `https://`, definido antes do primeiro uso) |
-| `ARMAZENAMENTO_REGION` | `us-east-1` | Região fixa usada na assinatura das URLs (um servidor S3 próprio não tem região de verdade; não precisa mudar) |
+| `STORAGE_ENDPOINT` | `http://localhost:9000` | Endpoint S3 do armazenamento de objetos (no Compose, `http://storage:9000`) |
+| `STORAGE_ACCESS_KEY` / `STORAGE_SECRET_KEY` | `fablegis-dev` / `fablegis-dev-secret-123` | Chave de acesso ao armazenamento (o Compose usa o mesmo par para criar o usuário do SeaweedFS e para o backend). **Troque em produção** |
+| `STORAGE_BUCKET` | `fab-legis-imagens` | Bucket (imagens, anexos, distintivos, PDFs e HTML) |
+| `STORAGE_PUBLIC_URL` | `http://localhost:9000` | Endereço que o NAVEGADOR usa para baixar os arquivos (vai nas URLs assinadas **e nas URLs gravadas no banco**; em produção, `https://`, definido antes do primeiro uso) |
+| `STORAGE_REGION` | `us-east-1` | Região fixa usada na assinatura das URLs (um servidor S3 próprio não tem região de verdade; não precisa mudar) |
 | `APP_PDF_MAX_CONCORRENTES` / `APP_PDF_ESPERA_MAXIMA_SEGUNDOS` | `2` / `30` | Renderizações de PDF simultâneas por instância e quanto um pedido espera por uma vaga antes do `503` — ver [Limite de gerações simultâneas de PDF](docs/exportacao-pdf.md#limite-de-gerações-simultâneas-de-pdf) |
 | `APP_PDF_CACHE_TTL_DIAS` | `2` | Dias até a limpeza diária apagar o cache de PDF/HTML em tramitação do armazenamento — ver [Cache de PDF/HTML em tramitação](docs/exportacao-pdf.md#cache-de-pdfhtml-em-tramitação) |
 | `COMPOSE_PROFILES` | `dev` | Quais serviços o `docker compose up` sobe: `dev` (frontend Vite) ou `production` (frontend compilado atrás do Nginx). Lida pelo próprio Compose |
-| `ARMAZENAMENTO_BIND` | `127.0.0.1` | Em que interface o Docker publica a porta do armazenamento (9000). `127.0.0.1` = só a própria máquina. Com o armazenamento atrás do Nginx (passo 1, recomendado), `ARMAZENAMENTO_BIND` fica assim também em produção; `0.0.0.0` só se o navegador for chegar a ele direto. **Só a API S3 é publicada**: as portas internas do SeaweedFS (9333, 8888, 8080 e as gRPC) nunca devem ser |
+| `STORAGE_BIND` | `127.0.0.1` | Em que interface o Docker publica a porta do armazenamento (9000). `127.0.0.1` = só a própria máquina. Com o armazenamento atrás do Nginx (passo 1, recomendado), `STORAGE_BIND` fica assim também em produção; `0.0.0.0` só se o navegador for chegar a ele direto. **Só a API S3 é publicada**: as portas internas do SeaweedFS (9333, 8888, 8080 e as gRPC) nunca devem ser |
 | `APP_OAUTH2_CHAVE_PRIVADA` | `/app/chaves/jwt-rsa.pem` | Caminho, dentro do container, da chave RSA de assinatura dos tokens; se o arquivo existe é a chave persistente, senão a chave é efêmera (passo 4) |
 | `APP_OAUTH2_CHAVE_OBRIGATORIA` | `false` | `true` faz o backend recusar a subida sem o arquivo da chave (produção) |
 | `CHAVES_JWT` | `./segredos/jwt` | Pasta do servidor com o `jwt-rsa.pem`, montada somente para leitura no backend |

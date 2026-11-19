@@ -18,22 +18,22 @@ import java.net.URI;
 // Armazenamento de objetos (API S3; hoje o SeaweedFS -- ver docs/infraestrutura.md). O sistema não depende de nenhuma
 // extensão de fornecedor: só de put/get/delete de objetos, criação de bucket e URLs pré-assinadas.
 @Configuration
-public class ArmazenamentoConfig {
+public class StorageConfig {
 
-    @Value("${armazenamento.endpoint}")
+    @Value("${storage.endpoint}")
     private String endpoint;
 
-    @Value("${armazenamento.public-url}")
+    @Value("${storage.public-url}")
     private String publicUrl;
 
-    @Value("${armazenamento.access-key}")
+    @Value("${storage.access-key}")
     private String accessKey;
 
-    @Value("${armazenamento.secret-key}")
+    @Value("${storage.secret-key}")
     private String secretKey;
 
     // A região é fixa (um servidor S3 próprio não tem região de verdade): sem isso o SDK tentaria descobri-la pelo ambiente.
-    @Value("${armazenamento.region}")
+    @Value("${storage.region}")
     private String region;
 
     // Cliente "interno" -- toda operação servidor-a-servidor (upload, leitura de bytes para embutir em PDF/HTML), pelo
@@ -60,7 +60,7 @@ public class ArmazenamentoConfig {
                 .forcePathStyle(true)
                 // O SDK recente manda, por padrão, um checksum em "trailer" (aws-chunked) em todo upload. Servidores
                 // compatíveis com S3 que não são da AWS rejeitam isso (o Garage responde 400 "Invalid payload signature").
-                // WHEN_REQUIRED só calcula checksum onde a própria API o exige. NÃO REMOVA -- ver ArmazenamentoConfigTest.
+                // WHEN_REQUIRED só calcula checksum onde a própria API o exige. NÃO REMOVA -- ver StorageConfigTest.
                 .requestChecksumCalculation(RequestChecksumCalculation.WHEN_REQUIRED)
                 .responseChecksumValidation(ResponseChecksumValidation.WHEN_REQUIRED)
                 .httpClient(UrlConnectionHttpClient.create())
