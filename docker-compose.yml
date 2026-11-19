@@ -23,10 +23,10 @@ services:
   # ── Armazenamento de objetos on-premise (API S3) — SeaweedFS ────────────────
   # Guarda imagens, anexos, distintivos das OMs, PDFs e HTML. Um servidor só (master, volume, filer e S3 no mesmo processo).
   # O nome do serviço é neutro de propósito: trocar o servidor S3 não mexe no Nginx nem no backend.
-  armazenamento:
+  storage:
     # Versão fixa: o armazenamento guarda registro oficial, então ele só muda de versão quando alguém decide (e testa).
     image: chrislusf/seaweedfs:4.54
-    container_name: fab-legis-armazenamento
+    container_name: fab-legis-storage
     command:
       - server
       - -dir=/data
@@ -38,17 +38,17 @@ services:
       # Sem enviar estatísticas anônimas de uso ao fornecedor (o ambiente da FAB não deve falar com a internet).
       - -master.telemetry=false
     ports:
-      # O navegador baixa as imagens direto daqui (URLs assinadas, ARMAZENAMENTO_PUBLIC_URL): atrás do Nginx (README, recomendado)
-      # a porta fica em 127.0.0.1; ARMAZENAMENTO_BIND=0.0.0.0 só se o navegador for chegar a ela direto.
+      # O navegador baixa as imagens direto daqui (URLs assinadas, STORAGE_PUBLIC_URL): atrás do Nginx (README, recomendado)
+      # a porta fica em 127.0.0.1; STORAGE_BIND=0.0.0.0 só se o navegador for chegar a ela direto.
       # SÓ a API S3 é publicada. As portas internas do SeaweedFS (master 9333, filer 8888, volume 8080 e as gRPC) NUNCA devem
       # ser publicadas: o filer aceita criar usuários sem autenticação a quem o alcançar.
-      - "${ARMAZENAMENTO_BIND:-127.0.0.1}:9000:9000"   # API S3
+      - "${STORAGE_BIND:-127.0.0.1}:9000:9000"   # API S3
     environment:
       # O SeaweedFS cria o usuário administrador da API S3 com este par de chaves (o mesmo que o backend usa).
-      AWS_ACCESS_KEY_ID: ${ARMAZENAMENTO_ACCESS_KEY:-fablegis-dev}
-      AWS_SECRET_ACCESS_KEY: ${ARMAZENAMENTO_SECRET_KEY:-fablegis-dev-secret-123}
+      AWS_ACCESS_KEY_ID: ${STORAGE_ACCESS_KEY:-fablegis-dev}
+      AWS_SECRET_ACCESS_KEY: ${STORAGE_SECRET_KEY:-fablegis-dev-secret-123}
     volumes:
-      - armazenamento_data:/data
+      - storage_data:/data
     healthcheck:
       # 127.0.0.1, não localhost: dentro do contêiner "localhost" resolve para IPv6 e o SeaweedFS só escuta em IPv4.
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1:9000/healthz"]
@@ -76,12 +76,12 @@ services:
       DB_NAME: ${POSTGRES_DB:-fab-legis-dev}
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-postgres}
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-123456}
-      ARMAZENAMENTO_ENDPOINT: http://armazenamento:9000
-      ARMAZENAMENTO_ACCESS_KEY: ${ARMAZENAMENTO_ACCESS_KEY:-fablegis-dev}
-      ARMAZENAMENTO_SECRET_KEY: ${ARMAZENAMENTO_SECRET_KEY:-fablegis-dev-secret-123}
-      ARMAZENAMENTO_BUCKET: ${ARMAZENAMENTO_BUCKET:-fab-legis-imagens}
+      STORAGE_ENDPOINT: http://storage:9000
+      STORAGE_ACCESS_KEY: ${STORAGE_ACCESS_KEY:-fablegis-dev}
+      STORAGE_SECRET_KEY: ${STORAGE_SECRET_KEY:-fablegis-dev-secret-123}
+      STORAGE_BUCKET: ${STORAGE_BUCKET:-fab-legis-imagens}
       # O endereço que o NAVEGADOR usa para baixar as imagens (vai dentro das URLs assinadas e nas URLs gravadas no banco).
-      ARMAZENAMENTO_PUBLIC_URL: ${ARMAZENAMENTO_PUBLIC_URL:-http://localhost:9000}
+      STORAGE_PUBLIC_URL: ${STORAGE_PUBLIC_URL:-http://localhost:9000}
       APP_OAUTH2_ISSUER: ${APP_OAUTH2_ISSUER:-http://127.0.0.1:8081}
       # Chave de assinatura dos tokens: se /app/chaves/jwt-rsa.pem existe (pasta ./segredos/jwt do servidor, montada abaixo), é a chave
       # persistente; senão a chave é efêmera. APP_OAUTH2_CHAVE_OBRIGATORIA=true (produção) faz o boot falhar sem o arquivo.
@@ -105,7 +105,7 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      armazenamento:
+      storage:
         condition: service_healthy
     # /actuator/health (Spring Boot Actuator), na porta de gerenciamento 8082 -- interna,
     # não publicada aqui nem repassada pelo Nginx; é a mesma porta que o Prometheus raspa
@@ -215,4 +215,4 @@ services:
 
 volumes:
   postgres_18_data:
-  armazenamento_data:
+  storage_data:

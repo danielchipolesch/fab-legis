@@ -4,7 +4,7 @@
 
 # Reforço de segurança dos arquivos do armazenamento (ver o `server` do nome do armazenamento, abaixo): tudo vai com `sandbox`, menos os
 # tipos que o navegador só exibe (imagens e PDF). Precisa ficar aqui, fora do `server` (um `map` só existe no nível do http).
-map $upstream_http_content_type $csp_do_armazenamento {
+map $upstream_http_content_type $csp_storage {
     default                             "default-src 'none'; sandbox";
     "~*^image/(png|jpeg|gif|webp)(;|$)" "";
     "~*^application/pdf(;|$)"           "";
@@ -26,12 +26,12 @@ server {
 
     location / {
         limit_except GET HEAD { deny all; }
-        proxy_pass http://armazenamento:9000;
+        proxy_pass http://storage:9000;
         # A assinatura das URLs inclui o Host: tem de chegar ao armazenamento exatamente como o navegador o enviou.
         proxy_set_header Host   $http_host;
         proxy_set_header Cookie "";
         proxy_buffering off;
-        add_header Content-Security-Policy $csp_do_armazenamento always;
+        add_header Content-Security-Policy $csp_storage always;
         add_header X-Content-Type-Options  nosniff always;
     }
 }

@@ -767,7 +767,7 @@ public class LeiauteHtmlDeEspecieConvencional implements LeiauteDoHtml {
         // rede/Docker. Mesma ordem de resolução que XslFoContentRenderer usa pro PDF:
         // Armazenamento autenticado primeiro (imagemService.getImageAsDataUri), HTTP cru só
         // como fallback pra imagem genuinamente externa (fora do armazenamento deste sistema).
-        // O fallback HTTP sozinho NUNCA funciona pra imagem do armazenamento: armazenamento.public-url
+        // O fallback HTTP sozinho NUNCA funciona pra imagem do armazenamento: storage.public-url
         // (http://localhost:9000) é o endereço que o NAVEGADOR do usuário usa, não
         // resolve de dentro do container do backend (cada container tem seu próprio
         // "localhost") -- é exatamente por isso que o resolvedor do armazenamento existe.

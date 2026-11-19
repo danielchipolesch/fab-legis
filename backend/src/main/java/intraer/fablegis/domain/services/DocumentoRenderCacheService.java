@@ -77,7 +77,7 @@ public class DocumentoRenderCacheService {
 
     private final AnexoRepository anexoRepository;
 
-    @Value("${armazenamento.bucket}")
+    @Value("${storage.bucket}")
     private String bucket;
 
     @Value("${app.pdf.cache.ttl-dias:2}")

@@ -118,9 +118,9 @@ O banco tem **um primário** que aceita escrita; "ter duas réplicas do containe
 
 ## Armazenamento de objetos (SeaweedFS)
 
-Também é um armazenamento de dados, não um serviço sem estado: réplicas do container não compartilham os arquivos. Hoje roda como **um servidor só** (SeaweedFS, serviço `armazenamento` do Compose: master, volume, filer e API S3 no mesmo processo), com os dados no volume `armazenamento_data`. A FAB não tem outra infraestrutura de armazenamento, então ele faz parte do sistema — e **os discos desse servidor são o ponto único de falha dos arquivos** (entre eles o PDF das portarias de publicação, que não pode ser regerado): disco redundante no hospedeiro e backup (README, passo 5) são obrigatórios.
+Também é um armazenamento de dados, não um serviço sem estado: réplicas do container não compartilham os arquivos. Hoje roda como **um servidor só** (SeaweedFS, serviço `storage` do Compose: master, volume, filer e API S3 no mesmo processo), com os dados no volume `storage_data`. A FAB não tem outra infraestrutura de armazenamento, então ele faz parte do sistema — e **os discos desse servidor são o ponto único de falha dos arquivos** (entre eles o PDF das portarias de publicação, que não pode ser regerado): disco redundante no hospedeiro e backup (README, passo 5) são obrigatórios.
 
-Redundância própria exige uma implantação à parte (vários servidores de volume do SeaweedFS com replicação), não mais réplicas do container. E, se um dia a FAB tiver um armazenamento S3 institucional, basta apontar o backend para ele: o sistema só precisa de uma API S3 (`ARMAZENAMENTO_*`; o SDK é o da AWS, sem extensão de fornecedor). O backend aponta para **um** endereço.
+Redundância própria exige uma implantação à parte (vários servidores de volume do SeaweedFS com replicação), não mais réplicas do container. E, se um dia a FAB tiver um armazenamento S3 institucional, basta apontar o backend para ele: o sistema só precisa de uma API S3 (`STORAGE_*`; o SDK é o da AWS, sem extensão de fornecedor). O backend aponta para **um** endereço.
 
 Duas coisas do SeaweedFS que não dão para descobrir lendo o código:
 
@@ -135,7 +135,7 @@ Duas coisas do SeaweedFS que não dão para descobrir lendo o código:
 | Backend | `Deployment` | **1** hoje; 2+ só após os pontos 1 e 3 acima | *readiness/liveness* em `:8082/actuator/health` (porta de gerenciamento); `Secret` com a chave RSA; `Job` de migração |
 | Collab | `Deployment` | **1** (`strategy: Recreate`) | WebSocket: *timeouts* longos no Ingress |
 | PostgreSQL | operador ou serviço gerenciado | conforme o operador | o backend usa o endereço do primário |
-| Armazenamento (S3) | `StatefulSet` com volume persistente (o SeaweedFS), ou um serviço S3 institucional, se um dia existir | **1** | `ARMAZENAMENTO_PUBLIC_URL` = o nome próprio do armazenamento (HTTPS), um segundo host do mesmo Ingress; só a API S3 exposta, com `NetworkPolicy` (ver "Certificados no Docker e no Kubernetes") |
+| Armazenamento (S3) | `StatefulSet` com volume persistente (o SeaweedFS), ou um serviço S3 institucional, se um dia existir | **1** | `STORAGE_PUBLIC_URL` = o nome próprio do armazenamento (HTTPS), um segundo host do mesmo Ingress; só a API S3 exposta, com `NetworkPolicy` (ver "Certificados no Docker e no Kubernetes") |
 | Entrada | `Ingress` com TLS | — | `/` → frontend; `/v1`, `/oauth2`, `/login`, `/.well-known` → backend; `/collab` → collab (com *upgrade* de WebSocket) |
 
 O `.env` vira `ConfigMap` (valores) e `Secret` (senhas e a chave RSA); o `nginx.conf` do Compose é substituído pelas regras do Ingress, que fazem o mesmo roteamento por caminho — as mesmas regras descritas no README, no passo "Mesma origem (proxy reverso)".
@@ -158,6 +158,6 @@ Em qualquer ambiente o TLS termina **num único lugar** e o tráfego interno (Ng
 - O certificado vive num `Secret` do tipo TLS, **um só**, listado para os dois hosts do Ingress: `kubectl create secret tls fab-legis-tls --cert=fullchain.pem --key=privkey.pem`. Com o **cert-manager** a emissão e a renovação a partir da CA interna são automáticas.
 - Para configurar pouco, o Ingress encaminha **os dois hosts ao Service do frontend**, que é o Nginx em HTTP (`nginx/nginx.conf.example`, que traz o `server` de cada nome): o roteamento, o SSE (sem buffer, timeout de 1 hora), os cabeçalhos e o `sandbox` ficam num lugar só, já testado. Se o Ingress rotear direto ao backend, ele precisa replicar esses itens por anotações (por exemplo, sem buffer e com `proxy-read-timeout` longo para `/v1/notificacoes/stream` e `/v1/documentos/{id}/presenca/stream`).
 - O `Service` do armazenamento expõe **só a porta 9000** (nunca 8888, 9333 ou 8080: o filer aceita criar usuários sem autenticação), e uma `NetworkPolicy` deixa só o Nginx e o backend chegarem a ele.
-- Os nomes `backend`, `armazenamento` e `collab` que o `comum.conf` usa são os dos `Service` (no mesmo namespace).
+- Os nomes `backend`, `storage` e `collab` que o `comum.conf` usa são os dos `Service` (no mesmo namespace).
 
 **Máquinas dos usuários.** Com uma CA da FAB (que as máquinas já costumam confiar) não há nada a instalar. Com certificado próprio, instale a CA em cada máquina (README, passo 1) e garanta que os dois nomes resolvam (DNS ou `hosts`). Este trecho descreve o desenho; o Compose foi testado de ponta a ponta com HTTPS, o Kubernetes não foi executado.

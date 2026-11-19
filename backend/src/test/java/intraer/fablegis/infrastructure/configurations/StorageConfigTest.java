@@ -26,7 +26,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 // o servidor recusa o upload (o Garage, por exemplo, responde 400 "Invalid payload signature"), ou a URL gravada no banco
 // (endereço/bucket/chave) deixa de bater com a que o cliente monta. O teste observa o que o cliente realmente envia, contra um
 // servidor HTTP local de mentira, sem Spring e sem Docker.
-class ArmazenamentoConfigTest {
+class StorageConfigTest {
 
     private HttpServer servidor;
     private final AtomicReference<String> caminho = new AtomicReference<>();
@@ -52,7 +52,7 @@ class ArmazenamentoConfigTest {
     }
 
     private S3Client cliente() {
-        return ArmazenamentoConfig.criarCliente(
+        return StorageConfig.criarCliente(
                 "http://127.0.0.1:" + servidor.getAddress().getPort(), "chave-de-teste", "segredo-de-teste-123", "us-east-1");
     }
 
@@ -80,7 +80,7 @@ class ArmazenamentoConfigTest {
     }
 
     // Controle: prova que a configuração acima É o que evita o trailer -- o cliente com os padrões do SDK o manda. Se este teste
-    // passar a falhar, o SDK mudou o padrão e o ajuste em ArmazenamentoConfig.criarCliente pode já não ser necessário.
+    // passar a falhar, o SDK mudou o padrão e o ajuste em StorageConfig.criarCliente pode já não ser necessário.
     @Test
     void controle_oClienteComOsPadroesDoSdkMandaOTrailerQueOsServidoresRecusam() {
         try (S3Client padrao = S3Client.builder()
@@ -108,7 +108,7 @@ class ArmazenamentoConfigTest {
 
     @Test
     void urlAssinadaUsaOEnderecoPublicoPorCaminhoEComValidadeDeUmaHora() {
-        try (S3Presigner assinador = ArmazenamentoConfig.criarAssinador(
+        try (S3Presigner assinador = StorageConfig.criarAssinador(
                 "https://s3.exemplo.mil.br", "chave-de-teste", "segredo-de-teste-123", "us-east-1")) {
             String url = assinador.presignGetObject(GetObjectPresignRequest.builder()
                     .signatureDuration(Duration.ofMinutes(60))
