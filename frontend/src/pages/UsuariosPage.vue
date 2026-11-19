@@ -100,11 +100,11 @@
         <template #body-cell-actions="props">
           <q-td :props="props" class="text-center">
             <div class="row justify-center no-wrap" style="gap:4px">
-              <q-btn v-if="props.row.revisavel" icon="mdi-check" size="sm" flat round dense color="positive"
+              <q-btn v-if="precisaDeRevisao(props.row)" icon="mdi-check" size="sm" flat round dense color="positive"
                      :loading="revisando === props.row.id" :data-testid="`manter-acesso-${props.row.cpf}`" @click="manterAcesso(props.row)">
                 <q-tooltip anchor="top middle" self="bottom middle">Manter acesso (reconfirma os papéis)</q-tooltip>
               </q-btn>
-              <q-btn v-if="props.row.revisavel" icon="mdi-account-minus-outline" size="sm" flat round dense color="negative"
+              <q-btn v-if="precisaDeRevisao(props.row)" icon="mdi-account-minus-outline" size="sm" flat round dense color="negative"
                      :disable="revisando === props.row.id" :data-testid="`retirar-papeis-${props.row.cpf}`" @click="abrirRetirada(props.row)">
                 <q-tooltip anchor="top middle" self="bottom middle">Retirar papéis…</q-tooltip>
               </q-btn>
@@ -228,25 +228,13 @@
             <div>
               <div class="text-caption text-grey-7 q-mb-xs">Papéis (Elaborador é padrão de todo usuário e não pode ser removido; os demais são adicionais)</div>
               <div class="row q-gutter-md">
-                <q-checkbox v-model="form.editor" label="Elaborador" disable>
+                <q-checkbox :model-value="true" label="Elaborador" disable>
                   <q-tooltip>Todo usuário tem este papel -- não dá pra remover.</q-tooltip>
                 </q-checkbox>
-                <q-checkbox v-model="form.aprovador" label="Aprovador da OM" :disable="salvando || !concediveis.aprovador" />
-                <q-checkbox v-model="form.publicador" label="Publicador do BCA" :disable="salvando || !concediveis.publicador">
-                  <q-tooltip>A publicação no BCA (espécies convencionais) é exclusiva do CENDOC: só quem é lotado no CENDOC (e só o Administrador Geral) recebe este papel.</q-tooltip>
-                </q-checkbox>
-                <q-checkbox v-model="form.publicadorBi" label="Publicador do Boletim Interno" :disable="salvando || !concediveis.publicadorBi">
-                  <q-tooltip>Publica e revoga as NPAs da própria OM, no Boletim Interno. Existe em qualquer OM, e o Administrador da OM o concede.</q-tooltip>
-                </q-checkbox>
-                <q-checkbox v-model="form.admin" :label="nomeDoPapel(papelDeAdmin(siglaDaOmDeDestino))" :disable="salvando || !concediveis.admin">
-                  <q-tooltip>Só o Administrador Geral (CENDOC) concede o papel de administrador.</q-tooltip>
-                </q-checkbox>
-                <q-checkbox v-model="form.auditor" :label="nomeDoPapel(papelDeAuditor(siglaDaOmDeDestino))" :disable="salvando || !concediveis.auditor" />
-                <q-checkbox v-model="form.painel" :label="nomeDoPapel(papelDoPainelGerencial(siglaDaOmDeDestino))" :disable="salvando || !concediveis.painel">
-                  <q-tooltip>Acesso ao Painel Gerencial: o Painel Gerencial Geral (CENDOC) vê todas as OMs; o Painel Gerencial da OM, só a própria.</q-tooltip>
-                </q-checkbox>
-                <q-checkbox v-if="concediveis.painelDaOm" v-model="form.painelDaOm" :label="nomeDoPapel('PNL_OM')" :disable="salvando" data-testid="papel-painel-da-om">
-                  <q-tooltip>O CENDOC também é uma OM: este papel mostra os indicadores só do CENDOC (NPAs inclusive). Quem tem os dois escolhe a visão no painel.</q-tooltip>
+                <!-- Só aparece o que quem está logado pode conceder (acesso mínimo): o resto nem é mostrado; o servidor também recusa (403). -->
+                <q-checkbox v-for="p in concediveis" :key="p" v-model="form.papeis" :val="p" :label="nomeDoPapel(p)" :disable="salvando"
+                            :data-testid="`papel-${p}`">
+                  <q-tooltip v-if="DICA_DO_PAPEL[p]">{{ DICA_DO_PAPEL[p] }}</q-tooltip>
                 </q-checkbox>
               </div>
             </div>
@@ -347,7 +335,7 @@ import { caixaAlta, normalizarBusca } from '@/utils/texto.js'
 import { useAuthStore } from '@/stores/auth.js'
 import { emailInstitucional } from '@/utils/email.js'
 import { omsDoEscopo, papeisConcediveis, podeAdministrar } from '@/utils/escopo.js'
-import { PAPEIS, nomeDoPapel, ehAdmin, ehAuditor, ehPainelGerencialGeral, ehPainelGerencialDaOm, noCendoc, papelDeAdmin, papelDeAuditor, papelDoPainelGerencial } from '@/utils/papeis.js'
+import { PAPEIS, nomeDoPapel, ehAdminGeral } from '@/utils/papeis.js'
 import { motivoDaRevisao, rotuloDoPapel, contarPendentes, precisaDeRevisao, temPapelElevado, papeisElevadosDe } from '@/utils/revisaoDeAcessos.js'
 
 const $q = useQuasar()
@@ -372,7 +360,7 @@ const columns = [
 
 // Catálogo real de OMs da FAB passou de 1 (seed antigo) pra 300+ (ver
 // V1__initial.sql) -- uma lista desse tamanho sem busca é impraticável de rolar.
-const omOptions = computed(() => omsDoEscopo(oms.value, auth.usuario?.omSigla).map(om => ({
+const omOptions = computed(() => omsDoEscopo(oms.value, auth.usuario?.omSigla, auth.usuario?.papeis).map(om => ({
   label: `${om.nome} (${om.sigla})`, value: om.id, busca: normalizarBusca(`${om.nome} ${om.sigla}`),
 })))
 const omOptionsFiltradas = ref([])
@@ -474,31 +462,42 @@ const salvando    = ref(false)
 const editando    = ref(null) // Usuario sendo editado, ou null (criação)
 const mostrarSenha = ref(false)
 
-// editor: true por padrão e travado na UI (checkbox disable) -- ver
+// Elaborador é de todo usuário e vai sempre no envio (papeisSelecionados), travado na UI -- ver
 // UsuarioService.papeisComo no backend, que também força isso independente do
 // que vier daqui (mesma regra em duas camadas, não só decoração de tela).
 const form = reactive({
   nome: '', nomeGuerra: '', cpf: '', email: '', postoGraduacaoId: null, senha: '',
-  omId: null, editor: true, aprovador: false, publicador: false, publicadorBi: false, admin: false, auditor: false, painel: false, painelDaOm: false, ativo: true,
+  omId: null, papeis: [], ativo: true,
 })
 
-// Escopo (utils/escopo.js): o admin local só gerencia a própria OM e não concede Administrador nem Publicador do BCA; o geral (CENDOC) gerencia
-// todas. A tela esconde o que o servidor recusaria -- o servidor é quem garante.
+// Escopo (utils/escopo.js): o administrador geral gerencia todas as OMs e concede todos os papéis; o da OM (o do CENDOC inclusive) gerencia só a própria
+// OM e concede só os papéis locais. O que quem está logado NÃO pode conceder nem aparece (acesso mínimo) -- o servidor é quem garante, com 403.
 const siglaDaOmDeDestino = computed(() => oms.value.find(o => o.id === form.omId)?.sigla)
-const concediveis = computed(() => papeisConcediveis(auth.usuario?.omSigla, siglaDaOmDeDestino.value))
-const podeAdministrarEste = (usuario) => podeAdministrar(auth.usuario?.omSigla, usuario)
-// Trocar a OM de destino para uma que não admite o papel desmarca o que deixou de valer (ex.: Publicador fora do CENDOC).
-watch(concediveis, (c) => {
-  if (!c.publicador) form.publicador = false
-  if (!c.publicadorBi) form.publicadorBi = false
-  if (!c.admin) form.admin = false
-  if (!c.painelDaOm) form.painelDaOm = false
+const concediveis = computed(() => papeisConcediveis(auth.usuario?.papeis, siglaDaOmDeDestino.value))
+const podeAdministrarEste = (usuario) => podeAdministrar(auth.usuario?.papeis, auth.usuario?.omSigla, usuario)
+// Trocar a OM de destino para uma que não admite o papel desmarca o que deixou de valer (ex.: Publicador do BCA fora do CENDOC).
+watch(concediveis, (c) => { form.papeis = form.papeis.filter(p => c.includes(p)) })
+
+// Quem edita um usuário que já tem um papel que ele não concede (só o administrador da OM do CENDOC chega a isso) não o vê, mas o papel
+// continua: vai junto no envio, sem mudança, e o servidor só aceita porque nada mudou nele.
+const papeisQueNaoSaoDele = computed(() => {
+  if (!editando.value || ehAdminGeral(auth.usuario?.papeis)) return []
+  return editando.value.papeis.filter(p => p !== 'ELB' && !concediveis.value.includes(p))
 })
+
+const DICA_DO_PAPEL = {
+  PUB_BCA: 'A publicação no BCA (espécies convencionais) é exclusiva do CENDOC: só quem é lotado no CENDOC recebe este papel.',
+  PUB_BI: 'Publica e revoga as NPAs da própria OM, no Boletim Interno. Existe em qualquer OM.',
+  ADM_GER: 'Gerencia os usuários de todas as OMs, a habilitação de espécies e a DOM. Só existe no CENDOC.',
+  ADM_OM: 'Gerencia os usuários da própria OM (no CENDOC, só os do CENDOC). Não altera outros administradores.',
+  PNL_GER: 'Painel Gerencial Geral: vê os indicadores de todas as OMs. Só existe no CENDOC.',
+  PNL_OM: 'Painel Gerencial da OM: vê os indicadores só da própria OM (o CENDOC também é uma OM, NPAs inclusive).',
+}
 
 function resetForm() {
   Object.assign(form, {
     nome: '', nomeGuerra: '', cpf: '', email: '', postoGraduacaoId: null, senha: '',
-    omId: null, editor: true, aprovador: false, publicador: false, publicadorBi: false, admin: false, auditor: false, painel: false, painelDaOm: false, ativo: true,
+    omId: null, papeis: [], ativo: true,
   })
   formRef.value?.resetValidation()
 }
@@ -521,33 +520,16 @@ function abrirEdicao(usuario) {
     postoGraduacaoId: usuario.postoGraduacaoId ?? null,
     senha: '',
     omId: usuario.omId,
-    editor: true, // sempre -- ver comentário no form acima
-    aprovador: usuario.papeis.includes('APR_OM'),
-    publicador: usuario.papeis.includes('PUB_BCA'),
-    publicadorBi: usuario.papeis.includes('PUB_BI'),
-    admin: ehAdmin(usuario.papeis),
-    auditor: ehAuditor(usuario.papeis),
-    // No CENDOC os dois papéis do painel são caixas separadas (Geral e da OM); nas demais OMs há só o da OM.
-    painel: noCendoc(usuario.omSigla) ? ehPainelGerencialGeral(usuario.papeis) : ehPainelGerencialDaOm(usuario.papeis),
-    painelDaOm: noCendoc(usuario.omSigla) && ehPainelGerencialDaOm(usuario.papeis),
+    papeis: usuario.papeis.filter(p => p !== 'ELB'), // o Elaborador é de todos e fixo (vai sempre no envio)
     ativo: usuario.ativo,
   })
   formRef.value?.resetValidation()
   dialogForm.value = true
 }
 
+// Elaborador (sempre) + o que foi marcado e vale para a OM de destino + o que o usuário já tem e quem edita não concede (ver papeisQueNaoSaoDele).
 function papeisSelecionados() {
-  const papeis = []
-  if (form.editor) papeis.push('ELB')
-  if (form.aprovador) papeis.push('APR_OM')
-  if (form.publicador) papeis.push('PUB_BCA')
-  if (form.publicadorBi) papeis.push('PUB_BI')
-  // Administrador e Auditor existem em duas versões; vale a da lotação de destino (CENDOC = geral).
-  if (form.admin) papeis.push(papelDeAdmin(siglaDaOmDeDestino.value))
-  if (form.auditor) papeis.push(papelDeAuditor(siglaDaOmDeDestino.value))
-  if (form.painel) papeis.push(papelDoPainelGerencial(siglaDaOmDeDestino.value))
-  if (form.painelDaOm && noCendoc(siglaDaOmDeDestino.value)) papeis.push('PNL_OM')
-  return papeis
+  return ['ELB', ...form.papeis.filter(p => concediveis.value.includes(p)), ...papeisQueNaoSaoDele.value]
 }
 
 async function salvar() {

@@ -11,8 +11,9 @@ import java.util.Set;
 // escopo está no próprio papel, e o papel só combina com a lotação certa:
 //
 //   Administrador Geral (ADM_GER) e Auditor Geral (AUD_GER): só no CENDOC. Os de outra OM são ADM_OM e AUD_OM, que não existem no CENDOC.
-//   Administrador da OM (ADM_OM): só os usuários da própria OM; concede ELB, APR_OM e AUD_OM, e nunca ADM_OM, ADM_GER nem PUB_BCA; não
-//                altera outros administradores (esses são mantidos pelo administrador geral).
+//   Administrador da OM (ADM_OM): existe em TODA OM, o CENDOC inclusive (o CENDOC também é uma unidade, com o seu administrador local ao lado do
+//                Administrador Geral). Só vê e gerencia os usuários da própria OM; concede só os papéis locais (CONCEDIVEIS_PELO_ADMIN_LOCAL) e
+//                nunca os do escopo geral nem ADM_OM; não altera outros administradores (esses são mantidos pelo administrador geral).
 //   Publicador do BCA (PUB_BCA): só no CENDOC -- a publicação no BCA é do CENDOC.
 //   Painel Gerencial Geral (PNL_GER): só no CENDOC. O Painel Gerencial da OM (PNL_OM) existe em TODA OM, o CENDOC inclusive: ele é uma OM sujeita
 //                às mesmas regras das demais, e a visão geral é a exceção inerente à sua função de órgão central (quem tem os dois escolhe a visão).
@@ -22,7 +23,11 @@ public final class EscopoDeAcesso {
 
     // Papéis que só existem lotados no CENDOC, e os que só existem fora dele.
     public static final Set<PapelEnum> SO_NO_CENDOC = EnumSet.of(PapelEnum.PUB_BCA, PapelEnum.ADM_GER, PapelEnum.AUD_GER, PapelEnum.PNL_GER);
-    public static final Set<PapelEnum> SO_FORA_DO_CENDOC = EnumSet.of(PapelEnum.ADM_OM, PapelEnum.AUD_OM);
+    public static final Set<PapelEnum> SO_FORA_DO_CENDOC = EnumSet.of(PapelEnum.AUD_OM);
+
+    // Os papéis que o administrador LOCAL concede e retira; os demais (ADM_GER, ADM_OM, PUB_BCA, AUD_GER, PNL_GER) são do administrador geral.
+    public static final Set<PapelEnum> CONCEDIVEIS_PELO_ADMIN_LOCAL = EnumSet.of(
+            PapelEnum.ELB, PapelEnum.APR_OM, PapelEnum.PUB_BI, PapelEnum.AUD_OM, PapelEnum.PNL_OM);
 
     private EscopoDeAcesso() {}
 
@@ -52,9 +57,9 @@ public final class EscopoDeAcesso {
         return ehAdminGeral(usuario) || ehAdminLocal(usuario);
     }
 
-    // Quem age enxerga (lista, consulta) este usuário? O escopo geral vê todos; o local, só a própria OM.
+    // Quem age enxerga (lista, consulta) este usuário? O administrador geral vê todos; o local (o do CENDOC inclusive), só a própria OM.
     public static boolean enxerga(Usuario ator, Usuario alvo) {
-        return temEscopoGeral(ator) || mesmaOm(ator, alvo);
+        return ehAdminGeral(ator) || mesmaOm(ator, alvo);
     }
 
     public static boolean mesmaOm(Usuario a, Usuario b) {
@@ -82,7 +87,7 @@ public final class EscopoDeAcesso {
         }
     }
 
-    // Cada papel só combina com a lotação certa: os do CENDOC (ADM_GER, AUD_GER, PUB_BCA) só nele; ADM_OM e AUD_OM nunca nele.
+    // Cada papel só combina com a lotação certa: os do CENDOC (ADM_GER, AUD_GER, PUB_BCA, PNL_GER) só nele; AUD_OM nunca nele (ADM_OM existe em toda OM).
     public static void exigirPapeisDaLotacao(String siglaDaOm, Set<PapelEnum> papeis) {
         boolean cendoc = ehOmGeral(siglaDaOm);
         for (PapelEnum papel : papeis) {
@@ -115,8 +120,15 @@ public final class EscopoDeAcesso {
             throw new OperacaoNaoAutorizadaException("O " + PapelEnum.ADM_OM.nome() + " só gerencia usuários da própria OM.");
         }
         if (alvo != null) exigirPodeAdministrar(ator, alvo);
-        if (papeisDepois.contains(PapelEnum.ADM_OM)) {
-            throw new OperacaoNaoAutorizadaException("Só o " + PapelEnum.ADM_GER.nome() + " (CENDOC) concede o papel de administrador.");
+
+        // O administrador local só mexe nos papéis locais: conceder ou retirar qualquer outro é do geral. Os que o alvo já tem e ele não concede
+        // podem continuar (não mudam), mas não entram nem saem por ele.
+        var antes = EnumSet.noneOf(PapelEnum.class);
+        if (alvo != null && alvo.getPapeis() != null) antes.addAll(alvo.getPapeis());
+        for (PapelEnum papel : PapelEnum.values()) {
+            if (antes.contains(papel) != papeisDepois.contains(papel) && !CONCEDIVEIS_PELO_ADMIN_LOCAL.contains(papel)) {
+                throw new OperacaoNaoAutorizadaException("Só o " + PapelEnum.ADM_GER.nome() + " (CENDOC) concede ou retira o papel " + papel.nome() + ".");
+            }
         }
     }
 }

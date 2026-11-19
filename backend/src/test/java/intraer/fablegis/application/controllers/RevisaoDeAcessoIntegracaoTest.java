@@ -82,12 +82,21 @@ class RevisaoDeAcessoIntegracaoTest extends IntegracaoComPostgresBase {
         return authentication(new UsernamePasswordAuthenticationToken(principal, null, principal.getAuthorities()));
     }
 
-    // A lista de usuários já diz, para quem pergunta, quem ele revisa (revisavel) e o motivo da pendência: nada a pedir.
+    // Os usuários nascem "em dia" (revisados agora): um teste que quer revisar deixa a revisão vencida antes.
+    private void deixarPendente(Usuario usuario) {
+        jdbc.update("update t_usuario set dt_revisao_acesso = now() - interval '200 days', dt_ultimo_acesso = now() where id_usuario = ?", usuario.getId());
+    }
+
+    private void deixarEmDia(Usuario usuario) {
+        jdbc.update("update t_usuario set dt_revisao_acesso = now(), dt_ultimo_acesso = now() where id_usuario = ?", usuario.getId());
+    }
+
+    // A lista de usuários já diz, para quem pergunta, quem ele revisa (revisavel: só com pendência) e o motivo da pendência: nada a pedir.
     @Test
     void aListaDeUsuariosMarcaSoQuemCadaRevisorConferee() throws Exception {
-        adminLocal();
-        aprovadorLocal();
-        usuarioDa("BABE", CPF_APROVADOR_OUTRA_OM, PapelEnum.ELB, PapelEnum.APR_OM);
+        deixarPendente(adminLocal());
+        deixarPendente(aprovadorLocal());
+        deixarPendente(usuarioDa("BABE", CPF_APROVADOR_OUTRA_OM, PapelEnum.ELB, PapelEnum.APR_OM));
 
         // o admin geral confere o admin local, não os aprovadores das outras OMs
         mvc.perform(get("/v1/usuarios").with(como(geral())))
@@ -112,17 +121,18 @@ class RevisaoDeAcessoIntegracaoTest extends IntegracaoComPostgresBase {
         mvc.perform(get("/v1/usuarios").with(como(adminLocal())))
                 .andExpect(jsonPath("$[?(@.cpf == '" + CPF_APROVADOR_LOCAL + "')].motivoDaRevisao").value("REVISAO_VENCIDA"));
 
-        // revisar (manter) volta a "em dia", e continua revisável por quem o confere
+        // revisar (manter) volta a "em dia", e a revisão some (não é mais revisável) até um dos três motivos voltar
         mvc.perform(post("/v1/revisao-de-acessos/" + aprovador.getId()).with(como(adminLocal())).contentType(MediaType.APPLICATION_JSON)
                         .content("{\"papeis\":[\"ELB\",\"APR_OM\",\"AUD_OM\"]}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.motivoDaRevisao").value("NENHUM"))
-                .andExpect(jsonPath("$.revisavel").value(true));
+                .andExpect(jsonPath("$.revisavel").value(false));
     }
 
     @Test
     void retirarUmPapelNaRevisaoVaiParaAAuditoriaEQuemNaoRevisaNaoPode() throws Exception {
         var aprovador = aprovadorLocal();
+        deixarPendente(aprovador);
 
         // quem não é o revisor dele (o admin geral, ou outro aprovador) leva 403
         mvc.perform(post("/v1/revisao-de-acessos/" + aprovador.getId()).with(como(geral())).contentType(MediaType.APPLICATION_JSON)
@@ -149,6 +159,7 @@ class RevisaoDeAcessoIntegracaoTest extends IntegracaoComPostgresBase {
     @Test
     void aRevisaoNuncaConcedeUmPapel() throws Exception {
         var aprovador = aprovadorLocal();
+        deixarPendente(aprovador);
         mvc.perform(post("/v1/revisao-de-acessos/" + aprovador.getId()).with(como(adminLocal())).contentType(MediaType.APPLICATION_JSON)
                         .content("{\"papeis\":[\"ELB\",\"APR_OM\",\"PUB_BCA\"]}"))
                 .andExpect(status().is4xxClientError())
@@ -164,5 +175,25 @@ class RevisaoDeAcessoIntegracaoTest extends IntegracaoComPostgresBase {
         mvc.perform(post("/v1/revisao-de-acessos/" + admin.getId()).with(como(aprovadorLocal())).contentType(MediaType.APPLICATION_JSON)
                         .content("{\"papeis\":[\"ELB\"]}"))
                 .andExpect(status().isForbidden());
+    }
+
+    // Revisto (ou ainda em dia), o acesso não se revisa de novo: o servidor recusa e a lista não o oferece, até um dos três motivos voltar.
+    @Test
+    void oQueEstaEmDiaNaoSeRevisaEAListaNaoOfereceARevisao() throws Exception {
+        var aprovador = aprovadorLocal();
+        deixarEmDia(aprovador);
+
+        mvc.perform(get("/v1/usuarios").with(como(adminLocal())))
+                .andExpect(jsonPath("$[?(@.cpf == '" + CPF_APROVADOR_LOCAL + "')].revisavel").value(false));
+        mvc.perform(post("/v1/revisao-de-acessos/" + aprovador.getId()).with(como(adminLocal())).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"papeis\":[\"ELB\",\"APR_OM\",\"AUD_OM\"]}"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value(containsString("não precisa de revisão")));
+
+        // trocou de OM (revisão pendente de imediato): volta a ser revisável
+        jdbc.update("update t_usuario set dt_revisao_acesso = null where id_usuario = ?", aprovador.getId());
+        mvc.perform(get("/v1/usuarios").with(como(adminLocal())))
+                .andExpect(jsonPath("$[?(@.cpf == '" + CPF_APROVADOR_LOCAL + "')].motivoDaRevisao").value("TROCA_DE_OM"))
+                .andExpect(jsonPath("$[?(@.cpf == '" + CPF_APROVADOR_LOCAL + "')].revisavel").value(true));
     }
 }
