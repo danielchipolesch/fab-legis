@@ -41,6 +41,11 @@ public class RevisaoDeAcessoService {
             throw new OperacaoNaoAutorizadaException("Você não revisa o acesso desta pessoa.");
         }
 
+        // Só se revisa o que está pendente (um dos três motivos): revisto, o acesso fica em dia até um deles voltar.
+        if (!alvo.isAtivo() || !RevisaoDeAcesso.pendente(alvo, Timestamp.from(Instant.now()))) {
+            throw new OperacaoNaoAutorizadaException("O acesso desta pessoa não precisa de revisão agora.");
+        }
+
         var antes = EnumSet.noneOf(PapelEnum.class);
         antes.addAll(alvo.getPapeis());
         var elevadosAntes = RevisaoDeAcesso.papeisElevados(antes);

@@ -74,12 +74,44 @@ class RevisaoDeAcessoTest {
     @Test
     void contaSemEntrarHa180DiasEDormente() {
         var u = usuario(1L, "BAGL", PapelEnum.ELB, PapelEnum.APR_OM);
+        u.setDtRevisaoAcesso(haDias(181));
         u.setDtUltimoAcesso(haDias(181));
         assertThat(RevisaoDeAcesso.motivo(u, AGORA_TS)).isEqualTo(Motivo.CONTA_DORMENTE);
+        u.setDtRevisaoAcesso(haDias(10));
         u.setDtUltimoAcesso(haDias(179));
         assertThat(RevisaoDeAcesso.pendente(u, AGORA_TS)).isFalse();
         u.setDtUltimoAcesso(null); // ainda nunca entrou: não é "dormente", só não entrou
         assertThat(RevisaoDeAcesso.pendente(u, AGORA_TS)).isFalse();
+    }
+
+    // Reconfirmar o acesso de uma conta dormente zera a pendência (senão o "Manter acesso" não surtiria efeito): ela só volta se, depois da revisão,
+    // passarem de novo 180 dias sem entrar -- ou outro dos motivos.
+    @Test
+    void revistoOAcessoDeUmaContaDormenteAPendenciaSome() {
+        var u = usuario(1L, "BAGL", PapelEnum.ELB, PapelEnum.APR_OM);
+        u.setDtRevisaoAcesso(haDias(300));
+        u.setDtUltimoAcesso(haDias(300));
+        assertThat(RevisaoDeAcesso.motivo(u, AGORA_TS)).isEqualTo(Motivo.CONTA_DORMENTE);
+
+        u.setDtRevisaoAcesso(haDias(1)); // o admin mandou "Manter acesso"
+        assertThat(RevisaoDeAcesso.motivo(u, AGORA_TS)).isEqualTo(Motivo.NENHUM);
+
+        u.setDtRevisaoAcesso(haDias(181)); // 181 dias depois, sem ter entrado de novo: volta
+        u.setDtUltimoAcesso(haDias(300));
+        assertThat(RevisaoDeAcesso.motivo(u, AGORA_TS)).isEqualTo(Motivo.CONTA_DORMENTE);
+    }
+
+    @Test
+    void revistoOAcessoAPendenciaSomeAteUmDosTresMotivosVoltar() {
+        var u = usuario(1L, "BAGL", PapelEnum.ELB, PapelEnum.APR_OM);
+        u.setDtRevisaoAcesso(haDias(181));
+        assertThat(RevisaoDeAcesso.pendente(u, AGORA_TS)).isTrue();
+
+        u.setDtRevisaoAcesso(AGORA_TS); // revisto agora
+        assertThat(RevisaoDeAcesso.pendente(u, AGORA_TS)).isFalse();
+
+        u.setDtRevisaoAcesso(null); // trocou de OM: volta de imediato
+        assertThat(RevisaoDeAcesso.motivo(u, AGORA_TS)).isEqualTo(Motivo.TROCA_DE_OM);
     }
 
     @Test
@@ -123,6 +155,24 @@ class RevisaoDeAcessoTest {
         assertThat(RevisaoDeAcesso.podeRevisar(geral, usuario(2L, "CENDOC", PapelEnum.ELB, PapelEnum.PUB_BCA))).isTrue();
         assertThat(RevisaoDeAcesso.podeRevisar(geral, usuario(3L, "CENDOC", PapelEnum.ELB, PapelEnum.ADM_GER))).isTrue();
         assertThat(RevisaoDeAcesso.podeRevisar(geral, geral)).isFalse();
+    }
+
+    // O CENDOC também é uma unidade, com o seu administrador local: ele revisa o pessoal do CENDOC que não é administrador.
+    @Test
+    void oAdminLocalDoCendocRevisaOPessoalDoCendocQueNaoEAdmin() {
+        var localDoCendoc = usuario(1L, "CENDOC", PapelEnum.ELB, PapelEnum.ADM_OM);
+        assertThat(RevisaoDeAcesso.podeRevisar(localDoCendoc, usuario(2L, "CENDOC", PapelEnum.ELB, PapelEnum.PUB_BCA))).isTrue();
+        assertThat(RevisaoDeAcesso.podeRevisar(localDoCendoc, usuario(3L, "BAGL", PapelEnum.ELB, PapelEnum.APR_OM))).isFalse();
+        // administrador (geral ou local) é conferido só pelo geral, e ninguém confere o próprio acesso
+        assertThat(RevisaoDeAcesso.podeRevisar(localDoCendoc, usuario(4L, "CENDOC", PapelEnum.ELB, PapelEnum.ADM_GER))).isFalse();
+        assertThat(RevisaoDeAcesso.podeRevisar(localDoCendoc, usuario(5L, "CENDOC", PapelEnum.ELB, PapelEnum.ADM_OM))).isFalse();
+        assertThat(RevisaoDeAcesso.podeRevisar(localDoCendoc, localDoCendoc)).isFalse();
+    }
+
+    @Test
+    void oAdminGeralRevisaOAdminLocalDoCendoc() {
+        var geral = usuario(1L, "CENDOC", PapelEnum.ELB, PapelEnum.ADM_GER);
+        assertThat(RevisaoDeAcesso.podeRevisar(geral, usuario(2L, "CENDOC", PapelEnum.ELB, PapelEnum.ADM_OM))).isTrue();
     }
 
     @Test

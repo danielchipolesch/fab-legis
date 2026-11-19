@@ -9,7 +9,8 @@ import java.time.Instant;
 import java.util.List;
 
 // motivoDaRevisao: por que o acesso precisa de revisão (NENHUM = em dia ou sem papel elevado) -- calculado na hora, nada é gravado.
-// revisavel: quem pergunta é quem revisa o acesso deste usuário (RevisaoDeAcesso.podeRevisar) e há papel elevado a revisar.
+// revisavel: quem pergunta é quem revisa o acesso deste usuário (RevisaoDeAcesso.podeRevisar) E a revisão está pendente (motivoDaRevisao != NENHUM):
+// só então a tela oferece "Manter acesso" / "Retirar papéis"; depois de revisto, some até um dos três motivos voltar.
 public record UsuarioResponseDto(
 
         Long id,
@@ -44,7 +45,8 @@ public record UsuarioResponseDto(
 
     public static UsuarioResponseDto from(Usuario usuario, Usuario quemPergunta) {
         var posto = usuario.getPostoGraduacao();
-        boolean revisavel = quemPergunta != null && usuario.isAtivo()
+        var agora = Timestamp.from(Instant.now());
+        boolean revisavel = quemPergunta != null && usuario.isAtivo() && RevisaoDeAcesso.pendente(usuario, agora)
                 && RevisaoDeAcesso.temPapelElevado(usuario) && RevisaoDeAcesso.podeRevisar(quemPergunta, usuario);
         return new UsuarioResponseDto(
                 usuario.getId(),
@@ -60,7 +62,7 @@ public record UsuarioResponseDto(
                 usuario.getOm().getSigla(),
                 usuario.isAtivo(),
                 usuario.getPapeis().stream().map(Enum::name).toList(),
-                usuario.isAtivo() ? RevisaoDeAcesso.motivo(usuario, Timestamp.from(Instant.now())) : RevisaoDeAcesso.Motivo.NENHUM,
+                usuario.isAtivo() ? RevisaoDeAcesso.motivo(usuario, agora) : RevisaoDeAcesso.Motivo.NENHUM,
                 revisavel,
                 usuario.getDtRevisaoAcesso(),
                 usuario.getDtUltimoAcesso(),

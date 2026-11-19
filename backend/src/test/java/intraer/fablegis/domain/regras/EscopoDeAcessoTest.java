@@ -14,7 +14,7 @@ import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 // Escopo de acesso (docs/autenticacao.md): só o CENDOC tem o escopo geral; o admin local só gerencia a própria OM e nunca
-// concede ADMIN nem PUBLIC; PUBLIC só existe no CENDOC.
+// concede os papéis do escopo geral; o CENDOC também tem administrador local (ADM_OM), que só vê e gerencia o CENDOC.
 class EscopoDeAcessoTest {
 
     private static Usuario usuario(String om, PapelEnum... papeis) {
@@ -138,9 +138,7 @@ class EscopoDeAcessoTest {
     }
 
     @Test
-    void osPapeisDaOmNaoExistemNoCendoc() {
-        assertThatThrownBy(() -> EscopoDeAcesso.exigirPapeisDaLotacao("CENDOC", EnumSet.of(PapelEnum.ELB, PapelEnum.ADM_OM)))
-                .isInstanceOf(OperacaoNaoAutorizadaException.class).hasMessageContaining("use Administrador Geral");
+    void oAuditorDaOmNaoExisteNoCendocMasOAdminDaOmExisteEmTodaOm() {
         assertThatThrownBy(() -> EscopoDeAcesso.exigirPapeisDaLotacao("CENDOC", EnumSet.of(PapelEnum.ELB, PapelEnum.AUD_OM)))
                 .isInstanceOf(OperacaoNaoAutorizadaException.class).hasMessageContaining("use Auditor Geral");
         assertThatCode(() -> EscopoDeAcesso.exigirPapeisDaLotacao("BAGL", EnumSet.of(PapelEnum.ELB, PapelEnum.ADM_OM, PapelEnum.AUD_OM, PapelEnum.APR_OM)))
@@ -169,19 +167,69 @@ class EscopoDeAcessoTest {
         assertThatCode(() -> EscopoDeAcesso.exigirPapeisDaLotacao("CENDOC", EnumSet.of(PapelEnum.ELB, PapelEnum.PNL_OM, PapelEnum.PNL_GER))).doesNotThrowAnyException();
     }
 
-    // Administrador e auditor da OM continuam não existindo no CENDOC (lá são o geral).
-    @Test
-    void oAdminEOAuditorDaOmNaoExistemNoCendoc() {
-        assertThatThrownBy(() -> EscopoDeAcesso.exigirPapeisDaLotacao("CENDOC", EnumSet.of(PapelEnum.ELB, PapelEnum.ADM_OM)))
-                .isInstanceOf(OperacaoNaoAutorizadaException.class).hasMessageContaining("use Administrador Geral");
-        assertThatThrownBy(() -> EscopoDeAcesso.exigirPapeisDaLotacao("CENDOC", EnumSet.of(PapelEnum.ELB, PapelEnum.AUD_OM)))
-                .isInstanceOf(OperacaoNaoAutorizadaException.class).hasMessageContaining("use Auditor Geral");
-    }
-
     @Test
     void oAdminDaOmConcedePainelDaOmNaPropriaOm() {
         var local = usuario("BAGL", PapelEnum.ADM_OM);
         assertThatCode(() -> EscopoDeAcesso.exigirPodeGerenciar(local, null, "BAGL", EnumSet.of(PapelEnum.ELB, PapelEnum.PNL_OM)))
                 .doesNotThrowAnyException();
+    }
+
+    // ─── Administrador da OM no CENDOC (o CENDOC também é uma unidade, com o seu administrador local) ───
+
+    @Test
+    void oAdminLocalDoCendocSoVeOsUsuariosDoCendoc() {
+        var localDoCendoc = usuario("CENDOC", PapelEnum.ADM_OM);
+        assertThat(EscopoDeAcesso.enxerga(localDoCendoc, usuario("CENDOC"))).isTrue();
+        assertThat(EscopoDeAcesso.enxerga(localDoCendoc, usuario("BAGL"))).isFalse();
+        // e o administrador geral continua vendo todos, ele sendo do CENDOC
+        assertThat(EscopoDeAcesso.enxerga(usuario("CENDOC", PapelEnum.ADM_GER), usuario("BAGL"))).isTrue();
+    }
+
+    @Test
+    void oAdminGeralConcedeAdminDaOmTambemNoCendoc() {
+        var geral = usuario("CENDOC", PapelEnum.ADM_GER);
+        assertThatCode(() -> EscopoDeAcesso.exigirPodeGerenciar(geral, null, "CENDOC", EnumSet.of(PapelEnum.ELB, PapelEnum.ADM_OM)))
+                .doesNotThrowAnyException();
+        assertThatCode(() -> EscopoDeAcesso.exigirPapeisDaLotacao("CENDOC", EnumSet.of(PapelEnum.ELB, PapelEnum.ADM_OM))).doesNotThrowAnyException();
+    }
+
+    @Test
+    void oAdminLocalDoCendocGerenciaSoOCendocComOsPapeisLocais() {
+        var localDoCendoc = usuario("CENDOC", PapelEnum.ADM_OM);
+        assertThatCode(() -> EscopoDeAcesso.exigirPodeGerenciar(localDoCendoc, null, "CENDOC",
+                EnumSet.of(PapelEnum.ELB, PapelEnum.APR_OM, PapelEnum.PUB_BI, PapelEnum.PNL_OM))).doesNotThrowAnyException();
+        assertThatThrownBy(() -> EscopoDeAcesso.exigirPodeGerenciar(localDoCendoc, null, "BAGL", EDIT))
+                .isInstanceOf(OperacaoNaoAutorizadaException.class).hasMessageContaining("própria OM");
+        assertThatThrownBy(() -> EscopoDeAcesso.exigirPodeAdministrar(localDoCendoc, usuario("CENDOC", PapelEnum.ADM_GER)))
+                .isInstanceOf(OperacaoNaoAutorizadaException.class);
+        assertThatThrownBy(() -> EscopoDeAcesso.exigirPodeAdministrar(localDoCendoc, usuario("CENDOC", PapelEnum.ADM_OM)))
+                .isInstanceOf(OperacaoNaoAutorizadaException.class);
+    }
+
+    // O administrador local, estando no CENDOC, não ganha os papéis do escopo geral: esses são só do administrador geral.
+    @Test
+    void oAdminLocalDoCendocNaoConcedeOsPapeisDoEscopoGeral() {
+        var localDoCendoc = usuario("CENDOC", PapelEnum.ADM_OM);
+        for (var papel : EnumSet.of(PapelEnum.ADM_GER, PapelEnum.ADM_OM, PapelEnum.PUB_BCA, PapelEnum.AUD_GER, PapelEnum.PNL_GER)) {
+            assertThatThrownBy(() -> EscopoDeAcesso.exigirPodeGerenciar(localDoCendoc, null, "CENDOC", EnumSet.of(PapelEnum.ELB, papel)))
+                    .as(papel.name()).isInstanceOf(OperacaoNaoAutorizadaException.class).hasMessageContaining("Administrador Geral");
+        }
+    }
+
+    // Quem já tem um papel que o administrador local não concede pode continuar com ele (não muda), mas o local não o retira nem o acrescenta.
+    @Test
+    void oAdminLocalNaoRetiraNemAcrescentaPapelDoGeralMasOMantem() {
+        var localDoCendoc = usuario("CENDOC", PapelEnum.ADM_OM);
+        var alvo = usuario("CENDOC", PapelEnum.ELB, PapelEnum.PUB_BCA);
+        assertThatCode(() -> EscopoDeAcesso.exigirPodeGerenciar(localDoCendoc, alvo, "CENDOC", EnumSet.of(PapelEnum.ELB, PapelEnum.PUB_BCA, PapelEnum.APR_OM)))
+                .doesNotThrowAnyException();
+        assertThatThrownBy(() -> EscopoDeAcesso.exigirPodeGerenciar(localDoCendoc, alvo, "CENDOC", EnumSet.of(PapelEnum.ELB)))
+                .isInstanceOf(OperacaoNaoAutorizadaException.class).hasMessageContaining("Publicador do BCA");
+    }
+
+    @Test
+    void oAuditorDaOmContinuaNaoExistindoNoCendoc() {
+        assertThatThrownBy(() -> EscopoDeAcesso.exigirPapeisDaLotacao("CENDOC", EnumSet.of(PapelEnum.ELB, PapelEnum.AUD_OM)))
+                .isInstanceOf(OperacaoNaoAutorizadaException.class).hasMessageContaining("use Auditor Geral");
     }
 }

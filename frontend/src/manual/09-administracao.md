@@ -9,17 +9,17 @@ Menu do usuário › **Manter Usuários**. Aqui o administrador cadastra e mant�
 
 - **Criar** o usuário (CPF, nome, nome de guerra, posto, e-mail `@fab.mil.br`, OM e senha inicial);
 - **Editar** os dados, **desativar** e **redefinir a senha**;
-- **Conceder ou retirar papéis**, marcando as caixas do formulário.
+- **Conceder ou retirar papéis**, marcando as caixas do formulário. O formulário mostra **só os papéis que você pode conceder**: os que não são seus simplesmente não aparecem.
 
 O que cada administrador alcança:
 
-| | Administrador Geral (CENDOC) | Administrador da OM |
+| | Administrador Geral (CENDOC) | Administrador da OM (de qualquer OM, o CENDOC inclusive) |
 |---|---|---|
-| Usuários | De **todas** as OMs | Só os da **própria OM** |
+| Usuários | De **todas** as OMs | Só os da **própria OM** (o Administrador da OM do CENDOC vê só o pessoal do CENDOC) |
 | Papéis que concede | Todos, respeitando a lotação | **Elaborador, Aprovador da OM, Publicador do Boletim Interno, Auditor da OM e Painel Gerencial da OM** |
-| Administradores | Mantém os administradores das OMs | **Não altera outro administrador** |
+| Administradores | Mantém os administradores das OMs (**só ele concede** o Administrador da OM, em qualquer OM) | **Não altera outro administrador** |
 
-Regras de lotação, que o sistema recusa se não forem cumpridas: **Administrador Geral, Auditor Geral, Publicador do BCA e Painel Gerencial Geral** só existem para quem é do **CENDOC**; o **Publicador do Boletim Interno** e o **Painel Gerencial da OM** existem em **qualquer OM**, o CENDOC inclusive (que pode ter o Painel Gerencial da OM junto com o Geral); **Administrador da OM e Auditor da OM**, só para quem é de **outras OMs**. O CENDOC **nunca fica sem Administrador Geral**: o último não pode perder o papel, ser desativado nem mudar de OM. Conceda o papel a outra pessoa antes.
+Regras de lotação, que o sistema recusa se não forem cumpridas: **Administrador Geral, Auditor Geral, Publicador do BCA e Painel Gerencial Geral** só existem para quem é do **CENDOC**; o **Publicador do Boletim Interno** e o **Painel Gerencial da OM** existem em **qualquer OM**, o CENDOC inclusive (que pode ter o Painel Gerencial da OM junto com o Geral); o **Administrador da OM** existe em **qualquer OM**, o CENDOC inclusive: o CENDOC também é uma unidade, com o seu administrador local ao lado do Administrador Geral; o **Auditor da OM**, só para quem é de **outras OMs** (no CENDOC, use o Auditor Geral). O CENDOC **nunca fica sem Administrador Geral**: o último não pode perder o papel, ser desativado nem mudar de OM. Conceda o papel a outra pessoa antes.
 
 O CPF aparece parcialmente oculto nas telas (`111.***.***-35`).
 
@@ -27,7 +27,7 @@ O CPF aparece parcialmente oculto nas telas (`111.***.***-35`).
 
 Quem tem um papel além do Elaborador precisa ter o acesso **reconfirmado**: a cada **6 meses**, ao **trocar de OM** e quando a conta fica **6 meses sem entrar**. O sistema calcula isso sozinho e mostra na coluna **Acesso** da lista de usuários, com um aviso e o filtro "só os pendentes". Ninguém precisa pedir.
 
-O administrador confere as linhas que cabem a ele, com **Manter acesso** (reconfirma os mesmos papéis) ou **Retirar papéis…**. O Administrador Geral confere os administradores das OMs e o pessoal do CENDOC; o Administrador da OM, os demais usuários da própria OM. Ninguém revisa o próprio acesso. Por ora é só um **aviso**: nada é suspenso sozinho.
+O administrador confere as linhas que cabem a ele **e que estão pendentes**, com **Manter acesso** (reconfirma os mesmos papéis) ou **Retirar papéis…**. Depois que o acesso é revisto, esses botões **somem da linha** e só voltam quando um dos três motivos acontecer de novo. O Administrador Geral confere os administradores das OMs e o pessoal do CENDOC; o Administrador da OM, os demais usuários da própria OM (o do CENDOC, o pessoal do CENDOC). Ninguém revisa o próprio acesso. Por ora é só um **aviso**: nada é suspenso sozinho.
 
 ## Habilitação de espécies por OM
 

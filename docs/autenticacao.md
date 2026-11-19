@@ -64,12 +64,14 @@ Quem tem papel **elevado** (qualquer um além do Editor: Aprovador, Publicador (
 |---|---|
 | 180 dias (6 meses) desde a última revisão | *Revisão vencida* |
 | Ao **trocar de OM** (a revisão fica pendente de imediato) | *Trocou de OM* |
-| Conta 180 dias sem entrar (`dt_ultimo_acesso`, gravada a cada login) | *Sem entrar há 6 meses* |
+| Conta **180 dias sem entrar** (`dt_ultimo_acesso`, gravada a cada login), contados do último acesso **ou da última revisão**, o que for mais recente | *Sem entrar há 6 meses* |
 
 Conceder um papel elevado novo (ou criar o usuário com ele) conta como revisão: o prazo corre dali (`dt_revisao_acesso`).
 
-**Quem revisa quem:** o **admin geral** (CENDOC) confere **só os admins locais** e o pessoal do próprio CENDOC; cada **admin local** confere os **demais usuários da própria OM**. Ninguém revisa o próprio acesso, e quem não é admin não revisa ninguém.
+**Quem revisa quem:** o **admin geral** (CENDOC) confere **só os admins locais** (e o administrador local do CENDOC entre eles) e o pessoal do próprio CENDOC; cada **admin local** confere os **demais usuários da própria OM** — o do CENDOC, o pessoal do CENDOC que não é administrador. Ninguém revisa o próprio acesso, e quem não é admin não revisa ninguém.
 
-**Como:** **automático** — o sistema calcula, para cada usuário, se o acesso precisa de revisão e mostra na tela **Manter Usuários** (coluna *Acesso*, faixa de aviso com o filtro "só os pendentes"). **Ninguém pede nada**: nem o usuário com papel elevado, nem o admin; o admin só confere, nas linhas que lhe cabem, com **Manter acesso** (reconfirma os mesmos papéis) ou **Retirar papéis…** (desmarca o que a pessoa deixa de ter). A revisão **nunca concede** (conceder é editar o usuário), grava a data e registra `REVISOU_ACESSO` — mais o `ALTEROU_PAPEIS` do que foi retirado — na [auditoria de acessos](#auditoria-de-acessos), na mesma transação.
+**Como:** **automático** — o sistema calcula, para cada usuário, se o acesso precisa de revisão e mostra na tela **Manter Usuários** (coluna *Acesso*, faixa de aviso com o filtro "só os pendentes"). **Ninguém pede nada**: nem o usuário com papel elevado, nem o admin; o admin só confere, nas linhas que lhe cabem **e que estão pendentes**, com **Manter acesso** (reconfirma os mesmos papéis) ou **Retirar papéis…** (desmarca o que a pessoa deixa de ter). A revisão **nunca concede** (conceder é editar o usuário), grava a data e registra `REVISOU_ACESSO` — mais o `ALTEROU_PAPEIS` do que foi retirado — na [auditoria de acessos](#auditoria-de-acessos), na mesma transação.
+
+**Revisto, some:** os botões **Manter acesso** e **Retirar papéis…** só aparecem enquanto há pendência (um dos três motivos acima). Confirmada a revisão, a data é gravada, a pendência zera e os botões **desaparecem da linha** até um dos motivos voltar — passados mais 180 dias, uma troca de OM ou mais 180 dias sem entrar. O servidor recusa (`403`) revisar um acesso que está em dia, e a lista só marca `revisavel` o que está pendente.
 
 **Por ora só avisa:** as pendências aparecem na lista e na faixa de aviso da tela; **nada é suspenso nem desativado sozinho** (a suspensão dos papéis depois de uma carência e a notificação ao revisor ficam no [roadmap](roadmap.md)).
