@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.5.0](https://github.com/danielchipolesch/fab-legis/compare/v0.4.0...v0.5.0) (2026-11-19)
+
+
+### Features
+
+* **acesso:** Administrador da OM também no CENDOC, papéis ocultos e revisão que some ([c1a77ff](https://github.com/danielchipolesch/fab-legis/commit/c1a77ffacdb6e5ac74cfb65801a3589058025056))
+* **acesso:** Administrador da OM também no CENDOC, papéis ocultos e revisão que some ([606bc10](https://github.com/danielchipolesch/fab-legis/commit/606bc1084c6995fcc5465ea64bff23a3bbdd3067))
+* **armazenamento:** armazenamento de objetos em SeaweedFS, com o AWS SDK v2 ([29f8e96](https://github.com/danielchipolesch/fab-legis/commit/29f8e96621d7dd17675a7dd21ab5b6da5ac0c434))
+* **armazenamento:** armazenamento de objetos em SeaweedFS, com o AWS SDK v2 ([e50abf6](https://github.com/danielchipolesch/fab-legis/commit/e50abf61372901ea5f534b58488abc748fa25715))
+
+
+### Bug Fixes
+
+* **exportacao:** rótulo do artigo sem negrito ([4a80008](https://github.com/danielchipolesch/fab-legis/commit/4a800082ba056689be9938daec591fcdf122e716))
+* **exportacao:** rótulo do artigo sem negrito no PDF, HTML e prévia ([a068af7](https://github.com/danielchipolesch/fab-legis/commit/a068af7152c80fee38eb7ab04c0417a45ae340f4))
+* **previa:** figura da NPA não vaza mais da moldura; CSS e imagens compartilhados ([c139dd4](https://github.com/danielchipolesch/fab-legis/commit/c139dd4afeb97ed7a520c69404c345c173221539))
+* **previa:** figura da NPA não vaza mais da moldura; CSS e imagens compartilhados ([b4568af](https://github.com/danielchipolesch/fab-legis/commit/b4568af4c9996c7362ea801d7248812eb5800784))
+
 ## [0.4.0](https://github.com/danielchipolesch/fab-legis/compare/v0.3.0...v0.4.0) (2026-11-02)
 
 
