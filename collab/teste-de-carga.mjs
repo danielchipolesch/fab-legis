@@ -13,7 +13,7 @@
 import { HocuspocusProvider, HocuspocusProviderWebsocket } from '@hocuspocus/provider'
 import WebSocket from 'ws'
 import * as Y from 'yjs'
-import { obterToken } from '../loadtest/lib/autenticacao.mjs'
+import { obterToken } from '../tests/carga/lib/autenticacao.mjs'
 
 const {
   COLLAB_URL = 'ws://collab:1234', BASE_URL = 'http://backend:8081', CPF, SENHA,

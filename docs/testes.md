@@ -86,20 +86,20 @@ Ao editar, valem estas convenções (o que o GitHub entende, e nada além):
 
 ## Testes de carga e métricas
 
-Os testes de carga dizem quanto o sistema aguenta e **onde ele satura primeiro**, medindo o que o mercado usa: vazão (requisições por segundo), latência em percentis (**p95** e **p99**, não a média), taxa de erros e a utilização dos recursos (CPU, memória, conexões do banco). Ficam em `loadtest/` (backend, com [k6](https://k6.io)) e em `collab/teste-de-carga.mjs` (colaboração em tempo real). **Rode sempre contra um ambiente de teste, nunca contra produção**: eles criam documentos (com o título "Teste de carga…") e os apagam no fim.
+Os testes de carga dizem quanto o sistema aguenta e **onde ele satura primeiro**, medindo o que o mercado usa: vazão (requisições por segundo), latência em percentis (**p95** e **p99**, não a média), taxa de erros e a utilização dos recursos (CPU, memória, conexões do banco). Ficam em `tests/carga/` (backend, com [k6](https://k6.io)) e em `collab/teste-de-carga.mjs` (colaboração em tempo real). **Rode sempre contra um ambiente de teste, nunca contra produção**: eles criam documentos (com o título "Teste de carga…") e os apagam no fim.
 
 Os dois rodam em contêineres, dentro da rede do Docker Compose (nada para instalar), falando direto com o backend. Troque `CPF` e `SENHA` pelos de um usuário que possa criar documentos (o administrador padrão, em desenvolvimento):
 
 ```bash
 # Backend (k6). PERFIL: leve (10 usuários), medio (50) ou pico (100); DURACAO em segundos
-MSYS_NO_PATHCONV=1 docker run --rm --network fab-legis_default -v "$(pwd -W)/loadtest:/loadtest" \
+MSYS_NO_PATHCONV=1 docker run --rm --network fab-legis_default -v "$(pwd -W)/tests/carga:/carga" \
   -e BASE_URL=http://backend:8081 -e CPF=<cpf> -e SENHA=<senha> -e PERFIL=medio -e DURACAO=60 \
-  grafana/k6 run --quiet /loadtest/k6/api.js
+  grafana/k6 run --quiet /carga/k6/api.js
 
 # Collab: SALAS salas x CLIENTES por sala, todos digitando por DURACAO segundos
 MSYS_NO_PATHCONV=1 docker run --rm --network fab-legis_default -v "$(pwd -W):/r" \
   -e CPF=<cpf> -e SENHA=<senha> -e SALAS=30 -e CLIENTES=4 -e DURACAO=30 node:20-alpine \
-  sh -c "mkdir /t && cp -r /r/collab /r/loadtest /t/ && cd /t/collab && npm ci --silent && node teste-de-carga.mjs"
+  sh -c "mkdir /t && cp -r /r/collab /r/tests /t/ && cd /t/collab && npm ci --silent && node teste-de-carga.mjs"
 ```
 
 (O nome da rede, `fab-legis_default`, é o do projeto do Compose; em Linux use `$(pwd)` no lugar de `$(pwd -W)` e tire o `MSYS_NO_PATHCONV`.)
