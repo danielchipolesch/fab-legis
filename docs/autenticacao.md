@@ -1,4 +1,4 @@
-# Autenticação, Papéis e Colaboração
+# Autenticação e Colaboração
 
 Autenticação via **Spring Authorization Server embutido no próprio backend** (`AuthorizationServerConfig`) — OAuth2 Authorization Code + PKCE, tokens RSA assinados, validados por JWKS (`/oauth2/jwks`). As *claims* do access token continuam nomeadas como o Keycloak nomeia as suas (`sub`, `preferred_username`, `realm_access.roles`) de propósito, para que uma futura migração para o Keycloak real troque só `issuer-uri`/registro do client, sem tocar `DocumentoAcessoService`/`@PreAuthorize` nem o restante da lógica de autorização.
 
@@ -28,71 +28,9 @@ Autenticação via **Spring Authorization Server embutido no próprio backend** 
 
 O CPF é **dado pessoal**: em toda tela onde ele fica visível para um usuário — menu do usuário (o próprio CPF), lista de Manter Usuários e formulário de edição, coautores e seletores de pessoa (revisor/publicador), Auditoria — aparece **ocultado como no Portal da Transparência**, só com os 3 primeiros e os 2 últimos dígitos: `111.***.***-35` (`ocultarCpf` em `frontend/src/utils/cpf.js`; um valor malformado nunca é devolvido, sai totalmente oculto). Os campos em que a própria pessoa **digita** um CPF — login e cadastro de um novo usuário — continuam mostrando o que ela digita, e o CPF de um usuário existente não é editável. Isto é só exibição: a API ainda devolve o CPF completo onde a tela precisa dele para identificar a pessoa (ex.: compartilhar um documento envia o CPF do coautor escolhido).
 
-## Papéis e posse de documento
+## Papéis, escopo e habilitação
 
-Nenhum poder sobre o ciclo de vida de um documento é implícito — todos os papéis são concedidos explicitamente na tela **Manter Usuários** (restrita a administradores), em `PapelEnum`. Uma pessoa sem papel nenhum só visualiza o acervo. Cada papel tem **código** (o que vai para o banco e para o token) e **nome por extenso** (o que as telas mostram), guardados no enum e na tabela `t_papel` (`db/migration/V1__initial.sql`, conferidos por `PapelEnumIntegracaoTest`); o **escopo** (geral ou da OM) está no próprio código:
-
-| Código | Nome por extenso | O que faz |
-|---|---|---|
-| `ELB` | **Elaborador** | Cria documentos e edita (inclusive os **anexos**, que seguem a mesma regra de edição) / exclui (em Rascunho/Minuta) os que autorou ou dos quais é coautor; move o documento entre as etapas de elaboração e o **envia para aprovação**. Todo usuário tem este papel |
-| `APR_OM` | **Aprovador da OM** | Age nos documentos da **própria OM** que aguardam aprovação (`EM_REVISAO`/`ANALISE_REVOGACAO`) — qualquer aprovador da OM, ninguém é escolhido: aprova (o documento segue para a fila de publicação do CENDOC) ou devolve. Também pode, livremente, reabrir para alteração qualquer documento publicado da própria OM (`SEM_ETAPA → EM_ALTERACAO`) e cancelar uma alteração em curso sem alterações pendentes (`EM_ALTERACAO → SEM_ETAPA`) |
-| `PUB_BCA` | **Publicador do BCA** | Exclusivo do **CENDOC** (a publicação no BCA é dele). Age nos documentos de **espécie convencional** que aguardam publicação (`EM_PUBLICACAO`/`EM_REVOGACAO`), de qualquer OM — qualquer publicador, ninguém é escolhido: publica (podendo devolver) ou revoga (com portaria/BCA e parte preliminar; uma revogação aprovada não é devolvida) |
-| `PUB_BI` | **Publicador do Boletim Interno** | Existe em **qualquer OM**, inclusive no CENDOC. Publica e revoga as **NPAs da própria OM** (que são de uso interno dela), registrando o número e a data do Boletim Interno; não age em NPA de outra OM nem em espécie convencional. |
-| `AUD_OM` | **Auditor da OM** | Consulta a trilha de auditoria (tela **Auditoria**) **da própria OM** |
-| `AUD_GER` | **Auditor Geral** | Consulta a trilha de auditoria **de todas as OMs**; exclusivo do CENDOC |
-| `ADM_OM` | **Administrador da OM** | Gerencia os **usuários da própria OM** (ver [Escopo de acesso](#escopo-de-acesso-geral-e-local)); puramente administrativo: não edita, aprova nem publica documento nenhum |
-| `ADM_GER` | **Administrador Geral** | Gerencia os usuários de **todas** as OMs e os administradores das OMs; cadastra habilitação de espécies e DOM; exclusivo do CENDOC. Também puramente administrativo |
-| `PNL_OM` | **Painel Gerencial da OM** | Consulta os indicadores do [Painel Gerencial](funcionalidades.md#painel-gerencial) **da própria OM** (filtrados automaticamente); não altera nada. Existe em **toda OM, o CENDOC inclusive**: ele é uma OM sujeita às mesmas regras das demais |
-| `PNL_GER` | **Painel Gerencial Geral** | Consulta os indicadores do Painel Gerencial **de todas as OMs**, com filtro por OM; exclusivo do CENDOC, como exceção inerente à sua função de órgão central. No CENDOC pode **somar-se** ao `PNL_OM` (quem tem os dois escolhe a visão). O usuário padrão do sistema nasce com este papel |
-
-O Auditor (da OM ou Geral) é independente do Administrador: quem administra **não** enxerga a auditoria automaticamente, precisa ter o papel de auditor. Cada papel só combina com a lotação certa: `ADM_GER`, `AUD_GER`, `PNL_GER` e `PUB_BCA` só existem lotados no CENDOC; `ADM_OM` e `AUD_OM`, nas demais OMs; `PNL_OM` e `PUB_BI` existem em **qualquer** OM, o CENDOC inclusive (o sistema recusa o resto, com a regra na mensagem).
-
-**Quem pode editar um documento, e quando** (`DocumentoAcessoService.podeEditar`, a checagem de todo endpoint que altera o documento e a que o servidor de colaboração consulta em `GET /documentos/{id}/pode-editar`): em `RASCUNHO`, `MINUTA` e `EM_ALTERACAO`, o autor e os coautores com papel Editor; em `EM_REVISAO`, **só** os aprovadores da OM do documento (e só se o documento ainda não foi publicado — nem o autor edita durante a revisão); em qualquer outra etapa (`EM_PUBLICACAO` em diante, todo o fluxo de revogação, `CANCELADO`, `SEM_ETAPA`) ninguém, nem o autor. **Mudar de etapa e excluir** dependem da *posse* do documento (autor/coautor com papel Editor), não de poder editar o conteúdo naquela etapa — por isso o autor ainda pede a revogação de um ato publicado, mesmo com o conteúdo congelado. **Enviar o PDF da portaria** (`POST /documentos/{id}/portaria-pdf`) é de um publicador (CENDOC), com o documento em `EM_PUBLICACAO` ou `EM_REVOGACAO` (`podeEnviarPortaria`) — a mesma pessoa que registra a publicação.
-
-**Sem atribuição pessoal — "Enviar para aprovação":** ao enviar um documento para aprovação (ou pedir a análise de revogação) o Editor **não escolhe ninguém**: o documento fica disponível para **qualquer aprovador da OM do documento** (`DocumentoAcessoService.ehAprovadorDaOm`), que também são avisados por notificação; ao aprovar, ele vai para a fila de publicação que a espécie manda — a do CENDOC (**Publicador do BCA**), nas espécies convencionais, ou a da **própria OM** (**Publicador do Boletim Interno**), nas NPAs —, onde **qualquer publicador** daquela fila age (ver [Escopo de acesso](#escopo-de-acesso-geral-e-local)). O que fica registrado é *quem aprovou* (`Documento.aprovador`, o "Aprovado por" da NPA) e *quem publicou* (`Documento.publicador`), por quem de fato agiu. Ninguém precisa estar disponível: férias ou troca de comando não travam um documento. Ver [Ciclo de Vida do Documento](ciclo-de-vida.md) para o fluxo completo.
-
-**Coautoria:** o autor de um documento pode adicionar outros usuários como coautores (`DocumentoCompartilhamentoService`) — um coautor ganha os mesmos direitos de edição/exclusão do autor sobre aquele documento específico, mas só o autor pode gerenciar a lista de coautores. A busca no `CompartilharDialog.vue` é por **nome de guerra ou nome completo** (`GET /usuarios/buscar?q=`), nunca por CPF digitado — CPF é dado pessoal que o autor raramente sabe de cor; o CPF do usuário escolhido é resolvido internamente a partir do resultado da busca e só então enviado ao backend (`compartilhar`, que continua identificando o coautor por CPF). Diferente do seletor de revisor/publicador (escopado à OM de quem escolhe), essa busca é **sem filtro de OM**, coerente com a coautoria em si não ser restrita a isso (ver abaixo). A OM nunca é barreira pra coautoria: o documento aparece em "Meus Documentos" pro autor e pra todo coautor, **qualquer que seja a OM de cada um** (`DocumentoSpecifications.aba`), refletido ali em tempo real assim que o compartilhamento acontece, via a mesma notificação SSE `DOCUMENTO_COMPARTILHADO` do sino de notificações. Já "Documentos da Minha OM"/"Documentos de Outras OMs" continuam decididos só pela OM do documento em si (a OM do autor no momento da criação), sem olhar autoria/coautoria — por isso essas abas propositalmente **se sobrepõem** a "Meus Documentos" em vez de excluí-la: um documento da OM A com um coautor da OM B aparece em "Meus Documentos" **e** "Documentos da Minha OM" pra quem é da OM A, mas em "Meus Documentos" **e** "Documentos de Outras OMs" pro coautor da OM B.
-
-## Escopo de acesso (geral e local)
-
-O acesso tem **escopo**: só o **CENDOC** tem o escopo **geral**; toda outra OM tem escopo **local** (`EscopoDeAcesso`). O escopo está no próprio papel (`ADM_GER`/`AUD_GER` são do CENDOC; `ADM_OM`/`AUD_OM`, das demais OMs) e o login ganha uma authority por papel, pelo código (`ROLE_ADM_GER`, `ROLE_AUD_OM`…) para o `@PreAuthorize`.
-
-| | **Geral** (CENDOC) | **Local** (outra OM) |
-|---|---|---|
-| **Administrador** (`ADM_GER` / `ADM_OM`) | Vê e gerencia os usuários de **todas** as OMs; mantém os **administradores das OMs** (só ele concede `ADM_OM`); cadastra **habilitação de espécies** e **DOM** (`Manter Habilitação…`, `Manter DOM de OM`) | Vê e gerencia **só os usuários da própria OM**; concede **Elaborador, Aprovador da OM e Auditor da OM**; **nunca** concede `ADM_OM` nem `PUB_BCA`; não altera outro administrador; não muda um usuário de OM |
-| **Auditor** (`AUD_GER` / `AUD_OM`) | Trilha de auditoria **completa** (documentos e acessos) | Só o que é da **própria OM**: ações dos usuários dela e acessos a eles |
-
-- **O admin local nunca extrapola o escopo.** Um usuário de outra OM nem aparece para ele (404, como se não existisse), e qualquer tentativa de criar ou mudar fora da própria OM, conceder `ADM_OM` ou mexer em outro administrador responde **403** com a regra violada. A tela de usuários já mostra só o que vale (OM fixa, papéis desabilitados com explicação); o servidor é quem garante.
-- **Publicador só no CENDOC:** a publicação no BCA é do CENDOC, então o papel `PUB_BCA` só existe para quem é da OM CENDOC — recusado para qualquer outra OM, inclusive pelo admin geral.
-- **Publicador do Boletim Interno, em qualquer OM:** a NPA é de uso interno da OM e é publicada nela, então `PUB_BI` existe em qualquer lotação (inclusive o CENDOC, para as NPAs dele) e o **admin da OM o concede** aos da própria OM. Qual publicador age em qual documento é regra da espécie (`RegrasDaEspecieNormativa.podePublicar`): o do BCA, nas convencionais de qualquer OM; o do Boletim Interno, só nas NPAs da própria OM.
-- **Qualquer OM vê qualquer documento, NPA inclusive** (premissa do sistema, inegociável: estimula as boas práticas); o que a NPA tem de "interno" é quem a produz, publica e acompanha nos indicadores, não quem a pode ler.
-- **Administrador Geral só no CENDOC:** `ADM_GER` (e `AUD_GER`, `PUB_BCA`) só existem para quem é **lotado no CENDOC** — o sistema recusa concedê-los a quem é de outra OM, e recusa `ADM_OM`/`AUD_OM` a quem é do CENDOC (lá, use o geral). E o CENDOC **nunca fica sem Administrador Geral**: o último `ADM_GER` ativo não pode perder o papel, ser desativado nem mudar de OM (`EscopoDeAcesso.exigirAoMenosUmAdminGeral`) — conceda o papel a outra pessoa do CENDOC antes.
-- Quem cria os usuários hoje é o admin: o geral cria o primeiro admin de cada OM e o admin local cria os demais da sua OM (não há como saber a lotação do militar enquanto o login é local; com o SSO da FAB cada pessoa se autocadastra, sempre com escopo local — ver o [roadmap](roadmap.md)).
-- Todos continuam **vendo todos os documentos de todas as OMs** e alterando só segundo as regras de posse (autor/coautor), como antes.
-
-## Habilitação de documentos
-
-**Nem toda OM pode criar documentos de espécies normativas convencionais.** Só criam (MCA, NSCA, ICA, ROCA, DCA, FCA, OCA, PCA, RCA, RICA, TCA…) as organizações militares que o administrador do sistema (o **CENDOC**, papel `ADMIN`) **habilitou** para a espécie. A **NPA** (Comunicações Oficiais Padronizadas) é criada por **qualquer** OM.
-
-**O que a habilitação controla — só a criação.**
-
-| Quem | Consulta (hub e módulo) | Cria | Clona | Coautor (edita o que lhe foi compartilhado) |
-|---|---|---|---|---|
-| Pessoa de **OM habilitada** na espécie | sim | sim | sim | sim |
-| Pessoa de **OM sem habilitação** | **sim, normalmente** | não — o botão **não aparece** | não — o botão não aparece | **sim**: pode ser coautora de documento de OM habilitada |
-| NPA, qualquer OM | sim | sim | sim | sim |
-
-Ou seja, as espécies convencionais continuam aparecendo no hub e no módulo para todos; o que some, para quem não é de OM habilitada, é o botão de **criar** (o **Criar** do hub só lista os módulos em que a OM cria, e o botão **Novo Documento** do módulo) e o de **clonar**, que também cria um documento. O papel `EDIT` continua necessário para criar; a habilitação é uma segunda condição.
-
-**Padrão do primeiro boot:** apenas o **GABAER** e o **CENDOC** podem criar **todas** as espécies convencionais (`HabilitacaoPadraoRunner`, que só age enquanto não existe nenhuma habilitação gravada: depois disso a tabela é do administrador, e uma habilitação removida por ele não volta). O administrador padrão nasce na OM do CENDOC. Uma espécie convencional nova não é habilitada sozinha para ninguém: o administrador a habilita.
-
-**Gestão — tela *Manter Habilitação de Espécies Normativas por OM*** (menu do usuário → *Manter Habilitação de Espécies Normativas por OM*, só `ADMIN`; `HabilitacaoDeDocumentosPage.vue`): **uma linha por espécie convencional** (cerca de uma dúzia), cada uma com as **OMs habilitadas a criá-la**, em chips que mostram só a **sigla**, e um seletor com busca (por sigla ou nome) para adicionar ou remover OMs. Foi escolhida a visão por espécie, e não uma linha por OM, porque quase nenhuma OM tem habilitação: a tela fica curta, sem linhas vazias, e responde direto "quem cria DCA?". A pergunta inversa ("o que a OM X cria?") é do filtro **Ver o que uma OM pode criar** no topo, que marca as espécies em que a OM aparece e conta quantas ela cria. Cada mudança é gravada na hora (e desfeita com aviso se o servidor recusar); *Remover todas as OMs* limpa uma espécie. A NPA não aparece, porque não depende de habilitação. Ficou como tela separada de *Manter Usuários*: não existe um cadastro de OMs ("Manter OMs") onde ela coubesse.
-
-**Como é aplicada.**
-- A espécie diz se exige habilitação: `RegraDeHabilitacaoDaOm.exigeHabilitacaoDaOm()`, uma das interfaces de regra por espécie (convencional: sim; NPA: não) — nunca um `if` na sigla.
-- O backend barra: `DocumentoService.create` e `clone` chamam `HabilitacaoDeCriacaoService.exigirPodeCriar`, e uma OM sem habilitação recebe **403** com a mensagem "A sua organização militar não está habilitada a criar documentos da espécie X. Peça a habilitação ao administrador do sistema (CENDOC)." (`OperacaoNaoAutorizadaException`).
-- O frontend esconde o botão: `GET /v1/habilitacao-de-documentos/minhas` devolve as espécies que a OM de quem pergunta cria, e a store de autenticação (`especiesCriaveis`) decide onde aparecem o **Criar** do hub, o **Novo Documento** do módulo e o **Clonar**, e quais espécies o seletor do diálogo de novo documento oferece. Enquanto a lista não carrega, nenhum botão de criar aparece.
-- Os dados ficam em `t_om_especie_habilitada` (OM × espécie; `db/migration/V1__initial.sql`).
+Quem pode o quê — papéis, escopo geral e local, posse e edição do documento, quem faz cada transição, coautoria e habilitação de espécies por OM — está em [Papéis e Permissões](papeis-e-permissoes.md).
 
 ## Edição concorrente
 
@@ -108,7 +46,7 @@ Em RASCUNHO/MINUTA, duas peças complementares — uma para o *conteúdo* de cad
 
 ## Notificações e auditoria
 
-- **Notificações em tempo real** (sino no topbar, via SSE) — gravadas na mesma transação da ação que as gera e entregues ao vivo a quem estiver conectado: documento compartilhado com você, ou documento aguardando a aprovação da sua OM (para os aprovadores da OM) ou aguardando publicação (para os publicadores da espécie: o do BCA, no CENDOC, nas convencionais; o do Boletim Interno da OM do documento, nas NPAs) — ver papéis acima.
+- **Notificações em tempo real** (sino no topbar, via SSE) — gravadas na mesma transação da ação que as gera e entregues ao vivo a quem estiver conectado: documento compartilhado com você, ou documento aguardando a aprovação da sua OM (para os aprovadores da OM) ou aguardando publicação (para os publicadores da espécie: o do BCA, no CENDOC, nas convencionais; o do Boletim Interno da OM do documento, nas NPAs) — ver [Papéis e Permissões](papeis-e-permissoes.md).
 - **Trilha de auditoria** (`LogAuditoria`) — quem visualizou, criou, editou, excluiu, clonou, mudou situação ou (des)compartilhou cada documento, e quando; consultável e filtrável por quem tem o papel Auditor na tela **Auditoria**. O registro sobrevive à exclusão do documento (guarda um retrato do código/descrição no momento da ação, não uma referência viva — pelo mesmo motivo, nunca uma FK para a linha do elemento em si, que pode ser excluída ou sobrescrita depois). Cobre também o salvamento granular da colaboração em tempo real (`PATCH .../elementos/{id}/conteudo`), registrado em cima do que já é persistido pelo Hocuspocus (que já debouncha essa chamada — 2 a 10s, nunca por *keystroke*), então não adiciona volume além do que a própria colaboração já gera. Uma falha ao gravar a auditoria em si nunca derruba a ação de negócio (fica só num log de erro) — a ação já foi commitada antes desse registro ser tentado.
 
 ### Auditoria de acessos
@@ -116,7 +54,7 @@ Em RASCUNHO/MINUTA, duas peças complementares — uma para o *conteúdo* de cad
 Além da trilha de documentos, toda mudança no **acesso de um usuário** deixa registro (`LogDeAcesso`, tabela `t_log_acesso`): **criação** do usuário, **concessão ou retirada de papel**, **ativação/desativação**, **troca de OM** e **redefinição de senha**. Cada registro guarda quem fez (nulo = o próprio sistema, como no administrador padrão do primeiro boot), o usuário afetado (um *snapshot*: id, CPF, nome e a sigla da OM no momento, para a trilha sobreviver a mudanças posteriores do cadastro), a ação, o detalhe ("Concedido(s): APROV. Papéis agora: APROV, EDIT"; "BAGL → CENDOC") e a data.
 
 - **Atomicidade:** o registro é gravado **na mesma transação** da mudança (`AuditoriaDeAcessoService`, ao contrário da auditoria de documentos, que engole a falha): conceder um papel sem deixar rastro é pior do que não conceder. Editar um usuário sem mudar papéis, situação nem OM não gera registro (`DiferencaDeAcesso`: só o que de fato mudou, um evento por tipo de mudança).
-- **Consulta:** `GET /v1/auditoria/acessos` (filtros: CPF do usuário afetado, ação, período), na aba **Acessos** da tela *Auditoria* — só o papel `AUDITOR`, como a auditoria de documentos.
+- **Consulta:** `GET /v1/auditoria/acessos` (filtros: CPF do usuário afetado, ação, período), na aba **Acessos** da tela *Auditoria* — só o papel Auditor (da OM ou Geral), como a auditoria de documentos.
 
 ### Revisão periódica de acessos
 
