@@ -281,7 +281,7 @@
             <q-td :props="props" class="text-center">
               <div class="row justify-center no-wrap" style="gap:4px">
 
-                <!-- Editar — só RASCUNHO e MINUTA -->
+                <!-- Editar — só RASCUNHO e EM_ALTERACAO (na MINUTA quem edita é quem aprova, pela fila de Revisão) -->
                 <q-btn
                   icon="mdi-pencil-outline"
                   size="sm"
@@ -510,7 +510,7 @@
     </q-dialog>
 
     <!-- Confirm status change dialog -- só para transições sem escolha de pessoa
-         (Enviar para Minuta, Enviar para Aprovação, Iniciar Alteração); publicar/revogar de fato (com portaria/BCA)
+         (Enviar para Aprovação, Iniciar Alteração); publicar/revogar de fato (com portaria/BCA)
          mudou para PublicacaoPage.vue, que é quem tem a atribuição pra isso. -->
     <q-dialog v-model="dialog.status" :persistent="alterandoStatus">
       <q-card style="min-width:420px;max-width:500px;width:100%">
@@ -731,18 +731,18 @@ const resumoBca = computed(() => resumir(SITUACAO_BCA_META, store.resumoSituacao
 const resumoLocal = computed(() => resumir(SITUACAO_LOCAL_META, store.resumoSituacaoLocal, ['SEM_ETAPA']))
 
 // O ícone da tela do módulo sempre abre em modo leitura (visualizar), mesmo para o
-// aprovador da OM durante EM_REVISAO -- ele entra no editor de propósito, pelo
-// link "Editar" da tela de visualização (mesmo padrão de Rascunho/Minuta) ou
+// aprovador da OM durante a MINUTA -- ele entra no editor de propósito, pelo
+// link "Editar" da tela de visualização (mesmo padrão do Rascunho) ou
 // pela fila de Revisão, nunca direto por aqui.
 //
 // Posse (autor OU coautor) é tão obrigatória quanto o status -- mesma regra
 // de DocumentoAcessoService.podeEditar no backend (que já barrava a edição de
 // verdade; o que faltava era o ÍCONE refletir isso, em vez de ficar habilitado
-// pra RASCUNHO/MINUTA de qualquer um só porque a OM bate). eh_autor_ou_coautor
+// pra RASCUNHO de qualquer um só porque a OM bate). eh_autor_ou_coautor
 // só vem preenchido (true/false) na listagem paginada -- ver
 // DocumentoResponseSemAnexoTextualDto.ehAutorOuCoautor/backendParaFrontend.
 function statusPermiteEdicao(doc) {
-  return ['RASCUNHO', 'MINUTA', 'EM_ALTERACAO'].includes(doc.situacao_local)
+  return ['RASCUNHO', 'EM_ALTERACAO'].includes(doc.situacao_local)
 }
 
 function temPosseDocumento(doc) {
@@ -758,16 +758,17 @@ function canEdit(doc) {
 // verdade (autor/coautor) não sabe se o problema é o documento estar
 // Aprovado ou se é de outra pessoa.
 function tooltipEditar(doc) {
-  if (!statusPermiteEdicao(doc)) return 'Edição disponível apenas para Rascunho e Minuta'
+  if (!statusPermiteEdicao(doc)) return 'Edição disponível apenas para Rascunho e Em Alteração'
   if (!temPosseDocumento(doc)) return 'Você só pode editar documentos os quais é autor ou coautor'
   return 'Editar'
 }
 
 // Mesma correção de posse que canEdit -- DocumentoAcessoService.podeExcluir
 // também exige autor/coautor, não só o status; sem isso "Excluir" aparecia no
-// menu "⋮" pra Rascunho/Minuta de qualquer pessoa da mesma OM.
+// menu "⋮" pra Rascunho de qualquer pessoa da mesma OM. Só o rascunho se exclui: um documento que já foi para aprovação
+// (Minuta) só se exclui depois de a autoridade devolvê-lo aos autores.
 function canDelete(doc) {
-  return ['RASCUNHO', 'MINUTA'].includes(doc.situacao_local) && temPosseDocumento(doc)
+  return doc.situacao_local === 'RASCUNHO' && temPosseDocumento(doc)
 }
 
 // Mesmo critério que decide o que aparece dentro do menu "⋮" -- se nada
@@ -792,22 +793,19 @@ function docRoute(doc) {
 function statusActions(doc) {
   const publicado = doc.situacao_bca === 'PUBLICADO'
   switch (doc.situacao_local) {
+    // O rascunho só vira Minuta ao ser enviado para aprovação; na Minuta quem decide é a autoridade (tela de Revisão), por isso não há ação aqui.
     case 'RASCUNHO':
       return auth.isElaborador
-        ? [{ destino: 'MINUTA', label: 'Enviar para Minuta', icon: 'mdi-file-edit-outline', rotuloDestino: 'Minuta' }]
-        : []
-    case 'MINUTA':
-      return auth.isElaborador
         ? [{
-          destino: 'EM_REVISAO', label: 'Enviar para Aprovação', icon: 'mdi-account-arrow-right-outline',
-          descricao: 'será enviado para aprovação: qualquer aprovador da OM poderá aprová-lo ou devolvê-lo. Ninguém precisa ser escolhido.',
+          destino: 'MINUTA', label: 'Enviar para Aprovação', icon: 'mdi-account-arrow-right-outline',
+          descricao: 'será enviado para aprovação: qualquer aprovador da OM poderá aprová-lo, devolvê-lo aos autores ou arquivá-lo. Ninguém precisa ser escolhido.',
         }]
         : []
     case 'EM_ALTERACAO':
       return [
         ...(auth.isElaborador ? [{
-          destino: 'EM_REVISAO', label: 'Enviar Alteração para Aprovação', icon: 'mdi-account-arrow-right-outline',
-          descricao: 'será enviado para aprovação: qualquer aprovador da OM poderá aprová-lo ou devolvê-lo. Ninguém precisa ser escolhido.',
+          destino: 'MINUTA', label: 'Enviar Alteração para Aprovação', icon: 'mdi-account-arrow-right-outline',
+          descricao: 'será enviado para aprovação: qualquer aprovador da OM poderá aprová-lo ou devolvê-lo aos autores. Ninguém precisa ser escolhido.',
         }] : []),
         // Desistir da alteração: o documento segue PUBLICADO com a versão vigente (SEM_ETAPA =
         // concluir a etapa, aqui, cancelando-a). Só sem alterações pendentes: cada uma se desfaz

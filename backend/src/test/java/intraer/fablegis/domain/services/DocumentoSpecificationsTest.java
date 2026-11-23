@@ -63,17 +63,17 @@ class DocumentoSpecificationsTest {
     void emTramitacaoSaoAsEtapasEmQueODocumentoAindaEstaEmTrabalho() {
         assertThat(DocumentoSpecifications.SITUACOES_EM_TRAMITACAO).containsExactlyInAnyOrder(
                 SituacaoLocalEnum.RASCUNHO, SituacaoLocalEnum.MINUTA, SituacaoLocalEnum.EM_ALTERACAO,
-                SituacaoLocalEnum.EM_REVISAO, SituacaoLocalEnum.EM_PUBLICACAO,
+                SituacaoLocalEnum.EM_PUBLICACAO,
                 SituacaoLocalEnum.ANALISE_REVOGACAO, SituacaoLocalEnum.EM_REVOGACAO);
-        // Parado (SEM_ETAPA) e cancelado não são "em tramitação".
+        // Parado (SEM_ETAPA), cancelado e arquivado não são "em tramitação".
         assertThat(DocumentoSpecifications.SITUACOES_EM_TRAMITACAO)
-                .doesNotContain(SituacaoLocalEnum.SEM_ETAPA, SituacaoLocalEnum.CANCELADO);
+                .doesNotContain(SituacaoLocalEnum.SEM_ETAPA, SituacaoLocalEnum.CANCELADO, SituacaoLocalEnum.ARQUIVADO);
     }
 
     @Test
     void aRevisaoEAPublicacaoSaoAsEtapasDeCadaPapelNoFluxoNormalENaRevogacao() {
         assertThat(DocumentoSpecifications.SITUACOES_DE_REVISAO)
-                .containsExactlyInAnyOrder(SituacaoLocalEnum.EM_REVISAO, SituacaoLocalEnum.ANALISE_REVOGACAO);
+                .containsExactlyInAnyOrder(SituacaoLocalEnum.MINUTA, SituacaoLocalEnum.ANALISE_REVOGACAO);
         assertThat(DocumentoSpecifications.SITUACOES_DE_PUBLICACAO)
                 .containsExactlyInAnyOrder(SituacaoLocalEnum.EM_PUBLICACAO, SituacaoLocalEnum.EM_REVOGACAO);
         // Todo documento que espera a ação de alguém também está em tramitação.

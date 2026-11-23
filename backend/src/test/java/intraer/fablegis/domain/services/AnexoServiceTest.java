@@ -44,7 +44,6 @@ class AnexoServiceTest {
     @Mock AnexoRepository anexoRepository;
     @Mock DocumentoRepository documentoRepository;
     @Mock ImagemService imagemService;
-    @Mock DocumentoStatusService documentoStatusService;
 
     @InjectMocks AnexoService service;
 
@@ -124,7 +123,7 @@ class AnexoServiceTest {
 
     @ParameterizedTest
     @EnumSource(value = SituacaoLocalEnum.class,
-            names = {"EM_PUBLICACAO", "ANALISE_REVOGACAO", "EM_REVOGACAO", "CANCELADO", "SEM_ETAPA"})
+            names = {"EM_PUBLICACAO", "ANALISE_REVOGACAO", "EM_REVOGACAO", "CANCELADO", "ARQUIVADO", "SEM_ETAPA"})
     void naoSeAnexaComODocumentoCongelado(SituacaoLocalEnum etapa) throws Exception {
         documento.setSituacaoLocal(etapa);
 
@@ -148,7 +147,7 @@ class AnexoServiceTest {
     }
 
     @ParameterizedTest
-    @EnumSource(value = SituacaoLocalEnum.class, names = {"RASCUNHO", "MINUTA", "EM_ALTERACAO", "EM_REVISAO"})
+    @EnumSource(value = SituacaoLocalEnum.class, names = {"RASCUNHO", "MINUTA", "EM_ALTERACAO"})
     void nasEtapasDeEdicaoSeAnexaESeRemove(SituacaoLocalEnum etapa) throws Exception {
         documento.setSituacaoLocal(etapa);
         var existente = new Anexo();
@@ -161,19 +160,13 @@ class AnexoServiceTest {
         verify(anexoRepository).delete(existente);
     }
 
+    // O documento só vira Minuta ao ser enviado para aprovação: anexar uma imagem não muda a etapa (o rascunho segue rascunho).
     @Test
-    void anexarEmRascunhoMudaODocumentoParaMinuta() throws Exception {
+    void anexarEmRascunhoNaoMudaAEtapa() throws Exception {
         documento.setSituacaoLocal(SituacaoLocalEnum.RASCUNHO);
 
         service.adicionar(7L, "Anexo", png(100, 100), null);
 
-        verify(documentoStatusService).changeStatus(eq(7L), any());
-    }
-
-    @Test
-    void anexarForaDoRascunhoNaoMudaASituacao() throws Exception {
-        service.adicionar(7L, "Anexo", png(100, 100), null);
-
-        verify(documentoStatusService, never()).changeStatus(any(), any());
+        assertThat(documento.getSituacaoLocal()).isEqualTo(SituacaoLocalEnum.RASCUNHO);
     }
 }

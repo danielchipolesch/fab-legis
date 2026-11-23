@@ -16,7 +16,7 @@ Para quem tem o papel **Painel Gerencial da OM** ou **Painel Gerencial Geral**. 
 
 ## Os indicadores
 
-- **Resumo:** *criados*, *publicados*, *revogados* e *devolvidos* no período; *em tramitação* e *vigentes* **agora**. Um documento devolvido é o que voltou à minuta a partir da aprovação ou da publicação.
+- **Resumo:** *criados*, *publicados*, *revogados* e *devolvidos* no período; *em tramitação* e *vigentes* **agora**. Um documento devolvido é o que voltou aos autores (ao rascunho, ou à alteração em curso) a partir da aprovação ou da publicação.
 - **Documentos por Mês:** colunas de criados e linha de publicados em cada mês.
 - **Criados por Espécie:** a divisão do período por espécie.
 - **Tempo em Cada Etapa:** a **mediana** e o "90% até" (o prazo dentro do qual 90% dos casos se resolvem), em dias, para elaboração (criação até o envio para aprovação), aprovação e publicação. Usa-se a mediana, e não a média, porque poucos casos muito lentos distorceriam a média.

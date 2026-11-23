@@ -6,8 +6,8 @@ import lombok.Getter;
 public enum DocumentoException {
 
     NOT_FOUND("Documento não encontrado."),
-    CANNOT_BE_UPDATED("Documento não está em MINUTA ou RASCUNHO."),
-    CANNOT_BE_DELETED("Apenas documentos em RASCUNHO ou MINUTA podem ser excluídos."),
+    CANNOT_BE_UPDATED("O documento não está numa etapa em que possa ser editado."),
+    CANNOT_BE_DELETED("Apenas documentos em RASCUNHO podem ser excluídos: se já foi para aprovação, a autoridade precisa devolvê-lo aos autores."),
     CANNOT_BE_REPLACED("Só uma NPA publicada, sem etapa em curso (nem pedido de revogação), pode ser substituída."),
     ANEXOS_CANNOT_BE_UPDATED("Os anexos só podem ser alterados enquanto o documento está em edição "
             + "(Rascunho, Minuta, Em Alteração ou Em Revisão)."),

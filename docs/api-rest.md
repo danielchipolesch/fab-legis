@@ -27,8 +27,8 @@ Endpoints padrão do Spring Authorization Server (`AuthorizationServerConfig`), 
 | `GET` | `/obter-todos` | Lista paginada (DTO enxuto, sem os itens da árvore); filtros `aba`, `busca`, `tipoDeEspecie` (o módulo: `CONVENCIONAL` ou `COMUNICACAO_OFICIAL_PADRONIZADA`), `especieSigla`, `situacaoBca`, `situacaoLocal`. Cada item traz `situacaoBca` e `situacaoLocal`. `GET /resumo` devolve as contagens `porAba`, `porSituacaoBca` e `porSituacaoLocal` |
 | `GET` | `/filtrar` | Filtra por espécie normativa e assunto básico |
 | `GET` | `/busca?q=&page=&size=` | Busca full-text no **conteúdo** dos dispositivos (`tsvector`/PostgreSQL, ver [Funcionalidades](funcionalidades.md#busca-textual)) — resultado paginado por dispositivo (não por documento), com trecho destacado |
-| `PUT` | `/{id}` | Atualiza metadados (somente Rascunho/Minuta, autor/coautor). `identificacao` (o código do documento) só é aceita numa NPA e em Rascunho/Minuta; nas convencionais um valor diferente do atual é recusado |
-| `PATCH` | `/{id}/status` | Muda a **Situação Local** (corpo: `situacaoLocal` (sem escolher pessoa: "enviar para aprovação" e "aprovar" valem para qualquer aprovador da OM e qualquer publicador); `SEM_ETAPA` = concluir a etapa em curso). Transição validada e autorizada por papel; publicar/revogar registram Portaria+BCA (a parte preliminar só na 1ª publicação) — ou, numa NPA, só `numeroBoletimInterno` + `dataBoletimInterno` e são os únicos a mudar a Situação BCA — ver [Ciclo de Vida](ciclo-de-vida.md) |
+| `PUT` | `/{id}` | Atualiza metadados (autor/coautor em Rascunho e Em alteração; quem aprova, na Minuta). `identificacao` (o código do documento) só é aceita numa NPA e em Rascunho; nas convencionais um valor diferente do atual é recusado |
+| `PATCH` | `/{id}/status` | Muda a **Situação Local** (corpo: `situacaoLocal` (sem escolher pessoa: "enviar para aprovação" e "aprovar" valem para qualquer aprovador da OM e qualquer publicador); `SEM_ETAPA` = concluir a etapa em curso; `justificativa`, obrigatória só ao **arquivar**, `MINUTA → ARQUIVADO`). Transição validada e autorizada por papel; publicar/revogar registram Portaria+BCA (a parte preliminar só na 1ª publicação) — ou, numa NPA, só `numeroBoletimInterno` + `dataBoletimInterno` e são os únicos a mudar a Situação BCA — ver [Ciclo de Vida](ciclo-de-vida.md) |
 | `GET` | `/{id}/pdf?versao=` | `/{id}/html?versao=` | PDF/HTML do documento. `versao=VIGENTE` (a da Situação BCA, armazenada) ou `TRAMITACAO` (a da etapa local em curso); sem o parâmetro, a em tramitação se houver, senão a vigente. `404` se a versão pedida não existe |
 | `PATCH` | `/{id}/secoes` | Salva a árvore de seções por *diff* contra o que já está persistido (checagem de versão) — nunca reescreve `conteudo` de elemento existente, criado/atualizado/excluído propagam via SSE (`event: estrutura`); resposta é `{ itens, numeracao }`, não só a árvore |
 | `PATCH` | `/{id}/elementos/{elementoId}/conteudo` | Grava só o `conteudo` de um elemento — usado pelo serviço `collab` a cada persistência da edição colaborativa |
@@ -39,7 +39,7 @@ Endpoints padrão do Spring Authorization Server (`AuthorizationServerConfig`), 
 | `GET` | `/{id}/html` | Gera o HTML oficial do documento sob demanda (regras da NSCA 5-3 para a versão eletrônica — ver [Exportação HTML](exportacao-pdf.md#exportação-html)) |
 | `GET` | `/{id}/portarias` | Lista todas as portarias registradas do documento (edição, alterações numeradas, revogação) |
 | `POST` | `/{id}/portaria-pdf` | Sobe o PDF da portaria (multipart `arquivo`) antes de confirmar a publicação/revogação; só devolve a URL, não grava nada no documento. Só um **publicador da espécie** (o Publicador do BCA, no CENDOC, nas convencionais; a NPA não tem portaria), com o documento em `EM_PUBLICACAO` ou `EM_REVOGACAO` (`403` nas demais situações) — ver [Autenticação](autenticacao.md) |
-| `DELETE` | `/{id}` | Remove o documento e seus itens em cascata (somente Rascunho/Minuta, autor/coautor) |
+| `DELETE` | `/{id}` | Remove o documento e seus itens em cascata (somente Rascunho, autor/coautor: um documento que já foi para aprovação só se exclui depois de a autoridade devolvê-lo aos autores) |
 | `GET`/`POST` | `/{id}/compartilhamentos` | Lista ou adiciona um coautor (só o autor) |
 | `DELETE` | `/{id}/compartilhamentos/{usuarioId}` | Remove um coautor (só o autor) |
 | `GET` | `/{id}/presenca/stream` | Conexão SSE: quem mais está editando este documento agora (`event: presenca`) e mudanças estruturais da árvore em tempo real (`event: estrutura`) |
@@ -72,7 +72,7 @@ Os quatro cards do hub, de qualquer módulo; qualquer usuário autenticado. Devo
 | Método | Rota | Descrição |
 |---|---|---|
 | `GET` | `/minhas-em-tramitacao` | Meus documentos (autoria ou coautoria) em etapa de trabalho |
-| `GET` | `/aguardando-acao` | O que espera a minha decisão: como aprovador, o que está em revisão (`EM_REVISAO`, `ANALISE_REVOGACAO`) **na minha OM**; como publicador, o que está em publicação (`EM_PUBLICACAO`, `EM_REVOGACAO`) e ele publica: o Publicador do BCA, as convencionais de qualquer OM; o Publicador do Boletim Interno, as NPAs da **própria OM** |
+| `GET` | `/aguardando-acao` | O que espera a minha decisão: como aprovador, o que está em aprovação (`MINUTA`, `ANALISE_REVOGACAO`) **na minha OM**; como publicador, o que está em publicação (`EM_PUBLICACAO`, `EM_REVOGACAO`) e ele publica: o Publicador do BCA, as convencionais de qualquer OM; o Publicador do Boletim Interno, as NPAs da **própria OM** |
 | `GET` | `/em-tramitacao-de-outros` | Documentos em etapa de trabalho, de qualquer OM, dos quais não sou autor nem coautor (só visualização) |
 | `GET` | `/publicados-e-revogados` | `PUBLICADO` e `REVOGADO` sem tramitação (`SEM_ETAPA`), de todas as OMs |
 
@@ -84,7 +84,7 @@ Os quatro cards do hub, de qualquer módulo; qualquer usuário autenticado. Devo
 | `POST` | `/` | Envia uma imagem (multipart: `titulo`, `arquivo` e, opcional, `orientacao` = `RETRATO` ou `PAISAGEM`) como anexo. Sem `orientacao`, o servidor a sugere pela proporção da imagem (mais larga que alta = paisagem); valor inválido responde 400. A resposta (e `GET /`) traz `id`, `titulo`, `urlImagem`, `ordem` e `orientacao` |
 | `DELETE` | `/{anexoId}` | Remove um anexo |
 
-**Acesso:** `GET` é visualização, livre para qualquer usuário autenticado. `POST` e `DELETE` seguem a mesma regra de editar o documento (parte normativa, metadados): só autor ou coautor com papel Editor — ou o revisor atribuído, em `EM_REVISAO` — (`@documentoAcessoService.podeEditar`, `403` caso contrário), e só com o documento em `RASCUNHO`, `MINUTA`, `EM_ALTERACAO` ou `EM_REVISAO` (`403` com "Os anexos só podem ser alterados enquanto o documento está em edição…" nas demais etapas). Ver [Ciclo de Vida](ciclo-de-vida.md).
+**Acesso:** `GET` é visualização, livre para qualquer usuário autenticado. `POST` e `DELETE` seguem a mesma regra de editar o documento (parte normativa, metadados): só autor ou coautor com papel Editor — ou quem aprova, na `MINUTA` — (`@documentoAcessoService.podeEditar`, `403` caso contrário), e só com o documento em `RASCUNHO`, `MINUTA` ou `EM_ALTERACAO` (`403` com "Os anexos só podem ser alterados enquanto o documento está em edição…" nas demais etapas). Ver [Ciclo de Vida](ciclo-de-vida.md).
 
 ## Espécies normativas — `/v1/especie-normativa`
 

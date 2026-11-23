@@ -10,9 +10,9 @@ A edição depende da **etapa** e de **quem você é** no documento:
 
 | Etapa | Quem edita |
 |---|---|
-| Rascunho, Minuta, Em alteração | O autor e os coautores |
-| Em revisão | **Só** os Aprovadores da OM (nem o autor) |
-| Em publicação em diante, revogação, cancelado, sem etapa | Ninguém |
+| Rascunho, Em alteração | O autor e os coautores |
+| Minuta (em aprovação) | **Só** os Aprovadores da OM (nem o autor) |
+| Em publicação em diante, revogação, cancelado, arquivado, sem etapa | Ninguém |
 
 Para um ato publicado, abra uma **alteração** (ver [Alterar um ato publicado](alterar-um-ato-publicado)).
 
@@ -23,17 +23,17 @@ Todos os Aprovadores da OM do documento, que são avisados por notificação. Vo
 ## O que significam as duas situações do documento?
 
 - **Situação BCA:** a real. *Não publicado*, *Publicado* ou *Revogado*.
-- **Situação local:** a etapa interna. *Rascunho*, *Minuta*, *Em revisão*, *Em publicação*, *Em alteração*, *Análise de revogação*, *Em revogação*, *Cancelado* ou *Sem etapa em curso*.
+- **Situação local:** a etapa interna. *Rascunho* (em elaboração), *Minuta* (em aprovação), *Em publicação*, *Em alteração*, *Análise de revogação*, *Em revogação*, *Cancelado*, *Arquivado* ou *Sem etapa em curso*.
 
 Um ato publicado em alteração é *Publicado* (BCA) e *Em alteração* (local) ao mesmo tempo.
 
 ## Posso excluir um documento?
 
-Só os seus (ou compartilhados com você), e só em **Rascunho** ou **Minuta**. Antes disso, é possível **cancelar**.
+Só os seus (ou compartilhados com você), e só em **Rascunho**; no rascunho também é possível **cancelar**. Se o documento já foi para aprovação (Minuta), a autoridade precisa **devolvê-lo aos autores** antes, e então você o exclui.
 
 ## Devolveram o meu documento. E agora?
 
-Se ele nunca foi publicado, volta para **Minuta**: corrija e envie de novo. Se é uma alteração de um ato publicado, volta para **Em alteração**.
+Se ele nunca foi publicado, volta para **Rascunho**: corrija e envie de novo para aprovação. Se é uma alteração de um ato publicado, volta para **Em alteração**.
 
 ## Esqueci a minha senha
 

@@ -175,12 +175,12 @@ class DocumentoStatusServiceNpaTest {
     }
 
     @Test
-    void devolverDaRevisaoLevaAMinutaMesmoDeUmDocumentoPublicado() {
-        var doc = npaEm(NAO_PUBLICADO, EM_REVISAO);
+    void devolverUmaNpaEmMinutaLevaAoRascunhoDosAutores() {
+        var doc = npaEm(NAO_PUBLICADO, MINUTA);
 
-        service.changeStatus(DOC_ID, pedido(MINUTA, null, null));
+        service.changeStatus(DOC_ID, pedido(RASCUNHO, null, null));
 
-        assertThat(doc.getSituacaoLocal()).isEqualTo(MINUTA);
+        assertThat(doc.getSituacaoLocal()).isEqualTo(RASCUNHO);
         assertThat(doc.getAprovador()).isNull();
     }
 

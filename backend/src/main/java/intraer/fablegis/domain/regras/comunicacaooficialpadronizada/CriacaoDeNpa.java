@@ -25,16 +25,16 @@ public class CriacaoDeNpa implements RegrasDeCriacaoDoDocumento {
         return novo(especie, identificacaoValida(pedido.identificacao()), pedido.tituloDocumento(), autor);
     }
 
-    // O texto livre pode ser corrigido (nos metadados do editor) enquanto a NPA ainda está em Rascunho ou Minuta -- depois
-    // disso ela já circulou (revisão, publicação) com esse código, e ele identifica o que foi publicado.
+    // O texto livre pode ser corrigido (nos metadados do editor) enquanto a NPA ainda está em Rascunho -- depois
+    // disso ela já circulou (aprovação, publicação) com esse código, e ele identifica o que foi publicado.
     @Override
     public Optional<String> novaIdentificacao(Documento documento, String pedida) {
         if (pedida == null) return Optional.empty();
         String nova = identificacaoValida(pedida);
         if (nova.equals(documento.getIdentificacao())) return Optional.empty();
-        if (documento.getSituacaoLocal() != SituacaoLocalEnum.RASCUNHO && documento.getSituacaoLocal() != SituacaoLocalEnum.MINUTA) {
+        if (documento.getSituacaoLocal() != SituacaoLocalEnum.RASCUNHO) {
             throw new StatusCannotBeUpdatedException(
-                    "A identificação da NPA só pode ser alterada enquanto o documento está em Rascunho ou Minuta.");
+                    "A identificação da NPA só pode ser alterada enquanto o documento está em Rascunho.");
         }
         return Optional.of(nova);
     }

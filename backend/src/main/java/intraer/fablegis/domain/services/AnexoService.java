@@ -2,7 +2,6 @@ package intraer.fablegis.domain.services;
 
 import lombok.RequiredArgsConstructor;
 import intraer.fablegis.application.dtos.anexoDtos.AnexoResponseDto;
-import intraer.fablegis.application.dtos.documentoDtos.DocumentoStatusRequestDto;
 import intraer.fablegis.domain.entities.estruturaDocumento.Anexo;
 import intraer.fablegis.domain.entities.estruturaDocumento.Documento;
 import intraer.fablegis.domain.entities.estruturaDocumento.OrientacaoDoAnexo;
@@ -34,7 +33,6 @@ public class AnexoService {
 
     private final ImagemService imagemService;
 
-    private final DocumentoStatusService documentoStatusService;
 
     public List<AnexoResponseDto> listar(Long documentoId) {
         documentoRepository.findById(documentoId)
@@ -64,12 +62,6 @@ public class AnexoService {
         anexo.setOrientacao(orientacaoDoAnexo);
 
         AnexoResponseDto resultado = AnexoResponseDto.from(anexoRepository.save(anexo));
-
-        if (documento.getSituacaoLocal() == SituacaoLocalEnum.RASCUNHO) {
-            documentoStatusService.changeStatus(documentoId, new DocumentoStatusRequestDto(
-                    SituacaoLocalEnum.MINUTA, null, null, null, null, null, null,
-                    null, null, null, null, null, null));
-        }
 
         return resultado;
     }

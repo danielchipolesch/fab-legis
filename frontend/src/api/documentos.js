@@ -203,6 +203,10 @@ export function backendParaFrontend(doc) {
     data_publicacao:   parseDtCriacao(doc.dtPublicacao),
     data_revogacao:    parseDtCriacao(doc.dtRevogacao),
     data_cancelamento: parseDtCriacao(doc.dtCancelamento),
+    // Só em ARQUIVADO: quando, por quem e por quê a autoridade arquivou.
+    data_arquivamento: parseDtCriacao(doc.dtArquivamento),
+    justificativa_arquivamento: doc.justificativaDoArquivamento ?? null,
+    arquivador_nome: doc.arquivadorNome ?? null,
     data_em_alteracao: parseDtCriacao(doc.dtEmAlteracao),
     data_alterado:     parseDtCriacao(doc.dtAlterado),
     // Situação BCA (real: NAO_PUBLICADO/PUBLICADO/REVOGADO) e Situação Local (etapa interna;
@@ -210,7 +214,7 @@ export function backendParaFrontend(doc) {
     situacao_bca: doc.situacaoBca,
     situacao_local: doc.situacaoLocal,
     // Ver Documento.aprovador/publicador no backend -- quem pode
-    // agir/editar o documento agora, enquanto ele estiver em EM_REVISAO/
+    // agir/editar o documento agora, enquanto ele estiver em MINUTA/
     // EM_PUBLICACAO/ANALISE_REVOGACAO/EM_REVOGACAO.
     aprovador_id: doc.aprovadorId != null ? String(doc.aprovadorId) : null,
     aprovador_nome: doc.aprovadorNome ?? null,
@@ -351,7 +355,7 @@ export async function updateDocumento(id, data) {
     // efetivamente muda esse valor.
     ...(data.om_id != null && { omId: parseInt(data.om_id, 10) || undefined }),
     // O código da NPA (texto livre), só da tela de metadados: o autosave do editor não o envia, e o backend só troca o valor
-    // quando a espécie admite e o documento está em Rascunho/Minuta (RegrasDeCriacaoDoDocumento.novaIdentificacao).
+    // quando a espécie admite e o documento está em Rascunho (RegrasDeCriacaoDoDocumento.novaIdentificacao).
     ...(data.identificacao != null && { identificacao: data.identificacao }),
   }
   const result = await http.put(`/documentos/${id}`, body)
@@ -378,6 +382,8 @@ export async function changeDocumentoStatus(id, situacaoLocal, refs) {
     // Só numa NPA: o Boletim Interno que a publica ou revoga (no lugar de portaria + BCA).
     body.numeroBoletimInterno = refs.numeroBoletimInterno ?? null
     body.dataBoletimInterno   = refs.dataBoletimInterno ?? null
+    // Só ao arquivar (MINUTA -> ARQUIVADO): por que a autoridade arquiva. Obrigatória.
+    body.justificativa        = refs.justificativa ?? null
   }
   const result = await http.patch(`/documentos/${id}/status`, body)
   return backendParaFrontend(result)

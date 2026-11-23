@@ -11,8 +11,8 @@ import static intraer.fablegis.domain.entities.estruturaDocumento.SituacaoBcaEnu
 import static intraer.fablegis.domain.entities.estruturaDocumento.SituacaoLocalEnum.*;
 import static org.assertj.core.api.Assertions.assertThat;
 
-// Ciclo de vida da NPA (docs/ciclo-de-vida.md): só publicação e revogação -- NÃO há alteração. Para mudar uma NPA
-// publicada cria-se outra e revoga-se a anterior.
+// Ciclo de vida da NPA (docs/ciclo-de-vida.md): o mesmo das convencionais (rascunho, minuta, publicação e revogação), mas SEM alteração.
+// Para mudar uma NPA publicada cria-se outra e revoga-se a anterior.
 class CicloDeVidaDeNpaTest {
 
     private final CicloDeVidaDeNpa ciclo = new CicloDeVidaDeNpa();
@@ -23,25 +23,35 @@ class CicloDeVidaDeNpaTest {
 
     @Test
     void oCaminhoDeElaboracaoAteAPublicacao() {
-        assertThat(acao(RASCUNHO, MINUTA, NAO_PUBLICADO)).isEqualTo(AcaoDeEtapa.MINUTAR);
-        assertThat(acao(MINUTA, EM_REVISAO, NAO_PUBLICADO)).isEqualTo(AcaoDeEtapa.ENVIAR_PARA_REVISAO);
-        assertThat(acao(EM_REVISAO, EM_PUBLICACAO, NAO_PUBLICADO)).isEqualTo(AcaoDeEtapa.APROVAR);
+        // Rascunho -> Minuta só ao ENVIAR PARA APROVAÇÃO; a Minuta é o documento em aprovação, que a autoridade aprova.
+        assertThat(acao(RASCUNHO, MINUTA, NAO_PUBLICADO)).isEqualTo(AcaoDeEtapa.ENVIAR_PARA_APROVACAO);
+        assertThat(acao(MINUTA, EM_PUBLICACAO, NAO_PUBLICADO)).isEqualTo(AcaoDeEtapa.APROVAR);
         assertThat(acao(EM_PUBLICACAO, SEM_ETAPA, NAO_PUBLICADO)).isEqualTo(AcaoDeEtapa.PUBLICAR);
     }
 
     @Test
-    void devolverLevaSempreAMinuta() {
-        assertThat(acao(EM_REVISAO, MINUTA, NAO_PUBLICADO)).isEqualTo(AcaoDeEtapa.DEVOLVER);
-        assertThat(acao(EM_PUBLICACAO, MINUTA, NAO_PUBLICADO)).isEqualTo(AcaoDeEtapa.DEVOLVER);
+    void devolverLevaSempreAosAutoresNoRascunho() {
+        assertThat(acao(MINUTA, RASCUNHO, NAO_PUBLICADO)).isEqualTo(AcaoDeEtapa.DEVOLVER);
+        assertThat(acao(EM_PUBLICACAO, RASCUNHO, NAO_PUBLICADO)).isEqualTo(AcaoDeEtapa.DEVOLVER);
+        // não se "devolve" para a própria minuta, e a etapa Em revisão não existe mais
+        assertThat(acao(EM_PUBLICACAO, MINUTA, NAO_PUBLICADO)).isNull();
+    }
+
+    @Test
+    void aAutoridadeArquivaUmaMinuta() {
+        assertThat(acao(MINUTA, ARQUIVADO, NAO_PUBLICADO)).isEqualTo(AcaoDeEtapa.ARQUIVAR);
+        // só da minuta: nem rascunho, nem etapa de publicação se arquivam
+        assertThat(acao(RASCUNHO, ARQUIVADO, NAO_PUBLICADO)).isNull();
+        assertThat(acao(EM_PUBLICACAO, ARQUIVADO, NAO_PUBLICADO)).isNull();
     }
 
     @Test
     void naoExisteAlteracao() {
         // Nem iniciar, nem a etapa EM_ALTERACAO como origem ou destino.
         assertThat(acao(SEM_ETAPA, EM_ALTERACAO, PUBLICADO)).isNull();
-        assertThat(acao(EM_ALTERACAO, EM_REVISAO, PUBLICADO)).isNull();
+        assertThat(acao(EM_ALTERACAO, MINUTA, PUBLICADO)).isNull();
         assertThat(acao(EM_ALTERACAO, SEM_ETAPA, PUBLICADO)).isNull();
-        assertThat(acao(EM_REVISAO, EM_ALTERACAO, PUBLICADO)).isNull();
+        assertThat(acao(MINUTA, EM_ALTERACAO, PUBLICADO)).isNull();
         assertThat(acao(EM_PUBLICACAO, EM_ALTERACAO, PUBLICADO)).isNull();
     }
 
@@ -60,10 +70,10 @@ class CicloDeVidaDeNpaTest {
     }
 
     @Test
-    void soUmDocumentoNaoPublicadoPodeSerCancelado() {
+    void soUmRascunhoPodeSerCancelado() {
         assertThat(acao(RASCUNHO, CANCELADO, NAO_PUBLICADO)).isEqualTo(AcaoDeEtapa.CANCELAR_DOCUMENTO);
-        assertThat(acao(MINUTA, CANCELADO, NAO_PUBLICADO)).isEqualTo(AcaoDeEtapa.CANCELAR_DOCUMENTO);
-        assertThat(acao(EM_REVISAO, CANCELADO, NAO_PUBLICADO)).isNull();
+        // na minuta (em aprovação) não se cancela: a autoridade devolve aos autores ou arquiva
+        assertThat(acao(MINUTA, CANCELADO, NAO_PUBLICADO)).isNull();
         assertThat(acao(SEM_ETAPA, CANCELADO, PUBLICADO)).isNull();
     }
 
@@ -71,6 +81,12 @@ class CicloDeVidaDeNpaTest {
     @EnumSource(SituacaoLocalEnum.class)
     void deCanceladoNaoSaiParaLugarNenhum(SituacaoLocalEnum destino) {
         assertThat(acao(CANCELADO, destino, NAO_PUBLICADO)).isNull();
+    }
+
+    @ParameterizedTest
+    @EnumSource(SituacaoLocalEnum.class)
+    void deArquivadoNaoSaiParaLugarNenhum(SituacaoLocalEnum destino) {
+        assertThat(acao(ARQUIVADO, destino, NAO_PUBLICADO)).isNull();
     }
 
     @Test
@@ -95,7 +111,6 @@ class CicloDeVidaDeNpaTest {
     void quemAindaNaoFoiPublicadoNaoSeSubstitui() {
         assertThat(ciclo.podeSerSubstituido(RASCUNHO, NAO_PUBLICADO)).isFalse();
         assertThat(ciclo.podeSerSubstituido(MINUTA, NAO_PUBLICADO)).isFalse();
-        assertThat(ciclo.podeSerSubstituido(EM_REVISAO, NAO_PUBLICADO)).isFalse();
         assertThat(ciclo.podeSerSubstituido(EM_PUBLICACAO, NAO_PUBLICADO)).isFalse();
         assertThat(ciclo.podeSerSubstituido(SEM_ETAPA, NAO_PUBLICADO)).isFalse();
     }
@@ -106,5 +121,6 @@ class CicloDeVidaDeNpaTest {
         assertThat(ciclo.podeSerSubstituido(EM_REVOGACAO, PUBLICADO)).isFalse();
         assertThat(ciclo.podeSerSubstituido(SEM_ETAPA, REVOGADO)).isFalse();
         assertThat(ciclo.podeSerSubstituido(CANCELADO, NAO_PUBLICADO)).isFalse();
+        assertThat(ciclo.podeSerSubstituido(ARQUIVADO, NAO_PUBLICADO)).isFalse();
     }
 }

@@ -287,8 +287,8 @@ export const useDocumentosStore = defineStore('documents', {
 
     async deleteDocumento(id) {
       const doc = this.documentos.find(d => String(d.id) === String(id))
-      if (doc && !['RASCUNHO', 'MINUTA'].includes(doc.situacao_local)) {
-        throw new Error(`Não é possível excluir um documento com situação local "${doc.situacao_local}". Somente documentos em RASCUNHO ou MINUTA podem ser excluídos.`)
+      if (doc && doc.situacao_local !== 'RASCUNHO') {
+        throw new Error(`Não é possível excluir um documento com situação local "${doc.situacao_local}". Somente documentos em RASCUNHO podem ser excluídos: se já foi para aprovação, a autoridade precisa devolvê-lo aos autores.`)
       }
       await api.deleteDocumento(id)
       this.documentos = this.documentos.filter(d => String(d.id) !== String(id))

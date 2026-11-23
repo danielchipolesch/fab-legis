@@ -104,10 +104,8 @@ export const useEditorStore = defineStore('editor', {
     async save() {
       const store = useDocumentosStore()
       await store.saveDocumento(this.documento)
-      if (this.hasUserEdit && this.documento?.situacao_local === 'RASCUNHO') {
-        await store.changeStatus(this.documentoId, 'MINUTA')
-        this.hasUserEdit = false
-      }
+      // Editar NÃO muda a etapa: o rascunho segue rascunho até ser enviado para aprovação (aí vira Minuta).
+      this.hasUserEdit = false
       const atualizado = store.getById(this.documentoId)
       if (atualizado?.situacao_local && this.documento) {
         this.documento.situacao_bca = atualizado.situacao_bca

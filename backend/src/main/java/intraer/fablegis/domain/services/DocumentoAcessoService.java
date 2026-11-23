@@ -30,8 +30,8 @@ import java.util.Set;
 @RequiredArgsConstructor
 public class DocumentoAcessoService {
 
-    private static final Set<SituacaoLocalEnum> STATUS_EXCLUIVEIS = EnumSet.of(
-            SituacaoLocalEnum.RASCUNHO, SituacaoLocalEnum.MINUTA);
+    // Só o rascunho se exclui (e se cancela): um documento que já foi para aprovação precisa ser devolvido aos autores antes.
+    private static final Set<SituacaoLocalEnum> STATUS_EXCLUIVEIS = EnumSet.of(SituacaoLocalEnum.RASCUNHO);
 
     private final DocumentoRepository documentoRepository;
 
@@ -42,18 +42,18 @@ public class DocumentoAcessoService {
     // Pode editar o que COMPÕE o documento (texto de cada elemento, estrutura, metadados, anexos, cabeçalho da NPA, emendas)
     // AGORA -- a etapa manda, e é aqui, na única fonte de checagem de acesso, que ela é barrada (antes, só alguns serviços
     // barravam, cada um à sua maneira, e o conteúdo de um documento já aprovado ainda podia ser alterado pela API):
-    //   RASCUNHO, MINUTA, EM_ALTERACAO : autor/coautor com papel EDIT.
-    //   EM_REVISAO                     : SÓ a pessoa atribuída como revisora (papel APROV), e só se o documento ainda não foi
-    //                                    publicado -- a revisão de uma alteração de ato PUBLICADO é somente leitura (o texto
-    //                                    vigente só muda por emenda, em EM_ALTERACAO). Nem o autor edita durante a revisão.
-    //   demais etapas (EM_PUBLICACAO em diante, todo o fluxo de revogação, CANCELADO, SEM_ETAPA) : ninguém, nem o autor.
+    //   RASCUNHO, EM_ALTERACAO : autor/coautor com papel EDIT.
+    //   MINUTA                 : SÓ quem aprova (papel APR_OM, de qualquer aprovador da OM do documento), e só se o documento ainda
+    //                            não foi publicado -- a aprovação de uma alteração de ato PUBLICADO é somente leitura (o texto
+    //                            vigente só muda por emenda, em EM_ALTERACAO). Nem o autor edita na minuta.
+    //   demais etapas (EM_PUBLICACAO em diante, todo o fluxo de revogação, CANCELADO, ARQUIVADO, SEM_ETAPA) : ninguém, nem o autor.
     // Mesma regra que a interface já aplica (podeEditarAgora, DocumentoEditorPage.vue); ver docs/ciclo-de-vida.md.
     public boolean podeEditar(Long documentoId, Authentication auth) {
         Documento doc = documentoRepository.findById(documentoId).orElse(null);
         if (doc == null || !doc.getSituacaoLocal().aceitaEdicao()) return false;
 
         Usuario usuario = usuarioDe(auth);
-        if (doc.getSituacaoLocal() == SituacaoLocalEnum.EM_REVISAO) {
+        if (doc.getSituacaoLocal() == SituacaoLocalEnum.MINUTA) {
             return doc.getSituacaoBca() != SituacaoBcaEnum.PUBLICADO && ehAprovadorDaOm(doc, usuario);
         }
         return usuario.getPapeis().contains(PapelEnum.ELB)
@@ -78,8 +78,8 @@ public class DocumentoAcessoService {
         return regras.para(doc.getEspecieNormativa()).podePublicar(usuario, doc.getOm().getId());
     }
 
-    // Posse do documento, SEM olhar a etapa: autor/coautor com papel EDIT ou, durante EM_REVISAO, a pessoa atribuída
-    // como revisora. É o que autoriza mudar de etapa (enviar para revisão, pedir análise de revogação, cancelar...) e
+    // Posse do documento, SEM olhar a etapa: autor/coautor com papel EDIT ou, durante a MINUTA, quem aprova. É o que autoriza
+    // mudar de etapa (enviar para aprovação, pedir análise de revogação, cancelar...) e
     // excluir -- coisas que se pedem justamente em etapas em que o conteúdo já está congelado (ex.: pedir a revogação de
     // um ato publicado, em SEM_ETAPA). Editar o conteúdo é outra pergunta: ver podeEditar.
     private boolean temPosse(Long documentoId, Authentication auth) {
@@ -87,7 +87,7 @@ public class DocumentoAcessoService {
         Documento doc = documentoRepository.findById(documentoId).orElse(null);
         if (doc == null) return false;
 
-        if (doc.getSituacaoLocal() == SituacaoLocalEnum.EM_REVISAO && ehAprovadorDaOm(doc, usuario)) {
+        if (doc.getSituacaoLocal() == SituacaoLocalEnum.MINUTA && ehAprovadorDaOm(doc, usuario)) {
             return true;
         }
 
@@ -103,10 +103,9 @@ public class DocumentoAcessoService {
         return doc != null && ehAutor(doc, usuario);
     }
 
-    // Autor OU coautor, mas só enquanto o documento estiver em RASCUNHO/MINUTA
-    // -- um rascunho de outra pessoa, não compartilhado com o usuário, nunca
-    // aparece como excluível, mesmo estando nessas situações. Fora delas,
-    // ninguém com o papel padrão exclui, nem o próprio autor.
+    // Autor OU coautor, mas só enquanto o documento estiver em RASCUNHO -- um rascunho de outra pessoa, não compartilhado com o usuário,
+    // nunca aparece como excluível. Fora do rascunho ninguém exclui, nem o próprio autor: um documento que já foi para aprovação
+    // (MINUTA) só se exclui depois de a autoridade devolvê-lo aos autores.
     public boolean podeExcluir(Long documentoId, Authentication auth) {
         Documento doc = documentoRepository.findById(documentoId).orElse(null);
         if (doc == null) return false;
@@ -114,17 +113,19 @@ public class DocumentoAcessoService {
         return temPosse(documentoId, auth);
     }
 
+    // Enviar para aprovação (RASCUNHO/EM_ALTERACAO -> MINUTA) e pedir a análise de revogação: quem tem posse de editar.
     private static final Set<SituacaoLocalEnum> DESTINOS_ENTRADA_REVISOR = EnumSet.of(
-            SituacaoLocalEnum.EM_REVISAO, SituacaoLocalEnum.ANALISE_REVOGACAO);
-    // O que o revisor atribuído pode pedir a partir de EM_REVISAO/ANALISE_REVOGACAO: aprovar
-    // (EM_PUBLICACAO / EM_REVOGACAO) ou devolver (MINUTA / EM_ALTERACAO / SEM_ETAPA).
+            SituacaoLocalEnum.MINUTA, SituacaoLocalEnum.ANALISE_REVOGACAO);
+    // O que quem aprova pode pedir a partir de MINUTA/ANALISE_REVOGACAO: aprovar (EM_PUBLICACAO / EM_REVOGACAO), devolver aos autores
+    // (RASCUNHO / EM_ALTERACAO / SEM_ETAPA) ou arquivar (ARQUIVADO, só da MINUTA).
     private static final Set<SituacaoLocalEnum> DESTINOS_ACAO_REVISOR = EnumSet.of(
             SituacaoLocalEnum.EM_PUBLICACAO, SituacaoLocalEnum.EM_REVOGACAO,
-            SituacaoLocalEnum.MINUTA, SituacaoLocalEnum.EM_ALTERACAO, SituacaoLocalEnum.SEM_ETAPA);
-    // O que o publicador atribuído pode pedir a partir de EM_PUBLICACAO/EM_REVOGACAO: registrar
-    // a portaria (SEM_ETAPA) ou devolver (MINUTA / EM_ALTERACAO -- só de EM_PUBLICACAO).
+            SituacaoLocalEnum.RASCUNHO, SituacaoLocalEnum.EM_ALTERACAO, SituacaoLocalEnum.SEM_ETAPA,
+            SituacaoLocalEnum.ARQUIVADO);
+    // O que o publicador pode pedir a partir de EM_PUBLICACAO/EM_REVOGACAO: registrar
+    // a portaria (SEM_ETAPA) ou devolver aos autores (RASCUNHO / EM_ALTERACAO -- só de EM_PUBLICACAO).
     private static final Set<SituacaoLocalEnum> DESTINOS_ACAO_PUBLICADOR = EnumSet.of(
-            SituacaoLocalEnum.SEM_ETAPA, SituacaoLocalEnum.MINUTA, SituacaoLocalEnum.EM_ALTERACAO);
+            SituacaoLocalEnum.SEM_ETAPA, SituacaoLocalEnum.RASCUNHO, SituacaoLocalEnum.EM_ALTERACAO);
 
     // Cada transição do fluxo de revisão/publicação tem um dono diferente, dependendo de ONDE
     // o documento está agora e para ONDE está indo -- ver SituacaoLocalEnum/DocumentoStatusService
@@ -136,8 +137,15 @@ public class DocumentoAcessoService {
         if (doc == null) return false;
         SituacaoLocalEnum atual = doc.getSituacaoLocal();
 
-        // Enviar para revisão / pedir análise de revogação: quem tem posse de editar.
-        if (DESTINOS_ENTRADA_REVISOR.contains(destino)) {
+        // Arquivar é da autoridade (qualquer aprovador da OM do documento) e só de uma minuta: nem os autores arquivam o próprio
+        // rascunho (eles o cancelam ou o excluem).
+        if (destino == SituacaoLocalEnum.ARQUIVADO) {
+            return atual == SituacaoLocalEnum.MINUTA && ehAprovadorDaOm(doc, usuario);
+        }
+
+        // Enviar para aprovação / pedir análise de revogação: quem tem posse de editar. A MINUTA como destino parte do RASCUNHO ou da
+        // EM_ALTERACAO (os autores); a partir da própria MINUTA quem decide é quem aprova (abaixo).
+        if (DESTINOS_ENTRADA_REVISOR.contains(destino) && atual != SituacaoLocalEnum.MINUTA) {
             return temPosse(documentoId, auth);
         }
 
@@ -151,21 +159,21 @@ public class DocumentoAcessoService {
             return ehAprovadorDaOm(doc, usuario) || temPosse(documentoId, auth);
         }
 
-        // A partir de EM_REVISAO/ANALISE_REVOGACAO, só quem foi atribuído como revisor decide o
-        // próximo passo (aprovar, aprovar revogação ou devolver).
-        if (atual == SituacaoLocalEnum.EM_REVISAO || atual == SituacaoLocalEnum.ANALISE_REVOGACAO) {
+        // A partir de MINUTA/ANALISE_REVOGACAO, qualquer aprovador da OM do documento decide o próximo passo (aprovar, aprovar a
+        // revogação, devolver aos autores ou, na minuta, arquivar).
+        if (atual == SituacaoLocalEnum.MINUTA || atual == SituacaoLocalEnum.ANALISE_REVOGACAO) {
             if (!DESTINOS_ACAO_REVISOR.contains(destino)) return false;
             return ehAprovadorDaOm(doc, usuario);
         }
 
-        // A partir de EM_PUBLICACAO/EM_REVOGACAO, só quem foi atribuído como publicador decide o
+        // A partir de EM_PUBLICACAO/EM_REVOGACAO, qualquer publicador da espécie decide o
         // próximo passo (publicar, revogar ou devolver).
         if (atual == SituacaoLocalEnum.EM_PUBLICACAO || atual == SituacaoLocalEnum.EM_REVOGACAO) {
             if (!DESTINOS_ACAO_PUBLICADOR.contains(destino)) return false;
             return ehPublicador(doc, usuario);
         }
 
-        // Demais transições (ex.: RASCUNHO/MINUTA -> CANCELADO) seguem a mesma posse de editar --
+        // Demais transições (ex.: RASCUNHO -> CANCELADO) seguem a mesma posse de editar --
         // quem conduz o rascunho decide cancelá-lo.
         return temPosse(documentoId, auth);
     }

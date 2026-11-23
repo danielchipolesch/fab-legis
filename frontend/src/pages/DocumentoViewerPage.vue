@@ -79,6 +79,15 @@
     <q-separator />
 
     <!-- Ligação "Substituir" entre duas NPA: uma nova nasce ligada à publicada, e a antiga só é revogada pelo pedido de sempre. -->
+    <!-- Arquivado: a autoridade (quem aprova) encerrou a minuta, e a justificativa fica registrada com quem arquivou e quando. -->
+    <div v-if="documento?.situacao_local === 'ARQUIVADO'" class="q-px-xl q-pt-md" data-testid="faixa-arquivamento">
+      <q-banner rounded class="bg-teal-1 text-teal-10">
+        <template #avatar><q-icon name="mdi-archive-outline" color="teal" /></template>
+        Documento <strong>arquivado</strong><span v-if="documento.arquivador_nome"> por {{ documento.arquivador_nome }}</span><span v-if="documento.data_arquivamento"> em {{ formatarData(documento.data_arquivamento) }}</span>.
+        <div v-if="documento.justificativa_arquivamento" class="q-mt-xs"><strong>Justificativa:</strong> {{ documento.justificativa_arquivamento }}</div>
+      </q-banner>
+    </div>
+
     <div v-if="substituicao && (substituicao.substitui || substituicao.substituidoPor)" class="q-px-xl q-pt-md" data-testid="faixa-substituicao">
       <q-banner v-if="substituicao.substitui" rounded class="bg-blue-1 text-blue-10 q-mb-sm">
         <template #avatar><q-icon name="mdi-file-replace-outline" /></template>
@@ -497,18 +506,18 @@ const docLabel = computed(() => {
   return d.codigo_documento || 'Documento'
 })
 
-// Rascunho/Minuta oferecem o atalho de voltar para o editor pelo breadcrumb
-// por posse; EM_REVISAO oferece o mesmo atalho para qualquer aprovador da OM
+// O rascunho (e a alteração em curso) oferece o atalho de voltar para o editor pelo breadcrumb
+// por posse; a MINUTA oferece o mesmo atalho para qualquer aprovador da OM
 // (ver DocumentoAcessoService.podeEditar/isReadonly em DocumentoEditorPage.vue)
 // -- as demais situações não têm edição direta de conteúdo (ver "Regra de
 // imutabilidade" no README).
 const podeEditar = computed(() => {
   const doc = documento.value
   if (!doc) return false
-  if (doc.situacao_local === 'EM_REVISAO') {
+  if (doc.situacao_local === 'MINUTA') {
     return doc.situacao_bca !== 'PUBLICADO' && ehAprovadorDaOm(doc, auth.usuario)
   }
-  return ['RASCUNHO', 'MINUTA'].includes(doc.situacao_local)
+  return doc.situacao_local === 'RASCUNHO'
 })
 
 // Ver comentário equivalente em DocumentoEditorPage.vue -- quando aberto a

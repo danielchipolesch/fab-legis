@@ -66,10 +66,10 @@ class PainelGerencialIntegracaoTest extends IntegracaoComPostgresBase {
         long npaDaBafl = novoDocumento("NPA", "NPA-PAINEL-02");
         identificacaoEmAprovacao = jdbc.queryForObject("select tx_identificacao from t_documento where id_documento = ?", String.class, emAprovacao);
         jdbc.update("update t_documento set om_id = ?, st_situacao_local = 'SEM_ETAPA', st_situacao_bca = 'PUBLICADO',"
-                + " dt_criacao = now() - interval '10 days', dt_em_revisao = now() - interval '8 days', dt_aprovacao = now() - interval '6 days',"
+                + " dt_criacao = now() - interval '10 days', dt_minuta = now() - interval '8 days', dt_aprovacao = now() - interval '6 days',"
                 + " dt_em_publicacao = now() - interval '6 days', dt_publicacao = now() - interval '4 days' where id_documento = ?", bant, publicada);
-        jdbc.update("update t_documento set om_id = ?, st_situacao_local = 'EM_REVISAO', dt_criacao = now() - interval '5 days',"
-                + " dt_em_revisao = now() - interval '3 days' where id_documento = ?", bant, emAprovacao);
+        jdbc.update("update t_documento set om_id = ?, st_situacao_local = 'MINUTA', dt_criacao = now() - interval '5 days',"
+                + " dt_minuta = now() - interval '3 days' where id_documento = ?", bant, emAprovacao);
         jdbc.update("update t_documento set om_id = ?, dt_criacao = now() - interval '2 days' where id_documento = ?", bafl, rascunho);
         jdbc.update("update t_documento set om_id = ? where id_documento = ?", bant, npaDaBant);
         jdbc.update("update t_documento set om_id = ? where id_documento = ?", bafl, npaDaBafl);

@@ -31,7 +31,7 @@ public interface DocumentoRepository extends JpaRepository<Documento, Long>, Jpa
     int travarNumeracao(@Param("chave") long chave);
 
     // "Substituir" (NPA): a NPA que substitui esta -- a mais recente que não foi cancelada; vazio se ninguém a substitui.
-    Optional<Documento> findFirstByDocumentoSubstituidoIdAndSituacaoLocalNotOrderByIdDesc(Long id, SituacaoLocalEnum situacao);
+    Optional<Documento> findFirstByDocumentoSubstituidoIdAndSituacaoLocalNotInOrderByIdDesc(Long id, java.util.Collection<SituacaoLocalEnum> situacoes);
 
     // Filas das telas de Revisão/Publicação (ver DocumentoService): os documentos de uma OM numa das etapas, ou de todas as OMs.
     List<Documento> findByOmIdAndSituacaoLocalIn(Long omId, Collection<SituacaoLocalEnum> status);

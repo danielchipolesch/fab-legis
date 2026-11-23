@@ -23,9 +23,9 @@ import java.util.List;
 @RequiredArgsConstructor
 public class PainelGerencialRepository {
 
-    // Etapas em que o documento ainda está em trabalho (nunca SEM_ETAPA nem CANCELADO) -- as mesmas de DocumentoSpecifications.
+    // Etapas em que o documento ainda está em trabalho (nunca SEM_ETAPA, CANCELADO nem ARQUIVADO) -- as mesmas de DocumentoSpecifications.
     private static final String EM_TRAMITACAO =
-            "'RASCUNHO','MINUTA','EM_ALTERACAO','EM_REVISAO','EM_PUBLICACAO','ANALISE_REVOGACAO','EM_REVOGACAO'";
+            "'RASCUNHO','MINUTA','EM_ALTERACAO','EM_PUBLICACAO','ANALISE_REVOGACAO','EM_REVOGACAO'";
 
     private final NamedParameterJdbcTemplate jdbc;
 
@@ -64,10 +64,10 @@ public class PainelGerencialRepository {
         long criados = contar(base + " AND d.dt_criacao >= :inicio AND d.dt_criacao < :fim", p);
         long publicados = contar(base + " AND d.dt_publicacao >= :inicio AND d.dt_publicacao < :fim", p);
         long revogados = contar(base + " AND d.dt_revogacao >= :inicio AND d.dt_revogacao < :fim", p);
-        // Devolução: voltar para a minuta/alteração a partir da aprovação ou da publicação, no período.
+        // Devolução: voltar aos autores (rascunho, ou alteração em curso) a partir da minuta (a aprovação) ou da publicação, no período.
         long devolvidos = contar("SELECT count(*) FROM t_historico_documento h JOIN t_documento d ON d.id_documento = h.documento_id"
-                + " WHERE h.sg_tipo_alteracao = 'ALTERACAO_STATUS' AND h.sg_status_anterior IN ('EM_REVISAO','EM_PUBLICACAO')"
-                + " AND h.sg_status_novo IN ('MINUTA','EM_ALTERACAO') AND h.dt_registro >= :inicio AND h.dt_registro < :fim" + f, p);
+                + " WHERE h.sg_tipo_alteracao = 'ALTERACAO_STATUS' AND h.sg_status_anterior IN ('MINUTA','EM_PUBLICACAO')"
+                + " AND h.sg_status_novo IN ('RASCUNHO','EM_ALTERACAO') AND h.dt_registro >= :inicio AND h.dt_registro < :fim" + f, p);
         long emTramitacao = contar(base + " AND d.st_situacao_local IN (" + EM_TRAMITACAO + ")", p);
         long vigentes = contar(base + " AND d.st_situacao_bca = 'PUBLICADO'", p);
         return new Totais(criados, publicados, revogados, devolvidos, emTramitacao, vigentes);
@@ -117,7 +117,7 @@ public class PainelGerencialRepository {
     public Fila filas(Filtro filtro) {
         var p = params(filtro, null, null);
         String base = "SELECT count(*) FROM t_documento d WHERE 1=1" + clausula(filtro);
-        return new Fila(contar(base + " AND d.st_situacao_local IN ('EM_REVISAO','ANALISE_REVOGACAO')", p),
+        return new Fila(contar(base + " AND d.st_situacao_local IN ('MINUTA','ANALISE_REVOGACAO')", p),
                 contar(base + " AND d.st_situacao_local IN ('EM_PUBLICACAO','EM_REVOGACAO')", p));
     }
 
@@ -126,12 +126,12 @@ public class PainelGerencialRepository {
         var p = params(filtro, null, null);
         p.addValue("limite", limite);
         return jdbc.query("SELECT d.id_documento AS id, d.tx_identificacao AS identificacao, o.sg_organizacao_militar AS om,"
-                        + " CASE WHEN d.st_situacao_local IN ('EM_REVISAO','ANALISE_REVOGACAO') THEN 'APROVACAO' ELSE 'PUBLICACAO' END AS etapa,"
-                        + " CAST(floor(EXTRACT(EPOCH FROM (now() - COALESCE(CASE d.st_situacao_local WHEN 'EM_REVISAO' THEN d.dt_em_revisao"
+                        + " CASE WHEN d.st_situacao_local IN ('MINUTA','ANALISE_REVOGACAO') THEN 'APROVACAO' ELSE 'PUBLICACAO' END AS etapa,"
+                        + " CAST(floor(EXTRACT(EPOCH FROM (now() - COALESCE(CASE d.st_situacao_local WHEN 'MINUTA' THEN d.dt_minuta"
                         + " WHEN 'ANALISE_REVOGACAO' THEN d.dt_analise_revogacao WHEN 'EM_PUBLICACAO' THEN d.dt_em_publicacao"
                         + " WHEN 'EM_REVOGACAO' THEN d.dt_em_revogacao END, d.dt_alteracao, d.dt_criacao))) / 86400) AS bigint) AS dias"
                         + " FROM t_documento d JOIN t_organizacao_militar o ON o.id_organizacao_militar = d.om_id"
-                        + " WHERE d.st_situacao_local IN ('EM_REVISAO','ANALISE_REVOGACAO','EM_PUBLICACAO','EM_REVOGACAO')" + clausula(filtro)
+                        + " WHERE d.st_situacao_local IN ('MINUTA','ANALISE_REVOGACAO','EM_PUBLICACAO','EM_REVOGACAO')" + clausula(filtro)
                         + " ORDER BY dias DESC, d.id_documento LIMIT :limite", p,
                 (rs, i) -> new Gargalo(rs.getLong("id"), rs.getString("identificacao"), rs.getString("om"), rs.getString("etapa"), rs.getLong("dias")));
     }

@@ -48,7 +48,10 @@ public record DocumentoStatusRequestDto(
         // Só numa NPA, ao publicar (EM_PUBLICACAO -> SEM_ETAPA) e ao revogar (EM_REVOGACAO -> SEM_ETAPA): o número e a
         // data do Boletim Interno em que a NPA foi publicada ou revogada. Não há portaria nem BCA.
         Integer numeroBoletimInterno,
-        LocalDate dataBoletimInterno
+        LocalDate dataBoletimInterno,
+
+        // Só ao ARQUIVAR (MINUTA -> ARQUIVADO): por que a autoridade arquiva o documento. Obrigatória nessa transição.
+        String justificativa
 ) {
 
     // Forma sem o Boletim Interno: o pedido de um ato normativo (e todas as etapas que não registram publicação).
@@ -58,6 +61,18 @@ public record DocumentoStatusRequestDto(
                                      String epigrafe, String ementa, String preambulo, String fecho,
                                      String assinatura, String portariaPdfUrl) {
         this(situacaoLocal, orgaoPortaria, setorPortaria, numeroPortaria, dataPortaria,
-                numeroBca, dataBca, epigrafe, ementa, preambulo, fecho, assinatura, portariaPdfUrl, null, null);
+                numeroBca, dataBca, epigrafe, ementa, preambulo, fecho, assinatura, portariaPdfUrl, null, null, null);
+    }
+
+    // Forma sem a justificativa: tudo o que não é arquivar (inclusive o pedido de publicar ou revogar uma NPA, com o Boletim Interno).
+    public DocumentoStatusRequestDto(SituacaoLocalEnum situacaoLocal,
+                                     String orgaoPortaria, String setorPortaria, String numeroPortaria,
+                                     LocalDate dataPortaria, Integer numeroBca, LocalDate dataBca,
+                                     String epigrafe, String ementa, String preambulo, String fecho,
+                                     String assinatura, String portariaPdfUrl,
+                                     Integer numeroBoletimInterno, LocalDate dataBoletimInterno) {
+        this(situacaoLocal, orgaoPortaria, setorPortaria, numeroPortaria, dataPortaria,
+                numeroBca, dataBca, epigrafe, ementa, preambulo, fecho, assinatura, portariaPdfUrl,
+                numeroBoletimInterno, dataBoletimInterno, null);
     }
 }

@@ -5,20 +5,20 @@ O documento percorre estas etapas, e em cada uma há **quem age**:
 
 | Etapa | Quem age |
 |---|---|
-| Rascunho → Minuta | Autor ou coautor |
-| Enviar para aprovação (**Em revisão**) | Autor ou coautor |
-| Aprovar ou devolver | **Aprovador da OM** do documento |
+| Enviar para aprovação (o Rascunho vira **Minuta**) | Autor ou coautor |
+| Aprovar, devolver aos autores ou arquivar a Minuta | **Aprovador da OM** do documento |
 | Publicar (**Em publicação**) | **Publicador do BCA** (CENDOC), nas espécies convencionais; **Publicador do Boletim Interno**, nas NPAs, na própria OM |
 
 Ninguém é "atribuído": quem envia não escolhe uma pessoa. Qualquer Aprovador da OM age sobre os documentos da própria OM, e qualquer Publicador age sobre a fila da sua espécie: o do CENDOC, sobre as espécies convencionais de todas as OMs; o do Boletim Interno, sobre as NPAs da própria OM.
 
 ## Aprovar (Aprovador da OM)
 
-Para quem tem o papel **Aprovador da OM**. Abra **Manter Revisão de Documento** (pelo quadro **Aguardando Minha Ação** da Área de Trabalho ou pelo menu). A fila mostra os documentos da sua OM em **Em revisão** ou **Análise de revogação**, com código, título, autores e situação.
+Para quem tem o papel **Aprovador da OM**. Abra **Manter Revisão de Documento** (pelo quadro **Aguardando Minha Ação** da Área de Trabalho ou pelo menu). A fila mostra os documentos da sua OM em **Minuta** ou **Análise de revogação**, com código, título, autores e situação.
 
-- **Abrir:** enquanto o documento está em revisão, você pode **editar o texto** (o autor não).
+- **Abrir:** enquanto o documento é uma Minuta, você pode **editar o texto** (o autor não).
 - **Aprovar:** o documento segue para a fila de publicação: a do CENDOC, se for espécie convencional; a da sua OM, se for NPA. Fica registrado **quem aprovou**. Você não escolhe o publicador.
-- **Devolver:** o documento volta para a Minuta (ou para Em alteração, se já foi publicado), para o autor corrigir.
+- **Devolver:** o documento volta aos autores, em Rascunho (ou para Em alteração, se já foi publicado), para corrigir. É também o caminho para **excluir** um documento que já foi para aprovação: depois de devolvido, os autores o excluem.
+- **Arquivar:** encerra a Minuta de um documento que nunca foi publicado, sem aprovar nem devolver. A **justificativa é obrigatória** e fica registrada com o seu nome e a data (aparece numa faixa na tela do documento, que passa a *Arquivado*). Uma alteração de ato publicado não se arquiva: aprova-se ou devolve-se.
 
 Você só age nos documentos da **sua OM**: o aprovador de outra OM não.
 
@@ -37,7 +37,7 @@ Quando o documento é publicado, a **situação BCA** passa a *Publicado*, e a e
 Para quem tem o papel **Publicador do Boletim Interno**, em qualquer OM. A NPA é de uso interno da OM e é publicada nela, e não pelo CENDOC. Em **Manter Publicação de Documento** você vê as **NPAs da sua OM** em *Em publicação* ou *Em revogação* (as de outra OM não aparecem para você publicar, embora qualquer um possa lê-las).
 
 - **Publicar:** informe o **número** (1 a 9999) e a **data do Boletim Interno**. A NPA não usa Portaria nem BCA.
-- **Devolver:** volta para a Minuta, para o autor corrigir.
+- **Devolver:** volta aos autores, em Rascunho, para corrigir.
 - **Revogar:** informe o Boletim Interno da revogação (a data não pode ser anterior à da publicação).
 
 Ver [NPA](npa).

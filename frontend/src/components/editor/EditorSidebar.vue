@@ -455,12 +455,12 @@
             />
           </div>
           <div class="col-12">
-            <!-- O código da NPA é texto livre e pode ser corrigido até a Minuta; o das convencionais é gerado (espécie + assunto + sequencial). -->
+            <!-- O código da NPA é texto livre e pode ser corrigido enquanto é Rascunho; o das convencionais é gerado (espécie + assunto + sequencial). -->
             <q-input
               v-if="codigoEditavel"
               v-model="metaForm.identificacao"
               label="Código do documento"
-              hint="Texto livre, conforme o padrão do setor. Só pode ser alterado em Rascunho ou Minuta."
+              hint="Texto livre, conforme o padrão do setor. Só pode ser alterado em Rascunho."
               outlined dense
               maxlength="120"
               :rules="[v => !!(v && v.trim()) || 'Informe o código do documento']"
@@ -488,7 +488,7 @@
               :model-value="props.documento?.om_nome"
               label="Organização Militar"
               outlined dense disable
-              hint="Só pode ser alterada enquanto o documento está em Rascunho ou Minuta."
+              hint="Só pode ser alterada enquanto o documento está em Rascunho."
             />
           </div>
         </div>
@@ -532,7 +532,7 @@
           </div>
           <template v-if="props.documento?.data_minuta">
             <div class="col-6">
-              <q-input :model-value="formatarData(props.documento?.data_minuta)" label="Minuta" outlined dense disable />
+              <q-input :model-value="formatarData(props.documento?.data_minuta)" label="Enviado para aprovação" outlined dense disable />
             </div>
           </template>
           <template v-if="props.documento?.data_aprovacao">
@@ -705,7 +705,7 @@ const metaEditavel = computed(() => !props.isEmAlteracao)
 // OM impressa na capa (NSCA 5-3, Art. 17, II) -- mais restrito que metaEditavel
 // de propósito: só faz sentido trocar a OM que assina o ato enquanto o
 // documento ainda não avançou pra revisão (ver DocumentoService.update).
-const omEditavel = computed(() => ['RASCUNHO', 'MINUTA'].includes(props.documento?.situacao_local))
+const omEditavel = computed(() => props.documento?.situacao_local === 'RASCUNHO')
 // O código do documento (identificação): só a NPA o escreve, e só até a Minuta -- mesma regra de CriacaoDeNpa.novaIdentificacao
 // no backend. Nas convencionais ele é gerado.
 const codigoEditavel = computed(() => regras.value.ehNpa && omEditavel.value)

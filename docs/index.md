@@ -16,7 +16,7 @@ Hoje, boa parte disso é feita à mão em editores de texto genéricos — o que
 - **exportar o mesmo conteúdo** em PDF e HTML sem reformatar nada;
 - **comparar versões** e mostrar exatamente o que mudou entre elas;
 - **gerar o texto sugerido** da portaria de alteração, seguindo o Art. 22 da NSCA 5-3;
-- **controlar o ciclo de vida** (Rascunho → Minuta → Aprovado → Publicado…) com transições validadas no servidor **e autorizadas por papel**;
+- **controlar o ciclo de vida** (Rascunho → Minuta (em aprovação) → Em publicação → Publicado…) com transições validadas no servidor **e autorizadas por papel**;
 - **coordenar edição concorrente** — login por CPF, papéis (Elaborador, Aprovador da OM, Publicador do BCA, Auditor, Administrador e Painel Gerencial, cada um com o seu escopo), coautoria, aviso de presença e notificações em tempo real.
 
 > **Público-alvo.** Seções de legislação, assessorias jurídicas e órgãos centrais de sistema responsáveis pela elaboração de ICA, NSCA, MCA, RCA, DCA, PCA, OCA, RICA, ROCA, TCA e FCA.

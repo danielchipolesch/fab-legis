@@ -506,18 +506,18 @@ const selectedElement = computed(() => editorStore.selectedElement)
 
 const isEmAlteracao = computed(() => documento.value?.situacao_local === 'EM_ALTERACAO')
 
-// Editável por posse (RASCUNHO/MINUTA/EM_ALTERACAO) OU por qualquer aprovador da OM do documento
-// enquanto o documento (ainda NÃO publicado) estiver EM_REVISAO (ver DocumentoAcessoService.podeEditar
+// Editável por posse (RASCUNHO/EM_ALTERACAO: autor e coautores) OU por qualquer aprovador da OM do documento
+// enquanto o documento (ainda NÃO publicado) estiver em MINUTA (ver DocumentoAcessoService.podeEditar
 // no backend). Todas as demais etapas (publicação/revogação em andamento, sem etapa,
-// cancelado) e a revisão de uma alteração de documento PUBLICADO são somente-leitura: o texto
+// cancelado, arquivado) e a minuta de uma alteração de documento PUBLICADO são somente-leitura: o texto
 // vigente só muda por emenda, na etapa EM_ALTERACAO.
 function podeEditarAgora(doc) {
   if (!doc) return false
   const local = doc.situacao_local
-  if (local === 'EM_REVISAO') {
+  if (local === 'MINUTA') {
     return doc.situacao_bca !== 'PUBLICADO' && ehAprovadorDaOm(doc, auth.usuario)
   }
-  return ['RASCUNHO', 'MINUTA', 'EM_ALTERACAO'].includes(local)
+  return ['RASCUNHO', 'EM_ALTERACAO'].includes(local)
 }
 const isReadonly = computed(() => !podeEditarAgora(documento.value))
 

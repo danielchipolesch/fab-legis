@@ -13,7 +13,7 @@ public record DocumentoRequestUpdateDto(
         // Opcional -- omitido/null (ou igual à OM atual, como no autosave
         // estrutural do editor, que reenvia o documento inteiro) não tem
         // efeito. Só muda de fato quando difere da OM atual E o documento está
-        // em RASCUNHO/MINUTA (ver DocumentoService.update); fora desses status
+        // em RASCUNHO/MINUTA/EM_ALTERACAO (ver DocumentoService.update); fora desses status
         // é rejeitado, não ignorado silenciosamente.
         Long omId,
 

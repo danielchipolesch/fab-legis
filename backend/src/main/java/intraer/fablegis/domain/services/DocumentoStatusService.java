@@ -90,14 +90,22 @@ public class DocumentoStatusService {
         // Ninguém é escolhido: "enviar para aprovação" (e o pedido de revogação) vale para QUALQUER aprovador da OM do documento, e
         // aprovar, para QUALQUER publicador (que só existe no CENDOC) -- ver DocumentoAcessoService.podeMudarStatus. O documento
         // guarda só QUEM aprovou o texto (o "Aprovado por" da NPA) e QUEM publicou, registrados por quem de fato agiu. Devolver o
-        // texto, ou enviá-lo de novo, recomeça sem aprovador nem publicador; o pedido de revogação e a sua aprovação NÃO mexem em quem
-        // aprovou o texto (a NPA continua dizendo quem a aprovou).
-        if (acao == AcaoDeEtapa.DEVOLVER || acao == AcaoDeEtapa.ENVIAR_PARA_REVISAO) {
+        // texto aos autores, ou enviá-lo de novo, recomeça sem aprovador nem publicador; o pedido de revogação e a sua aprovação NÃO mexem
+        // em quem aprovou o texto (a NPA continua dizendo quem a aprovou).
+        if (acao == AcaoDeEtapa.DEVOLVER || acao == AcaoDeEtapa.ENVIAR_PARA_APROVACAO) {
             documento.setAprovador(null);
             documento.setPublicador(null);
         }
         if (acao == AcaoDeEtapa.APROVAR) {
             documento.setAprovador(quemAgiu());
+        }
+        // Arquivar é decisão da autoridade e exige dizer por quê: a justificativa fica no documento, com quem arquivou e quando.
+        if (acao == AcaoDeEtapa.ARQUIVAR) {
+            if (request.justificativa() == null || request.justificativa().isBlank()) {
+                throw new StatusCannotBeUpdatedException("Informe a justificativa do arquivamento.");
+            }
+            documento.setJustificativaDoArquivamento(request.justificativa().strip());
+            documento.setArquivador(quemAgiu());
         }
         if (acao == AcaoDeEtapa.PUBLICAR || acao == AcaoDeEtapa.REVOGAR) {
             documento.setPublicador(quemAgiu());
@@ -134,8 +142,7 @@ public class DocumentoStatusService {
 
         Timestamp agora = Timestamp.from(Instant.now());
         switch (acao) {
-            case MINUTAR              -> documento.setDtMinuta(agora);
-            case ENVIAR_PARA_REVISAO  -> documento.setDtEmRevisao(agora);
+            case ENVIAR_PARA_APROVACAO -> documento.setDtMinuta(agora);
             // Timestamp próprio para a aprovação de uma alteração (dtAlterado), para não
             // sobrescrever a aprovação original do fluxo da primeira publicação.
             case APROVAR              -> {
@@ -143,10 +150,8 @@ public class DocumentoStatusService {
                 else documento.setDtAlterado(agora);
                 documento.setDtEmPublicacao(agora);
             }
-            case DEVOLVER             -> {
-                if (destino == MINUTA) documento.setDtMinuta(agora);
-                else documento.setDtEmAlteracao(agora);
-            }
+            case DEVOLVER             -> { if (destino == EM_ALTERACAO) documento.setDtEmAlteracao(agora); }
+            case ARQUIVAR             -> documento.setDtArquivamento(agora);
             case INICIAR_ALTERACAO    -> documento.setDtEmAlteracao(agora);
             // dtPublicacao é a data da PRIMEIRA publicação; as das alterações estão nas portarias
             // (PortariaPublicacao) e nas cláusulas de cada elemento.
@@ -163,8 +168,7 @@ public class DocumentoStatusService {
         // aconteceria no commit -- depois deste método já ter retornado o DTO. Sem o flush
         // explícito, o DTO de resposta carrega a versão ANTIGA, e o próximo salvamento do editor
         // usa essa versão desatualizada como versaoEsperada, gerando um 409 mesmo sendo o mesmo
-        // usuário -- ver DocumentoConcorrenciaService. Isso é especialmente comum aqui:
-        // RASCUNHO->MINUTA dispara em toda primeira edição de um documento novo (ver editor.js save()).
+        // usuário -- ver DocumentoConcorrenciaService.
         documentoRepository.saveAndFlush(documento);
 
         // Ao entrar em EM_ALTERACAO, espaça os elementOrder (×100) para que novos elementos
@@ -189,7 +193,7 @@ public class DocumentoStatusService {
                 documento.setUrlHtmlTramitacao(null);
                 aposCommit(documento, this::gerarVersaoVigente);
             }
-            case DEVOLVER, DEVOLVER_ANALISE, CANCELAR_ALTERACAO, CANCELAR_DOCUMENTO -> descartarVersaoEmTramitacao(documento);
+            case DEVOLVER, DEVOLVER_ANALISE, CANCELAR_ALTERACAO, CANCELAR_DOCUMENTO, ARQUIVAR -> descartarVersaoEmTramitacao(documento);
             default -> { }
         }
 
@@ -202,7 +206,7 @@ public class DocumentoStatusService {
 
         // Quem pode agir agora é avisado -- as pessoas com o papel, nunca uma escolhida: os aprovadores da OM do documento ao
         // enviar para aprovação (ou pedir a revogação); quem publica (publicadoresDe) ao aprovar. Quem acabou de agir não é avisado.
-        if (acao == AcaoDeEtapa.ENVIAR_PARA_REVISAO || acao == AcaoDeEtapa.PEDIR_REVOGACAO) {
+        if (acao == AcaoDeEtapa.ENVIAR_PARA_APROVACAO || acao == AcaoDeEtapa.PEDIR_REVOGACAO) {
             avisar(usuarioRepository.findByOmIdAndPapel(documento.getOm().getId(), PapelEnum.APR_OM), documento, descricao,
                     "O documento " + descricao + " aguarda a aprovação da sua OM.");
         }

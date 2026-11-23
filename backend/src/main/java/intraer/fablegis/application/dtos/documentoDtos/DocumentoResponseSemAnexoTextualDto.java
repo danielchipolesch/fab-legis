@@ -39,6 +39,14 @@ public record DocumentoResponseSemAnexoTextualDto(
         @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss", timezone = "America/Sao_Paulo")
         Timestamp dtCancelamento,
 
+        // Só em ARQUIVADO: quando, por quem e por quê (justificativa da autoridade que aprova).
+        @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss", timezone = "America/Sao_Paulo")
+        Timestamp dtArquivamento,
+
+        String justificativaDoArquivamento,
+
+        String arquivadorNome,
+
         String urlPdf,
 
         int qtdReplicas,
@@ -69,7 +77,7 @@ public record DocumentoResponseSemAnexoTextualDto(
 
         // Ver Documento.aprovador/publicador -- o frontend usa isso
         // pra saber se O USUÁRIO ATUAL pode agir/editar neste momento (ex.: editar
-        // durante EM_REVISAO só se aprovadorId == id de quem está logado).
+        // durante a MINUTA só quem tem o papel de aprovador da OM).
         Long aprovadorId,
         String aprovadorNome,
         Long publicadorId,
@@ -81,7 +89,7 @@ public record DocumentoResponseSemAnexoTextualDto(
         // perguntar; null nos demais usos deste DTO (resposta de uma mutação que
         // o próprio usuário acabou de fazer, onde a pergunta não se aplica). O
         // ícone de editar da HomePage usa isto pra não ficar habilitado pra
-        // RASCUNHO/MINUTA de outra pessoa só porque a OM bate -- posse nunca foi
+        // RASCUNHO de outra pessoa só porque a OM bate -- posse nunca foi
         // (e não deveria ser) sobre pertencer à mesma OM, ver docs/autenticacao.md.
         Boolean ehAutorOuCoautor,
 

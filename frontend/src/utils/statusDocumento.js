@@ -18,13 +18,13 @@ export const SITUACAO_BCA_META = {
 
 export const SITUACAO_LOCAL_META = {
   RASCUNHO:          { label: 'Rascunho',             icon: 'mdi-pencil-outline',         bg: 'grey-3',        fg: 'grey-9',         color: 'grey'        },
-  MINUTA:            { label: 'Minuta',               icon: 'mdi-file-edit-outline',      bg: 'orange-2',      fg: 'orange-10',      color: 'orange'      },
-  EM_REVISAO:        { label: 'Em Revisão',           icon: 'mdi-account-search-outline', bg: 'amber-2',       fg: 'amber-10',       color: 'amber'       },
+  MINUTA:            { label: 'Minuta',               icon: 'mdi-account-search-outline', bg: 'amber-2',       fg: 'amber-10',       color: 'amber'       },
   EM_PUBLICACAO:     { label: 'Em Publicação',        icon: 'mdi-timer-sand',             bg: 'blue-2',        fg: 'blue-10',        color: 'blue'        },
   EM_ALTERACAO:      { label: 'Em Alteração',         icon: 'mdi-pencil-lock-outline',    bg: 'deep-orange-2', fg: 'deep-orange-10', color: 'deep-orange' },
   ANALISE_REVOGACAO: { label: 'Análise de Revogação', icon: 'mdi-file-search-outline',    bg: 'brown-2',       fg: 'brown-10',       color: 'brown'       },
   EM_REVOGACAO:      { label: 'Em Revogação',         icon: 'mdi-timer-sand',             bg: 'deep-purple-2', fg: 'deep-purple-10', color: 'deep-purple' },
   CANCELADO:         { label: 'Cancelado',            icon: 'mdi-cancel',                 bg: 'red-2',         fg: 'red-10',         color: 'negative'    },
+  ARQUIVADO:         { label: 'Arquivado',            icon: 'mdi-archive-outline',        bg: 'teal-2',        fg: 'teal-10',        color: 'teal'        },
   SEM_ETAPA:         { label: 'Sem etapa em curso',   icon: 'mdi-minus-circle-outline',   bg: 'grey-2',        fg: 'grey-7',         color: 'grey'        },
 }
 

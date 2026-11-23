@@ -62,10 +62,11 @@ Na tela de visualização do documento, a seção **Anexos** recebe imagens que 
 
 Pelo menu **⋮** do documento:
 
-1. **Rascunho → Minuta:** passo de organização, sem aprovação.
-2. **Minuta → Enviar para aprovação:** o documento fica disponível para **qualquer Aprovador da OM**; você não escolhe uma pessoa, e os aprovadores são avisados por notificação.
-3. **Cancelar:** só em Rascunho ou Minuta. **Excluir** também só nessas etapas.
+Enquanto você escreve, o documento é um **Rascunho**: editar, anexar imagens e salvar **não mudam a etapa**. Pelo menu **⋮**:
 
-Enquanto o documento está em revisão, **nem o autor edita**: quem edita é o aprovador. Depois da aprovação, ninguém mais edita. Quem decide o rumo é o aprovador (ver [Revisão e publicação](revisao-e-publicacao)).
+1. **Enviar para aprovação:** o documento passa a **Minuta** (em aprovação ou em conferência) e fica disponível para **qualquer Aprovador da OM**; você não escolhe uma pessoa, e os aprovadores são avisados por notificação.
+2. **Cancelar:** só em Rascunho. **Excluir** também só no rascunho.
+
+Na **Minuta**, **nem o autor edita**: quem edita é o aprovador. A autoridade pode **aprovar**, **devolver aos autores** (o documento volta a Rascunho, e então você pode corrigir, enviar de novo, cancelar ou excluir) ou **arquivar** a minuta, com uma justificativa. Depois da aprovação, ninguém mais edita (ver [Revisão e publicação](revisao-e-publicacao)).
 
 Para partir de um documento existente, use **Clonar**: o clone é da sua OM e começa em Rascunho.

@@ -23,7 +23,7 @@ export function selosDaLinha(cartao, doc) {
 
 // Editar só quando dá: etapa de escrita e a pessoa é autora ou coautora (mesma regra de DocumentoAcessoService.podeEditar).
 function podeEditar(doc) {
-  return ['RASCUNHO', 'MINUTA', 'EM_ALTERACAO'].includes(doc.situacao_local) && doc.eh_autor_ou_coautor === true
+  return ['RASCUNHO', 'EM_ALTERACAO'].includes(doc.situacao_local) && doc.eh_autor_ou_coautor === true
 }
 
 // A ação da linha: o que a pessoa faz a seguir e para onde o link leva -- direto o documento ou a tela da ação
@@ -36,7 +36,7 @@ export function acaoDaLinha(cartao, doc) {
   if (cartao === 'aguardando') {
     switch (doc.situacao_local) {
       // Quem revisa lê (e pode editar) o texto: abre o documento, e o breadcrumb volta para a fila de Revisão.
-      case 'EM_REVISAO':        return { rotulo: 'Revisar', rota: editar(doc, { origem: 'revisao' }), pendente: true }
+      case 'MINUTA':            return { rotulo: 'Revisar', rota: editar(doc, { origem: 'revisao' }), pendente: true }
       case 'ANALISE_REVOGACAO': return { rotulo: 'Analisar revogação', rota: visualizar(doc, { origem: 'revisao' }), pendente: true }
       // Publicar e revogar acontecem na tela de Publicação.
       case 'EM_PUBLICACAO':     return { rotulo: 'Publicar', rota: { name: 'publicacao' }, pendente: true }
@@ -50,7 +50,7 @@ export function acaoDaLinha(cartao, doc) {
 }
 
 const ESPERA_DE_VOCE = {
-  EM_REVISAO: 'Aprovar o documento ou devolvê-lo',
+  MINUTA: 'Aprovar o documento, devolvê-lo aos autores ou arquivá-lo',
   ANALISE_REVOGACAO: 'Analisar o pedido de revogação e aprová-lo ou recusá-lo',
   EM_PUBLICACAO: 'Registrar a publicação do documento',
   EM_REVOGACAO: 'Registrar a revogação do documento',
@@ -59,7 +59,7 @@ const ESPERA_DE_VOCE = {
 // Com quem o documento está agora, conforme a etapa.
 function comQuem(doc) {
   switch (doc.situacao_local) {
-    case 'EM_REVISAO':
+    case 'MINUTA':
     case 'ANALISE_REVOGACAO':  return 'Aprovadores da OM'
     case 'EM_PUBLICACAO':
     case 'EM_REVOGACAO':       return regrasDoDocumento(doc).quemPublica

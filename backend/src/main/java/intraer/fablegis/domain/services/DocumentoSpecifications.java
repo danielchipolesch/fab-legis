@@ -33,15 +33,15 @@ public class DocumentoSpecifications {
     }
 
     // Os três cards do hub (tela inicial) -- ver DocumentoService.getPainel*:
-    //   em tramitação: etapas em que o documento ainda está em trabalho (nunca SEM_ETAPA nem CANCELADO);
-    //   revisão: etapas em que o documento espera a aprovação (qualquer aprovador da OM);
+    //   em tramitação: etapas em que o documento ainda está em trabalho (nunca SEM_ETAPA, CANCELADO nem ARQUIVADO);
+    //   revisão: etapas em que o documento espera a aprovação (a MINUTA e a análise de revogação; qualquer aprovador da OM);
     //   publicação: etapas em que espera o registro da publicação (qualquer publicador, no CENDOC).
     public static final Set<SituacaoLocalEnum> SITUACOES_EM_TRAMITACAO = EnumSet.of(
             SituacaoLocalEnum.RASCUNHO, SituacaoLocalEnum.MINUTA, SituacaoLocalEnum.EM_ALTERACAO,
-            SituacaoLocalEnum.EM_REVISAO, SituacaoLocalEnum.EM_PUBLICACAO,
+            SituacaoLocalEnum.EM_PUBLICACAO,
             SituacaoLocalEnum.ANALISE_REVOGACAO, SituacaoLocalEnum.EM_REVOGACAO);
     public static final Set<SituacaoLocalEnum> SITUACOES_DE_REVISAO = EnumSet.of(
-            SituacaoLocalEnum.EM_REVISAO, SituacaoLocalEnum.ANALISE_REVOGACAO);
+            SituacaoLocalEnum.MINUTA, SituacaoLocalEnum.ANALISE_REVOGACAO);
     public static final Set<SituacaoLocalEnum> SITUACOES_DE_PUBLICACAO = EnumSet.of(
             SituacaoLocalEnum.EM_PUBLICACAO, SituacaoLocalEnum.EM_REVOGACAO);
     public static final Set<SituacaoBcaEnum> SITUACOES_OFICIAIS_PUBLICADAS = EnumSet.of(
@@ -62,7 +62,7 @@ public class DocumentoSpecifications {
                 cb.not(meus.toPredicate(root, query, cb)));
     }
 
-    // Card "Aguardando Minha Ação": o que espera a decisão de quem pergunta -- como aprovador, o que está em revisão na SUA OM (qualquer
+    // Card "Aguardando Minha Ação": o que espera a decisão de quem pergunta -- como aprovador, o que está em minuta ou em análise de revogação na SUA OM (qualquer
     // aprovador da OM age); como publicador, o que está em publicação e ele publica (aguardandoPublicacaoDe). Sem esses papéis, nada.
     public static Specification<Documento> aguardandoAcaoDe(Usuario usuario, RegrasDasEspecies regras) {
         return (root, query, cb) -> {

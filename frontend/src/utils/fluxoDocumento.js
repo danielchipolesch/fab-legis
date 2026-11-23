@@ -14,13 +14,23 @@ export function destinoDeAprovacao(doc) {
   return doc.situacao_local === 'ANALISE_REVOGACAO' ? 'EM_REVOGACAO' : 'EM_PUBLICACAO'
 }
 
-// Devolver leva ao começo do trabalho: uma análise de revogação simplesmente encerra a etapa (o
+// Devolver leva o documento de volta aos autores: uma análise de revogação simplesmente encerra a etapa (o
 // documento segue PUBLICADO); um documento já PUBLICADO volta à alteração que estava fazendo; um
-// nunca publicado, à minuta. SEM_ETAPA = "concluir a etapa".
+// nunca publicado, ao rascunho. SEM_ETAPA = "concluir a etapa".
 export function destinoDeDevolucao(doc) {
   if (doc.situacao_local === 'ANALISE_REVOGACAO') return 'SEM_ETAPA'
-  return doc.situacao_bca === 'PUBLICADO' ? 'EM_ALTERACAO' : 'MINUTA'
+  return doc.situacao_bca === 'PUBLICADO' ? 'EM_ALTERACAO' : 'RASCUNHO'
 }
+
+// Arquivar: a autoridade (quem aprova) arquiva uma MINUTA, com justificativa. Só de um documento que nunca foi publicado -- uma
+// alteração de ato PUBLICADO se aprova ou se devolve. Espelha o ciclo de vida das duas espécies (CicloDeVida*, backend).
+export const DESTINO_DE_ARQUIVAMENTO = 'ARQUIVADO'
+export function podeArquivar(doc) {
+  return doc?.situacao_local === 'MINUTA' && doc?.situacao_bca === 'NAO_PUBLICADO'
+}
+
+// Enviar para aprovação: o rascunho (ou a alteração em curso) vai para a MINUTA, onde quem aprova decide. Só os autores o fazem.
+export const DESTINO_DE_ENVIO_PARA_APROVACAO = 'MINUTA'
 
 export function ehRevogacao(doc) {
   return doc.situacao_local === 'EM_REVOGACAO'
@@ -62,6 +72,10 @@ export function versaoPadrao(doc) {
 // destino é "concluir a etapa", e o que isso significou depende da origem -- e, para publicar e
 // revogar, da mudança de Situação BCA que consta na descrição ("(situação BCA: A → B)").
 export function eventoDoHistorico(h) {
+  // Voltar ao rascunho a partir da minuta ou da publicação é a autoridade DEVOLVER o documento aos autores.
+  if (h.statusNovo === 'RASCUNHO' && ['MINUTA', 'EM_PUBLICACAO'].includes(h.statusAnterior)) {
+    return { titulo: 'Devolvido aos autores', icon: 'mdi-undo', color: situacaoLocalMeta('RASCUNHO').color }
+  }
   if (h.statusNovo !== 'SEM_ETAPA') {
     const m = situacaoLocalMeta(h.statusNovo)
     return { titulo: m.label, icon: m.icon, color: m.color }
@@ -115,13 +129,12 @@ export function exibeSeloRevogado(doc) {
 const CICLO_INICIAL = [
   { chave: 'RASCUNHO', rotulo: 'Rascunho' },
   { chave: 'MINUTA', rotulo: 'Minuta' },
-  { chave: 'EM_REVISAO', rotulo: 'Em revisão' },
   { chave: 'EM_PUBLICACAO', rotulo: 'Em publicação' },
   { chave: 'PUBLICADO', rotulo: 'Publicado' },
 ]
 const CICLO_DE_ALTERACAO = [
   { chave: 'EM_ALTERACAO', rotulo: 'Em alteração' },
-  { chave: 'EM_REVISAO', rotulo: 'Em revisão' },
+  { chave: 'MINUTA', rotulo: 'Minuta' },
   { chave: 'EM_PUBLICACAO', rotulo: 'Em publicação' },
   { chave: 'PUBLICADO', rotulo: 'Publicado' },
 ]
@@ -140,7 +153,7 @@ export function etapasDoCiclo(doc) {
   if (local === 'CANCELADO') return { ciclo: 'INICIAL', etapas: CICLO_INICIAL, atual: -1 }
 
   const emRevogacao = bca === 'REVOGADO' || local === 'ANALISE_REVOGACAO' || local === 'EM_REVOGACAO'
-  const emAlteracao = bca === 'PUBLICADO' && ['EM_ALTERACAO', 'EM_REVISAO', 'EM_PUBLICACAO'].includes(local)
+  const emAlteracao = bca === 'PUBLICADO' && ['EM_ALTERACAO', 'MINUTA', 'EM_PUBLICACAO'].includes(local)
   const [ciclo, etapas] = emRevogacao ? ['REVOGACAO', CICLO_DE_REVOGACAO]
     : emAlteracao ? ['ALTERACAO', CICLO_DE_ALTERACAO]
     : ['INICIAL', CICLO_INICIAL]

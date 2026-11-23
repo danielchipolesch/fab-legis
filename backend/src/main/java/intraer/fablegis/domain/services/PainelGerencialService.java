@@ -56,8 +56,8 @@ public class PainelGerencialService {
         boolean geral = visao == Visao.GERAL;
         var escopo = new Escopo(visao.name(), omId, sigla, geral, !geral, tipoPedido == null ? null : tipoPedido.name(), inicioDoPeriodo, fimDoPeriodo);
         var tempos = new Tempos(
-                repositorio.tempo("dt_criacao", "dt_em_revisao", filtro, inicio, fim),
-                repositorio.tempo("dt_em_revisao", "dt_aprovacao", filtro, inicio, fim),
+                repositorio.tempo("dt_criacao", "dt_minuta", filtro, inicio, fim),
+                repositorio.tempo("dt_minuta", "dt_aprovacao", filtro, inicio, fim),
                 repositorio.tempo("dt_em_publicacao", "dt_publicacao", filtro, inicio, fim));
         return new PainelGerencialResponseDto(
                 escopo,
