@@ -30,12 +30,12 @@ Hoje, boa parte disso é feita à mão em editores de texto genéricos — o que
 | Tecnologia | Versão | Papel |
 |---|---|---|
 | Java | 25 | Linguagem |
-| Spring Boot | 4.1.1 | Framework de aplicação |
-| Spring Data JPA / Hibernate | 4.1.1 / 7.4.5 | Persistência e mapeamento objeto-relacional |
+| Spring Boot | 4.1.3 | Framework de aplicação |
+| Spring Data JPA / Hibernate | 4.1.3 / 7.4.15 | Persistência e mapeamento objeto-relacional |
 | Spring Web (MVC) | — | API REST, incluindo *streams* SSE (notificações e presença) |
 | Spring HATEOAS | — | Links de navegação nos recursos |
-| Spring Security | 7.1.1 | Resource server (JWT/JWKS), autorização por método (`@PreAuthorize`) |
-| Spring Authorization Server | 7.1.1 | Emissão de token via OAuth2 Authorization Code + PKCE (embutido no backend) |
+| Spring Security | 7.1.3 | Resource server (JWT/JWKS), autorização por método (`@PreAuthorize`) |
+| Spring Authorization Server | 7.1.3 | Emissão de token via OAuth2 Authorization Code + PKCE (embutido no backend) |
 | PostgreSQL | 18 | Banco de dados relacional |
 | AWS SDK para Java (S3) | 2.58.0 | Cliente S3 do armazenamento de objetos (imagens, anexos, PDFs e HTML) on-premise; não depende de nenhum fornecedor de servidor |
 | Apache FOP | 2.10 | Geração de PDF server-side via XSL-FO |

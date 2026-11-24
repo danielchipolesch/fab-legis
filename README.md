@@ -7,7 +7,7 @@
 *Do rascunho à publicação — com numeração automática, editor WYSIWYG colaborativo em tempo real e exportação em PDF e HTML*
 
 ![Java](https://img.shields.io/badge/Java-25-orange)
-![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.1.1-6DB33F)
+![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.1.3-6DB33F)
 ![OAuth2](https://img.shields.io/badge/OAuth2-Authorization%20Code%20%2B%20PKCE-3C3C3D)
 ![Vue](https://img.shields.io/badge/Vue-3.5-42b883)
 ![Quasar](https://img.shields.io/badge/Quasar-2.17-1976D2)
@@ -177,6 +177,8 @@ cp nginx/nginx.https.conf.example nginx/nginx.conf   # (ou nginx.conf.example, s
 # coloque o certificado em segredos/tls/ (passo 1) e então:
 docker compose up -d --build
 ```
+
+**Atualizações de segurança do JDK.** O backend usa as imagens `eclipse-temurin:25-jdk-alpine` e `25-jre-alpine`, cuja tag acompanha a última versão corrigida do Java 25 — mas só quando a imagem é baixada de novo. Ao atualizar um servidor, reconstrua com `docker compose build --pull backend` (e `up -d backend`); sem o `--pull`, o Docker reaproveita a imagem antiga em cache e o JDK não é atualizado.
 
 **Subir assim sozinho não basta** para funcionar fora de `localhost`/`127.0.0.1`: os passos 1 a 5 abaixo são obrigatórios (o 6 trata de monitoramento), e o [checklist](#checklist-antes-de-expor-ao-público) no fim confere tudo.
 
