@@ -19,6 +19,7 @@ import intraer.fablegis.domain.util.CpfValidator;
 import intraer.fablegis.infrastructure.repositories.OrganizacaoMilitarRepository;
 import intraer.fablegis.infrastructure.repositories.PostoGraduacaoRepository;
 import intraer.fablegis.infrastructure.repositories.UsuarioRepository;
+import intraer.fablegis.infrastructure.notificacao.AvisosAoVivo;
 import intraer.fablegis.infrastructure.security.AutenticacaoUtil;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -44,6 +45,8 @@ public class UsuarioService {
     private final PasswordEncoder passwordEncoder;
 
     private final AuditoriaDeAcessoService auditoriaDeAcesso;
+
+    private final AvisosAoVivo avisosAoVivo;
 
     public List<UsuarioResponseDto> listar() {
         var ator = AutenticacaoUtil.usuarioAtual();
@@ -123,7 +126,11 @@ public class UsuarioService {
 
         var salvo = usuarioRepository.save(usuario);
         var depois = new DiferencaDeAcesso.Estado(EnumSet.copyOf(papeisOuVazio(salvo.getPapeis())), salvo.isAtivo(), siglaDa(salvo.getOm()));
-        auditoriaDeAcesso.registrarMudancas(salvo, DiferencaDeAcesso.entre(antes, depois));
+        var mudancas = DiferencaDeAcesso.entre(antes, depois);
+        auditoriaDeAcesso.registrarMudancas(salvo, mudancas);
+        // Só se o ACESSO mudou (papéis, OM ou ativação; mudar só o nome não conta): a pessoa, se estiver conectada, renova o token e reavalia
+        // a tela -- as mudanças valem na hora, sem novo login.
+        if (!mudancas.isEmpty()) avisosAoVivo.acessoMudou(salvo.getId(), salvo.isAtivo());
         return UsuarioResponseDto.from(salvo, usuarioLogado);
     }
 

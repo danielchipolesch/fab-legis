@@ -16,6 +16,9 @@ public interface HabilitacaoDaOmRepository extends JpaRepository<HabilitacaoDaOm
     @Query("select h from HabilitacaoDaOm h where h.id.organizacaoMilitarId = :omId")
     List<HabilitacaoDaOm> findByOmId(@Param("omId") Long omId);
 
+    @Query("select h from HabilitacaoDaOm h where h.id.especieNormativaId = :especieId")
+    List<HabilitacaoDaOm> findByEspecieId(@Param("especieId") Long especieId);
+
     @Query("select count(h) > 0 from HabilitacaoDaOm h where h.id.organizacaoMilitarId = :omId and h.id.especieNormativaId = :especieId")
     boolean existsByOmIdAndEspecieId(@Param("omId") Long omId, @Param("especieId") Long especieId);
 

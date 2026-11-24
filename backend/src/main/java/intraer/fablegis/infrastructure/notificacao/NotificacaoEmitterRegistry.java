@@ -4,7 +4,11 @@ import org.springframework.stereotype.Component;
 import org.springframework.http.MediaType;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
+
 import java.io.IOException;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -37,16 +41,45 @@ public class NotificacaoEmitterRegistry {
     }
 
     public void enviar(Long usuarioId, Object payload) {
+        enviarEvento(usuarioId, "notificacao", payload);
+    }
+
+    // Mesma conexão do usuário, evento de outro nome: o frontend ouve cada um à parte (ver AppTopBar.vue).
+    public void enviarEvento(Long usuarioId, String evento, Object payload) {
         List<SseEmitter> lista = emittersPorUsuario.get(usuarioId);
         if (lista == null) return;
 
         for (SseEmitter emitter : lista) {
             try {
-                emitter.send(SseEmitter.event().name("notificacao").data(payload, MediaType.APPLICATION_JSON));
+                emitter.send(SseEmitter.event().name(evento).data(payload, MediaType.APPLICATION_JSON));
             } catch (IOException | IllegalStateException e) {
                 remover(usuarioId, emitter);
             }
         }
+    }
+
+    // Só DEPOIS do commit da transação em curso (ou já, se não há transação): um rollback não pode ter avisado ninguém.
+    public void enviarEventoAposCommit(Collection<Long> usuarioIds, String evento, Object payload) {
+        if (usuarioIds == null || usuarioIds.isEmpty()) return;
+        depoisDoCommit(() -> usuarioIds.forEach(id -> enviarEvento(id, evento, payload)));
+    }
+
+    // Para todos os usuários conectados agora (qualquer aba), depois do commit.
+    public void enviarATodosAposCommit(String evento, Object payload) {
+        depoisDoCommit(() -> List.copyOf(emittersPorUsuario.keySet()).forEach(id -> enviarEvento(id, evento, payload)));
+    }
+
+    private void depoisDoCommit(Runnable envio) {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            envio.run();
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                envio.run();
+            }
+        });
     }
 
     private void remover(Long usuarioId, SseEmitter emitter) {

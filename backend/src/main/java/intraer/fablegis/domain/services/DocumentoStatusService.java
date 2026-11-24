@@ -10,6 +10,7 @@ import intraer.fablegis.domain.entities.estruturaDocumento.TipoAlteracaoEnum;
 import intraer.fablegis.domain.entities.usuario.Usuario;
 import intraer.fablegis.domain.entities.usuario.PapelEnum;
 import intraer.fablegis.domain.entities.notificacao.TipoNotificacaoEnum;
+import intraer.fablegis.infrastructure.notificacao.AvisosAoVivo;
 import intraer.fablegis.infrastructure.security.UsuarioPrincipal;
 import org.springframework.security.core.context.SecurityContextHolder;
 import intraer.fablegis.domain.handlers.exceptions.ResourceNotFoundException;
@@ -60,6 +61,7 @@ public class DocumentoStatusService {
     final ItemParteFinalRepository finalRepository;
     final EmendaService emendaService;
     final NotificacaoService notificacaoService;
+    final AvisosAoVivo avisosAoVivo;
     final UsuarioRepository usuarioRepository;
     final PlatformTransactionManager transactionManager;
 
@@ -203,6 +205,9 @@ public class DocumentoStatusService {
                 descricaoHistorico, atual, destino);
 
         String descricao = documento.getIdentificacao();
+
+        // Todo mundo conectado se atualiza ao vivo (filas, listas, cards e o editor aberto neste documento), depois do commit.
+        avisosAoVivo.documentoMudou(documento);
 
         // Quem pode agir agora é avisado -- as pessoas com o papel, nunca uma escolhida: os aprovadores da OM do documento ao
         // enviar para aprovação (ou pedir a revogação); quem publica (publicadoresDe) ao aprovar. Quem acabou de agir não é avisado.

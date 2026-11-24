@@ -76,7 +76,7 @@ intraer.fablegis
     ├── security/          ← UsuarioPrincipal, UsuarioDetailsService,
     │                        JwtToUsuarioAuthenticationConverter, SseBearerTokenResolver,
     │                        AutenticacaoUtil, DataSeeder (usuário admin padrão)
-    ├── notificacao/       ← NotificacaoEmitterRegistry, DocumentoPresencaEmitterRegistry (SSE)
+    ├── notificacao/       ← NotificacaoEmitterRegistry, DocumentoPresencaEmitterRegistry, AvisosAoVivo (SSE)
     ├── configurations/    ← Cors, Swagger, SecurityConfig (resource server),
     │                        AuthorizationServerConfig, Armazenamento
     ├── enums/             ← Catálogos oficiais (espécies, assuntos, cabeçalho)

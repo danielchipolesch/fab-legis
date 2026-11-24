@@ -10,6 +10,7 @@ import intraer.fablegis.domain.handlers.exceptions.ResourceNotFoundException;
 import intraer.fablegis.domain.regras.DiferencaDeAcesso;
 import intraer.fablegis.domain.regras.EscopoDeAcesso;
 import intraer.fablegis.domain.regras.RevisaoDeAcesso;
+import intraer.fablegis.infrastructure.notificacao.AvisosAoVivo;
 import intraer.fablegis.infrastructure.repositories.UsuarioRepository;
 import intraer.fablegis.infrastructure.security.AutenticacaoUtil;
 import lombok.RequiredArgsConstructor;
@@ -30,6 +31,7 @@ public class RevisaoDeAcessoService {
 
     private final UsuarioRepository usuarioRepository;
     private final AuditoriaDeAcessoService auditoriaDeAcesso;
+    private final AvisosAoVivo avisosAoVivo;
 
     @Transactional
     public UsuarioResponseDto revisar(Long usuarioId, Set<PapelEnum> papeisMantidos) {
@@ -74,6 +76,7 @@ public class RevisaoDeAcessoService {
                 new DiferencaDeAcesso.Estado(antes, salvo.isAtivo(), EscopoDeAcesso.siglaDaOm(salvo)),
                 new DiferencaDeAcesso.Estado(depois, salvo.isAtivo(), EscopoDeAcesso.siglaDaOm(salvo))));
         auditoriaDeAcesso.registrarMudancas(salvo, eventos);
+        if (!retirados.isEmpty()) avisosAoVivo.acessoMudou(salvo.getId(), salvo.isAtivo());   // quem perdeu papéis vê a tela mudar na hora
         return UsuarioResponseDto.from(salvo, revisor);
     }
 

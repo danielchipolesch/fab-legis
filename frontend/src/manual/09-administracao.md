@@ -23,6 +23,8 @@ Regras de lotação, que o sistema recusa se não forem cumpridas: **Administrad
 
 O CPF aparece parcialmente oculto nas telas (`111.***.***-35`).
 
+**A mudança vale na hora para a pessoa.** Ao conceder ou retirar um papel, trocar a OM ou desativar a conta, quem está usando o sistema recebe um aviso e a tela dela se ajusta sozinha, sem sair e entrar de novo: botões, menus e telas que ela ganhou ou perdeu mudam. Conta desativada tem a sessão encerrada.
+
 ## Revisão periódica de acessos
 
 Quem tem um papel além do Elaborador precisa ter o acesso **reconfirmado**: a cada **6 meses**, ao **trocar de OM** e quando a conta fica **6 meses sem entrar**. O sistema calcula isso sozinho e mostra na coluna **Acesso** da lista de usuários, com um aviso e o filtro "só os pendentes". Ninguém precisa pedir.
@@ -32,6 +34,8 @@ O administrador confere as linhas que cabem a ele **e que estão pendentes**, co
 ## Habilitação de espécies por OM
 
 Para o **Administrador Geral**. Menu do usuário › **Manter Habilitação de Espécies Normativas por OM**. Há uma linha por espécie convencional, com as OMs **habilitadas a criá-la** (só as siglas). Use o seletor da linha para adicionar ou remover OMs; cada mudança é gravada na hora. O filtro no topo mostra o que uma OM específica pode criar. A NPA não aparece aqui: qualquer OM a cria.
+
+**A mudança vale na hora para quem está usando o sistema.** Quem é da OM habilitada (ou que deixou de ser) vê o botão de criar aparecer ou sumir sozinho, com um aviso na tela, sem precisar recarregar a página.
 
 ## DOM — distintivo da OM
 

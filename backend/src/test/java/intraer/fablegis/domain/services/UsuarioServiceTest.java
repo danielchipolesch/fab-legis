@@ -1,6 +1,7 @@
 package intraer.fablegis.domain.services;
 
 import intraer.fablegis.application.dtos.usuarioDtos.UsuarioCreateRequestDto;
+import intraer.fablegis.infrastructure.notificacao.AvisosAoVivo;
 import intraer.fablegis.domain.entities.usuario.OrganizacaoMilitar;
 import intraer.fablegis.domain.entities.usuario.PapelEnum;
 import intraer.fablegis.domain.entities.usuario.Usuario;
@@ -37,6 +38,7 @@ class UsuarioServiceTest {
     @Mock PostoGraduacaoRepository postoGraduacaoRepository;
     @Mock PasswordEncoder passwordEncoder;
     @Mock AuditoriaDeAcessoService auditoriaDeAcesso;
+    @Mock AvisosAoVivo avisosAoVivo;
     @InjectMocks UsuarioService service;
 
     private static UsuarioCreateRequestDto pedido(String cpf) {
@@ -150,6 +152,55 @@ class UsuarioServiceTest {
         ArgumentCaptor<java.util.List<intraer.fablegis.domain.regras.DiferencaDeAcesso.Evento>> eventos = ArgumentCaptor.forClass(java.util.List.class);
         verify(auditoriaDeAcesso).registrarMudancas(any(Usuario.class), eventos.capture());
         assertThat(eventos.getValue()).isEmpty();
+    }
+
+    // Aviso ao vivo: quem teve o acesso mudado (papéis, OM, ativação), se estiver conectado, renova o token e vê a tela mudar sem novo login.
+    @Test
+    void mudarOsPapeisDeAlguemAvisaAPessoaAoVivo() {
+        autenticarComo(existente(1L, "CENDOC", PapelEnum.ADM_GER, PapelEnum.ELB));
+        var alvo = existente(2L, "BAGL", PapelEnum.ELB);
+        when(usuarioRepository.findById(2L)).thenReturn(Optional.of(alvo));
+        var om = new OrganizacaoMilitar();
+        om.setSigla("BAGL");
+        when(organizacaoMilitarRepository.findById(1L)).thenReturn(Optional.of(om));
+        when(usuarioRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        service.atualizar(2L, new intraer.fablegis.application.dtos.usuarioDtos.UsuarioUpdateRequestDto(
+                "Fulano", null, null, null, 1L, true, java.util.Set.of(PapelEnum.ELB, PapelEnum.APR_OM)));
+
+        verify(avisosAoVivo).acessoMudou(2L, true);
+    }
+
+    @Test
+    void desativarAContaAvisaAPessoaQueEstaInativa() {
+        autenticarComo(existente(1L, "CENDOC", PapelEnum.ADM_GER, PapelEnum.ELB));
+        var alvo = existente(2L, "BAGL", PapelEnum.ELB);
+        when(usuarioRepository.findById(2L)).thenReturn(Optional.of(alvo));
+        var om = new OrganizacaoMilitar();
+        om.setSigla("BAGL");
+        when(organizacaoMilitarRepository.findById(1L)).thenReturn(Optional.of(om));
+        when(usuarioRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        service.atualizar(2L, new intraer.fablegis.application.dtos.usuarioDtos.UsuarioUpdateRequestDto(
+                "Fulano", null, null, null, 1L, false, java.util.Set.of(PapelEnum.ELB)));
+
+        verify(avisosAoVivo).acessoMudou(2L, false);
+    }
+
+    @Test
+    void mudarSoONomeNaoAvisaNinguemDeMudancaDeAcesso() {
+        autenticarComo(existente(1L, "CENDOC", PapelEnum.ADM_GER, PapelEnum.ELB));
+        var alvo = existente(2L, "BAGL", PapelEnum.ELB);
+        when(usuarioRepository.findById(2L)).thenReturn(Optional.of(alvo));
+        var om = new OrganizacaoMilitar();
+        om.setSigla("BAGL");
+        when(organizacaoMilitarRepository.findById(1L)).thenReturn(Optional.of(om));
+        when(usuarioRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        service.atualizar(2L, new intraer.fablegis.application.dtos.usuarioDtos.UsuarioUpdateRequestDto(
+                "Fulano da Silva", null, null, null, 1L, true, java.util.Set.of(PapelEnum.ELB)));
+
+        verify(avisosAoVivo, org.mockito.Mockito.never()).acessoMudou(org.mockito.ArgumentMatchers.anyLong(), org.mockito.ArgumentMatchers.anyBoolean());
     }
 
     @Test

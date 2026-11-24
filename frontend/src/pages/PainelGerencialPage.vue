@@ -204,6 +204,7 @@ import { rotuloDaEtapa, formatarDias, periodoPadrao, especiesDoFiltro } from '@/
 import { MODULOS } from '@/regras/index.js'
 import { visoesDoPainel } from '@/utils/papeis.js'
 import { useAuthStore } from '@/stores/auth.js'
+import { useDocumentosStore } from '@/stores/documentos.js'
 import {
   CORES, opcaoPorMes, opcaoPorEspecie, opcaoSituacaoAtual, opcaoTempos, opcaoPorOm, opcaoFila,
 } from '@/utils/painelGerencialGraficos.js'
@@ -213,6 +214,7 @@ const carregando = ref(false)
 const erro = ref('')
 const especies = ref([])
 const auth = useAuthStore()
+const docStore = useDocumentosStore()
 const modulos = MODULOS
 const oms = ref([])
 const omsFiltradas = ref([])
@@ -274,13 +276,17 @@ function filtrarOms(valor, update) {
   update(() => { omsFiltradas.value = filtrarOpcoesDeOm(oms.value, valor) })
 }
 
-async function carregar() {
-  carregando.value = true
-  erro.value = ''
+// `silencioso`: a atualização ao vivo (aviso SSE de documento) refaz os números sem o indicador de carregamento nem apagar o erro anterior.
+async function carregar(silencioso = false) {
+  if (!silencioso) {
+    carregando.value = true
+    erro.value = ''
+  }
   try {
     painel.value = await getPainelGerencial(filtros)
+    erro.value = ''
   } catch (e) {
-    erro.value = `Não foi possível carregar os indicadores: ${e?.message ?? 'erro desconhecido'}`
+    if (!silencioso) erro.value = `Não foi possível carregar os indicadores: ${e?.message ?? 'erro desconhecido'}`
   } finally {
     carregando.value = false
   }
@@ -310,6 +316,8 @@ watch(() => filtros.tipoDeEspecie, () => {
   if (filtros.especieId && !especiesDoSelect.value.some(e => e.id === filtros.especieId)) filtros.especieId = null
 })
 watch(filtros, () => { if (filtros.dataInicio && filtros.dataFim) carregar() })
+// Um documento foi criado, mudou de etapa ou foi excluído (aviso ao vivo): os indicadores e as filas se atualizam sozinhos.
+watch(() => docStore.refreshSignal, () => { if (filtros.dataInicio && filtros.dataFim) carregar(true) })
 
 onMounted(async () => {
   await carregar()

@@ -1,6 +1,8 @@
 package intraer.fablegis.infrastructure.configurations;
 
 import lombok.RequiredArgsConstructor;
+import intraer.fablegis.domain.entities.usuario.Usuario;
+import intraer.fablegis.infrastructure.repositories.UsuarioRepository;
 import intraer.fablegis.infrastructure.security.UsuarioDetailsService;
 import intraer.fablegis.infrastructure.security.UsuarioPrincipal;
 import com.nimbusds.jose.jwk.JWKSet;
@@ -74,6 +76,8 @@ public class AuthorizationServerConfig {
     private String frontendLoginUrl;
 
     private final UsuarioDetailsService usuarioDetailsService;
+
+    private final UsuarioRepository usuarioRepository;
 
     private final PasswordEncoder passwordEncoder;
 
@@ -273,13 +277,22 @@ public class AuthorizationServerConfig {
     // -- pra não exigir nenhuma mudança em PapelEnum/@PreAuthorize/
     // DocumentoAcessoService/JwtToUsuarioAuthenticationConverter (que lê "sub"
     // como o id pra recarregar o Usuario do banco).
+    // O principal guardado na sessão de login é um RETRATO de quando a pessoa entrou: a renovação silenciosa do frontend reaproveita essa sessão, então
+    // sem reler o usuário as claims (papéis, OM, nome) ficariam velhas até um novo login -- e o aviso ao vivo de "o seu acesso mudou" renovaria o token
+    // para nada. Por isso as claims saem do usuário de AGORA, lido do banco; se ele sumiu (não deveria), cai no retrato da sessão. O servidor, de seu lado,
+    // já decide pelo banco a cada requisição (JwtToUsuarioAuthenticationConverter): isto só alinha o que a tela mostra.
+    static Usuario usuarioDeAgora(UsuarioRepository repositorio, Usuario daSessao) {
+        if (daSessao == null || daSessao.getId() == null) return daSessao;
+        return repositorio.findById(daSessao.getId()).orElse(daSessao);
+    }
+
     @Bean
     public OAuth2TokenCustomizer<JwtEncodingContext> jwtCustomizer() {
         return context -> {
             if (context.getTokenType().getValue().equals("access_token")
                     && context.getPrincipal().getPrincipal() instanceof UsuarioPrincipal principal) {
-                var usuario = principal.getUsuario();
-                List<String> roles = principal.getPapeis().stream().map(Enum::name).toList();
+                var usuario = usuarioDeAgora(usuarioRepository, principal.getUsuario());
+                List<String> roles = usuario.getPapeis().stream().map(Enum::name).toList();
 
                 context.getClaims()
                         .subject(String.valueOf(usuario.getId()))

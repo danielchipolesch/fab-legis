@@ -15,6 +15,7 @@ import intraer.fablegis.infrastructure.repositories.DocumentoRepository;
 import intraer.fablegis.infrastructure.repositories.ItemAnexoParteNormativaRepository;
 import intraer.fablegis.infrastructure.repositories.ItemParteFinalRepository;
 import intraer.fablegis.infrastructure.repositories.ItemPartePreliminarRepository;
+import intraer.fablegis.infrastructure.notificacao.AvisosAoVivo;
 import intraer.fablegis.infrastructure.repositories.UsuarioRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.AfterEach;
@@ -93,6 +94,7 @@ class DocumentoStatusServiceTest {
     @Mock ItemParteFinalRepository finalRepository;
     @Mock EmendaService emendaService;
     @Mock NotificacaoService notificacaoService;
+    @Mock AvisosAoVivo avisosAoVivo;
     @Mock DocumentoParteNormativaService documentoParteNormativaService;
     @Mock PortariaPublicacaoService portariaPublicacaoService;
     @Mock UsuarioRepository usuarioRepository;
@@ -521,6 +523,28 @@ class DocumentoStatusServiceTest {
         assertThat(doc.getAprovador()).isNull();
         verify(notificacaoService).criar(eq(a1), eq(TipoNotificacaoEnum.APROVACAO_PENDENTE), contains("aprovação"), eq(DOC_ID), eq("ICA 5-3"));
         verify(notificacaoService).criar(eq(a2), eq(TipoNotificacaoEnum.APROVACAO_PENDENTE), contains("aprovação"), eq(DOC_ID), eq("ICA 5-3"));
+    }
+
+    // Aviso ao vivo: toda mudança de etapa chega aos conectados (filas, listas, cards e o editor aberto no documento se atualizam).
+    @Test
+    void todaMudancaDeEtapaAvisaAoVivoOsConectadosComAEtapaNova() {
+        var doc = documentoEm(NAO_PUBLICADO, RASCUNHO);
+        when(usuarioRepository.findByOmIdAndPapel(1L, PapelEnum.APR_OM)).thenReturn(List.of());
+
+        service.changeStatus(DOC_ID, apenas(MINUTA));
+
+        verify(avisosAoVivo).documentoMudou(doc);
+        assertThat(doc.getSituacaoLocal()).isEqualTo(MINUTA);   // o aviso sai com a etapa já nova
+    }
+
+    @Test
+    void transicaoNaoPermitidaNaoAvisaNinguem() {
+        documentoEm(NAO_PUBLICADO, RASCUNHO);
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> service.changeStatus(DOC_ID, apenas(SEM_ETAPA)))
+                .isInstanceOf(intraer.fablegis.domain.handlers.exceptions.StatusCannotBeUpdatedException.class);
+
+        verify(avisosAoVivo, never()).documentoMudou(any(Documento.class));
     }
 
     @Test
