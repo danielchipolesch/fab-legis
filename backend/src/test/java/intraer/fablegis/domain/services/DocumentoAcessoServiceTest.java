@@ -127,22 +127,33 @@ class DocumentoAcessoServiceTest {
         assertThat(pode(autor, MINUTA)).isFalse();
     }
 
-    // ─── Enviar para revisão / pedir análise de revogação: quem edita ────────────
+    // ─── Enviar para aprovação / pedir análise de revogação: quem edita ──────────
 
     @ParameterizedTest
-    @EnumSource(value = SituacaoLocalEnum.class, names = {"EM_REVISAO", "ANALISE_REVOGACAO"})
-    void autorECoautorComPapelEditPedemRevisaoOuAnaliseDeRevogacao(SituacaoLocalEnum destino) {
-        doc.setSituacaoLocal(destino == EM_REVISAO ? MINUTA : SEM_ETAPA);
+    @EnumSource(value = SituacaoLocalEnum.class, names = {"MINUTA", "ANALISE_REVOGACAO"})
+    void autorECoautorComPapelEditEnviamParaAprovacaoOuPedemAnaliseDeRevogacao(SituacaoLocalEnum destino) {
+        doc.setSituacaoLocal(destino == MINUTA ? RASCUNHO : SEM_ETAPA);
         assertThat(pode(autor, destino)).isTrue();
         assertThat(pode(coautor, destino)).isTrue();
         assertThat(pode(estranho, destino)).isFalse();
     }
 
     @Test
-    void semOPapelEditNemOAutorEnviaParaRevisao() {
-        doc.setSituacaoLocal(MINUTA);
+    void semOPapelEditNemOAutorEnviaParaAprovacao() {
+        doc.setSituacaoLocal(RASCUNHO);
         autor.setPapeis(EnumSet.of(PapelEnum.APR_OM));
-        assertThat(pode(autor, EM_REVISAO)).isFalse();
+        assertThat(pode(autor, MINUTA)).isFalse();
+    }
+
+    // A alteração de um ato publicado também vai para aprovação (PUBLICADO + MINUTA): quem a conduz é quem edita.
+    @Test
+    void oAutorEnviaParaAprovacaoUmaAlteracaoEmCurso() {
+        doc.setSituacaoBca(SituacaoBcaEnum.PUBLICADO);
+        doc.setSituacaoLocal(EM_ALTERACAO);
+
+        assertThat(pode(autor, MINUTA)).isTrue();
+        assertThat(pode(coautor, MINUTA)).isTrue();
+        assertThat(pode(estranho, MINUTA)).isFalse();
     }
 
     // ─── Iniciar e cancelar uma alteração ────────────────────────────────────────
@@ -174,9 +185,9 @@ class DocumentoAcessoServiceTest {
     // ─── Aprovação: QUALQUER aprovador da OM do documento decide (ninguém é escolhido) ───────────
 
     @ParameterizedTest
-    @EnumSource(value = SituacaoLocalEnum.class, names = {"EM_PUBLICACAO", "MINUTA"})
-    void qualquerAprovadorDaOmAprovaOuDevolveDeEmRevisao(SituacaoLocalEnum destino) {
-        doc.setSituacaoLocal(EM_REVISAO);
+    @EnumSource(value = SituacaoLocalEnum.class, names = {"EM_PUBLICACAO", "RASCUNHO", "ARQUIVADO"})
+    void qualquerAprovadorDaOmAprovaDevolveOuArquivaUmaMinuta(SituacaoLocalEnum destino) {
+        doc.setSituacaoLocal(MINUTA);
 
         assertThat(pode(revisor, destino)).isTrue();
         assertThat(pode(aprovadorDaOm, destino)).isTrue();
@@ -187,9 +198,24 @@ class DocumentoAcessoServiceTest {
     }
 
     @Test
-    void oAprovadorNaoCancelaODocumento() {
-        doc.setSituacaoLocal(EM_REVISAO);
+    void naMinutaNinguemCancelaNemOAutorNemOAprovador() {
+        doc.setSituacaoLocal(MINUTA);
         assertThat(pode(revisor, CANCELADO)).isFalse();
+        assertThat(pode(autor, CANCELADO)).isFalse();
+        assertThat(pode(coautor, CANCELADO)).isFalse();
+    }
+
+    // O arquivamento é da autoridade (quem aprova), e só da minuta: nem o autor arquiva, nem se arquiva o que não está em aprovação.
+    @Test
+    void soQuemAprovaArquivaEDeUmaMinuta() {
+        doc.setSituacaoLocal(MINUTA);
+        assertThat(pode(revisor, ARQUIVADO)).isTrue();
+        assertThat(pode(autor, ARQUIVADO)).isFalse();
+        assertThat(pode(aprovadorDeOutraOm, ARQUIVADO)).isFalse();
+
+        doc.setSituacaoLocal(RASCUNHO);
+        assertThat(pode(revisor, ARQUIVADO)).isFalse();
+        assertThat(pode(autor, ARQUIVADO)).isFalse();
     }
 
     @Test
@@ -207,7 +233,7 @@ class DocumentoAcessoServiceTest {
     // ─── Espécie convencional, publicação e revogação: QUALQUER Publicador do BCA decide (o papel só existe no CENDOC) ────────
 
     @ParameterizedTest
-    @EnumSource(value = SituacaoLocalEnum.class, names = {"SEM_ETAPA", "MINUTA", "EM_ALTERACAO"})
+    @EnumSource(value = SituacaoLocalEnum.class, names = {"SEM_ETAPA", "RASCUNHO", "EM_ALTERACAO"})
     void qualquerPublicadorPublicaOuDevolveDeEmPublicacao(SituacaoLocalEnum destino) {
         doc.setSituacaoLocal(EM_PUBLICACAO);
 
@@ -231,7 +257,7 @@ class DocumentoAcessoServiceTest {
     // ─── NPA: quem publica é o Publicador do Boletim Interno da PRÓPRIA OM, não o CENDOC ────────────
 
     @ParameterizedTest
-    @EnumSource(value = SituacaoLocalEnum.class, names = {"SEM_ETAPA", "MINUTA"})
+    @EnumSource(value = SituacaoLocalEnum.class, names = {"SEM_ETAPA", "RASCUNHO"})
     void aNpaEPublicadaPeloPublicadorDoBoletimInternoDaPropriaOm(SituacaoLocalEnum destino) {
         doc.setEspecieNormativa(npa);
         doc.setSituacaoLocal(EM_PUBLICACAO);
@@ -256,7 +282,7 @@ class DocumentoAcessoServiceTest {
     }
 
     @ParameterizedTest
-    @EnumSource(value = SituacaoLocalEnum.class, names = {"SEM_ETAPA", "MINUTA", "EM_ALTERACAO"})
+    @EnumSource(value = SituacaoLocalEnum.class, names = {"SEM_ETAPA", "RASCUNHO", "EM_ALTERACAO"})
     void oPublicadorDoBoletimInternoNaoPublicaEspecieConvencional(SituacaoLocalEnum destino) {
         doc.setSituacaoLocal(EM_PUBLICACAO);
 
@@ -267,30 +293,56 @@ class DocumentoAcessoServiceTest {
     // ─── Demais transições: posse de editar ──────────────────────────────────────
 
     @Test
-    void cancelarUmRascunhoOuMinutaEDeQuemEdita() {
-        doc.setSituacaoLocal(MINUTA);
+    void cancelarUmRascunhoEDeQuemEdita() {
+        doc.setSituacaoLocal(RASCUNHO);
         assertThat(pode(autor, CANCELADO)).isTrue();
         assertThat(pode(coautor, CANCELADO)).isTrue();
         assertThat(pode(estranho, CANCELADO)).isFalse();
     }
 
     @Test
-    void minutarEDeQuemEdita() {
+    void enviarOrascunhoParaAprovacaoEDeQuemEdita() {
         doc.setSituacaoLocal(RASCUNHO);
         assertThat(pode(autor, MINUTA)).isTrue();
         assertThat(pode(estranho, MINUTA)).isFalse();
     }
 
+    // ─── Excluir (podeExcluir): só o rascunho; para excluir o que já foi para aprovação, a autoridade devolve aos autores ───
+
+    private boolean podeExcluir(Usuario u) {
+        return service.podeExcluir(DOC_ID, como(u));
+    }
+
+    @Test
+    void autorECoautorExcluemORascunho() {
+        doc.setSituacaoLocal(RASCUNHO);
+
+        assertThat(podeExcluir(autor)).isTrue();
+        assertThat(podeExcluir(coautor)).isTrue();
+        assertThat(podeExcluir(estranho)).isFalse();
+    }
+
+    @ParameterizedTest
+    @EnumSource(value = SituacaoLocalEnum.class, names = {"MINUTA", "EM_ALTERACAO", "EM_PUBLICACAO", "ANALISE_REVOGACAO", "EM_REVOGACAO",
+            "CANCELADO", "ARQUIVADO", "SEM_ETAPA"})
+    void foraDoRascunhoNinguemExcluiNemOAutorNemOAprovador(SituacaoLocalEnum etapa) {
+        doc.setSituacaoLocal(etapa);
+
+        assertThat(podeExcluir(autor)).isFalse();
+        assertThat(podeExcluir(coautor)).isFalse();
+        assertThat(podeExcluir(revisor)).isFalse();
+    }
+
     // ─── Editar o conteúdo (podeEditar): a etapa manda ─────────────────────────────
-    // Regra (docs/ciclo-de-vida.md): RASCUNHO/MINUTA/EM_ALTERACAO, o autor e os coautores com papel EDIT; EM_REVISAO, só o
-    // revisor atribuído (e só de documento ainda não publicado); de EM_PUBLICACAO em diante, ninguém -- nem o autor.
+    // Regra (docs/ciclo-de-vida.md): RASCUNHO/EM_ALTERACAO, o autor e os coautores com papel EDIT; MINUTA, só quem aprova
+    // (e só de documento ainda não publicado); de EM_PUBLICACAO em diante, ninguém -- nem o autor.
 
     private boolean podeEditar(Usuario u) {
         return service.podeEditar(DOC_ID, como(u));
     }
 
     @ParameterizedTest
-    @EnumSource(value = SituacaoLocalEnum.class, names = {"RASCUNHO", "MINUTA", "EM_ALTERACAO"})
+    @EnumSource(value = SituacaoLocalEnum.class, names = {"RASCUNHO", "EM_ALTERACAO"})
     void nasEtapasDeEscritaEditamAutorECoautorComPapelEdit(SituacaoLocalEnum etapa) {
         doc.setSituacaoLocal(etapa);
 
@@ -303,19 +355,19 @@ class DocumentoAcessoServiceTest {
 
     @Test
     void semOPapelEditNemOAutorEdita() {
-        doc.setSituacaoLocal(MINUTA);
+        doc.setSituacaoLocal(RASCUNHO);
         autor.setPapeis(EnumSet.of(PapelEnum.APR_OM));
 
         assertThat(podeEditar(autor)).isFalse();
     }
 
     @Test
-    void emRevisaoEditamOsAprovadoresDaOm() {
-        doc.setSituacaoLocal(EM_REVISAO);
+    void naMinutaEditamOsAprovadoresDaOm() {
+        doc.setSituacaoLocal(MINUTA);
 
         assertThat(podeEditar(revisor)).isTrue();
         assertThat(podeEditar(aprovadorDaOm)).isTrue();
-        // Nem o autor nem o coautor editam enquanto o documento está sob revisão.
+        // Nem o autor nem o coautor editam enquanto o documento está na minuta (em aprovação).
         assertThat(podeEditar(autor)).isFalse();
         assertThat(podeEditar(coautor)).isFalse();
         // Aprovador de OUTRA OM não edita.
@@ -323,9 +375,9 @@ class DocumentoAcessoServiceTest {
     }
 
     @Test
-    void aRevisaoDeUmaAlteracaoDeAtoPublicadoESomenteLeituraAteParaOAprovador() {
+    void aMinutaDeUmaAlteracaoDeAtoPublicadoESomenteLeituraAteParaOAprovador() {
         doc.setSituacaoBca(SituacaoBcaEnum.PUBLICADO);
-        doc.setSituacaoLocal(EM_REVISAO);
+        doc.setSituacaoLocal(MINUTA);
 
         assertThat(podeEditar(revisor)).isFalse();
         assertThat(podeEditar(autor)).isFalse();
@@ -334,7 +386,7 @@ class DocumentoAcessoServiceTest {
     // O conteúdo aprovado não muda entre a aprovação e a publicação -- nem pela API, nem pelo autor.
     @ParameterizedTest
     @EnumSource(value = SituacaoLocalEnum.class,
-            names = {"EM_PUBLICACAO", "ANALISE_REVOGACAO", "EM_REVOGACAO", "CANCELADO", "SEM_ETAPA"})
+            names = {"EM_PUBLICACAO", "ANALISE_REVOGACAO", "EM_REVOGACAO", "CANCELADO", "ARQUIVADO", "SEM_ETAPA"})
     void nasEtapasCongeladasNinguemEdita(SituacaoLocalEnum etapa) {
         doc.setSituacaoLocal(etapa);
         doc.setAprovador(revisor);
@@ -387,8 +439,8 @@ class DocumentoAcessoServiceTest {
     }
 
     @ParameterizedTest
-    @EnumSource(value = SituacaoLocalEnum.class, names = {"RASCUNHO", "MINUTA", "EM_REVISAO", "EM_ALTERACAO", "ANALISE_REVOGACAO",
-            "CANCELADO", "SEM_ETAPA"})
+    @EnumSource(value = SituacaoLocalEnum.class, names = {"RASCUNHO", "MINUTA", "EM_ALTERACAO", "ANALISE_REVOGACAO",
+            "CANCELADO", "ARQUIVADO", "SEM_ETAPA"})
     void foraDaPublicacaoOuDaRevogacaoNinguemEnviaOPdfDaPortaria(SituacaoLocalEnum etapa) {
         doc.setSituacaoLocal(etapa);
 

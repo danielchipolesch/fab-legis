@@ -20,24 +20,24 @@ import static intraer.fablegis.domain.entities.estruturaDocumento.SituacaoLocalE
 @Component
 public class CicloDeVidaDeEspecieConvencional implements RegrasDoCicloDeVidaDoDocumento {
 
-    // Devolver leva ao começo do trabalho: um documento já PUBLICADO volta para a alteração que estava
-    // fazendo; um nunca publicado, para a minuta.
+    // Devolver leva o documento de volta aos autores: um documento já PUBLICADO volta para a alteração que estava
+    // fazendo; um nunca publicado, para o rascunho.
     private static SituacaoLocalEnum destinoDeDevolucao(SituacaoBcaEnum bca) {
-        return bca == SituacaoBcaEnum.PUBLICADO ? EM_ALTERACAO : MINUTA;
+        return bca == SituacaoBcaEnum.PUBLICADO ? EM_ALTERACAO : RASCUNHO;
     }
 
     @Override
     public Optional<AcaoDeEtapa> acaoPara(SituacaoLocalEnum atual, SituacaoLocalEnum destino, SituacaoBcaEnum bca) {
         return Optional.ofNullable(switch (atual) {
-            case RASCUNHO          -> destino == MINUTA ? AcaoDeEtapa.MINUTAR
+            case RASCUNHO          -> destino == MINUTA ? AcaoDeEtapa.ENVIAR_PARA_APROVACAO
                                     : destino == CANCELADO ? AcaoDeEtapa.CANCELAR_DOCUMENTO : null;
-            case MINUTA            -> destino == EM_REVISAO ? AcaoDeEtapa.ENVIAR_PARA_REVISAO
-                                    : destino == CANCELADO ? AcaoDeEtapa.CANCELAR_DOCUMENTO : null;
-            case EM_REVISAO        -> destino == EM_PUBLICACAO ? AcaoDeEtapa.APROVAR
-                                    : destino == destinoDeDevolucao(bca) ? AcaoDeEtapa.DEVOLVER : null;
+            // Arquivar só um documento que nunca foi publicado: um ato PUBLICADO em alteração se devolve ou se aprova.
+            case MINUTA            -> destino == EM_PUBLICACAO ? AcaoDeEtapa.APROVAR
+                                    : destino == destinoDeDevolucao(bca) ? AcaoDeEtapa.DEVOLVER
+                                    : destino == ARQUIVADO && bca == SituacaoBcaEnum.NAO_PUBLICADO ? AcaoDeEtapa.ARQUIVAR : null;
             case EM_PUBLICACAO     -> destino == SEM_ETAPA ? AcaoDeEtapa.PUBLICAR
                                     : destino == destinoDeDevolucao(bca) ? AcaoDeEtapa.DEVOLVER : null;
-            case EM_ALTERACAO      -> destino == EM_REVISAO ? AcaoDeEtapa.ENVIAR_PARA_REVISAO
+            case EM_ALTERACAO      -> destino == MINUTA ? AcaoDeEtapa.ENVIAR_PARA_APROVACAO
                                     : destino == SEM_ETAPA ? AcaoDeEtapa.CANCELAR_ALTERACAO : null;
             case ANALISE_REVOGACAO -> destino == EM_REVOGACAO ? AcaoDeEtapa.APROVAR_REVOGACAO
                                     : destino == SEM_ETAPA ? AcaoDeEtapa.DEVOLVER_ANALISE : null;
@@ -45,7 +45,7 @@ public class CicloDeVidaDeEspecieConvencional implements RegrasDoCicloDeVidaDoDo
             case SEM_ETAPA         -> bca != SituacaoBcaEnum.PUBLICADO ? null
                                     : destino == EM_ALTERACAO ? AcaoDeEtapa.INICIAR_ALTERACAO
                                     : destino == ANALISE_REVOGACAO ? AcaoDeEtapa.PEDIR_REVOGACAO : null;
-            case CANCELADO         -> null;
+            case CANCELADO, ARQUIVADO -> null;
         });
     }
 

@@ -229,7 +229,7 @@ const cartoes = computed(() => {
     { chave: 'criados', rotulo: 'Criados', valor: t.criados, nota: 'no período', icone: 'mdi-file-plus-outline', cor: '#0B3D91' },
     { chave: 'publicados', rotulo: 'Publicados', valor: t.publicados, nota: 'no período', icone: 'mdi-publish', cor: '#2E9E6B' },
     { chave: 'revogados', rotulo: 'Revogados', valor: t.revogados, nota: 'no período', icone: 'mdi-file-remove-outline', cor: '#6B7A90' },
-    { chave: 'devolvidos', rotulo: 'Devolvidos', valor: t.devolvidos, nota: 'voltaram à minuta, no período', icone: 'mdi-undo-variant', cor: '#D9534F' },
+    { chave: 'devolvidos', rotulo: 'Devolvidos', valor: t.devolvidos, nota: 'voltaram aos autores, no período', icone: 'mdi-undo-variant', cor: '#D9534F' },
     { chave: 'em-tramitacao', rotulo: 'Em Tramitação', valor: t.emTramitacao, nota: 'agora', icone: 'mdi-timer-sand', cor: '#E0A030' },
     { chave: 'vigentes', rotulo: 'Vigentes', valor: t.vigentes, nota: 'publicados em vigor, agora', icone: 'mdi-check-decagram-outline', cor: '#7A4FBF' },
   ]

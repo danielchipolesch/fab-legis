@@ -10,14 +10,15 @@ const doc = (extra) => ({
 })
 
 describe('acaoDaLinha — meus documentos em tramitação', () => {
-  it.each(['RASCUNHO', 'MINUTA', 'EM_ALTERACAO'])('%s: Editar, quando sou autor ou coautor', (etapa) => {
+  it.each(['RASCUNHO', 'EM_ALTERACAO'])('%s: Editar, quando sou autor ou coautor', (etapa) => {
     const a = acaoDaLinha('minhas_em_tramitacao', doc({ situacao_local: etapa }))
     expect(a.rotulo).toBe('Editar')
     expect(a.rota).toEqual({ name: 'documento-editar', params: { id: 7 } })
     expect(a.pendente).toBe(false)
   })
 
-  it.each(['EM_REVISAO', 'EM_PUBLICACAO', 'ANALISE_REVOGACAO', 'EM_REVOGACAO'])(
+  // A minuta está com quem aprova (nem o autor a edita), e a publicação e a revogação, com os publicadores.
+  it.each(['MINUTA', 'EM_PUBLICACAO', 'ANALISE_REVOGACAO', 'EM_REVOGACAO'])(
     '%s: Acompanhar, porque está com outra pessoa', (etapa) => {
       const a = acaoDaLinha('minhas_em_tramitacao', doc({ situacao_local: etapa }))
       expect(a.rotulo).toBe('Acompanhar')
@@ -30,7 +31,7 @@ describe('acaoDaLinha — meus documentos em tramitação', () => {
 })
 
 describe('acaoDaLinha — em tramitação nas OMs (só visualizo)', () => {
-  it.each(['RASCUNHO', 'MINUTA', 'EM_ALTERACAO', 'EM_REVISAO', 'EM_PUBLICACAO'])(
+  it.each(['RASCUNHO', 'MINUTA', 'EM_ALTERACAO', 'EM_PUBLICACAO'])(
     '%s: sempre Acompanhar, nunca Editar, mesmo com a etapa de escrita', (etapa) => {
       const a = acaoDaLinha('em_tramitacao_de_outros', doc({ situacao_local: etapa, eh_autor_ou_coautor: false }))
       expect(a).toEqual({ rotulo: 'Acompanhar', rota: { name: 'documento-visualizar', params: { id: 7 } }, pendente: false })
@@ -42,8 +43,8 @@ describe('acaoDaLinha — em tramitação nas OMs (só visualizo)', () => {
 })
 
 describe('acaoDaLinha — aguardando minha ação', () => {
-  it('revisão: abre o documento para revisar, lembrando a origem, e acende o aviso', () => {
-    const a = acaoDaLinha('aguardando', doc({ situacao_local: 'EM_REVISAO' }))
+  it('minuta: abre o documento para revisar, lembrando a origem, e acende o aviso', () => {
+    const a = acaoDaLinha('aguardando', doc({ situacao_local: 'MINUTA' }))
     expect(a).toMatchObject({ rotulo: 'Revisar', pendente: true })
     expect(a.rota).toEqual({ name: 'documento-editar', params: { id: 7 }, query: { origem: 'revisao' } })
   })
@@ -77,7 +78,7 @@ describe('selosDaLinha', () => {
 
   it('nos cards de trabalho, um documento nunca publicado leva só a etapa', () => {
     expect(selosDaLinha('minhas_em_tramitacao', doc({ situacao_bca: 'NAO_PUBLICADO', situacao_local: 'RASCUNHO' }))).toBe('local')
-    expect(selosDaLinha('aguardando', doc({ situacao_bca: 'NAO_PUBLICADO', situacao_local: 'EM_REVISAO' }))).toBe('local')
+    expect(selosDaLinha('aguardando', doc({ situacao_bca: 'NAO_PUBLICADO', situacao_local: 'MINUTA' }))).toBe('local')
   })
 
   it('nos cards de trabalho, um publicado em alteração ou revogação leva a etapa e o selo de publicado', () => {
@@ -135,20 +136,20 @@ describe('detalhesDoDocumento', () => {
   })
 
   it('em tramitação: com quem o documento está', () => {
-    expect(valor(detalhesDoDocumento('minhas_em_tramitacao', doc({ situacao_local: 'MINUTA' })), 'Com')).toBe('Autor e coautores')
-    expect(valor(detalhesDoDocumento('minhas_em_tramitacao', doc({ situacao_local: 'EM_REVISAO', aprovador_nome: 'Ana' })), 'Com')).toBe('Aprovadores da OM')
+    expect(valor(detalhesDoDocumento('minhas_em_tramitacao', doc({ situacao_local: 'RASCUNHO' })), 'Com')).toBe('Autor e coautores')
+    expect(valor(detalhesDoDocumento('minhas_em_tramitacao', doc({ situacao_local: 'MINUTA', aprovador_nome: 'Ana' })), 'Com')).toBe('Aprovadores da OM')
     expect(valor(detalhesDoDocumento('minhas_em_tramitacao', doc({ situacao_local: 'EM_PUBLICACAO', publicador_nome: 'Rui' })), 'Com')).toBe('Publicadores do BCA (CENDOC)')
     // a NPA é publicada na própria OM, no Boletim Interno
     expect(valor(detalhesDoDocumento('minhas_em_tramitacao', doc({ tipo_de_especie: 'COMUNICACAO_OFICIAL_PADRONIZADA', situacao_local: 'EM_PUBLICACAO' })), 'Com')).toBe('Publicadores do Boletim Interno da OM')
   })
 
   it('aguardando: o que se espera da pessoa', () => {
-    expect(valor(detalhesDoDocumento('aguardando', doc({ situacao_local: 'EM_REVISAO' })), 'Se espera de você'))
-      .toBe('Aprovar o documento ou devolvê-lo')
+    expect(valor(detalhesDoDocumento('aguardando', doc({ situacao_local: 'MINUTA' })), 'Se espera de você'))
+      .toBe('Aprovar o documento, devolvê-lo aos autores ou arquivá-lo')
   })
 
   it('em tramitação nas OMs: com quem o documento está, como nos meus', () => {
-    expect(valor(detalhesDoDocumento('em_tramitacao_de_outros', doc({ situacao_local: 'EM_REVISAO', aprovador_nome: 'Ana' })), 'Com')).toBe('Aprovadores da OM')
+    expect(valor(detalhesDoDocumento('em_tramitacao_de_outros', doc({ situacao_local: 'MINUTA', aprovador_nome: 'Ana' })), 'Com')).toBe('Aprovadores da OM')
   })
 
   it('publicados: convencional mostra portaria e BCA; NPA, o Boletim Interno', () => {

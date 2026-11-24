@@ -9,7 +9,7 @@ import org.hibernate.annotations.CreationTimestamp;
 import java.sql.Timestamp;
 
 // Coautoria de um documento -- dá direito de editar e, enquanto o documento
-// estiver em RASCUNHO/MINUTA, de excluir (ver DocumentoAcessoService). Só o
+// estiver em RASCUNHO, de excluir (ver DocumentoAcessoService). Só o
 // autor do documento pode criar ou remover uma linha aqui.
 @Data
 @Entity

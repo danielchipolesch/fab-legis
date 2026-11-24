@@ -355,12 +355,10 @@ const ESPECIE_COMPLETA = {
 // etapas locais mostram marca d'água, mesmo texto, cor equivalente. A versão vigente
 // (SEM_ETAPA) não tem marca d'água.
 const WM_TEXT = {
-  RASCUNHO: 'RASCUNHO', MINUTA: 'MINUTA', EM_ALTERACAO: 'EM ALTERAÇÃO',
-  EM_REVISAO: 'EM REVISÃO', EM_PUBLICACAO: 'APROVADO',
+  RASCUNHO: 'RASCUNHO', MINUTA: 'MINUTA', EM_ALTERACAO: 'EM ALTERAÇÃO', EM_PUBLICACAO: 'APROVADO',
 }
 const WM_COLOR = {
-  RASCUNHO: '#b50000', MINUTA: '#b50000', EM_ALTERACAO: '#b57a00',
-  EM_REVISAO: '#3a5bb5', EM_PUBLICACAO: '#1a6b1a',
+  RASCUNHO: '#b50000', MINUTA: '#3a5bb5', EM_ALTERACAO: '#b57a00', EM_PUBLICACAO: '#1a6b1a',
 }
 
 // ─── Helpers ─────────────────────────────────────────────

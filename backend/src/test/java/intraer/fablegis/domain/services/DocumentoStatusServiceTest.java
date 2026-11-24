@@ -160,7 +160,13 @@ class DocumentoStatusServiceTest {
     private static DocumentoStatusRequestDto pedidoCompleto(SituacaoLocalEnum destino) {
         return new DocumentoStatusRequestDto(destino,
                 "COMAER", "DIRAP", "123", LocalDate.of(2026, 3, 5), 12, LocalDate.of(2026, 3, 6),
-                "{}", "{}", "{}", "{}", "{}", "https://s3/portaria.pdf");
+                "{}", "{}", "{}", "{}", "{}", "https://s3/portaria.pdf", null, null, "Justificativa de teste.");
+    }
+
+    // Arquivar exige a justificativa da autoridade.
+    private static DocumentoStatusRequestDto arquivando(String justificativa) {
+        return new DocumentoStatusRequestDto(ARQUIVADO, null, null, null, null, null, null,
+                null, null, null, null, null, null, null, null, justificativa);
     }
 
     private static DocumentoStatusRequestDto apenas(SituacaoLocalEnum destino) {
@@ -195,9 +201,9 @@ class DocumentoStatusServiceTest {
 
     // Combinações que existem de fato (as demais são impossíveis: ex. um PUBLICADO em RASCUNHO).
     private static final Par[] COMBINACOES_ALCANCAVEIS = {
-            new Par(NAO_PUBLICADO, RASCUNHO), new Par(NAO_PUBLICADO, MINUTA), new Par(NAO_PUBLICADO, EM_REVISAO),
-            new Par(NAO_PUBLICADO, EM_PUBLICACAO), new Par(NAO_PUBLICADO, CANCELADO),
-            new Par(PUBLICADO, SEM_ETAPA), new Par(PUBLICADO, EM_ALTERACAO), new Par(PUBLICADO, EM_REVISAO),
+            new Par(NAO_PUBLICADO, RASCUNHO), new Par(NAO_PUBLICADO, MINUTA),
+            new Par(NAO_PUBLICADO, EM_PUBLICACAO), new Par(NAO_PUBLICADO, CANCELADO), new Par(NAO_PUBLICADO, ARQUIVADO),
+            new Par(PUBLICADO, SEM_ETAPA), new Par(PUBLICADO, EM_ALTERACAO), new Par(PUBLICADO, MINUTA),
             new Par(PUBLICADO, EM_PUBLICACAO), new Par(PUBLICADO, ANALISE_REVOGACAO), new Par(PUBLICADO, EM_REVOGACAO),
             new Par(REVOGADO, SEM_ETAPA),
     };
@@ -205,19 +211,22 @@ class DocumentoStatusServiceTest {
     private static boolean transicaoPermitida(Par de, SituacaoLocalEnum para) {
         boolean publicado = de.bca() == PUBLICADO;
         return switch (de.local()) {
+            // Enviar para aprovação (vira MINUTA) ou cancelar -- o cancelamento é só do rascunho.
             case RASCUNHO          -> para == MINUTA || para == CANCELADO;
-            case MINUTA            -> para == EM_REVISAO || para == CANCELADO;
-            // Aprovar (EM_PUBLICACAO) ou devolver (publicado volta à alteração; não publicado, à minuta).
-            case EM_REVISAO, EM_PUBLICACAO -> (de.local() == EM_REVISAO ? para == EM_PUBLICACAO : para == SEM_ETAPA)
-                    || para == (publicado ? EM_ALTERACAO : MINUTA);
-            // Enviar para revisão ou cancelar a alteração.
-            case EM_ALTERACAO      -> para == EM_REVISAO || para == SEM_ETAPA;
+            // Na minuta (em aprovação): aprovar (EM_PUBLICACAO), devolver aos autores (publicado volta à alteração; não publicado, ao
+            // rascunho) ou arquivar (só quem nunca foi publicado). Não se cancela.
+            case MINUTA            -> para == EM_PUBLICACAO || para == (publicado ? EM_ALTERACAO : RASCUNHO)
+                    || (!publicado && para == ARQUIVADO);
+            // Publicar (SEM_ETAPA) ou devolver aos autores.
+            case EM_PUBLICACAO     -> para == SEM_ETAPA || para == (publicado ? EM_ALTERACAO : RASCUNHO);
+            // Enviar a alteração para aprovação ou cancelá-la.
+            case EM_ALTERACAO      -> para == MINUTA || para == SEM_ETAPA;
             // Aprovar a revogação ou devolver a análise (o documento segue PUBLICADO).
             case ANALISE_REVOGACAO -> para == EM_REVOGACAO || para == SEM_ETAPA;
             // A única saída é formalizar a revogação: nunca volta a PUBLICADO.
             case EM_REVOGACAO      -> para == SEM_ETAPA;
             case SEM_ETAPA         -> publicado && (para == EM_ALTERACAO || para == ANALISE_REVOGACAO);
-            case CANCELADO         -> false;
+            case CANCELADO, ARQUIVADO -> false;
         };
     }
 
@@ -373,7 +382,7 @@ class DocumentoStatusServiceTest {
     @Test
     void outrasTransicoesNaoConsultamAsAlteracoesPendentes() {
         documentoEm(PUBLICADO, EM_ALTERACAO);
-        service.changeStatus(DOC_ID, pedidoCompleto(EM_REVISAO));
+        service.changeStatus(DOC_ID, pedidoCompleto(MINUTA));
 
         verify(emendaService, never()).temAlteracoesPendentes(anyLong());
     }
@@ -383,11 +392,9 @@ class DocumentoStatusServiceTest {
     @Test
     void cadaEtapaGravaSuaPropriaData() {
         var doc = documentoEm(NAO_PUBLICADO, RASCUNHO);
+        // dtMinuta é a data do ENVIO PARA APROVAÇÃO (a entrada na minuta)
         service.changeStatus(DOC_ID, apenas(MINUTA));
         assertThat(doc.getDtMinuta()).isNotNull();
-
-        service.changeStatus(DOC_ID, pedidoCompleto(EM_REVISAO));
-        assertThat(doc.getDtEmRevisao()).isNotNull();
 
         service.changeStatus(DOC_ID, pedidoCompleto(EM_PUBLICACAO));
         assertThat(doc.getDtAprovacao()).isNotNull();
@@ -400,7 +407,7 @@ class DocumentoStatusServiceTest {
 
     @Test
     void aAprovacaoDeUmaAlteracaoUsaDtAlteradoSemSobrescreverAAprovacaoOriginal() {
-        var doc = documentoEm(PUBLICADO, EM_REVISAO);
+        var doc = documentoEm(PUBLICADO, MINUTA);
 
         service.changeStatus(DOC_ID, pedidoCompleto(EM_PUBLICACAO));
 
@@ -419,13 +426,67 @@ class DocumentoStatusServiceTest {
     }
 
     @Test
-    void cancelarODocumentoGravaADataDeCancelamento() {
-        var doc = documentoEm(NAO_PUBLICADO, MINUTA);
+    void cancelarORascunhoGravaADataDeCancelamento() {
+        var doc = documentoEm(NAO_PUBLICADO, RASCUNHO);
 
         service.changeStatus(DOC_ID, apenas(CANCELADO));
 
         assertThat(doc.getDtCancelamento()).isNotNull();
         assertThat(doc.getSituacaoBca()).isEqualTo(NAO_PUBLICADO);
+    }
+
+    // ─── Arquivar: a autoridade arquiva uma minuta, com justificativa ───────────────
+
+    @Test
+    void arquivarUmaMinutaGravaQuemArquivouQuandoEPorQue() {
+        var doc = documentoEm(NAO_PUBLICADO, MINUTA);
+        var autoridade = comPapel(10L, "Aprovador", PapelEnum.APR_OM);
+        autenticarComo(autoridade);
+
+        service.changeStatus(DOC_ID, arquivando("  Superado pela NPA nova.  "));
+
+        assertThat(doc.getSituacaoLocal()).isEqualTo(ARQUIVADO);
+        assertThat(doc.getSituacaoBca()).isEqualTo(NAO_PUBLICADO);
+        assertThat(doc.getJustificativaDoArquivamento()).isEqualTo("Superado pela NPA nova.");
+        assertThat(doc.getArquivador()).isSameAs(autoridade);
+        assertThat(doc.getDtArquivamento()).isNotNull();
+        verify(documentoHistoricoService).registrar(doc, TipoAlteracaoEnum.ALTERACAO_STATUS,
+                "MINUTA → ARQUIVADO", MINUTA, ARQUIVADO);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"", "   "})
+    void arquivarExigeAJustificativa(String justificativa) {
+        var doc = documentoEm(NAO_PUBLICADO, MINUTA);
+
+        assertThatThrownBy(() -> service.changeStatus(DOC_ID, arquivando(justificativa)))
+                .isInstanceOf(StatusCannotBeUpdatedException.class).hasMessageContaining("justificativa");
+        assertThatThrownBy(() -> service.changeStatus(DOC_ID, arquivando(null)))
+                .isInstanceOf(StatusCannotBeUpdatedException.class).hasMessageContaining("justificativa");
+
+        assertThat(doc.getSituacaoLocal()).isEqualTo(MINUTA);
+        assertThat(doc.getDtArquivamento()).isNull();
+    }
+
+    @Test
+    void umaAlteracaoDeAtoPublicadoNaoSeArquivaSeDevolveOuAprova() {
+        var doc = documentoEm(PUBLICADO, MINUTA);
+
+        assertThatThrownBy(() -> service.changeStatus(DOC_ID, arquivando("Não quero mais.")))
+                .isInstanceOf(StatusCannotBeUpdatedException.class).hasMessageContaining("Transição não permitida");
+        assertThat(doc.getSituacaoLocal()).isEqualTo(MINUTA);
+    }
+
+    @Test
+    void arquivarDescartaAVersaoEmTramitacao() {
+        var doc = documentoEm(NAO_PUBLICADO, MINUTA);
+        doc.setUrlPdfTramitacao("pdf-antigo");
+        doc.setUrlHtmlTramitacao("html-antigo");
+
+        service.changeStatus(DOC_ID, arquivando("Motivo."));
+
+        assertThat(doc.getUrlPdfTramitacao()).isNull();
+        assertThat(doc.getUrlHtmlTramitacao()).isNull();
     }
 
     // ─── Sem atribuição pessoal: qualquer aprovador da OM, qualquer publicador ─────────────────
@@ -449,14 +510,14 @@ class DocumentoStatusServiceTest {
 
     @Test
     void enviarParaAprovacaoNaoEscolheNinguemEAvisaOsAprovadoresDaOm() {
-        var doc = documentoEm(NAO_PUBLICADO, MINUTA);
+        var doc = documentoEm(NAO_PUBLICADO, RASCUNHO);
         var a1 = comPapel(10L, "Aprovador 1", PapelEnum.APR_OM);
         var a2 = comPapel(11L, "Aprovador 2", PapelEnum.APR_OM);
         when(usuarioRepository.findByOmIdAndPapel(1L, PapelEnum.APR_OM)).thenReturn(List.of(a1, a2));
 
-        service.changeStatus(DOC_ID, apenas(EM_REVISAO));
+        service.changeStatus(DOC_ID, apenas(MINUTA));
 
-        assertThat(doc.getSituacaoLocal()).isEqualTo(EM_REVISAO);
+        assertThat(doc.getSituacaoLocal()).isEqualTo(MINUTA);
         assertThat(doc.getAprovador()).isNull();
         verify(notificacaoService).criar(eq(a1), eq(TipoNotificacaoEnum.APROVACAO_PENDENTE), contains("aprovação"), eq(DOC_ID), eq("ICA 5-3"));
         verify(notificacaoService).criar(eq(a2), eq(TipoNotificacaoEnum.APROVACAO_PENDENTE), contains("aprovação"), eq(DOC_ID), eq("ICA 5-3"));
@@ -464,13 +525,13 @@ class DocumentoStatusServiceTest {
 
     @Test
     void quemEnviouNaoEAvisadoDeSuaPropriaAcao() {
-        documentoEm(NAO_PUBLICADO, MINUTA);
+        documentoEm(NAO_PUBLICADO, RASCUNHO);
         var eu = comPapel(10L, "Autor e aprovador", PapelEnum.APR_OM);
         var outro = comPapel(11L, "Outro aprovador", PapelEnum.APR_OM);
         when(usuarioRepository.findByOmIdAndPapel(1L, PapelEnum.APR_OM)).thenReturn(List.of(eu, outro));
         autenticarComo(eu);
 
-        service.changeStatus(DOC_ID, apenas(EM_REVISAO));
+        service.changeStatus(DOC_ID, apenas(MINUTA));
 
         verify(notificacaoService, never()).criar(eq(eu), any(), any(), anyLong(), any());
         verify(notificacaoService).criar(eq(outro), any(), any(), eq(DOC_ID), any());
@@ -493,7 +554,7 @@ class DocumentoStatusServiceTest {
 
     @Test
     void aprovarRegistraQuemAprovouEAvisaOsPublicadoresDoCendoc() {
-        var doc = documentoEm(NAO_PUBLICADO, EM_REVISAO);
+        var doc = documentoEm(NAO_PUBLICADO, MINUTA);
         var aprovador = comPapel(10L, "Aprovador", PapelEnum.APR_OM);
         var p1 = comPapel(20L, "Publicador 1", PapelEnum.PUB_BCA);
         var p2 = comPapel(21L, "Publicador 2", PapelEnum.PUB_BCA);
@@ -506,7 +567,7 @@ class DocumentoStatusServiceTest {
         assertThat(doc.getAprovador()).isSameAs(aprovador);
         assertThat(doc.getDtAprovacao()).isNotNull();
         verify(documentoHistoricoService).registrar(doc, TipoAlteracaoEnum.ALTERACAO_STATUS,
-                "EM_REVISAO → EM_PUBLICACAO", EM_REVISAO, EM_PUBLICACAO);
+                "MINUTA → EM_PUBLICACAO", MINUTA, EM_PUBLICACAO);
         verify(notificacaoService).criar(eq(p1), eq(TipoNotificacaoEnum.APROVACAO_PENDENTE), contains("publicação"), eq(DOC_ID), any());
         verify(notificacaoService).criar(eq(p2), eq(TipoNotificacaoEnum.APROVACAO_PENDENTE), contains("publicação"), eq(DOC_ID), any());
     }
@@ -542,9 +603,9 @@ class DocumentoStatusServiceTest {
 
     static Stream<Arguments> devolucoes() {
         return Stream.of(
-                Arguments.of(NAO_PUBLICADO, EM_REVISAO, MINUTA),
-                Arguments.of(NAO_PUBLICADO, EM_PUBLICACAO, MINUTA),
-                Arguments.of(PUBLICADO, EM_REVISAO, EM_ALTERACAO),
+                Arguments.of(NAO_PUBLICADO, MINUTA, RASCUNHO),
+                Arguments.of(NAO_PUBLICADO, EM_PUBLICACAO, RASCUNHO),
+                Arguments.of(PUBLICADO, MINUTA, EM_ALTERACAO),
                 Arguments.of(PUBLICADO, EM_PUBLICACAO, EM_ALTERACAO));
     }
 
@@ -803,7 +864,7 @@ class DocumentoStatusServiceTest {
 
     @Test
     void aprovarCongelaAVersaoEmTramitacaoSemTocarNaVigente() {
-        var doc = documentoEm(PUBLICADO, EM_REVISAO);
+        var doc = documentoEm(PUBLICADO, MINUTA);
 
         service.changeStatus(DOC_ID, pedidoCompleto(EM_PUBLICACAO));
 
@@ -863,11 +924,11 @@ class DocumentoStatusServiceTest {
 
     static Stream<Arguments> descartesDeTramitacao() {
         return Stream.of(
-                Arguments.of(NAO_PUBLICADO, EM_PUBLICACAO, MINUTA),
+                Arguments.of(NAO_PUBLICADO, EM_PUBLICACAO, RASCUNHO),
                 Arguments.of(PUBLICADO, EM_PUBLICACAO, EM_ALTERACAO),
                 Arguments.of(PUBLICADO, ANALISE_REVOGACAO, SEM_ETAPA),
                 Arguments.of(PUBLICADO, EM_ALTERACAO, SEM_ETAPA),
-                Arguments.of(NAO_PUBLICADO, MINUTA, CANCELADO));
+                Arguments.of(NAO_PUBLICADO, RASCUNHO, CANCELADO));
     }
 
     @ParameterizedTest(name = "{0}+{1} → {2} não gera arquivo nenhum")
@@ -884,15 +945,14 @@ class DocumentoStatusServiceTest {
     static Stream<Arguments> etapasQueNaoGeramArquivo() {
         return Stream.of(
                 Arguments.of(NAO_PUBLICADO, RASCUNHO, MINUTA),
-                Arguments.of(NAO_PUBLICADO, MINUTA, EM_REVISAO),
                 Arguments.of(PUBLICADO, SEM_ETAPA, EM_ALTERACAO),
-                Arguments.of(PUBLICADO, EM_ALTERACAO, EM_REVISAO),
+                Arguments.of(PUBLICADO, EM_ALTERACAO, MINUTA),
                 Arguments.of(PUBLICADO, SEM_ETAPA, ANALISE_REVOGACAO));
     }
 
     @Test
     void falhaAoGerarOsArquivosNaoDesfazAMudancaDeEtapa() {
-        var doc = documentoEm(NAO_PUBLICADO, EM_REVISAO);
+        var doc = documentoEm(NAO_PUBLICADO, MINUTA);
         when(documentoPdfService.gerarEArmazenarPdf(any())).thenThrow(new RuntimeException("armazenamento fora do ar"));
         when(documentoHtmlService.gerarEArmazenarHtml(any())).thenThrow(new RuntimeException("armazenamento fora do ar"));
 
@@ -931,7 +991,7 @@ class DocumentoStatusServiceTest {
     void aprovarComTransacaoEmAndamentoTambemGeraAVersaoEmTramitacaoSoDepoisDoCommit() {
         TransactionSynchronizationManager.initSynchronization();
         try {
-            var doc = documentoEm(NAO_PUBLICADO, EM_REVISAO);
+            var doc = documentoEm(NAO_PUBLICADO, MINUTA);
 
             service.changeStatus(DOC_ID, pedidoCompleto(EM_PUBLICACAO));
             verify(documentoPdfService, never()).gerarEArmazenarPdf(any());

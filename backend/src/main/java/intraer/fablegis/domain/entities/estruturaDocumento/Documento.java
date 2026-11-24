@@ -67,6 +67,7 @@ public class Documento extends RepresentationModel<Documento> {
     @UpdateTimestamp
     private Timestamp dtAlteracao;
 
+    // Quando o documento foi ENVIADO PARA APROVAÇÃO (entrou na MINUTA) pela última vez -- um novo envio, depois de devolvido, a atualiza.
     @Column(name = "dt_minuta")
     private Timestamp dtMinuta;
 
@@ -82,6 +83,17 @@ public class Documento extends RepresentationModel<Documento> {
     @Column(name = "dt_cancelamento")
     private Timestamp dtCancelamento;
 
+    // Só em ARQUIVADO: quando, por quem (a autoridade que aprova) e por quê (a justificativa é obrigatória) o documento foi arquivado.
+    @Column(name = "dt_arquivamento")
+    private Timestamp dtArquivamento;
+
+    @Column(name = "tx_justificativa_arquivamento", columnDefinition = "TEXT")
+    private String justificativaDoArquivamento;
+
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "arquivador_id")
+    private Usuario arquivador;
+
     // Versão VIGENTE (a que a situação BCA descreve): só é gravada/substituída quando uma
     // portaria + BCA são registrados -- nunca por uma etapa interna. Vazia enquanto o
     // documento é NAO_PUBLICADO.
@@ -95,7 +107,7 @@ public class Documento extends RepresentationModel<Documento> {
 
     // Versão EM TRAMITAÇÃO congelada (EM_PUBLICACAO/EM_REVOGACAO), para o publicador ver
     // exatamente o que será publicado. Descartada ao publicar, devolver ou cancelar. Nas
-    // etapas em que o texto ainda muda (RASCUNHO/MINUTA/EM_ALTERACAO/EM_REVISAO) a versão
+    // etapas em que o texto ainda muda (RASCUNHO/MINUTA/EM_ALTERACAO) a versão
     // em tramitação é gerada em tempo de execução, nunca armazenada.
     @Column(name = "url_pdf_tramitacao")
     private String urlPdfTramitacao;
@@ -145,10 +157,8 @@ public class Documento extends RepresentationModel<Documento> {
     @EqualsAndHashCode.Exclude
     private Documento documentoSubstituido;
 
-    // Pessoa específica (papel APROV) escolhida por quem enviou para revisão -- só ela
-    // pode agir no documento enquanto ele estiver em EM_REVISAO/ANALISE_REVOGACAO (ver
-    // DocumentoAcessoService.podeMudarStatus). Reaproveitado nas duas etapas de revisão
-    // (fluxo normal e revogação), sempre sobrescrito a cada novo envio.
+    // Quem aprovou o texto (papel APR_OM), registrado ao aprovar (MINUTA -> EM_PUBLICACAO); é o "Aprovado por" da NPA. Ninguém é escolhido
+    // ao enviar: qualquer aprovador da OM age (ver DocumentoAcessoService.podeMudarStatus). Devolver ou enviar de novo o limpa.
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "aprovador_id")
     private Usuario aprovador;
@@ -159,9 +169,6 @@ public class Documento extends RepresentationModel<Documento> {
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "publicador_id")
     private Usuario publicador;
-
-    @Column(name = "dt_em_revisao")
-    private Timestamp dtEmRevisao;
 
     @Column(name = "dt_em_publicacao")
     private Timestamp dtEmPublicacao;

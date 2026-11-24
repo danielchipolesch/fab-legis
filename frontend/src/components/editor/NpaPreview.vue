@@ -63,10 +63,10 @@ const props = defineProps({
 const documentsStore = useDocumentosStore()
 
 const WM_TEXT = {
-  RASCUNHO: 'RASCUNHO', MINUTA: 'MINUTA', EM_REVISAO: 'EM REVISÃO', EM_PUBLICACAO: 'APROVADO',
+  RASCUNHO: 'RASCUNHO', MINUTA: 'MINUTA', EM_PUBLICACAO: 'APROVADO',
 }
 const WM_COLOR = {
-  RASCUNHO: '#b50000', MINUTA: '#b50000', EM_REVISAO: '#3a5bb5', EM_PUBLICACAO: '#1a6b1a',
+  RASCUNHO: '#b50000', MINUTA: '#3a5bb5', EM_PUBLICACAO: '#1a6b1a',
 }
 const wmText = computed(() => WM_TEXT[props.documento?.situacao_local] ?? '')
 const wmColor = computed(() => WM_COLOR[props.documento?.situacao_local] ?? '#888')

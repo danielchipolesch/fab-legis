@@ -27,7 +27,7 @@ O que você vê e faz depende dos **papéis** que o administrador deu a você. Q
 | Papel | O que faz |
 |---|---|
 | **Elaborador** | Cria e edita os documentos de que é autor ou coautor e os envia para aprovação. Todo usuário tem este papel |
-| **Aprovador da OM** | Aprova ou devolve os documentos da própria OM que aguardam aprovação |
+| **Aprovador da OM** | Aprova, devolve aos autores ou arquiva os documentos da própria OM que aguardam aprovação |
 | **Publicador do BCA** | Só no CENDOC: registra a publicação e a revogação das espécies convencionais, de qualquer OM |
 | **Publicador do Boletim Interno** | Em qualquer OM: registra a publicação e a revogação das NPAs da própria OM |
 | **Auditor da OM / Auditor Geral** | Consulta a trilha de auditoria (da própria OM ou de todas) |
@@ -40,5 +40,5 @@ O papel **Geral** existe só no CENDOC; os da **OM**, nas demais OMs; o **Public
 
 - **Espécie normativa:** o tipo do ato (MCA, NSCA, ICA, ROCA, DCA… e a NPA).
 - **Situação BCA:** a situação **real** do ato: *Não publicado*, *Publicado* ou *Revogado*. Só muda quando a portaria e o BCA são registrados.
-- **Situação local:** a **etapa** em que o documento está dentro do sistema: *Rascunho*, *Minuta*, *Em revisão*, *Em publicação*, *Em alteração*… Um ato já publicado continua *Publicado* mesmo quando alguém abre uma alteração: as duas situações aparecem juntas.
+- **Situação local:** a **etapa** em que o documento está dentro do sistema: *Rascunho* (em elaboração), *Minuta* (em aprovação), *Em publicação*, *Em alteração*… Um ato já publicado continua *Publicado* mesmo quando alguém abre uma alteração: as duas situações aparecem juntas.
 - **Módulos:** o sistema separa as **Espécies Convencionais** e a **NPA**, cada uma com a sua lista de documentos.

@@ -59,7 +59,7 @@ class DocumentoFoBuilderTest {
 
     @Test
     void naoPublicadoNaoTemAPaginaDaPortaria() {
-        for (var local : List.of(SituacaoLocalEnum.RASCUNHO, SituacaoLocalEnum.MINUTA, SituacaoLocalEnum.EM_REVISAO,
+        for (var local : List.of(SituacaoLocalEnum.RASCUNHO, SituacaoLocalEnum.MINUTA,
                 SituacaoLocalEnum.EM_PUBLICACAO)) {
             var fo = fo(documento(SituacaoBcaEnum.NAO_PUBLICADO, local));
 

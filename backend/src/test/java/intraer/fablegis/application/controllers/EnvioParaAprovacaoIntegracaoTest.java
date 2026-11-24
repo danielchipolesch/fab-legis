@@ -78,15 +78,12 @@ class EnvioParaAprovacaoIntegracaoTest extends IntegracaoComPostgresBase {
         return authentication(new UsernamePasswordAuthenticationToken(principal, null, principal.getAuthorities()));
     }
 
-    private long novaNpaMinutada(String identificacao) throws Exception {
+    private long novaNpaEmRascunho(String identificacao) throws Exception {
         long npa = especieRepository.findAll().stream().filter(e -> "NPA".equals(e.getSigla())).findFirst().orElseThrow().getId();
         var criado = mvc.perform(post("/v1/documentos").with(como(autor())).contentType(MediaType.APPLICATION_JSON)
                         .content("{\"idEspecieNormativa\": " + npa + ", \"identificacao\": \"" + identificacao + "\", \"tituloDocumento\": \"Teste\"}"))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
         long id = Long.parseLong(criado.replaceAll("(?s).*\"idDocumento\":(\\d+).*", "$1"));
-        mvc.perform(patch("/v1/documentos/" + id + "/status").with(como(autor())).contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"situacaoLocal\":\"MINUTA\"}"))
-                .andExpect(status().isOk());
         return id;
     }
 
@@ -96,15 +93,15 @@ class EnvioParaAprovacaoIntegracaoTest extends IntegracaoComPostgresBase {
 
     @Test
     void enviarParaAprovacaoNaoEscolheNinguemEQualquerAprovadorDaOmAprova() throws Exception {
-        long id = novaNpaMinutada("NPA-APROV-01");
+        long id = novaNpaEmRascunho("NPA-APROV-01");
         var aprovador = pessoa("CENDOC", CPF_APROVADOR, PapelEnum.ELB, PapelEnum.APR_OM);
         var deOutraOm = pessoa("EMAER", CPF_APROVADOR_DE_OUTRA_OM, PapelEnum.ELB, PapelEnum.APR_OM);
 
         // sem revisorId nenhum: "Enviar para aprovação"
         mvc.perform(patch("/v1/documentos/" + id + "/status").with(como(autor())).contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"situacaoLocal\":\"EM_REVISAO\"}"))
+                        .content("{\"situacaoLocal\":\"MINUTA\"}"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.situacaoLocal").value("EM_REVISAO"));
+                .andExpect(jsonPath("$.situacaoLocal").value("MINUTA"));
 
         // a fila de revisão é por OM: o aprovador da OM do documento vê; o de outra OM, não
         mvc.perform(get("/v1/documentos/minha-revisao").with(como(aprovador)))
@@ -130,13 +127,13 @@ class EnvioParaAprovacaoIntegracaoTest extends IntegracaoComPostgresBase {
     // (CENDOC) nem o de outra OM.
     @Test
     void aNpaAprovadaVaiParaAFilaDoPublicadorDoBoletimInternoDaPropriaOm() throws Exception {
-        long id = novaNpaMinutada("NPA-APROV-02");
+        long id = novaNpaEmRascunho("NPA-APROV-02");
         var aprovador = pessoa("CENDOC", CPF_APROVADOR, PapelEnum.ELB, PapelEnum.APR_OM);
         var publicadorDaOm = pessoa("CENDOC", CPF_PUBLICADOR, PapelEnum.ELB, PapelEnum.PUB_BI);
         var publicadorDoBca = pessoa("CENDOC", CPF_PUBLICADOR_DO_BCA, PapelEnum.ELB, PapelEnum.PUB_BCA);
         var publicadorDeOutraOm = pessoa("EMAER", CPF_PUBLICADOR_DE_OUTRA_OM, PapelEnum.ELB, PapelEnum.PUB_BI);
         mvc.perform(patch("/v1/documentos/" + id + "/status").with(como(autor())).contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"situacaoLocal\":\"EM_REVISAO\"}"))
+                        .content("{\"situacaoLocal\":\"MINUTA\"}"))
                 .andExpect(status().isOk());
         mvc.perform(patch("/v1/documentos/" + id + "/status").with(como(aprovador)).contentType(MediaType.APPLICATION_JSON)
                         .content("{\"situacaoLocal\":\"EM_PUBLICACAO\"}"))

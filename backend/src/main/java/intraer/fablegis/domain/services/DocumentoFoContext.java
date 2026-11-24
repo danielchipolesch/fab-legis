@@ -82,7 +82,6 @@ final class DocumentoFoContext {
         boolean showWm = status == SituacaoLocalEnum.RASCUNHO
                       || status == SituacaoLocalEnum.MINUTA
                       || status == SituacaoLocalEnum.EM_ALTERACAO
-                      || status == SituacaoLocalEnum.EM_REVISAO
                       || status == SituacaoLocalEnum.EM_PUBLICACAO;
         if (!showWm) return open + "  <fo:block/>\n" + close;
 
@@ -91,15 +90,14 @@ final class DocumentoFoContext {
         // de fato -- ver DocumentoStatusService).
         String label = switch (status) {
             case EM_ALTERACAO -> "EM ALTERAÇÃO";
-            case EM_REVISAO -> "EM REVISÃO";
             case EM_PUBLICACAO -> "APROVADO";
             default -> foEsc(status.name());
         };
         String color = switch (status) {
             case EM_ALTERACAO -> "#DDCCAA"; // tom laranja
-            case EM_REVISAO -> "#BBCCEE";   // tom azul
+            case MINUTA -> "#BBCCEE";       // tom azul: em aprovação
             case EM_PUBLICACAO -> "#BBDDBB"; // tom verde
-            default -> "#DDBBBB";           // rascunho/minuta -- rosa já existente
+            default -> "#DDBBBB";           // rascunho -- rosa já existente
         };
         var sb = new StringBuilder();
         sb.append(open);

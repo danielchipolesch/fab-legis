@@ -85,7 +85,8 @@ describe('editor store', () => {
   })
 
   describe('salvar', () => {
-    it('a primeira edição de um RASCUNHO o leva para MINUTA, e a versão local acompanha a do servidor', async () => {
+    // Rascunho vira Minuta só ao ENVIAR PARA APROVAÇÃO: editar e salvar não muda a etapa. A versão local acompanha a do servidor.
+    it('editar e salvar um RASCUNHO não o leva para MINUTA, e a versão local acompanha a do servidor', async () => {
       const docs = useDocumentosStore()
       store.documento = { ...documentoCom([]), situacao_local: 'RASCUNHO', versao: 1 }
       store.documentoId = '1'
@@ -93,12 +94,12 @@ describe('editor store', () => {
       store.isDirty = true
       vi.spyOn(docs, 'saveDocumento').mockResolvedValue()
       const mudar = vi.spyOn(docs, 'changeStatus').mockResolvedValue()
-      docs.documentos = [{ id: '1', situacao_bca: 'NAO_PUBLICADO', situacao_local: 'MINUTA', versao: 4 }]
+      docs.documentos = [{ id: '1', situacao_bca: 'NAO_PUBLICADO', situacao_local: 'RASCUNHO', versao: 4 }]
 
       await store.save()
 
-      expect(mudar).toHaveBeenCalledWith('1', 'MINUTA')
-      expect(store.documento.situacao_local).toBe('MINUTA')
+      expect(mudar).not.toHaveBeenCalled()
+      expect(store.documento.situacao_local).toBe('RASCUNHO')
       expect(store.documento.versao).toBe(4)
       expect(store.isDirty).toBe(false)
       expect(store.hasUserEdit).toBe(false)

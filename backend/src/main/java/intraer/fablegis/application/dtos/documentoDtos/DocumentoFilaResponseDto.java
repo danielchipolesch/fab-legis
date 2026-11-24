@@ -16,7 +16,7 @@ public record DocumentoFilaResponseDto(
 
         // Situação real (BCA) e etapa interna (local) -- sempre mostradas juntas. A
         // situação BCA também diz ao frontend para onde "devolver" leva: documento
-        // PUBLICADO volta para EM_ALTERACAO, NAO_PUBLICADO volta para MINUTA.
+        // PUBLICADO volta para EM_ALTERACAO, NAO_PUBLICADO volta para RASCUNHO.
         SituacaoBcaEnum situacaoBca,
         SituacaoLocalEnum situacaoLocal,
 

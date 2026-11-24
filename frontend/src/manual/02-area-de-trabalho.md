@@ -33,6 +33,6 @@ Cada módulo organiza o acervo em quatro abas: **Meus Documentos**, **Documentos
 
 - alternar entre **tabela** e **cartões**;
 - filtrar por espécie, **situação BCA** e **situação local**, e buscar por assunto ou número;
-- abrir o menu **⋮** de uma linha para as ações permitidas (editar, clonar, exportar em PDF, enviar para a próxima etapa, cancelar, excluir).
+- abrir o menu **⋮** de uma linha para as ações permitidas (editar, clonar, exportar em PDF, enviar para aprovação, cancelar e excluir, que só valem no rascunho).
 
 O botão **Busca no conteúdo** procura dentro do texto de todos os documentos (ver [Consultas e exportação](consultas-e-exportacao)).

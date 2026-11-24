@@ -44,6 +44,14 @@ public record DocumentoResponseComAnexoTextualDto(
         @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss", timezone = "America/Sao_Paulo")
         Timestamp dtCancelamento,
 
+        // Só em ARQUIVADO: quando, por quem e por quê (justificativa da autoridade que aprova).
+        @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss", timezone = "America/Sao_Paulo")
+        Timestamp dtArquivamento,
+
+        String justificativaDoArquivamento,
+
+        String arquivadorNome,
+
         String urlPdf,
 
         int qtdReplicas,

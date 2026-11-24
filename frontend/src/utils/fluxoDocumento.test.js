@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   destinoDeAprovacao, destinoDeDevolucao, DESTINO_DE_CONCLUSAO, ehRevogacao, ehPrimeiraPublicacao,
   ehAlteracaoPublicada, podeDevolverPublicacao, temVersaoVigente, temVersaoEmTramitacao, versaoPadrao,
-  eventoDoHistorico, exibeSeloRevogado, exibePortaria, etapasDoCiclo, podeSubstituir, ehAprovadorDaOm,
+  eventoDoHistorico, exibeSeloRevogado, exibePortaria, etapasDoCiclo, podeSubstituir, ehAprovadorDaOm, podeArquivar, DESTINO_DE_ARQUIVAMENTO, DESTINO_DE_ENVIO_PARA_APROVACAO,
 } from './fluxoDocumento.js'
 import {
   temEtapaEmCurso, situacaoBcaMeta, situacaoLocalMeta, SITUACAO_BCA_META, SITUACAO_LOCAL_META,
@@ -11,9 +11,9 @@ import {
 const doc = (situacao_bca, situacao_local) => ({ situacao_bca, situacao_local })
 
 describe('destinoDeAprovacao', () => {
-  it('texto em revisão vai para publicação', () => {
-    expect(destinoDeAprovacao(doc('NAO_PUBLICADO', 'EM_REVISAO'))).toBe('EM_PUBLICACAO')
-    expect(destinoDeAprovacao(doc('PUBLICADO', 'EM_REVISAO'))).toBe('EM_PUBLICACAO')
+  it('minuta (o texto em aprovação) vai para publicação', () => {
+    expect(destinoDeAprovacao(doc('NAO_PUBLICADO', 'MINUTA'))).toBe('EM_PUBLICACAO')
+    expect(destinoDeAprovacao(doc('PUBLICADO', 'MINUTA'))).toBe('EM_PUBLICACAO')
   })
   it('análise de revogação vai para EM_REVOGACAO', () => {
     expect(destinoDeAprovacao(doc('PUBLICADO', 'ANALISE_REVOGACAO'))).toBe('EM_REVOGACAO')
@@ -21,12 +21,12 @@ describe('destinoDeAprovacao', () => {
 })
 
 describe('destinoDeDevolucao', () => {
-  it('nunca publicado volta para a minuta', () => {
-    expect(destinoDeDevolucao(doc('NAO_PUBLICADO', 'EM_REVISAO'))).toBe('MINUTA')
-    expect(destinoDeDevolucao(doc('NAO_PUBLICADO', 'EM_PUBLICACAO'))).toBe('MINUTA')
+  it('nunca publicado volta aos autores, no rascunho', () => {
+    expect(destinoDeDevolucao(doc('NAO_PUBLICADO', 'MINUTA'))).toBe('RASCUNHO')
+    expect(destinoDeDevolucao(doc('NAO_PUBLICADO', 'EM_PUBLICACAO'))).toBe('RASCUNHO')
   })
   it('já publicado volta para a alteração em curso', () => {
-    expect(destinoDeDevolucao(doc('PUBLICADO', 'EM_REVISAO'))).toBe('EM_ALTERACAO')
+    expect(destinoDeDevolucao(doc('PUBLICADO', 'MINUTA'))).toBe('EM_ALTERACAO')
     expect(destinoDeDevolucao(doc('PUBLICADO', 'EM_PUBLICACAO'))).toBe('EM_ALTERACAO')
   })
   it('devolver a análise de revogação só encerra a etapa: o documento segue PUBLICADO', () => {
@@ -100,7 +100,12 @@ describe('eventoDoHistorico', () => {
   const h = (statusAnterior, statusNovo, descricao = '') => ({ statusAnterior, statusNovo, descricao })
 
   it('etapa local mostra o rótulo da etapa', () => {
-    expect(eventoDoHistorico(h('MINUTA', 'EM_REVISAO')).titulo).toBe('Em Revisão')
+    expect(eventoDoHistorico(h('RASCUNHO', 'MINUTA')).titulo).toBe('Minuta')
+    expect(eventoDoHistorico(h('MINUTA', 'ARQUIVADO')).titulo).toBe('Arquivado')
+  })
+  it('voltar ao rascunho a partir da minuta ou da publicação é devolver aos autores', () => {
+    expect(eventoDoHistorico(h('MINUTA', 'RASCUNHO')).titulo).toBe('Devolvido aos autores')
+    expect(eventoDoHistorico(h('EM_PUBLICACAO', 'RASCUNHO')).titulo).toBe('Devolvido aos autores')
   })
   it('primeira publicação', () => {
     const e = eventoDoHistorico(h('EM_PUBLICACAO', 'SEM_ETAPA', 'EM_PUBLICACAO → SEM_ETAPA (situação BCA: NAO_PUBLICADO → PUBLICADO)'))
@@ -142,7 +147,7 @@ describe('exibeSeloRevogado (revogação total: selo, nunca tachado)', () => {
 
 describe('exibePortaria (só depois da 1ª publicação)', () => {
   it('documento não publicado não exibe a portaria, em nenhuma etapa', () => {
-    for (const local of ['RASCUNHO', 'MINUTA', 'EM_REVISAO', 'EM_PUBLICACAO', 'CANCELADO']) {
+    for (const local of ['RASCUNHO', 'MINUTA', 'EM_PUBLICACAO', 'CANCELADO', 'ARQUIVADO']) {
       expect(exibePortaria(doc('NAO_PUBLICADO', local))).toBe(false)
     }
   })
@@ -163,11 +168,11 @@ describe('etapasDoCiclo', () => {
   const chaves = (d) => etapasDoCiclo(d).etapas.map(e => e.chave)
   const atual = (d) => etapasDoCiclo(d).etapas[etapasDoCiclo(d).atual]?.chave
 
-  it('nunca publicado: Rascunho → Minuta → Em revisão → Em publicação → Publicado, na etapa em curso', () => {
-    expect(chaves(doc('NAO_PUBLICADO', 'RASCUNHO'))).toEqual(['RASCUNHO', 'MINUTA', 'EM_REVISAO', 'EM_PUBLICACAO', 'PUBLICADO'])
+  it('nunca publicado: Rascunho → Minuta → Em publicação → Publicado, na etapa em curso', () => {
+    expect(chaves(doc('NAO_PUBLICADO', 'RASCUNHO'))).toEqual(['RASCUNHO', 'MINUTA', 'EM_PUBLICACAO', 'PUBLICADO'])
     expect(etapasDoCiclo(doc('NAO_PUBLICADO', 'RASCUNHO')).ciclo).toBe('INICIAL')
+    expect(atual(doc('NAO_PUBLICADO', 'RASCUNHO'))).toBe('RASCUNHO')
     expect(atual(doc('NAO_PUBLICADO', 'MINUTA'))).toBe('MINUTA')
-    expect(atual(doc('NAO_PUBLICADO', 'EM_REVISAO'))).toBe('EM_REVISAO')
     expect(atual(doc('NAO_PUBLICADO', 'EM_PUBLICACAO'))).toBe('EM_PUBLICACAO')
   })
 
@@ -177,10 +182,10 @@ describe('etapasDoCiclo', () => {
     expect(e.etapas[e.atual].chave).toBe('PUBLICADO')
   })
 
-  it('publicado em alteração, revisão ou publicação: o ciclo de alteração', () => {
-    expect(chaves(doc('PUBLICADO', 'EM_ALTERACAO'))).toEqual(['EM_ALTERACAO', 'EM_REVISAO', 'EM_PUBLICACAO', 'PUBLICADO'])
+  it('publicado em alteração, minuta ou publicação: o ciclo de alteração', () => {
+    expect(chaves(doc('PUBLICADO', 'EM_ALTERACAO'))).toEqual(['EM_ALTERACAO', 'MINUTA', 'EM_PUBLICACAO', 'PUBLICADO'])
     expect(etapasDoCiclo(doc('PUBLICADO', 'EM_ALTERACAO')).ciclo).toBe('ALTERACAO')
-    expect(atual(doc('PUBLICADO', 'EM_REVISAO'))).toBe('EM_REVISAO')
+    expect(atual(doc('PUBLICADO', 'MINUTA'))).toBe('MINUTA')
     expect(etapasDoCiclo(doc('PUBLICADO', 'EM_PUBLICACAO')).ciclo).toBe('ALTERACAO')
   })
 
@@ -192,8 +197,9 @@ describe('etapasDoCiclo', () => {
     expect(etapasDoCiclo(doc('REVOGADO', 'SEM_ETAPA')).ciclo).toBe('REVOGACAO')
   })
 
-  it('cancelado não está em etapa nenhuma', () => {
+  it('cancelado ou arquivado não está em etapa nenhuma', () => {
     expect(etapasDoCiclo(doc('NAO_PUBLICADO', 'CANCELADO')).atual).toBe(-1)
+    expect(etapasDoCiclo(doc('NAO_PUBLICADO', 'ARQUIVADO')).atual).toBe(-1)
   })
 })
 
@@ -227,5 +233,23 @@ describe('ehAprovadorDaOm (enviar para aprovação sem escolher ninguém)', () =
     expect(ehAprovadorDaOm(documento, { omId: 5, papeis: ['ELB', 'PUB_BCA'] })).toBe(false)
     expect(ehAprovadorDaOm(documento, null)).toBe(false)
     expect(ehAprovadorDaOm(undefined, { omId: 5, papeis: ['APR_OM'] })).toBe(false)
+  })
+})
+
+// Rascunho vira Minuta SÓ ao enviar para aprovação; na Minuta a autoridade (quem aprova) aprova, devolve aos autores (Rascunho) ou arquiva.
+describe('arquivar e enviar para aprovação', () => {
+  it('o destino do envio é a Minuta e o do arquivamento é Arquivado', () => {
+    expect(DESTINO_DE_ENVIO_PARA_APROVACAO).toBe('MINUTA')
+    expect(DESTINO_DE_ARQUIVAMENTO).toBe('ARQUIVADO')
+  })
+  it('só a minuta de um documento nunca publicado se arquiva', () => {
+    expect(podeArquivar(doc('NAO_PUBLICADO', 'MINUTA'))).toBe(true)
+    // uma alteração de ato publicado em minuta se aprova ou se devolve, não se arquiva
+    expect(podeArquivar(doc('PUBLICADO', 'MINUTA'))).toBe(false)
+    // nem o rascunho (se cancela ou exclui), nem as demais etapas
+    for (const local of ['RASCUNHO', 'EM_PUBLICACAO', 'EM_ALTERACAO', 'ANALISE_REVOGACAO', 'CANCELADO', 'ARQUIVADO', 'SEM_ETAPA']) {
+      expect(podeArquivar(doc('NAO_PUBLICADO', local))).toBe(false)
+    }
+    expect(podeArquivar(null)).toBe(false)
   })
 })

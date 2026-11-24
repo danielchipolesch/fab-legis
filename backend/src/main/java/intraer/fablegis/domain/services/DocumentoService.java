@@ -48,14 +48,20 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 
 @Service
 @RequiredArgsConstructor
 public class DocumentoService {
+
+    // Um documento cancelado ou arquivado desistiu de ser a substituição de uma NPA: a NPA pode ser substituída de novo.
+    private static final Set<SituacaoLocalEnum> SITUACOES_QUE_DESISTIRAM_DA_SUBSTITUICAO =
+            EnumSet.of(SituacaoLocalEnum.CANCELADO, SituacaoLocalEnum.ARQUIVADO);
 
     final DocumentoRepository documentoRepository;
 
@@ -121,7 +127,7 @@ public class DocumentoService {
         return documentoRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException(DocumentoException.NOT_FOUND.getMessage()));
     }
 
-    // Fila da tela de Revisão (RevisaoPage.vue): o que aguarda aprovação na OM de quem pergunta -- no fluxo normal (EM_REVISAO) e na
+    // Fila da tela de Revisão (RevisaoPage.vue): o que aguarda aprovação na OM de quem pergunta -- no fluxo normal (MINUTA) e na
     // análise de revogação (ANALISE_REVOGACAO). Só quem tem o papel APROV vê a fila; qualquer aprovador da OM age.
     public List<DocumentoFilaResponseDto> getFilaDeRevisao(Usuario usuario) {
         if (!usuario.getPapeis().contains(PapelEnum.APR_OM)) return List.of();
@@ -260,18 +266,17 @@ public class DocumentoService {
         // momento da criação (ver create() abaixo), mas alterável enquanto o
         // documento ainda não avançou no fluxo. Mais restrito que
         // statusPermiteAtualizacao acima de propósito: uma vez em EM_ALTERACAO/
-        // EM_REVISAO o documento já saiu das mãos de quem só edita conteúdo, não
+        // MINUTA o documento já saiu das mãos de quem só edita conteúdo, não
         // faz sentido trocar a OM que assina o ato nesse ponto. Só age quando o
         // valor difere do atual -- o autosave estrutural do editor também passa
         // por aqui reenviando o documento inteiro (om_id incluso), mas sempre
         // com o valor já vigente, então essa checagem o torna um no-op ali.
         boolean omAlterada = false;
         if (request.omId() != null && !request.omId().equals(documento.getOm().getId())) {
-            var statusPermiteAlterarOm = documento.getSituacaoLocal() == SituacaoLocalEnum.RASCUNHO
-                    || documento.getSituacaoLocal() == SituacaoLocalEnum.MINUTA;
+            var statusPermiteAlterarOm = documento.getSituacaoLocal() == SituacaoLocalEnum.RASCUNHO;
             if (!statusPermiteAlterarOm) {
                 throw new StatusCannotBeUpdatedException(
-                        "A organização militar só pode ser alterada enquanto o documento está em Rascunho ou Minuta.");
+                        "A organização militar só pode ser alterada enquanto o documento está em Rascunho.");
             }
             OrganizacaoMilitar novaOm = organizacaoMilitarRepository.findById(request.omId())
                     .orElseThrow(() -> new ResourceNotFoundException("Organização militar não encontrada."));
@@ -308,7 +313,7 @@ public class DocumentoService {
                 .orElseThrow(() -> new ResourceNotFoundException(DocumentoException.NOT_FOUND.getMessage()));
 
         SituacaoLocalEnum status = documento.getSituacaoLocal();
-        if (status != SituacaoLocalEnum.RASCUNHO && status != SituacaoLocalEnum.MINUTA) {
+        if (status != SituacaoLocalEnum.RASCUNHO) {
             throw new StatusCannotBeUpdatedException(DocumentoException.CANNOT_BE_DELETED.getMessage());
         }
 
@@ -348,7 +353,7 @@ public class DocumentoService {
         if (!ciclo.podeSerSubstituido(substituido.getSituacaoLocal(), substituido.getSituacaoBca())) {
             throw new StatusCannotBeUpdatedException(DocumentoException.CANNOT_BE_REPLACED.getMessage());
         }
-        documentoRepository.findFirstByDocumentoSubstituidoIdAndSituacaoLocalNotOrderByIdDesc(id, SituacaoLocalEnum.CANCELADO)
+        documentoRepository.findFirstByDocumentoSubstituidoIdAndSituacaoLocalNotInOrderByIdDesc(id, SITUACOES_QUE_DESISTIRAM_DA_SUBSTITUICAO)
                 .ifPresent(existente -> {
                     throw new StatusCannotBeUpdatedException(
                             "Esta NPA já está sendo substituída pelo documento " + existente.getIdentificacao() + ".");
@@ -368,7 +373,7 @@ public class DocumentoService {
         Documento documento = documentoRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException(DocumentoException.NOT_FOUND.getMessage()));
         var substituidoPor = documentoRepository
-                .findFirstByDocumentoSubstituidoIdAndSituacaoLocalNotOrderByIdDesc(id, SituacaoLocalEnum.CANCELADO)
+                .findFirstByDocumentoSubstituidoIdAndSituacaoLocalNotInOrderByIdDesc(id, SITUACOES_QUE_DESISTIRAM_DA_SUBSTITUICAO)
                 .orElse(null);
         return new SubstituicaoDeDocumentoDto(
                 SubstituicaoDeDocumentoDto.Ponta.de(documento.getDocumentoSubstituido()),

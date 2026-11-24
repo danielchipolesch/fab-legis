@@ -9,7 +9,7 @@
       </q-card-section>
       <div class="text-caption text-grey-7 q-px-md q-pb-sm">
         Coautores podem editar este documento junto com você e, enquanto ele
-        estiver em Rascunho ou Minuta, também excluí-lo. Só você, como autor,
+        estiver em Rascunho, também excluí-lo. Só você, como autor,
         pode adicionar ou remover coautores.
       </div>
       <q-separator />

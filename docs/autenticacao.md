@@ -34,7 +34,7 @@ Quem pode o quê — papéis, escopo geral e local, posse e edição do document
 
 ## Edição concorrente
 
-Em RASCUNHO/MINUTA, duas peças complementares — uma para o *conteúdo* de cada elemento, outra para a *estrutura* da árvore:
+Em RASCUNHO (e na MINUTA, para quem aprova), duas peças complementares — uma para o *conteúdo* de cada elemento, outra para a *estrutura* da árvore:
 
 - **Colaboração ao vivo por elemento (CRDT/Yjs)** — o texto de cada artigo/parágrafo/inciso é editado através do serviço `collab` (Node.js + [Hocuspocus](https://tiptap.dev/docs/hocuspocus/introduction), ver [Arquitetura](arquitetura.md)): duas pessoas no mesmo elemento veem as letras uma da outra em tempo real, com *merge* automático, sem tela de conflito. A persistência no Postgres acontece em paralelo (debounced 2s, até 10s sob digitação contínua de qualquer um dos presentes), mas a visualização entre colaboradores não depende de salvar. Elementos ainda não persistidos (recém-criados, sem id do backend) usam um modo local simples até o primeiro salvamento.
     - O indicador "Salvando…"/"Salvo" do topo reflete o momento real da persistência no Postgres, não o ACK (quase instantâneo) do WebSocket — o `collab` avisa os navegadores conectados via mensagem *stateless* a cada alteração e a cada gravação concluída (ou falha).

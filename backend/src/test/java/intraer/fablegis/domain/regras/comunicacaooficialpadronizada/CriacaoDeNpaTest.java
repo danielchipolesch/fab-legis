@@ -117,24 +117,24 @@ class CriacaoDeNpaTest {
     }
 
     @Test
-    void oCodigoDaNpaPodeSerAlteradoEmRascunhoEMinuta() {
+    void oCodigoDaNpaPodeSerAlteradoSoEmRascunho() {
         assertThat(criacao.novaIdentificacao(npaEm(SituacaoLocalEnum.RASCUNHO), "NPA-AGO-02")).contains("NPA-AGO-02");
-        assertThat(criacao.novaIdentificacao(npaEm(SituacaoLocalEnum.MINUTA), "  NPA 44-__/2026 ")).contains("NPA 44-__/2026");
+        assertThat(criacao.novaIdentificacao(npaEm(SituacaoLocalEnum.RASCUNHO), "  NPA 44-__/2026 ")).contains("NPA 44-__/2026");
     }
 
     @Test
     void semMudancaNaoHaNovaIdentificacao() {
         // Nula ou igual à atual: é o autosave do editor, que reenvia o documento inteiro -- vale em qualquer etapa.
         assertThat(criacao.novaIdentificacao(npaEm(SituacaoLocalEnum.RASCUNHO), null)).isEmpty();
-        assertThat(criacao.novaIdentificacao(npaEm(SituacaoLocalEnum.EM_REVISAO), "NPA-AGO-01")).isEmpty();
-        assertThat(criacao.novaIdentificacao(npaEm(SituacaoLocalEnum.EM_REVISAO), " NPA-AGO-01 ")).isEmpty();
+        assertThat(criacao.novaIdentificacao(npaEm(SituacaoLocalEnum.MINUTA), "NPA-AGO-01")).isEmpty();
+        assertThat(criacao.novaIdentificacao(npaEm(SituacaoLocalEnum.MINUTA), " NPA-AGO-01 ")).isEmpty();
     }
 
     @Test
-    void depoisDeMinutaOCodigoDaNpaNaoMudaMais() {
-        for (var etapa : new SituacaoLocalEnum[]{SituacaoLocalEnum.EM_REVISAO, SituacaoLocalEnum.EM_PUBLICACAO, SituacaoLocalEnum.SEM_ETAPA}) {
+    void depoisDoRascunhoOCodigoDaNpaNaoMudaMais() {
+        for (var etapa : new SituacaoLocalEnum[]{SituacaoLocalEnum.MINUTA, SituacaoLocalEnum.EM_PUBLICACAO, SituacaoLocalEnum.SEM_ETAPA}) {
             assertThatThrownBy(() -> criacao.novaIdentificacao(npaEm(etapa), "NPA-AGO-02"))
-                    .isInstanceOf(StatusCannotBeUpdatedException.class).hasMessageContaining("Rascunho ou Minuta");
+                    .isInstanceOf(StatusCannotBeUpdatedException.class).hasMessageContaining("em Rascunho");
         }
     }
 
