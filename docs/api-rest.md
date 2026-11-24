@@ -168,7 +168,7 @@ Ver [Revisão periódica de acessos](autenticacao.md#revisão-periódica-de-aces
 
 | Método | Rota | Descrição |
 |---|---|---|
-| `GET` | `/stream` | Conexão SSE: notificações ao vivo do usuário autenticado |
+| `GET` | `/stream` | Conexão SSE do usuário autenticado: notificações ao vivo (`event: notificacao`) e os avisos de que algo mudou, sem o dado — o cliente lê de novo na API: `event: documento` (`{id, situacaoLocal, situacaoBca}`; documento criado, de nova etapa ou excluído, vai a todos os conectados), `event: acesso` (`{ativo}`; só para a pessoa cujo papel, OM ou ativação mudou) e `event: habilitacao` (a habilitação da OM mudou; o cliente recarrega `GET /habilitacao-de-documentos/minhas`). Ver [Autenticação](autenticacao.md#notificações-e-auditoria) |
 | `GET` | `/nao-lidas` · `/` | Notificações não lidas, ou histórico completo paginado |
 | `PATCH` | `/{id}/lida` · `/lidas` | Marca uma notificação, ou todas, como lida |
 

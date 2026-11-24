@@ -10,9 +10,11 @@ import intraer.fablegis.domain.handlers.exceptions.InvalidInputException;
 import intraer.fablegis.domain.handlers.exceptions.OperacaoNaoAutorizadaException;
 import intraer.fablegis.domain.handlers.exceptions.ResourceNotFoundException;
 import intraer.fablegis.domain.regras.RegrasDasEspecies;
+import intraer.fablegis.infrastructure.notificacao.AvisosAoVivo;
 import intraer.fablegis.infrastructure.repositories.EspecieNormativaRepository;
 import intraer.fablegis.infrastructure.repositories.HabilitacaoDaOmRepository;
 import intraer.fablegis.infrastructure.repositories.OrganizacaoMilitarRepository;
+import intraer.fablegis.infrastructure.repositories.UsuarioRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -35,6 +37,8 @@ public class HabilitacaoDeCriacaoService {
     private final OrganizacaoMilitarRepository organizacaoMilitarRepository;
     private final EspecieNormativaRepository especieRepository;
     private final RegrasDasEspecies regras;
+    private final UsuarioRepository usuarioRepository;
+    private final AvisosAoVivo avisosAoVivo;
 
     public boolean podeCriar(Long omId, EspecieNormativa especie) {
         if (!exigeHabilitacao(especie)) return true;
@@ -85,9 +89,11 @@ public class HabilitacaoDeCriacaoService {
                 throw new InvalidInputException("A espécie " + especie.getSigla() + " não depende de habilitação: toda OM a cria.");
             }
         }
+        boolean mudou = !new HashSet<>(habilitacaoRepository.findEspecieIdsByOmId(omId)).equals(pedidas);   // só ids: ver o repositório
         habilitacaoRepository.deleteByOmId(omId);
         habilitacaoRepository.flush();
         pedidas.forEach(id -> habilitacaoRepository.save(new HabilitacaoDaOm(omId, id)));
+        if (mudou) avisarOms(Set.of(omId));
         return new HabilitacaoDaOmResponseDto(om.getId(), om.getSigla(), om.getNome(), pedidas.stream().sorted().toList());
     }
 
@@ -106,10 +112,29 @@ public class HabilitacaoDeCriacaoService {
                 throw new ResourceNotFoundException("Organização militar não encontrada (id " + id + ").");
             }
         }
+        Set<Long> antes = new HashSet<>(habilitacaoRepository.findOmIdsByEspecieId(especieId));   // só ids: ver o repositório
         habilitacaoRepository.deleteByEspecieId(especieId);
         habilitacaoRepository.flush();
         pedidas.forEach(id -> habilitacaoRepository.save(new HabilitacaoDaOm(id, especieId)));
+        avisarOms(omsQueMudaram(antes, pedidas));
         return new HabilitacaoDaEspecieResponseDto(especie.getId(), especie.getSigla(), pedidas.stream().sorted().toList());
+    }
+
+    // As OMs cuja habilitação para a espécie mudou: as que entraram na lista e as que saíram dela (as que ficaram como estavam não mudam).
+    static Set<Long> omsQueMudaram(Set<Long> antes, Set<Long> depois) {
+        Set<Long> mudaram = new HashSet<>(antes);
+        mudaram.addAll(depois);
+        Set<Long> iguais = new HashSet<>(antes);
+        iguais.retainAll(depois);
+        mudaram.removeAll(iguais);
+        return mudaram;
+    }
+
+    // Avisa ao vivo, depois do commit, quem está lotado nas OMs afetadas: o frontend deles recarrega "o que a minha OM pode criar" e o botão de
+    // criar aparece (ou some) sem recarregar a página. O evento não carrega dado: a fonte de verdade continua sendo GET /minhas.
+    private void avisarOms(Set<Long> omIds) {
+        if (omIds.isEmpty()) return;
+        avisosAoVivo.habilitacaoMudou(usuarioRepository.findIdsAtivosByOmIdIn(omIds));
     }
 
     private Set<Long> habilitadasDa(Long omId) {

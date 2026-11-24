@@ -82,7 +82,7 @@ Todas as réplicas **precisam usar a mesma chave RSA**; senão um token emitido 
 
 ### 3. Conexões em tempo real (SSE): presença, notificações e estrutura (bloqueia o tempo real entre réplicas)
 
-As conexões SSE (`SseEmitter`) com o navegador — o aviso "fulano também está editando", as notificações e a atualização da estrutura do documento — ficam num registro **em memória** (`DocumentoPresencaEmitterRegistry`, `NotificacaoEmitterRegistry`). Um evento gerado numa réplica só chega às pessoas **conectadas àquela réplica**. Com várias réplicas, quem está noutra deixa de ver a presença e as mudanças de estrutura, e perde notificações.
+As conexões SSE (`SseEmitter`) com o navegador — o aviso "fulano também está editando", as notificações, os avisos ao vivo de documento, de acesso e de habilitação (`AvisosAoVivo`) e a atualização da estrutura do documento — ficam num registro **em memória** (`DocumentoPresencaEmitterRegistry`, `NotificacaoEmitterRegistry`). Um evento gerado numa réplica só chega às pessoas **conectadas àquela réplica**. Com várias réplicas, quem está noutra deixa de ver a presença e as mudanças de estrutura, perde notificações e deixa de ver as listas, filas e botões se atualizarem sozinhos.
 
 *Como resolver:* um **barramento** entre as réplicas (Redis *pub/sub* ou o `LISTEN/NOTIFY` do próprio PostgreSQL): cada réplica publica o evento e todas o repassam às conexões que têm. Ou, como paliativo, afinidade de sessão por usuário (não resolve se duas pessoas no mesmo documento caírem em réplicas diferentes).
 

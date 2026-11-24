@@ -14,6 +14,7 @@ import intraer.fablegis.domain.regras.comunicacaooficialpadronizada.CamposDeNpa;
 import intraer.fablegis.domain.regras.comunicacaooficialpadronizada.CicloDeVidaDeNpa;
 import intraer.fablegis.domain.regras.comunicacaooficialpadronizada.PublicacaoDeNpa;
 import intraer.fablegis.domain.regras.comunicacaooficialpadronizada.RegrasDeComunicacaoOficialPadronizada;
+import intraer.fablegis.infrastructure.notificacao.AvisosAoVivo;
 import intraer.fablegis.infrastructure.repositories.DocumentoRepository;
 import intraer.fablegis.infrastructure.repositories.ItemAnexoParteNormativaRepository;
 import intraer.fablegis.infrastructure.repositories.ItemParteFinalRepository;
@@ -64,6 +65,7 @@ class DocumentoStatusServiceNpaTest {
     @Mock ItemParteFinalRepository finalRepository;
     @Mock EmendaService emendaService;
     @Mock NotificacaoService notificacaoService;
+    @Mock AvisosAoVivo avisosAoVivo;
     @Mock UsuarioRepository usuarioRepository;
     @Mock PlatformTransactionManager transactionManager;
 

@@ -156,6 +156,8 @@ import { useRouter, useRoute } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { useAuthStore } from '@/stores/auth.js'
 import { useDocumentosStore } from '@/stores/documentos.js'
+import { useEditorStore } from '@/stores/editor.js'
+import { ouvirAvisosAoVivo, juntarRajada, acaoDeAcesso, ehODocumentoAberto, documentoExcluido } from '@/utils/avisosAoVivo.js'
 import { ocultarCpf } from '@/utils/cpf.js'
 import { caixaAlta } from '@/utils/texto.js'
 import * as notificacoesApi from '@/api/notificacoes.js'
@@ -165,6 +167,7 @@ const route = useRoute()
 const $q = useQuasar()
 const auth = useAuthStore()
 const documentosStore = useDocumentosStore()
+const editorStore = useEditorStore()
 
 // O manual na página da tela atual (meta.manual da rota, 'pagina' ou 'pagina#secao'); sem ela, o início do manual.
 const paginaDeAjuda = computed(() => {
@@ -248,7 +251,62 @@ function conectarSse() {
       documentosStore.sinalizarRefresh()
     }
   })
+  // Avisos ao vivo (utils/avisosAoVivo.js): o servidor diz "mudou" e a tela lê de novo na API, sem recarregar a página.
+  ouvirAvisosAoVivo(eventSource, { aoDocumento, aoAcesso, aoHabilitacao })
   eventSource.onerror = tratarErroSse
+}
+
+// Documento criado, mudou de etapa ou excluído (por qualquer pessoa): as listas dos módulos, os cards da Área de Trabalho, as filas de Revisão e de
+// Publicação e o Painel Gerencial refazem a leitura (observam refreshSignal) -- numa rajada só, para uma ação em lote não refazer tudo a cada aviso.
+const atualizarListas = juntarRajada(() => documentosStore.sinalizarRefresh())
+
+async function aoDocumento(aviso) {
+  atualizarListas()
+  const abertoId = route.name === 'documento-editar' || route.name === 'documento-visualizar' ? route.params.id : null
+  if (!ehODocumentoAberto(aviso, abertoId)) return
+
+  if (documentoExcluido(aviso)) {
+    $q.notify({ type: 'warning', icon: 'mdi-file-remove-outline', position: 'bottom-right', message: 'O documento que você estava vendo foi excluído.' })
+    router.replace({ name: 'home' })
+    return
+  }
+  // O documento que a pessoa tem aberto mudou de etapa: o visualizador lê do cache (refeito aqui) e o editor aplica só a etapa nova (o texto em
+  // edição não é tocado) -- os botões e o modo somente leitura se ajustam na hora.
+  try {
+    await editorStore.aplicarEtapaDoServidor(aviso.id)
+    await documentosStore.fetchDocumento(aviso.id)
+    $q.notify({ type: 'info', icon: 'mdi-swap-horizontal', position: 'bottom-right', message: 'Este documento mudou de etapa.' })
+  } catch {
+    // Sem a leitura de agora, a tela segue como estava; o próximo aviso ou uma ação da pessoa a corrige.
+  }
+}
+
+// O acesso da própria pessoa mudou (papéis, OM ou ativação), feito pelo administrador: renova o token (as claims dele são a fonte dos papéis na
+// tela) e reavalia a página aberta -- um botão, menu ou rota que ela ganhou ou perdeu muda na hora, sem novo login. O servidor já decide pelo
+// banco a cada requisição, então a tela só alcança o que ele já faz. Conta desativada encerra a sessão.
+async function aoAcesso(aviso) {
+  if (acaoDeAcesso(aviso) === 'encerrar') {
+    $q.notify({ type: 'warning', icon: 'mdi-account-off-outline', position: 'bottom-right', message: 'A sua conta foi desativada. A sessão será encerrada.' })
+    auth.logout()
+    return
+  }
+  const renovou = await auth.refresh()
+  if (!renovou) return   // sem renovar, a tela segue como estava; o servidor continua barrando o que não vale mais
+  $q.notify({ type: 'info', icon: 'mdi-shield-account-outline', position: 'bottom-right', message: 'O seu acesso foi atualizado pelo administrador.' })
+  router.push({ path: route.fullPath, force: true })   // refaz as guardas da rota: se ela exigia um papel que a pessoa perdeu, sai dela
+}
+
+// O Administrador Geral mudou o que a OM da pessoa pode criar (Habilitação de Espécies por OM): recarrega "o que a minha OM pode criar" -- o
+// botão Criar do Módulo de Espécies Convencionais, o Novo Documento e os seletores de espécie (todos leem auth.especiesCriaveis) mudam na hora.
+// O evento não traz dado: a fonte de verdade é GET /habilitacao-de-documentos/minhas.
+async function aoHabilitacao() {
+  await auth.carregarEspeciesCriaveis()
+  $q.notify({
+    type: 'info',
+    icon: 'mdi-file-document-edit-outline',
+    position: 'bottom-right',
+    message: 'As espécies normativas que a sua OM pode criar foram atualizadas.',
+  })
 }
 
 // O token vai preso na URL da conexão (ver notificacoesApi.streamUrl) --
@@ -281,6 +339,7 @@ async function tratarErroSse() {
 function desconectarSse() {
   eventSource?.close()
   eventSource = null
+  atualizarListas.cancelar()
 }
 
 watch(() => auth.isAuthenticated, (autenticado) => {

@@ -17,6 +17,10 @@ public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
     @Query("update Usuario u set u.dtUltimoAcesso = :quando where u.id = :id")
     void registrarUltimoAcesso(@Param("id") Long id, @Param("quando") java.sql.Timestamp quando);
 
+    // Os ids de quem está lotado nas OMs dadas (ativos, de verdade): destinatários do aviso ao vivo de que a habilitação da OM mudou.
+    @Query("SELECT u.id FROM Usuario u WHERE u.ativo = true AND u.sistema = false AND u.om.id IN :omIds")
+    List<Long> findIdsAtivosByOmIdIn(@Param("omIds") java.util.Collection<Long> omIds);
+
     Optional<Usuario> findByCpf(String cpf);
     boolean existsByCpf(String cpf);
 

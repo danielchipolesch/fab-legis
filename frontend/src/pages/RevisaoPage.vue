@@ -140,7 +140,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { useQuasar } from 'quasar'
 import { useDocumentosStore } from '@/stores/documentos.js'
 import * as documentosApi from '@/api/documentos.js'
@@ -162,17 +162,20 @@ const columns = [
   { name: 'actions',  label: 'Ações',    field: 'actions',          align: 'center', style: 'width: 140px' },
 ]
 
-async function carregar() {
-  carregando.value = true
+// `silencioso`: a atualização ao vivo (aviso SSE) refaz a lista sem o indicador de carregamento -- a fila só muda, não pisca.
+async function carregar(silencioso = false) {
+  if (!silencioso) carregando.value = true
   try {
     documentos.value = await documentosApi.listMinhaRevisao()
   } catch (e) {
-    $q.notify({ type: 'negative', message: `Erro ao carregar sua fila de revisão: ${e?.message ?? 'erro desconhecido'}` })
+    if (!silencioso) $q.notify({ type: 'negative', message: `Erro ao carregar sua fila de revisão: ${e?.message ?? 'erro desconhecido'}` })
   } finally {
     carregando.value = false
   }
 }
-onMounted(carregar)
+onMounted(() => carregar())
+// Um documento chegou à fila, saiu dela ou outro aprovador da OM decidiu (aviso ao vivo): a fila se atualiza sozinha.
+watch(() => store.refreshSignal, () => carregar(true))
 
 // A MINUTA abre direto no editor -- é onde o aprovador da OM revisa E edita
 // na mesma tela (ver isReadonly em DocumentoEditorPage.vue). ANALISE_REVOGACAO

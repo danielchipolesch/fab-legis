@@ -30,6 +30,7 @@ import intraer.fablegis.domain.handlers.exceptions.enums.EspecieNormativaExcepti
 import intraer.fablegis.domain.mappers.DocumentoMapper;
 import intraer.fablegis.domain.regras.RegrasDasEspecies;
 import intraer.fablegis.domain.entities.estruturaDocumento.Anexo;
+import intraer.fablegis.infrastructure.notificacao.AvisosAoVivo;
 import intraer.fablegis.infrastructure.security.AutenticacaoUtil;
 import intraer.fablegis.infrastructure.repositories.AnexoRepository;
 import intraer.fablegis.infrastructure.repositories.AssuntoBasicoRepository;
@@ -91,6 +92,8 @@ public class DocumentoService {
 
     final CriacaoComNumeracaoUnica numeracaoUnica;
 
+    final AvisosAoVivo avisosAoVivo;
+
     private static Long omDoUsuarioAtual() {
         var om = AutenticacaoUtil.usuarioAtual().getOm();
         return om == null ? null : om.getId();
@@ -119,6 +122,7 @@ public class DocumentoService {
         regras.para(especieNormativa).camposEspecificos().criarPara(salvo);
         documentoHistoricoService.registrar(salvo, TipoAlteracaoEnum.CRIACAO,
                 "Documento criado", null, SituacaoLocalEnum.RASCUNHO);
+        avisosAoVivo.documentoMudou(salvo);
         return DocumentoMapper.documentoToDocumentoSemAnexoTextualResponseDto(salvo);
     }
 
@@ -324,6 +328,7 @@ public class DocumentoService {
         itemParteFinalRepository.deleteAllByDocumentoId(id);
         anexoRepository.deleteAllByDocumentoId(id);
         documentoRepository.delete(documento);
+        avisosAoVivo.documentoMudou(id, null, null);
         return DocumentoMapper.documentoToDocumentoSemAnexoTextualResponseDto(documento);
     }
 
@@ -335,6 +340,7 @@ public class DocumentoService {
         Documento clonado = copiarParaNovoDocumento(id);
         documentoHistoricoService.registrar(clonado, TipoAlteracaoEnum.CLONAGEM,
                 "Clonado do documento #" + id, null, SituacaoLocalEnum.RASCUNHO);
+        avisosAoVivo.documentoMudou(clonado);
         return DocumentoMapper.documentoToDocumentoSemAnexoTextualResponseDto(clonado);
     }
 
@@ -364,6 +370,7 @@ public class DocumentoService {
         documentoRepository.save(nova);
         documentoHistoricoService.registrar(nova, TipoAlteracaoEnum.SUBSTITUICAO,
                 "Substitui o documento #" + id + " (" + substituido.getIdentificacao() + ")", null, SituacaoLocalEnum.RASCUNHO);
+        avisosAoVivo.documentoMudou(nova);
         return DocumentoMapper.documentoToDocumentoSemAnexoTextualResponseDto(nova);
     }
 

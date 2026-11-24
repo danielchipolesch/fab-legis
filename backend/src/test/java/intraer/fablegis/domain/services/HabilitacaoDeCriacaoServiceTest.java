@@ -10,7 +10,9 @@ import intraer.fablegis.domain.regras.RegraDeHabilitacaoDaOm;
 import intraer.fablegis.domain.regras.RegrasDaEspecieNormativa;
 import intraer.fablegis.domain.regras.RegrasDasEspecies;
 import intraer.fablegis.domain.regras.TipoDeEspecie;
+import intraer.fablegis.infrastructure.notificacao.AvisosAoVivo;
 import intraer.fablegis.infrastructure.repositories.EspecieNormativaRepository;
+import intraer.fablegis.infrastructure.repositories.UsuarioRepository;
 import intraer.fablegis.infrastructure.repositories.HabilitacaoDaOmRepository;
 import intraer.fablegis.infrastructure.repositories.OrganizacaoMilitarRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -46,6 +48,8 @@ class HabilitacaoDeCriacaoServiceTest {
     @Mock OrganizacaoMilitarRepository omRepository;
     @Mock EspecieNormativaRepository especieRepository;
     @Mock RegrasDasEspecies regras;
+    @Mock UsuarioRepository usuarioRepository;
+    @Mock AvisosAoVivo avisosAoVivo;
 
     HabilitacaoDeCriacaoService service;
     EspecieNormativa dca;
@@ -61,7 +65,8 @@ class HabilitacaoDeCriacaoServiceTest {
         when(especieRepository.findAll()).thenReturn(List.of(npa, ica, dca));
         when(habilitacaoRepository.existsByOmIdAndEspecieId(OM_HABILITADA, dca.getId())).thenReturn(true);
         when(habilitacaoRepository.findByOmId(OM_HABILITADA)).thenReturn(List.of(new HabilitacaoDaOm(OM_HABILITADA, dca.getId())));
-        service = new HabilitacaoDeCriacaoService(habilitacaoRepository, omRepository, especieRepository, regras);
+        when(habilitacaoRepository.findEspecieIdsByOmId(OM_HABILITADA)).thenReturn(List.of(dca.getId()));
+        service = new HabilitacaoDeCriacaoService(habilitacaoRepository, omRepository, especieRepository, regras, usuarioRepository, avisosAoVivo);
     }
 
     private static EspecieNormativa especie(long id, String sigla, TipoDeEspecie tipo) {
@@ -235,6 +240,93 @@ class HabilitacaoDeCriacaoServiceTest {
         when(omRepository.findById(99L)).thenReturn(Optional.empty());
         assertThatThrownBy(() -> service.definirPorEspecie(10L, List.of(99L))).isInstanceOf(ResourceNotFoundException.class);
         verify(habilitacaoRepository, never()).deleteByEspecieId(any());
+    }
+
+    // ─── Aviso ao vivo: o botão de criar aparece (ou some) sem recarregar a página ───────────────────
+
+    private static final long USUARIO_DA_OM_COMUM = 501L;
+
+    @Test
+    void habilitarUmaOmAvisaAoVivoQuemEstaLotadoNela() {
+        when(omRepository.findById(OM_COMUM)).thenReturn(Optional.of(om(OM_COMUM, "EMAER")));
+        when(especieRepository.findById(10L)).thenReturn(Optional.of(dca));
+        when(usuarioRepository.findIdsAtivosByOmIdIn(java.util.Set.of(OM_COMUM))).thenReturn(List.of(USUARIO_DA_OM_COMUM));
+
+        service.definir(OM_COMUM, List.of(10L));
+
+        verify(avisosAoVivo).habilitacaoMudou(List.of(USUARIO_DA_OM_COMUM));
+    }
+
+    @Test
+    void tirarAsHabilitacoesDaOmTambemAvisa() {
+        when(omRepository.findById(OM_HABILITADA)).thenReturn(Optional.of(om(OM_HABILITADA, "GABAER")));
+        when(usuarioRepository.findIdsAtivosByOmIdIn(java.util.Set.of(OM_HABILITADA))).thenReturn(List.of(7L));
+
+        service.definir(OM_HABILITADA, List.of());   // a OM tinha DCA e fica sem nada
+
+        verify(avisosAoVivo).habilitacaoMudou(List.of(7L));
+    }
+
+    @Test
+    void regravarAMesmaHabilitacaoNaoAvisaNinguem() {
+        when(omRepository.findById(OM_HABILITADA)).thenReturn(Optional.of(om(OM_HABILITADA, "GABAER")));
+        when(especieRepository.findById(10L)).thenReturn(Optional.of(dca));
+
+        service.definir(OM_HABILITADA, List.of(10L));   // já era só a DCA
+
+        verify(avisosAoVivo, never()).habilitacaoMudou(any());
+    }
+
+    @Test
+    void naoHabilitarNadaAindaNaoAvisaNinguem() {
+        when(omRepository.findById(OM_COMUM)).thenReturn(Optional.of(om(OM_COMUM, "EMAER")));
+
+        service.definir(OM_COMUM, List.of());
+
+        verify(avisosAoVivo, never()).habilitacaoMudou(any());
+    }
+
+    @Test
+    void pelaVisaoDaEspecieSoAsOmsQueEntraramOuSairamSaoAvisadas() {
+        when(especieRepository.findById(10L)).thenReturn(Optional.of(dca));
+        when(omRepository.findById(any())).thenAnswer(inv -> Optional.of(om(inv.getArgument(0), "OM")));
+        // antes: só a OM habilitada; depois: ela continua e a OM comum entra
+        when(habilitacaoRepository.findOmIdsByEspecieId(10L)).thenReturn(List.of(OM_HABILITADA));
+        when(usuarioRepository.findIdsAtivosByOmIdIn(java.util.Set.of(OM_COMUM))).thenReturn(List.of(USUARIO_DA_OM_COMUM));
+
+        service.definirPorEspecie(10L, List.of(OM_HABILITADA, OM_COMUM));
+
+        verify(usuarioRepository).findIdsAtivosByOmIdIn(java.util.Set.of(OM_COMUM));   // a que ficou como estava não é avisada
+        verify(avisosAoVivo).habilitacaoMudou(List.of(USUARIO_DA_OM_COMUM));
+    }
+
+    @Test
+    void pelaVisaoDaEspecieAOmQueSaiTambemEAvisada() {
+        when(especieRepository.findById(10L)).thenReturn(Optional.of(dca));
+        when(habilitacaoRepository.findOmIdsByEspecieId(10L)).thenReturn(List.of(OM_HABILITADA));
+        when(usuarioRepository.findIdsAtivosByOmIdIn(java.util.Set.of(OM_HABILITADA))).thenReturn(List.of(7L));
+
+        service.definirPorEspecie(10L, List.of());
+
+        verify(avisosAoVivo).habilitacaoMudou(List.of(7L));
+    }
+
+    @Test
+    void pelaVisaoDaEspecieSemMudancaNaoAvisaNinguem() {
+        when(especieRepository.findById(10L)).thenReturn(Optional.of(dca));
+        when(omRepository.findById(OM_HABILITADA)).thenReturn(Optional.of(om(OM_HABILITADA, "GABAER")));
+        when(habilitacaoRepository.findOmIdsByEspecieId(10L)).thenReturn(List.of(OM_HABILITADA));
+
+        service.definirPorEspecie(10L, List.of(OM_HABILITADA));
+
+        verify(avisosAoVivo, never()).habilitacaoMudou(any());
+    }
+
+    @Test
+    void omsQueMudaramSaoAsQueEntraramEAsQueSairam() {
+        assertThat(HabilitacaoDeCriacaoService.omsQueMudaram(java.util.Set.of(1L, 2L), java.util.Set.of(2L, 3L))).containsExactlyInAnyOrder(1L, 3L);
+        assertThat(HabilitacaoDeCriacaoService.omsQueMudaram(java.util.Set.of(1L), java.util.Set.of(1L))).isEmpty();
+        assertThat(HabilitacaoDeCriacaoService.omsQueMudaram(java.util.Set.of(), java.util.Set.of())).isEmpty();
     }
 
     @Test

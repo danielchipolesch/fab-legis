@@ -61,6 +61,18 @@ export const useEditorStore = defineStore('editor', {
       this.isDirty = false
     },
 
+    // Aviso ao vivo (SSE, ver utils/avisosAoVivo.js): o documento aberto no editor mudou de etapa em outro lugar (alguém o enviou, aprovou ou
+    // devolveu). Traz do servidor SÓ os campos de etapa e mantém o resto como está -- o conteúdo em edição e o que ainda não foi salvo ficam
+    // intactos (diferente de reload(), que refaz tudo). A etapa nova refaz o isReadonly do editor sozinha.
+    async aplicarEtapaDoServidor(id) {
+      if (!this.documento || String(this.documentoId) !== String(id)) return
+      const doc = await useDocumentosStore().fetchDocumento(id)
+      if (!doc || !this.documento) return
+      for (const campo of ['situacao_local', 'situacao_bca', 'aprovador_id', 'data_aprovacao', 'versao']) {
+        this.documento[campo] = doc[campo]
+      }
+    },
+
     loadNew() {
       const store = useDocumentosStore()
       const doc = store.createDocumento({})

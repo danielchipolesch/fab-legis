@@ -17,6 +17,10 @@ Cada linha mostra o tipo do módulo (ícone), a identificação do documento (po
 
 > A Área de Trabalho **só leva** até a ação. Nada é aprovado, publicado ou alterado aqui: o botão abre o documento ou a tela da ação.
 
+## A tela se atualiza sozinha
+
+Você não precisa recarregar a página. Quando um documento é criado, enviado para aprovação, aprovado, devolvido, publicado, revogado ou excluído, por qualquer pessoa, os quadros desta tela, as listas dos módulos, as filas de **Revisão** e de **Publicação** e o **Painel Gerencial** se atualizam na hora. Se você está com o documento aberto, a etapa nova aparece nele (o texto que você está digitando não é tocado) e um aviso informa a mudança.
+
 ## Acesso Rápido
 
 Abaixo dos quadros ficam os botões dos módulos: **Painel Gerencial** (só para quem tem o papel, e sempre o primeiro), **Espécies Convencionais** e **NPA**.
