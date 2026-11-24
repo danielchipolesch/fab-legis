@@ -89,7 +89,7 @@ public class HabilitacaoDeCriacaoService {
                 throw new InvalidInputException("A espécie " + especie.getSigla() + " não depende de habilitação: toda OM a cria.");
             }
         }
-        boolean mudou = !habilitadasDa(omId).equals(pedidas);
+        boolean mudou = !new HashSet<>(habilitacaoRepository.findEspecieIdsByOmId(omId)).equals(pedidas);   // só ids: ver o repositório
         habilitacaoRepository.deleteByOmId(omId);
         habilitacaoRepository.flush();
         pedidas.forEach(id -> habilitacaoRepository.save(new HabilitacaoDaOm(omId, id)));
@@ -112,8 +112,7 @@ public class HabilitacaoDeCriacaoService {
                 throw new ResourceNotFoundException("Organização militar não encontrada (id " + id + ").");
             }
         }
-        Set<Long> antes = habilitacaoRepository.findByEspecieId(especieId).stream()
-                .map(HabilitacaoDaOm::getOrganizacaoMilitarId).collect(Collectors.toSet());
+        Set<Long> antes = new HashSet<>(habilitacaoRepository.findOmIdsByEspecieId(especieId));   // só ids: ver o repositório
         habilitacaoRepository.deleteByEspecieId(especieId);
         habilitacaoRepository.flush();
         pedidas.forEach(id -> habilitacaoRepository.save(new HabilitacaoDaOm(id, especieId)));

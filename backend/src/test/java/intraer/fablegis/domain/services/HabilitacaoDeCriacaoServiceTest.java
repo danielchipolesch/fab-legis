@@ -65,6 +65,7 @@ class HabilitacaoDeCriacaoServiceTest {
         when(especieRepository.findAll()).thenReturn(List.of(npa, ica, dca));
         when(habilitacaoRepository.existsByOmIdAndEspecieId(OM_HABILITADA, dca.getId())).thenReturn(true);
         when(habilitacaoRepository.findByOmId(OM_HABILITADA)).thenReturn(List.of(new HabilitacaoDaOm(OM_HABILITADA, dca.getId())));
+        when(habilitacaoRepository.findEspecieIdsByOmId(OM_HABILITADA)).thenReturn(List.of(dca.getId()));
         service = new HabilitacaoDeCriacaoService(habilitacaoRepository, omRepository, especieRepository, regras, usuarioRepository, avisosAoVivo);
     }
 
@@ -290,7 +291,7 @@ class HabilitacaoDeCriacaoServiceTest {
         when(especieRepository.findById(10L)).thenReturn(Optional.of(dca));
         when(omRepository.findById(any())).thenAnswer(inv -> Optional.of(om(inv.getArgument(0), "OM")));
         // antes: só a OM habilitada; depois: ela continua e a OM comum entra
-        when(habilitacaoRepository.findByEspecieId(10L)).thenReturn(List.of(new HabilitacaoDaOm(OM_HABILITADA, 10L)));
+        when(habilitacaoRepository.findOmIdsByEspecieId(10L)).thenReturn(List.of(OM_HABILITADA));
         when(usuarioRepository.findIdsAtivosByOmIdIn(java.util.Set.of(OM_COMUM))).thenReturn(List.of(USUARIO_DA_OM_COMUM));
 
         service.definirPorEspecie(10L, List.of(OM_HABILITADA, OM_COMUM));
@@ -302,7 +303,7 @@ class HabilitacaoDeCriacaoServiceTest {
     @Test
     void pelaVisaoDaEspecieAOmQueSaiTambemEAvisada() {
         when(especieRepository.findById(10L)).thenReturn(Optional.of(dca));
-        when(habilitacaoRepository.findByEspecieId(10L)).thenReturn(List.of(new HabilitacaoDaOm(OM_HABILITADA, 10L)));
+        when(habilitacaoRepository.findOmIdsByEspecieId(10L)).thenReturn(List.of(OM_HABILITADA));
         when(usuarioRepository.findIdsAtivosByOmIdIn(java.util.Set.of(OM_HABILITADA))).thenReturn(List.of(7L));
 
         service.definirPorEspecie(10L, List.of());
@@ -314,7 +315,7 @@ class HabilitacaoDeCriacaoServiceTest {
     void pelaVisaoDaEspecieSemMudancaNaoAvisaNinguem() {
         when(especieRepository.findById(10L)).thenReturn(Optional.of(dca));
         when(omRepository.findById(OM_HABILITADA)).thenReturn(Optional.of(om(OM_HABILITADA, "GABAER")));
-        when(habilitacaoRepository.findByEspecieId(10L)).thenReturn(List.of(new HabilitacaoDaOm(OM_HABILITADA, 10L)));
+        when(habilitacaoRepository.findOmIdsByEspecieId(10L)).thenReturn(List.of(OM_HABILITADA));
 
         service.definirPorEspecie(10L, List.of(OM_HABILITADA));
 
