@@ -92,7 +92,7 @@ class ControllersIntegracaoTest extends IntegracaoComPostgresBase {
         Integer aplicadas = jdbc.queryForObject("select count(*) from flyway_schema_history where success", Integer.class);
         Integer falhas = jdbc.queryForObject("select count(*) from flyway_schema_history where not success", Integer.class);
 
-        assertThat(aplicadas).isEqualTo(2); // a V1 (o esquema consolidado) e a V2 (a Minuta como etapa de aprovação e o arquivamento, com a conversão dos documentos que já existem)
+        assertThat(aplicadas).isEqualTo(1); // o esquema inteiro é a V1 (db/migration/V1__initial.sql)
         assertThat(falhas).isZero();
     }
 
