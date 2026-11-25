@@ -33,13 +33,18 @@
 
         <template #body-cell-status="props">
           <q-td :props="props">
-            <StatusBadge :situacao-bca="props.row.situacao_bca" :situacao-local="props.row.situacao_local" />
-            <!-- O autor sugeriu a decisão a um Aprovador: só um destaque -- qualquer aprovador da OM decide. -->
-            <q-badge
-              v-if="rotuloDoAprovadorSugerido(props.row, auth.usuario?.id)"
-              class="q-mt-xs" rounded :color="props.row.aprovador_sugerido_id == auth.usuario?.id ? 'deep-orange' : 'grey-6'"
-              :label="rotuloDoAprovadorSugerido(props.row, auth.usuario?.id)" data-testid="aprovador-sugerido-fila"
-            />
+            <div class="row items-center justify-center" style="gap:4px">
+              <StatusBadge :situacao-bca="props.row.situacao_bca" :situacao-local="props.row.situacao_local" />
+            </div>
+            <!-- O autor sugeriu a decisão a um Aprovador: só um destaque -- qualquer aprovador da OM decide. Em linha própria, para não
+                 apertar as situações nem as ações da linha. -->
+            <div v-if="rotuloDoAprovadorSugerido(props.row, auth.usuario?.id)" class="q-mt-xs">
+              <q-badge
+                rounded :color="props.row.aprovador_sugerido_id == auth.usuario?.id ? 'deep-orange' : 'grey-7'"
+                :label="rotuloDoAprovadorSugerido(props.row, auth.usuario?.id)" data-testid="aprovador-sugerido-fila"
+                style="white-space:normal;max-width:100%"
+              />
+            </div>
           </q-td>
         </template>
 
