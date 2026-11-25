@@ -50,9 +50,14 @@ O que está entre `[ ]` e em vermelho num documento novo é orientação. Depois
 
 O documento é salvo automaticamente. Se duas pessoas editam o mesmo documento ao mesmo tempo, o sistema avisa quem está presente e mostra as mudanças dos outros em tempo real. Se aparecer um aviso de **conflito**, recarregue o documento para ver a versão mais recente.
 
-## Coautoria
+## Autores do documento
 
-O **autor** pode adicionar outros usuários como **coautores** (botão de compartilhar). Um coautor edita e exclui o documento como o autor, mas só o autor gerencia a lista de coautores. Procure a pessoa pelo **nome de guerra** ou nome completo.
+Quem criou o documento e quem foi acrescentado depois são **autores, todos iguais**: editam e excluem (no Rascunho) o documento, enviam para aprovação e **atribuem a autoria a outras pessoas** (botão **Autores**; procure a pessoa pelo **nome de guerra** ou nome completo). Não há "coautor" com menos direitos.
+
+- **A autoria é sua, não da OM.** Se você for transferido para outra OM, continua sendo autor e continua editando o documento.
+- **Quem desvincula um autor** (a qualquer tempo) é o **Administrador da OM do documento**, em qualquer etapa (inclusive num ato já publicado) — é a saída quando os autores originais já não estão na OM. Ele também pode atribuir a autoria a si mesmo, para passar a editar. O Administrador Geral não faz isso.
+- **Desvincular-se:** depois de sair da OM do documento, você pode se desvincular dele (**Autores › Desvincular-me do documento**). Enquanto ainda for da OM do documento, a opção não aparece: peça ao Administrador da OM. Se você for o **único** autor, o sistema não deixa: "não é possível desvincular: esta é a única pessoa atribuída como elaboradora" — atribua a autoria a outra pessoa antes.
+- Quem não é autor vê o documento normalmente, mas não vê nem atribui a lista de autores.
 
 ## Anexos
 
@@ -64,7 +69,7 @@ Pelo menu **⋮** do documento:
 
 Enquanto você escreve, o documento é um **Rascunho**: editar, anexar imagens e salvar **não mudam a etapa**. Pelo menu **⋮**:
 
-1. **Enviar para aprovação:** o documento passa a **Minuta** (em aprovação ou em conferência) e fica disponível para **qualquer Aprovador da OM**; você não escolhe uma pessoa, e os aprovadores são avisados por notificação.
+1. **Enviar para aprovação:** o documento passa a **Minuta** (em aprovação ou em conferência) e fica disponível para **qualquer Aprovador da OM**, que é avisado por notificação. Se quiser, **sugira a decisão a um Aprovador** (campo opcional ao enviar): ele recebe um aviso só dele e o documento aparece destacado, primeiro, na fila dele. É só uma sugestão: qualquer Aprovador da OM continua podendo decidir, então o documento não fica parado se a pessoa tiver sido transferida.
 2. **Cancelar:** só em Rascunho. **Excluir** também só no rascunho.
 
 Na **Minuta**, **nem o autor edita**: quem edita é o aprovador. A autoridade pode **aprovar**, **devolver aos autores** (o documento volta a Rascunho, e então você pode corrigir, enviar de novo, cancelar ou excluir) ou **arquivar** a minuta, com uma justificativa. Depois da aprovação, ninguém mais edita (ver [Revisão e publicação](revisao-e-publicacao)).

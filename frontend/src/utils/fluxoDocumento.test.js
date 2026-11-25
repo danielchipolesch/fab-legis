@@ -3,6 +3,7 @@ import {
   destinoDeAprovacao, destinoDeDevolucao, DESTINO_DE_CONCLUSAO, ehRevogacao, ehPrimeiraPublicacao,
   ehAlteracaoPublicada, podeDevolverPublicacao, temVersaoVigente, temVersaoEmTramitacao, versaoPadrao,
   eventoDoHistorico, exibeSeloRevogado, exibePortaria, etapasDoCiclo, podeSubstituir, ehAprovadorDaOm, podeArquivar, DESTINO_DE_ARQUIVAMENTO, DESTINO_DE_ENVIO_PARA_APROVACAO,
+  aceitaAprovadorSugerido, rotuloDoAprovadorSugerido, filaComOsMeusPrimeiro,
 } from './fluxoDocumento.js'
 import {
   temEtapaEmCurso, situacaoBcaMeta, situacaoLocalMeta, SITUACAO_BCA_META, SITUACAO_LOCAL_META,
@@ -251,5 +252,33 @@ describe('arquivar e enviar para aprovação', () => {
       expect(podeArquivar(doc('NAO_PUBLICADO', local))).toBe(false)
     }
     expect(podeArquivar(null)).toBe(false)
+  })
+})
+
+// Aprovador sugerido (docs/ciclo-de-vida.md): quem envia pode sugerir a decisão a um Aprovador da OM -- um aviso e um destaque, nunca uma restrição.
+describe('aprovador sugerido', () => {
+  it('só ao enviar para aprovação ou ao pedir a análise de revogação', () => {
+    expect(aceitaAprovadorSugerido('MINUTA')).toBe(true)
+    expect(aceitaAprovadorSugerido('ANALISE_REVOGACAO')).toBe(true)
+    for (const destino of ['EM_ALTERACAO', 'SEM_ETAPA', 'RASCUNHO', 'EM_PUBLICACAO', 'ARQUIVADO', undefined]) {
+      expect(aceitaAprovadorSugerido(destino)).toBe(false)
+    }
+  })
+
+  it('o destaque na fila: "Enviado a você" para o sugerido, o nome dele para os outros, nada sem sugestão', () => {
+    const d = { aprovador_sugerido_id: 7, aprovador_sugerido_nome: 'Maj Fulano' }
+    expect(rotuloDoAprovadorSugerido(d, 7)).toBe('Enviado a você')
+    expect(rotuloDoAprovadorSugerido(d, '7')).toBe('Enviado a você')
+    expect(rotuloDoAprovadorSugerido(d, 8)).toBe('Sugerido a Maj Fulano')
+    expect(rotuloDoAprovadorSugerido({ aprovador_sugerido_id: null }, 7)).toBeNull()
+    expect(rotuloDoAprovadorSugerido({}, 7)).toBeNull()
+  })
+
+  it('o que foi enviado a mim vem primeiro e o resto mantém a ordem', () => {
+    const fila = [
+      { id: 1 }, { id: 2, aprovador_sugerido_id: 9 }, { id: 3, aprovador_sugerido_id: 7 }, { id: 4 }, { id: 5, aprovador_sugerido_id: 7 },
+    ]
+    expect(filaComOsMeusPrimeiro(fila, 7).map(d => d.id)).toEqual([3, 5, 1, 2, 4])
+    expect(filaComOsMeusPrimeiro([], 7)).toEqual([])
   })
 })

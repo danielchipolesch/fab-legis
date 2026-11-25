@@ -154,7 +154,7 @@ O cabeçalho da NPA é uma tabela de campos, não uma parte preliminar. Os campo
 | **Setor emissor** | `CamposDaNpa.setorEmissor` — texto livre, abaixo da OM |
 | **Local** | `CamposDaNpa.local` — do fecho "Local, dd de mês de aaaa"; a data é a da aprovação |
 | **Assinaturas** | `CamposDaNpa.assinaturas` — blocos em **texto livre**: um rótulo ("Visto", "Proposto por", "Ciente"…) e até 6 linhas abaixo dele; até 10 blocos. Os rótulos "Elaborado por" e "Aprovado por" **não podem ser escritos**: esses dois blocos saem do documento (abaixo) |
-| **Elaborado por** | automático — o **autor e todos os coautores** (`DocumentoCompartilhamento`), um por linha, no formato `Cel FULANO DE TAL` (bigrama do posto + nome completo em caixa alta); vem **primeiro** entre as assinaturas |
+| **Elaborado por** | automático — **todos os autores** atuais do documento (a lista de autores, `DocumentoCompartilhamento`, em que quem criou também consta e da qual sai quem se desvincula), um por linha, no formato `Cel FULANO DE TAL` (bigrama do posto + nome completo em caixa alta); vem **primeiro** entre as assinaturas |
 | **Aprovado por** | automático — quem **aprovou** o documento (a pessoa com papel Aprovador da OM (`APR_OM`) que o aprovou, registrada na aprovação, `Documento.aprovador`); vem **por último**. O nome só aparece **depois da aprovação** (`dtAprovacao`, a mesma data da EMISSÃO); antes, o bloco leva a máscara `[POSTO] FULANO DE TAL`, para uma NPA em elaboração não parecer já aprovada por alguém |
 | **Assunto** | título do documento |
 | **Distribuição** | sempre **OSTENSIVA** (constante das regras da NPA) |

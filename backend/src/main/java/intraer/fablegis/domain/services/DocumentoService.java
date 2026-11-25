@@ -8,6 +8,7 @@ import intraer.fablegis.application.dtos.documentoDtos.DocumentoResponseSemAnexo
 import intraer.fablegis.application.dtos.documentoDtos.DocumentoResumoResponseDto;
 import intraer.fablegis.domain.builders.DocumentoBuilder;
 import intraer.fablegis.domain.entities.estruturaDocumento.Documento;
+import intraer.fablegis.domain.entities.estruturaDocumento.DocumentoCompartilhamento;
 import intraer.fablegis.domain.entities.estruturaDocumento.SituacaoBcaEnum;
 import intraer.fablegis.domain.entities.estruturaDocumento.SituacaoLocalEnum;
 import intraer.fablegis.domain.regras.TipoDeEspecie;
@@ -117,6 +118,7 @@ public class DocumentoService {
                 .montar(request, especieNormativa, AutenticacaoUtil.usuarioAtual());
 
         Documento salvo = documentoRepository.save(documento);
+        registrarAutorInicial(salvo);
         // A estrutura inicial é regra da espécie (atos normativos: capítulos padronizados da NSCA 5-3).
         regras.para(especieNormativa).estruturaInicial().criarEm(salvo);
         regras.para(especieNormativa).camposEspecificos().criarPara(salvo);
@@ -124,6 +126,15 @@ public class DocumentoService {
                 "Documento criado", null, SituacaoLocalEnum.RASCUNHO);
         avisosAoVivo.documentoMudou(salvo);
         return DocumentoMapper.documentoToDocumentoSemAnexoTextualResponseDto(salvo);
+    }
+
+    // Quem cria o documento (ou o clona) entra na lista de autores, igual a qualquer outro autor que venha depois: é ela que dá o direito de
+    // editar. Documento.autor guarda só quem o criou, como registro.
+    private void registrarAutorInicial(Documento documento) {
+        var autoria = new DocumentoCompartilhamento();
+        autoria.setDocumento(documento);
+        autoria.setUsuario(documento.getAutor());
+        documentoCompartilhamentoRepository.save(autoria);
     }
 
     public Documento getById(Long id) {
@@ -150,7 +161,6 @@ public class DocumentoService {
 
     private DocumentoFilaResponseDto toFilaResponseDto(Documento documento) {
         List<String> autores = new ArrayList<>();
-        autores.add(documento.getAutor().getNome());
         documentoCompartilhamentoRepository.findByDocumentoId(documento.getId())
                 .forEach(c -> autores.add(c.getUsuario().getNome()));
         return new DocumentoFilaResponseDto(
@@ -159,7 +169,9 @@ public class DocumentoService {
                 documento.getTituloDocumento(),
                 documento.getSituacaoBca(),
                 documento.getSituacaoLocal(),
-                autores
+                autores,
+                documento.getAprovadorSugerido() == null ? null : documento.getAprovadorSugerido().getId(),
+                documento.getAprovadorSugerido() == null ? null : documento.getAprovadorSugerido().getNome()
         );
     }
 
@@ -407,6 +419,7 @@ public class DocumentoService {
         documentoRepository.save(documentoAntigo);
 
         Documento clonado = documentoRepository.save(documentoNovo);
+        registrarAutorInicial(clonado);
         regras.para(documentoAntigo.getEspecieNormativa()).camposEspecificos().copiar(documentoAntigo, clonado);
 
         for (ItemPartePreliminar orig : itemPartePreliminarRepository.findByDocumentoIdOrderByElementOrderAsc(id)) {

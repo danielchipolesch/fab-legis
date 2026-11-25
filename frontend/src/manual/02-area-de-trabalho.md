@@ -6,9 +6,9 @@
 
 | Quadro | O que mostra |
 |---|---|
-| **Meus Documentos em Tramitação** | Os documentos de que você é autor ou coautor e que ainda estão em andamento. O botão da linha é *Editar* (se a etapa permite escrever) ou *Acompanhar* |
+| **Meus Documentos em Tramitação** | Os documentos de que você é autor e que ainda estão em andamento. O botão da linha é *Editar* (se a etapa permite escrever) ou *Acompanhar* |
 | **Aguardando Minha Ação** | O que espera por você: se é Aprovador, os documentos da sua OM para aprovar; se é Publicador (do BCA, no CENDOC, ou do Boletim Interno, na sua OM), os que aguardam a sua publicação |
-| **Documentos em Tramitação nas OMs** | O que os outros estão fazendo, de qualquer OM. Você só **visualiza**: para editar é preciso ser autor ou coautor |
+| **Documentos em Tramitação nas OMs** | O que os outros estão fazendo, de qualquer OM. Você só **visualiza**: para editar é preciso ser autor |
 | **Publicados e Revogados** | Os atos publicados ou revogados, de todas as OMs, do mais recente para o mais antigo |
 
 Cada documento aparece em um só lugar. Um ato **já publicado** que está sendo alterado aparece nos quadros de tramitação com **dois selos**: "Publicado" (a versão em vigor continua valendo) e a etapa em curso.
@@ -29,7 +29,7 @@ Abaixo dos quadros ficam os botões dos módulos: **Painel Gerencial** (só para
 
 O menu **Criar** tem as opções *Espécie Convencional* e *NPA*. Elas levam à tela inicial do módulo, onde fica o botão que cria o documento de fato.
 
-Atenção: **quem cria espécies convencionais é decidido por OM**. Se a sua OM não está habilitada, você consulta tudo normalmente e pode ser coautor, mas não vê o botão de criar. Peça ao Administrador Geral (CENDOC) a habilitação. A NPA pode ser criada por qualquer OM.
+Atenção: **quem cria espécies convencionais é decidido por OM**. Se a sua OM não está habilitada, você consulta tudo normalmente e pode ser autor de documentos de outras OMs, mas não vê o botão de criar. Peça ao Administrador Geral (CENDOC) a habilitação. A NPA pode ser criada por qualquer OM.
 
 ## A tela de cada módulo
 

@@ -123,8 +123,8 @@ public class DocumentoSpecifications {
     }
 
     // Espelha EXATAMENTE ABA_FILTROS em HomePage.vue (não é uma expansão de escopo).
-    // "meus" é autoria OU coautoria (ver DocumentoCompartilhamento), sempre, independente
-    // da OM do documento -- coautoria nunca é barrada por OM. "minha_om"/"outras_oms" são
+    // "meus" é autoria (ver DocumentoCompartilhamento), sempre, independente
+    // da OM do documento -- a autoria nunca é barrada por OM. "minha_om"/"outras_oms" são
     // só sobre a OM do documento em si (om do autor no momento da criação), sem levar em
     // conta autoria/coautoria nenhuma -- por isso as 4 abas propositalmente NÃO são uma
     // partição estrita do acervo: um documento que eu autorei (OM A) com um coautor da OM
@@ -135,10 +135,7 @@ public class DocumentoSpecifications {
     public static Specification<Documento> aba(String aba, Long usuarioId, Long omId) {
         if (aba == null) return (root, query, cb) -> null;
         return switch (aba) {
-            case "meus" -> (root, query, cb) -> cb.or(
-                    cb.equal(root.get("autor").get("id"), usuarioId),
-                    root.get("id").in(coautorDocumentoIds(query, cb, usuarioId))
-            );
+            case "meus" -> (root, query, cb) -> root.get("id").in(autorDocumentoIds(query, cb, usuarioId));
             case "minha_om" -> (root, query, cb) -> cb.equal(root.get("om").get("id"), omId);
             case "outras_oms" -> (root, query, cb) -> cb.notEqual(root.get("om").get("id"), omId);
             case "revogados" -> (root, query, cb) -> cb.equal(root.get("situacaoBca"), SituacaoBcaEnum.REVOGADO);
@@ -146,10 +143,9 @@ public class DocumentoSpecifications {
         };
     }
 
-    // Ids de documento em que usuarioId é coautor (t_documento_compartilhamento), não
-    // autor -- usado só por "meus", pra incluir esses documentos além dos que o usuário
-    // autorou diretamente.
-    private static Subquery<Long> coautorDocumentoIds(CommonAbstractCriteria query, CriteriaBuilder cb, Long usuarioId) {
+    // Ids de documento em que usuarioId é autor (t_documento_compartilhamento: a lista de autores, em que quem criou o documento
+    // também consta) -- usado só por "meus". Quem se desvinculou deixa de tê-lo em "meus".
+    private static Subquery<Long> autorDocumentoIds(CommonAbstractCriteria query, CriteriaBuilder cb, Long usuarioId) {
         Subquery<Long> sub = query.subquery(Long.class);
         Root<DocumentoCompartilhamento> compRoot = sub.from(DocumentoCompartilhamento.class);
         Predicate condicao = cb.equal(compRoot.get("usuario").get("id"), usuarioId);

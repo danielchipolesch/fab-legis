@@ -56,8 +56,7 @@ public class DocumentoAcessoService {
         if (doc.getSituacaoLocal() == SituacaoLocalEnum.MINUTA) {
             return doc.getSituacaoBca() != SituacaoBcaEnum.PUBLICADO && ehAprovadorDaOm(doc, usuario);
         }
-        return usuario.getPapeis().contains(PapelEnum.ELB)
-                && (ehAutor(doc, usuario) || compartilhamentoRepository.existsByDocumentoIdAndUsuarioId(documentoId, usuario.getId()));
+        return usuario.getPapeis().contains(PapelEnum.ELB) && ehAutor(doc, usuario);
     }
 
     // Subir o PDF da portaria (ou o da revogação) é um passo de quem vai registrar a publicação -- a pessoa atribuída como
@@ -92,15 +91,36 @@ public class DocumentoAcessoService {
         }
 
         if (!usuario.getPapeis().contains(PapelEnum.ELB)) return false;
-        return ehAutor(doc, usuario) || compartilhamentoRepository.existsByDocumentoIdAndUsuarioId(documentoId, usuario.getId());
+        return ehAutor(doc, usuario);
     }
 
-    // Só quem criou o documento pode adicionar ou remover coautores -- um
-    // coautor não pode, por sua vez, compartilhar com mais alguém.
+    // Autoria: quem criou o documento e quem foi acrescentado depois são autores IGUAIS, sem distinção (um coautor é um autor). Qualquer
+    // autor atribui a autoria a outra pessoa (compartilha) e vê quem são os autores -- a autoria é da pessoa, não da OM: ela continua
+    // editando se for transferida. Quem desvincula um autor é o Administrador da OM do documento (podeAtribuirAutoria) ou o próprio autor,
+    // ao se desvincular (podeDesvincular).
     public boolean podeCompartilhar(Long documentoId, Authentication auth) {
         Usuario usuario = usuarioDe(auth);
         Documento doc = documentoRepository.findById(documentoId).orElse(null);
-        return doc != null && ehAutor(doc, usuario);
+        return doc != null && (ehAutor(doc, usuario) || ehAdministradorDaOm(doc, usuario));
+    }
+
+    // Atribuir autoria a qualquer pessoa, desvincular qualquer autor e atribuir a autoria a si mesmo, em qualquer etapa do documento: só o
+    // Administrador da OM do documento (o Administrador Geral NÃO -- a função dele é cuidar dos administradores locais).
+    public boolean podeAtribuirAutoria(Long documentoId, Authentication auth) {
+        Usuario usuario = usuarioDe(auth);
+        Documento doc = documentoRepository.findById(documentoId).orElse(null);
+        return doc != null && ehAdministradorDaOm(doc, usuario);
+    }
+
+    // Desvincular um autor: o Administrador da OM do documento desvincula qualquer autor; o autor desvincula a PRÓPRIA autoria (desvincula-se), mas só
+    // depois de sair da OM do documento -- quem ainda é dela não se desvincula (a opção nem aparece); sair da OM é o que torna a
+    // autoria dispensável. Que o documento não fique sem autor é conferido por DocumentoCompartilhamentoService.
+    public boolean podeDesvincular(Long documentoId, Long usuarioId, Authentication auth) {
+        Usuario usuario = usuarioDe(auth);
+        Documento doc = documentoRepository.findById(documentoId).orElse(null);
+        if (doc == null) return false;
+        if (ehAdministradorDaOm(doc, usuario)) return true;
+        return usuario.getId().equals(usuarioId) && ehAutor(doc, usuario) && !ehDaOmDoDocumento(doc, usuario);
     }
 
     // Autor OU coautor, mas só enquanto o documento estiver em RASCUNHO -- um rascunho de outra pessoa, não compartilhado com o usuário,
@@ -182,8 +202,18 @@ public class DocumentoAcessoService {
         return usuario.getPapeis().contains(PapelEnum.APR_OM) && doc.getOm().getId().equals(usuario.getOm().getId());
     }
 
+    // Autor = quem consta na autoria do documento (t_documento_compartilhamento), incluindo quem o criou: a pessoa que criou entra nela
+    // na criação e, como qualquer autor, pode sair dela. Documento.autor é só o registro histórico de quem o criou.
     private boolean ehAutor(Documento doc, Usuario usuario) {
-        return doc.getAutor().getId().equals(usuario.getId());
+        return compartilhamentoRepository.existsByDocumentoIdAndUsuarioId(doc.getId(), usuario.getId());
+    }
+
+    private boolean ehAdministradorDaOm(Documento doc, Usuario usuario) {
+        return usuario.getPapeis().contains(PapelEnum.ADM_OM) && ehDaOmDoDocumento(doc, usuario);
+    }
+
+    private boolean ehDaOmDoDocumento(Documento doc, Usuario usuario) {
+        return doc.getOm().getId().equals(usuario.getOm().getId());
     }
 
     private Usuario usuarioDe(Authentication auth) {

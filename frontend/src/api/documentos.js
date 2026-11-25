@@ -308,6 +308,9 @@ function filaParaFrontend(doc) {
     situacao_bca: doc.situacaoBca,
     situacao_local: doc.situacaoLocal,
     autores: doc.autores ?? [],
+    // Só na fila de revisão: o Aprovador da OM a quem o autor sugeriu a decisão (um destaque; qualquer aprovador da OM decide).
+    aprovador_sugerido_id: doc.aprovadorSugeridoId ?? null,
+    aprovador_sugerido_nome: doc.aprovadorSugeridoNome ?? null,
   }
 }
 
@@ -364,6 +367,11 @@ export async function updateDocumento(id, data) {
 
 // situacaoLocal: a nova Situação Local. SEM_ETAPA = concluir a etapa em curso (publicar, revogar,
 // devolver a análise de revogação ou cancelar a alteração, conforme a origem).
+// Os Aprovadores da OM do documento -- de quem o autor escolhe a quem sugerir a decisão ao enviar para aprovação.
+export async function listAprovadoresDaOm(documentoId) {
+  return http.get(`/documentos/${documentoId}/aprovadores`)
+}
+
 export async function changeDocumentoStatus(id, situacaoLocal, refs) {
   const body = { situacaoLocal }
   if (refs) {
@@ -384,6 +392,8 @@ export async function changeDocumentoStatus(id, situacaoLocal, refs) {
     body.dataBoletimInterno   = refs.dataBoletimInterno ?? null
     // Só ao arquivar (MINUTA -> ARQUIVADO): por que a autoridade arquiva. Obrigatória.
     body.justificativa        = refs.justificativa ?? null
+    // Só ao enviar para aprovação (ou pedir a revogação): o Aprovador da OM a quem se SUGERE a decisão. Opcional e sem restrição.
+    body.aprovadorSugeridoId  = refs.aprovadorSugeridoId ?? null
   }
   const result = await http.patch(`/documentos/${id}/status`, body)
   return backendParaFrontend(result)
@@ -473,7 +483,7 @@ export async function compartilharDocumento(documentoId, cpf) {
   return http.post(`/documentos/${documentoId}/compartilhamentos`, { cpf })
 }
 
-export async function removerCompartilhamento(documentoId, usuarioId) {
+export async function desvincularAutor(documentoId, usuarioId) {
   return http.del(`/documentos/${documentoId}/compartilhamentos/${usuarioId}`)
 }
 

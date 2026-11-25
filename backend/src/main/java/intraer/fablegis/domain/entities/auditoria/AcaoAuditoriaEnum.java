@@ -9,5 +9,5 @@ public enum AcaoAuditoriaEnum {
     SUBSTITUIU,
     MUDOU_STATUS,
     COMPARTILHOU,
-    REMOVEU_COMPARTILHAMENTO
+    DESVINCULOU
 }

@@ -1009,6 +1009,10 @@ ALTER INDEX idx_documento_publicador_atribuido RENAME TO idx_documento_publicado
 UPDATE t_documento SET aprovador_id = NULL WHERE st_situacao_local IN ('EM_REVISAO', 'ANALISE_REVOGACAO');
 UPDATE t_documento SET publicador_id = NULL WHERE st_situacao_local IN ('EM_PUBLICACAO', 'EM_REVOGACAO');
 
+-- Aprovador SUGERIDO: ao enviar para aprovação (ou pedir a revogação), o autor pode indicar a quem pede a decisão. É só um aviso e um destaque
+-- na fila -- qualquer aprovador da OM continua podendo decidir. Nulo quando ninguém foi sugerido ou o documento saiu da fila.
+ALTER TABLE t_documento ADD COLUMN aprovador_sugerido_id BIGINT REFERENCES t_usuario (id_usuario);
+
 -- ── origem: V21__perfis_com_codigo_e_nome.sql ───────────────────────────────────────────────────────────────
 -- Perfis (papéis) de acesso com CÓDIGO e NOME POR EXTENSO, e com o escopo no próprio código:
 --   EDIT    -> ELB      Elaborador

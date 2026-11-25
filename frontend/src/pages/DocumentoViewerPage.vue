@@ -57,6 +57,23 @@
         @baixar="baixarHtml"
       />
 
+      <!-- Autores: quem é autor (ou o Administrador da OM do documento) vê e atribui a autoria, em qualquer etapa --
+           inclusive num ato publicado, que só se abre aqui. Para os demais, o diálogo explica a quem pedir. -->
+      <q-btn
+        v-if="podeVerAutoria"
+        outline color="primary" size="sm" data-testid="autores"
+        @click="autoresDialogOpen = true"
+      >
+        <q-icon left name="mdi-account-multiple-outline" />
+        Autores
+      </q-btn>
+      <CompartilharDialog
+        v-if="podeVerAutoria"
+        v-model="autoresDialogOpen"
+        :documento-id="documentoId"
+        :om-do-documento-id="documento?.om_id"
+      />
+
       <q-btn outline color="primary" size="sm" @click="clonar">
         <q-icon left name="mdi-content-copy" />
         Clonar
@@ -429,6 +446,8 @@ import { gerarPdf, gerarHtml, buscarPdfBlob } from '@/services/pdfService.js'
 import { gerarTextoSugeridoPortaria } from '@/utils/textoSugeridoPortaria.js'
 import { resolverUrlsArmazenadas } from '@/utils/urlsArmazenadas.js'
 import BotaoBaixarVersao from '@/components/common/BotaoBaixarVersao.vue'
+import CompartilharDialog from '@/components/editor/CompartilharDialog.vue'
+import { ehAdministradorDaOmDoDocumento } from '@/utils/autoria.js'
 import { regrasDoDocumento, moduloDoDocumento } from '@/regras/index.js'
 import { getSubstituicao } from '@/api/documentos.js'
 import { itensRenumeracaoUnico } from '@/utils/numbering.js'
@@ -457,6 +476,10 @@ const documentoId = computed(() => route.params.id)
 const documento   = computed(() => docStore.getById(documentoId.value))
 // As regras da espécie do documento (regras/index.js): o que a tela mostra varia por espécie.
 const regras      = computed(() => regrasDoDocumento(documento.value))
+// O botão "Autores" é de quem elabora (todo usuário é Elaborador) e do Administrador da OM do documento.
+const autoresDialogOpen = ref(false)
+const podeVerAutoria = computed(() => !!documento.value
+  && (auth.isElaborador || ehAdministradorDaOmDoDocumento(auth.usuario, documento.value.om_id)))
 
 // Versão exibida no iframe: a em tramitação (se houver) é a padrão; senão, a vigente. O PDF só
 // é buscado com a seção aberta: a versão em tramitação é renderizada na hora pelo backend quando

@@ -15,6 +15,7 @@ public interface DocumentoCompartilhamentoRepository extends JpaRepository<Docum
     List<DocumentoCompartilhamento> findByDocumentoId(Long documentoId);
     Optional<DocumentoCompartilhamento> findByDocumentoIdAndUsuarioId(Long documentoId, Long usuarioId);
     boolean existsByDocumentoIdAndUsuarioId(Long documentoId, Long usuarioId);
+    long countByDocumentoId(Long documentoId);
 
     // Batch (1 query pra página inteira, não 1 por linha) -- usado por
     // DocumentoController.getAll pra marcar, na listagem, quais documentos o

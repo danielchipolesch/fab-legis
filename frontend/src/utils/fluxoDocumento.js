@@ -32,6 +32,22 @@ export function podeArquivar(doc) {
 // Enviar para aprovação: o rascunho (ou a alteração em curso) vai para a MINUTA, onde quem aprova decide. Só os autores o fazem.
 export const DESTINO_DE_ENVIO_PARA_APROVACAO = 'MINUTA'
 
+// Quem envia pode SUGERIR a um Aprovador da OM a decisão -- ao enviar para aprovação (a MINUTA) e ao pedir a análise de revogação. É só um aviso
+// e um destaque na fila dele: qualquer Aprovador da OM continua podendo decidir (espelha DocumentoStatusService, backend).
+export const aceitaAprovadorSugerido = (destino) => destino === 'MINUTA' || destino === 'ANALISE_REVOGACAO'
+
+// O texto do destaque na fila de revisão: para o sugerido, "Enviado a você"; para os demais aprovadores, a quem foi sugerido (ou nada).
+export function rotuloDoAprovadorSugerido(doc, usuarioId) {
+  if (doc?.aprovador_sugerido_id == null) return null
+  return String(doc.aprovador_sugerido_id) === String(usuarioId) ? 'Enviado a você' : `Sugerido a ${doc.aprovador_sugerido_nome ?? 'outro aprovador'}`
+}
+
+// Na fila de revisão, o que foi enviado a mim vem primeiro (a ordem do resto não muda).
+export function filaComOsMeusPrimeiro(documentos, usuarioId) {
+  const meu = (d) => d.aprovador_sugerido_id != null && String(d.aprovador_sugerido_id) === String(usuarioId)
+  return [...documentos.filter(meu), ...documentos.filter(d => !meu(d))]
+}
+
 export function ehRevogacao(doc) {
   return doc.situacao_local === 'EM_REVOGACAO'
 }

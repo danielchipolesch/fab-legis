@@ -145,16 +145,30 @@ class CamposDeNpaTest {
     }
 
     @Test
-    void elaboradoPorTrazOAutorETodosOsCoautoresNaOrdemDeInclusao() {
+    void elaboradoPorTrazTodosOsAutoresNaOrdemEmQueForamAtribuidos() {
         var doc = documento(1, TipoDeEspecie.COMUNICACAO_OFICIAL_PADRONIZADA, SituacaoBcaEnum.NAO_PUBLICADO);
-        doc.setAutor(usuario(1, "Fulano de Tal", "Cel"));
+        var criador = usuario(1, "Fulano de Tal", "Cel");
+        doc.setAutor(criador);
+        // quem criou o documento consta na lista de autores, como qualquer outro (a ordem é a da inclusão)
         coautorias.put(1L, List.of(coautoria(11, usuario(3, "Cicrano Souza", "Cap")),
+                coautoria(9, criador),
                 coautoria(10, usuario(2, "Beltrano Lima", "Maj")),
                 coautoria(12, usuario(4, "Maria Servidora", null))));
         campos.criarPara(doc);
 
         assertThat(campos.obter(1L).elaboradoPor())
                 .containsExactly("Cel FULANO DE TAL", "Maj BELTRANO LIMA", "Cap CICRANO SOUZA", "MARIA SERVIDORA");
+    }
+
+    // Quem criou o documento e se desvinculou deixa de ser autor -- não aparece mais em "Elaborado por".
+    @Test
+    void quemSeDesvinculouDaAutoriaNaoApareceEmElaboradoPor() {
+        var doc = documento(1, TipoDeEspecie.COMUNICACAO_OFICIAL_PADRONIZADA, SituacaoBcaEnum.NAO_PUBLICADO);
+        doc.setAutor(usuario(1, "Fulano de Tal", "Cel"));
+        coautorias.put(1L, List.of(coautoria(10, usuario(2, "Beltrano Lima", "Maj"))));
+        campos.criarPara(doc);
+
+        assertThat(campos.obter(1L).elaboradoPor()).containsExactly("Maj BELTRANO LIMA");
     }
 
     @Test

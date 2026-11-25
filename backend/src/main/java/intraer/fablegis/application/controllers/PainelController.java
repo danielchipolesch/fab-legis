@@ -78,11 +78,11 @@ public class PainelController {
         return AutenticacaoUtil.usuarioDe(authentication);
     }
 
-    // 1 consulta para a página inteira (não 1 por linha): marca em quais o usuário é autor ou coautor.
+    // 1 consulta para a página inteira (não 1 por linha): marca em quais o usuário é autor.
     private Page<DocumentoResponseSemAnexoTextualDto> comPosse(Page<Documento> resultado, Usuario usuario) {
         List<Long> ids = resultado.getContent().stream().map(Documento::getId).toList();
-        Set<Long> coautorDe = compartilhamentoService.listarIdsCompartilhadosComUsuario(usuario.getId(), ids);
+        Set<Long> autorDe = compartilhamentoService.listarIdsCompartilhadosComUsuario(usuario.getId(), ids);
         return resultado.map(doc -> DocumentoMapper.documentoToDocumentoSemAnexoTextualResponseDto(
-                doc, doc.getAutor().getId().equals(usuario.getId()) || coautorDe.contains(doc.getId())));
+                doc, autorDe.contains(doc.getId())));
     }
 }
