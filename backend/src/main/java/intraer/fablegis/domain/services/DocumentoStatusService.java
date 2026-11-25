@@ -101,6 +101,12 @@ public class DocumentoStatusService {
         if (acao == AcaoDeEtapa.APROVAR) {
             documento.setAprovador(quemAgiu());
         }
+        // O aprovador sugerido vale só enquanto o documento espera a decisão (MINUTA / ANALISE_REVOGACAO): ao enviar (ou pedir a revogação)
+        // grava o que o autor indicou, se indicou; em qualquer outra transição sai.
+        documento.setAprovadorSugerido(
+                acao == AcaoDeEtapa.ENVIAR_PARA_APROVACAO || acao == AcaoDeEtapa.PEDIR_REVOGACAO
+                        ? aprovadorSugeridoDe(documento, request.aprovadorSugeridoId())
+                        : null);
         // Arquivar é decisão da autoridade e exige dizer por quê: a justificativa fica no documento, com quem arquivou e quando.
         if (acao == AcaoDeEtapa.ARQUIVAR) {
             if (request.justificativa() == null || request.justificativa().isBlank()) {
@@ -212,8 +218,14 @@ public class DocumentoStatusService {
         // Quem pode agir agora é avisado -- as pessoas com o papel, nunca uma escolhida: os aprovadores da OM do documento ao
         // enviar para aprovação (ou pedir a revogação); quem publica (publicadoresDe) ao aprovar. Quem acabou de agir não é avisado.
         if (acao == AcaoDeEtapa.ENVIAR_PARA_APROVACAO || acao == AcaoDeEtapa.PEDIR_REVOGACAO) {
-            avisar(usuarioRepository.findByOmIdAndPapel(documento.getOm().getId(), PapelEnum.APR_OM), documento, descricao,
-                    "O documento " + descricao + " aguarda a aprovação da sua OM.");
+            Usuario sugerido = documento.getAprovadorSugerido();
+            var aprovadores = usuarioRepository.findByOmIdAndPapel(documento.getOm().getId(), PapelEnum.APR_OM);
+            // O aprovador sugerido recebe um aviso só dele; os demais, o aviso de sempre -- qualquer um deles pode decidir.
+            avisar(aprovadores.stream().filter(a -> sugerido == null || !a.getId().equals(sugerido.getId())).toList(),
+                    documento, descricao, "O documento " + descricao + " aguarda a aprovação da sua OM.");
+            if (sugerido != null) {
+                avisar(List.of(sugerido), documento, descricao, "O documento " + descricao + " foi enviado a você para aprovação.");
+            }
         }
         if (acao == AcaoDeEtapa.APROVAR) {
             avisar(publicadoresDe(documento), documento, descricao,
@@ -225,6 +237,27 @@ public class DocumentoStatusService {
         }
 
         return DocumentoMapper.documentoToDocumentoSemAnexoTextualResponseDto(documento);
+    }
+
+    // Os Aprovadores da OM do documento, para o autor escolher a quem sugerir a decisão.
+    public List<Usuario> aprovadoresDaOm(Long documentoId) {
+        Documento documento = documentoRepository.findById(documentoId)
+                .orElseThrow(() -> new ResourceNotFoundException("Documento não encontrado."));
+        return usuarioRepository.findByOmIdAndPapel(documento.getOm().getId(), PapelEnum.APR_OM);
+    }
+
+    // O aprovador que o autor sugeriu: precisa ser um Aprovador da OM do documento, com a conta ativa -- uma sugestão a quem não pode decidir
+    // não serviria. Sem id, ninguém é sugerido (vale o padrão: qualquer Aprovador da OM).
+    private Usuario aprovadorSugeridoDe(Documento documento, Long usuarioId) {
+        if (usuarioId == null) return null;
+        Usuario sugerido = usuarioRepository.findById(usuarioId)
+                .orElseThrow(() -> new StatusCannotBeUpdatedException("A pessoa sugerida para aprovar não foi encontrada."));
+        boolean aprovadorDaOm = sugerido.isAtivo() && sugerido.getPapeis().contains(PapelEnum.APR_OM)
+                && sugerido.getOm().getId().equals(documento.getOm().getId());
+        if (!aprovadorDaOm) {
+            throw new StatusCannotBeUpdatedException("A pessoa sugerida precisa ser Aprovador da OM do documento.");
+        }
+        return sugerido;
     }
 
     // Quem publica o documento, avisado ao aprovar: o papel que a espécie manda -- o Publicador do BCA (CENDOC, qualquer um) nas convencionais;

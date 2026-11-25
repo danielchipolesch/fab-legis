@@ -1,6 +1,6 @@
 # Consultas e exportação
 
-Qualquer usuário autenticado **vê e baixa** qualquer documento, de qualquer OM e em qualquer situação. Editar é que depende de ser autor ou coautor.
+Qualquer usuário autenticado **vê e baixa** qualquer documento, de qualquer OM e em qualquer situação. Editar é que depende de ser autor.
 
 ## Visualizar um documento
 

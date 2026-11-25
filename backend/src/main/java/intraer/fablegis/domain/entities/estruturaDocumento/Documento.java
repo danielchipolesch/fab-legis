@@ -163,6 +163,12 @@ public class Documento extends RepresentationModel<Documento> {
     @JoinColumn(name = "aprovador_id")
     private Usuario aprovador;
 
+    // Aprovador da OM a quem o autor SUGERIU a decisão ao enviar para aprovação (ou pedir a revogação): só um destaque e um aviso para ele --
+    // qualquer Aprovador da OM continua podendo decidir. Limpo assim que o documento sai da fila de aprovação.
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "aprovador_sugerido_id")
+    private Usuario aprovadorSugerido;
+
     // Pessoa específica (papel PUBLIC) escolhida pelo APROV ao aprovar -- só ela pode
     // agir no documento enquanto ele estiver em EM_PUBLICACAO/EM_REVOGACAO. Mesmo
     // padrão de aprovador, reaproveitado nas duas etapas de publicação.

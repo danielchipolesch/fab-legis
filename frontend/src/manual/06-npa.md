@@ -13,7 +13,7 @@ A NPA é uma Comunicação Oficial Padronizada, com regras próprias. Ela fica n
 
 ## Cabeçalho e assinaturas
 
-O botão **Cabeçalho e assinaturas** do editor preenche o **setor emissor**, o **local do fecho** e os **blocos de assinatura** (cada um com rótulo e até 6 linhas, reordenáveis). Os campos "Elaborado por" e "Aprovado por" você não digita: saem do documento (autor e coautores, e quem aprovou).
+O botão **Cabeçalho e assinaturas** do editor preenche o **setor emissor**, o **local do fecho** e os **blocos de assinatura** (cada um com rótulo e até 6 linhas, reordenáveis). Os campos "Elaborado por" e "Aprovado por" você não digita: saem do documento (os autores, e quem aprovou).
 
 ## Passo a passo
 

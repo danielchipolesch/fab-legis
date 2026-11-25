@@ -3,25 +3,31 @@
     <q-card style="width:420px; max-width:95vw">
       <q-card-section class="row items-center q-pb-sm">
         <q-icon name="mdi-account-multiple-plus-outline" color="primary" size="22px" class="q-mr-sm" />
-        <div class="text-h6 text-primary">Compartilhar documento</div>
+        <div class="text-h6 text-primary">Autores do documento</div>
         <q-space />
         <q-btn icon="mdi-close" flat round dense v-close-popup />
       </q-card-section>
       <div class="text-caption text-grey-7 q-px-md q-pb-sm">
-        Coautores podem editar este documento junto com você e, enquanto ele
-        estiver em Rascunho, também excluí-lo. Só você, como autor,
-        pode adicionar ou remover coautores.
+        Todos os autores são iguais: editam este documento (nas etapas em que o texto muda) e, enquanto ele estiver
+        em Rascunho, também podem excluí-lo. Qualquer autor pode atribuir a autoria a outra pessoa. A autoria é da pessoa,
+        não da OM: quem for transferido continua autor. Quem desvincula um autor é o Administrador da OM do documento
+        — ou o próprio autor, ao se desvincular de si mesmo, depois de sair da OM do documento.
       </div>
       <q-separator />
 
-      <q-card-section>
+      <q-card-section v-if="semAcesso" class="text-grey-7 text-body2" data-testid="sem-acesso-autores">
+        Só os autores do documento e o Administrador da OM dele veem e atribuem a autoria. Para passar a editá-lo,
+        peça a um autor ou ao Administrador da OM.
+      </q-card-section>
+
+      <q-card-section v-else>
         <q-form class="row items-start" style="gap:8px" @submit.prevent="adicionar">
           <q-select
             v-model="selecionado"
             :options="opcoes"
             option-label="rotulo"
             option-value="id"
-            label="Buscar coautor por nome de guerra ou nome completo"
+            label="Atribuir autoria: buscar por nome de guerra ou nome completo"
             outlined
             dense
             emit-value
@@ -46,9 +52,16 @@
         </q-form>
       </q-card-section>
 
+      <div v-if="atribuiASiMesmo" class="q-px-md q-pb-sm">
+        <q-btn
+          flat dense no-caps color="primary" icon="mdi-account-plus-outline" label="Atribuir a autoria a mim"
+          :loading="adicionando" data-testid="atribuir-a-mim" @click="atribuirAMim"
+        />
+      </div>
+
       <q-separator />
 
-      <q-card-section class="q-pa-none" style="max-height:280px; overflow-y:auto">
+      <q-card-section v-if="!semAcesso" class="q-pa-none" style="max-height:280px; overflow-y:auto">
         <q-list separator>
           <q-item v-for="c in compartilhamentos" :key="c.usuarioId">
             <q-item-section avatar>
@@ -60,15 +73,15 @@
               <q-item-label>{{ caixaAlta(c.nome) }}</q-item-label>
               <q-item-label caption>{{ ocultarCpf(c.cpf) }}</q-item-label>
             </q-item-section>
-            <q-item-section side>
-              <q-btn icon="mdi-delete-outline" flat round dense size="sm" color="negative" @click="remover(c)">
-                <q-tooltip>Remover coautor</q-tooltip>
+            <q-item-section v-if="podeDesvincularAutor(c)" side>
+              <q-btn icon="mdi-delete-outline" flat round dense size="sm" color="negative" data-testid="desvincular-autor" @click="desvincular(c)">
+                <q-tooltip>{{ rotuloDeDesvincular(c.usuarioId, usuario) }}</q-tooltip>
               </q-btn>
             </q-item-section>
           </q-item>
           <q-item v-if="!compartilhamentos.length">
             <q-item-section class="text-grey-6 text-caption text-center q-py-md">
-              Nenhum coautor ainda.
+              Nenhum autor.
             </q-item-section>
           </q-item>
         </q-list>
@@ -84,15 +97,23 @@ import * as api from '@/api/documentos.js'
 import { buscarUsuariosPorNome } from '@/api/usuarios.js'
 import { ocultarCpf } from '@/utils/cpf.js'
 import { caixaAlta } from '@/utils/texto.js'
+import { useAuthStore } from '@/stores/auth.js'
+import { podeDesvincular, rotuloDeDesvincular, podeAtribuirAutoriaASiMesmo } from '@/utils/autoria.js'
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
   documentoId: { type: [String, Number], required: true },
+  // OM do documento: define quem desvincula um autor (o Administrador dela) e quem pode se desvincular (quem já saiu dela).
+  omDoDocumentoId: { type: [String, Number], default: null },
 })
 defineEmits(['update:modelValue'])
 
 const $q = useQuasar()
+const usuario = computed(() => useAuthStore().usuario)
+const podeDesvincularAutor = (c) => podeDesvincular(c.usuarioId, usuario.value, props.omDoDocumentoId)
+const atribuiASiMesmo = computed(() => podeAtribuirAutoriaASiMesmo(compartilhamentos.value, usuario.value, props.omDoDocumentoId))
 const erro = ref('')
+const semAcesso = ref(false)
 const adicionando = ref(false)
 const compartilhamentos = ref([])
 
@@ -108,10 +129,13 @@ const opcoes = computed(() => candidatos.value.map(c => ({
 })))
 
 async function carregar() {
+  semAcesso.value = false
   try {
     compartilhamentos.value = await api.listCompartilhamentos(props.documentoId)
   } catch (e) {
-    $q.notify({ type: 'negative', message: `Erro ao carregar compartilhamentos: ${e?.message ?? 'erro desconhecido'}` })
+    // 403: quem não é autor do documento (nem Administrador da OM dele) não vê a lista -- só a leitura do documento é aberta.
+    if (e?.status === 403) { semAcesso.value = true; compartilhamentos.value = [] }
+    else $q.notify({ type: 'negative', message: `Erro ao carregar os autores: ${e?.message ?? 'erro desconhecido'}` })
   }
 }
 
@@ -138,7 +162,7 @@ async function adicionar() {
   erro.value = ''
   const escolhido = candidatos.value.find(c => c.id === selecionado.value)
   if (!escolhido) {
-    erro.value = 'Selecione um coautor na lista'
+    erro.value = 'Selecione uma pessoa na lista'
     return
   }
   adicionando.value = true
@@ -147,21 +171,37 @@ async function adicionar() {
     selecionado.value = null
     candidatos.value = []
     await carregar()
-    $q.notify({ type: 'positive', message: 'Documento compartilhado.' })
+    $q.notify({ type: 'positive', message: 'Autoria atribuída.' })
   } catch (e) {
-    erro.value = e?.message ?? 'Erro ao compartilhar'
+    erro.value = e?.message ?? 'Erro ao atribuir a autoria'
   } finally {
     adicionando.value = false
   }
 }
 
-async function remover(c) {
+// O Administrador da OM atribui a autoria a si mesmo (para poder editar): a mesma chamada, com o próprio CPF.
+async function atribuirAMim() {
+  adicionando.value = true
   try {
-    await api.removerCompartilhamento(props.documentoId, c.usuarioId)
+    await api.compartilharDocumento(props.documentoId, usuario.value.cpf)
     await carregar()
-    $q.notify({ type: 'positive', message: 'Coautor removido.' })
+    $q.notify({ type: 'positive', message: 'Você agora é autor deste documento.' })
   } catch (e) {
-    $q.notify({ type: 'negative', message: `Erro ao remover: ${e?.message ?? 'erro desconhecido'}` })
+    $q.notify({ type: 'negative', message: `Erro ao atribuir a autoria: ${e?.message ?? 'erro desconhecido'}` })
+  } finally {
+    adicionando.value = false
+  }
+}
+
+async function desvincular(c) {
+  const eu = String(c.usuarioId) === String(usuario.value?.id)
+  try {
+    await api.desvincularAutor(props.documentoId, c.usuarioId)
+    await carregar()
+    $q.notify({ type: 'positive', message: eu ? 'Você se desvinculou do documento.' : 'Autor desvinculado.' })
+  } catch (e) {
+    // Ex.: "esta é a única pessoa atribuída como elaboradora" -- a mensagem do servidor diz o porquê.
+    $q.notify({ type: 'negative', message: e?.message ?? 'Não foi possível desvincular o autor.' })
   }
 }
 </script>

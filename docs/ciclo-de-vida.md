@@ -21,7 +21,7 @@ Combinações que existem (`SituacaoLocalEnum` documenta as mesmas):
 
 **O que cada etapa de elaboração significa:**
 
-- **`RASCUNHO`** é o documento **em elaboração**: o autor e os coautores o editam à vontade, e **editar não muda a etapa** (nem anexar uma imagem). É a única etapa em que o documento pode ser **cancelado** ou **excluído**.
+- **`RASCUNHO`** é o documento **em elaboração**: os autores o editam à vontade, e **editar não muda a etapa** (nem anexar uma imagem). É a única etapa em que o documento pode ser **cancelado** ou **excluído**.
 - **`MINUTA`** é o documento **em aprovação ou em conferência**: ele só vira Minuta quando é **enviado para aprovação** (ninguém é escolhido: qualquer Aprovador da OM do documento age). Na Minuta **quem edita é quem aprova** — nem o autor edita. A autoridade **aprova** (`EM_PUBLICACAO`), **devolve aos autores** (volta a `RASCUNHO`) ou **arquiva** (`ARQUIVADO`).
 - **`ARQUIVADO`** é o fim de uma Minuta que a autoridade decidiu não levar adiante: exige uma **justificativa**, que fica registrada no documento com **quem arquivou** e **quando**. Só se arquiva um documento que nunca foi publicado (uma alteração de ato publicado se aprova ou se devolve).
 
@@ -58,7 +58,7 @@ stateDiagram-v2
 
 | Origem → destino pedido | Ação | Efeito na Situação BCA |
 |---|---|---|
-| `RASCUNHO/EM_ALTERACAO → MINUTA` | **enviar para aprovação** (ninguém é escolhido) — a única entrada na Minuta | — |
+| `RASCUNHO/EM_ALTERACAO → MINUTA` | **enviar para aprovação** (ninguém é obrigatório; o autor pode **sugerir** um Aprovador da OM, só um aviso e um destaque na fila — qualquer aprovador decide) — a única entrada na Minuta | — |
 | `RASCUNHO → CANCELADO` | cancelar o documento (só o rascunho) | — |
 | `MINUTA → EM_PUBLICACAO` | aprovar (qualquer aprovador da OM) — congela a versão em tramitação | — |
 | `MINUTA/EM_PUBLICACAO → RASCUNHO` (`NAO_PUBLICADO`) ou `→ EM_ALTERACAO` (`PUBLICADO`) | **devolver aos autores** | — (nunca tira um documento publicado de `PUBLICADO`) |
@@ -66,16 +66,16 @@ stateDiagram-v2
 | `EM_PUBLICACAO → SEM_ETAPA` | **publicar** (portaria + BCA) | `NAO_PUBLICADO → PUBLICADO` (1ª publicação); segue `PUBLICADO` numa alteração |
 | `SEM_ETAPA → EM_ALTERACAO` | iniciar alteração (só `PUBLICADO`) | — |
 | `EM_ALTERACAO → SEM_ETAPA` | **cancelar alteração** — só sem alterações pendentes (desfeitas antes, elemento a elemento) | — (segue `PUBLICADO`) |
-| `SEM_ETAPA → ANALISE_REVOGACAO` | pedir revogação (só `PUBLICADO`; vai a qualquer aprovador da OM) | — |
+| `SEM_ETAPA → ANALISE_REVOGACAO` | pedir revogação (só `PUBLICADO`; vai a qualquer aprovador da OM, com a mesma sugestão opcional) | — |
 | `ANALISE_REVOGACAO → EM_REVOGACAO` | aprovar a revogação (qualquer aprovador da OM) | — |
 | `ANALISE_REVOGACAO → SEM_ETAPA` | devolver a análise — não exige nada | — (segue `PUBLICADO`) |
 | `EM_REVOGACAO → SEM_ETAPA` | **revogar** (portaria + BCA) — a única saída de `EM_REVOGACAO` | `PUBLICADO → REVOGADO` |
 
 **Não há revogação durante uma alteração** (`EM_ALTERACAO → ANALISE_REVOGACAO` não existe): primeiro conclui-se ou cancela-se a alteração. E **`EM_REVOGACAO` nunca volta a `PUBLICADO`** — não há para onde devolver.
 
-**Sem atribuição pessoal — cada transição tem um dono por papel e OM:** ninguém é escolhido ao enviar nem ao aprovar. *Quem* pode fazer cada transição (aprovador da OM do documento, publicador da fila da espécie, autor/coautor) e quem pode editar em cada etapa estão em [Papéis e Permissões](papeis-e-permissoes.md#quem-faz-cada-transição). Quem pode agir agora é notificado (ver [Autenticação e Colaboração](autenticacao.md#notificações-e-auditoria)).
+**Sem atribuição pessoal — cada transição tem um dono por papel e OM:** ninguém é escolhido ao enviar nem ao aprovar. *Quem* pode fazer cada transição (aprovador da OM do documento, publicador da fila da espécie, autor) e quem pode editar em cada etapa estão em [Papéis e Permissões](papeis-e-permissoes.md#quem-faz-cada-transição). Quem pode agir agora é notificado (ver [Autenticação e Colaboração](autenticacao.md#notificações-e-auditoria)).
 
-Devolver (ou enviar de novo) recomeça sem aprovador nem publicador; pedir a revogação, aprová-la ou recusá-la **não** mexe em quem aprovou o texto.
+O aprovador sugerido (`Documento.aprovadorSugerido`) vale só enquanto o documento espera a decisão (`MINUTA`/`ANALISE_REVOGACAO`): qualquer outra transição o limpa. Devolver (ou enviar de novo) recomeça sem aprovador nem publicador; pedir a revogação, aprová-la ou recusá-la **não** mexe em quem aprovou o texto.
 
 **Regra de imutabilidade:** o conteúdo textual só pode ser alterado em `RASCUNHO` (pelos autores, edição livre), em `MINUTA` (por quem aprova, e só de documento ainda não publicado) ou em `EM_ALTERACAO` (só por emenda, elemento a elemento). Os **anexos** de imagem seguem a mesma regra de edição do resto do documento (`podeEditar`, acima): adicionar ou remover anexo só é permitido a quem pode editar o documento naquela etapa, e de `EM_PUBLICACAO` em diante o anexo também está congelado (`403`); o `AnexoService` ainda confere a etapa (`SituacaoLocalEnum.aceitaEdicao`) como segunda barreira. O salvamento em massa é rejeitado para qualquer documento `PUBLICADO`. Para criar uma revisão totalmente nova, use a **clonagem**, que gera um novo documento em `RASCUNHO` com novo número secundário, preservando o original como registro histórico.
 

@@ -5,7 +5,7 @@ O documento percorre estas etapas, e em cada uma há **quem age**:
 
 | Etapa | Quem age |
 |---|---|
-| Enviar para aprovação (o Rascunho vira **Minuta**) | Autor ou coautor |
+| Enviar para aprovação (o Rascunho vira **Minuta**) | Autor |
 | Aprovar, devolver aos autores ou arquivar a Minuta | **Aprovador da OM** do documento |
 | Publicar (**Em publicação**) | **Publicador do BCA** (CENDOC), nas espécies convencionais; **Publicador do Boletim Interno**, nas NPAs, na própria OM |
 
@@ -13,7 +13,7 @@ Ninguém é "atribuído": quem envia não escolhe uma pessoa. Qualquer Aprovador
 
 ## Aprovar (Aprovador da OM)
 
-Para quem tem o papel **Aprovador da OM**. Abra **Manter Revisão de Documento** (pelo quadro **Aguardando Minha Ação** da Área de Trabalho ou pelo menu). A fila mostra os documentos da sua OM em **Minuta** ou **Análise de revogação**, com código, título, autores e situação.
+Para quem tem o papel **Aprovador da OM**. Abra **Manter Revisão de Documento** (pelo quadro **Aguardando Minha Ação** da Área de Trabalho ou pelo menu). A fila mostra os documentos da sua OM em **Minuta** ou **Análise de revogação**, com código, título, autores e situação. Se o autor **sugeriu a decisão a você**, o documento vem **primeiro**, com o aviso **Enviado a você**; se sugeriu a outro Aprovador, aparece **Sugerido a fulano**. É só um destaque: qualquer Aprovador da OM pode aprovar, devolver ou arquivar.
 
 - **Abrir:** enquanto o documento é uma Minuta, você pode **editar o texto** (o autor não).
 - **Aprovar:** o documento segue para a fila de publicação: a do CENDOC, se for espécie convencional; a da sua OM, se for NPA. Fica registrado **quem aprovou**. Você não escolhe o publicador.

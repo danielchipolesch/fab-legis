@@ -51,8 +51,25 @@ public record DocumentoStatusRequestDto(
         LocalDate dataBoletimInterno,
 
         // Só ao ARQUIVAR (MINUTA -> ARQUIVADO): por que a autoridade arquiva o documento. Obrigatória nessa transição.
-        String justificativa
+        String justificativa,
+
+        // Só ao ENVIAR PARA APROVAÇÃO (e ao pedir a análise de revogação), opcional: um Aprovador da OM do documento a quem se pede a decisão.
+        // É uma SUGESTÃO -- ele é avisado e o documento aparece destacado para ele --, nunca uma restrição: qualquer Aprovador da OM continua
+        // podendo decidir, para a movimentação de militares não travar o documento.
+        Long aprovadorSugeridoId
 ) {
+
+    // Forma sem a sugestão de aprovador: tudo, menos o envio para aprovação com destinatário sugerido.
+    public DocumentoStatusRequestDto(SituacaoLocalEnum situacaoLocal,
+                                     String orgaoPortaria, String setorPortaria, String numeroPortaria,
+                                     LocalDate dataPortaria, Integer numeroBca, LocalDate dataBca,
+                                     String epigrafe, String ementa, String preambulo, String fecho,
+                                     String assinatura, String portariaPdfUrl,
+                                     Integer numeroBoletimInterno, LocalDate dataBoletimInterno, String justificativa) {
+        this(situacaoLocal, orgaoPortaria, setorPortaria, numeroPortaria, dataPortaria,
+                numeroBca, dataBca, epigrafe, ementa, preambulo, fecho, assinatura, portariaPdfUrl,
+                numeroBoletimInterno, dataBoletimInterno, justificativa, null);
+    }
 
     // Forma sem o Boletim Interno: o pedido de um ato normativo (e todas as etapas que não registram publicação).
     public DocumentoStatusRequestDto(SituacaoLocalEnum situacaoLocal,
@@ -61,7 +78,7 @@ public record DocumentoStatusRequestDto(
                                      String epigrafe, String ementa, String preambulo, String fecho,
                                      String assinatura, String portariaPdfUrl) {
         this(situacaoLocal, orgaoPortaria, setorPortaria, numeroPortaria, dataPortaria,
-                numeroBca, dataBca, epigrafe, ementa, preambulo, fecho, assinatura, portariaPdfUrl, null, null, null);
+                numeroBca, dataBca, epigrafe, ementa, preambulo, fecho, assinatura, portariaPdfUrl, null, null, null, null);
     }
 
     // Forma sem a justificativa: tudo o que não é arquivar (inclusive o pedido de publicar ou revogar uma NPA, com o Boletim Interno).
@@ -73,6 +90,6 @@ public record DocumentoStatusRequestDto(
                                      Integer numeroBoletimInterno, LocalDate dataBoletimInterno) {
         this(situacaoLocal, orgaoPortaria, setorPortaria, numeroPortaria, dataPortaria,
                 numeroBca, dataBca, epigrafe, ementa, preambulo, fecho, assinatura, portariaPdfUrl,
-                numeroBoletimInterno, dataBoletimInterno, null);
+                numeroBoletimInterno, dataBoletimInterno, null, null);
     }
 }

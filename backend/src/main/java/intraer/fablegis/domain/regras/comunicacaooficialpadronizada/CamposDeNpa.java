@@ -142,11 +142,11 @@ public class CamposDeNpa implements CamposEspecificosDaEspecie {
                         elaboradoPor, aprovadoPor));
     }
 
-    // O autor e, depois dele, cada coautor (na ordem em que foram incluídos), um por linha.
+    // Os autores atuais do documento (a lista de autores, em que quem o criou também consta, e da qual sai quem se desvincula), na ordem em
+    // que foram atribuídos, um por linha. Antes de existir a lista (documento ainda sem id), quem o está criando.
     private List<String> elaboradoPor(Documento documento) {
         if (documento == null || documento.getAutor() == null) return List.of();
         var nomes = new ArrayList<String>();
-        nomes.add(pessoa(documento.getAutor()));
         if (documento.getId() != null) {
             compartilhamentoRepository.findByDocumentoId(documento.getId()).stream()
                     .sorted(java.util.Comparator.comparing(c -> c.getId() == null ? 0L : c.getId()))
@@ -154,6 +154,7 @@ public class CamposDeNpa implements CamposEspecificosDaEspecie {
                     .filter(n -> !nomes.contains(n))
                     .forEach(nomes::add);
         }
+        if (nomes.isEmpty()) nomes.add(pessoa(documento.getAutor()));
         return nomes;
     }
 

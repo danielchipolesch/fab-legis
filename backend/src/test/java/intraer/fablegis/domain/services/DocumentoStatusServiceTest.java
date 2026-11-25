@@ -561,6 +561,82 @@ class DocumentoStatusServiceTest {
         verify(notificacaoService).criar(eq(outro), any(), any(), eq(DOC_ID), any());
     }
 
+    // ─── Aprovador sugerido: um destaque e um aviso para ele, nunca uma restrição ───────────────────────────
+
+    private static Usuario aprovadorDaOm(long id, String nome, long omId) {
+        var u = comPapel(id, nome, PapelEnum.APR_OM);
+        var om = new OrganizacaoMilitar();
+        om.setId(omId);
+        u.setOm(om);
+        u.setAtivo(true);
+        return u;
+    }
+
+    private static DocumentoStatusRequestDto enviandoA(Long aprovadorSugeridoId) {
+        return new DocumentoStatusRequestDto(MINUTA, null, null, null, null, null, null,
+                null, null, null, null, null, null, null, null, null, aprovadorSugeridoId);
+    }
+
+    @Test
+    void oAprovadorSugeridoFicaRegistradoERecebeUmAvisoSoDele() {
+        var doc = documentoEm(NAO_PUBLICADO, RASCUNHO);
+        var sugerido = aprovadorDaOm(10L, "Sugerido", 1L);
+        var outro = aprovadorDaOm(11L, "Outro", 1L);
+        when(usuarioRepository.findById(10L)).thenReturn(Optional.of(sugerido));
+        when(usuarioRepository.findByOmIdAndPapel(1L, PapelEnum.APR_OM)).thenReturn(List.of(sugerido, outro));
+
+        service.changeStatus(DOC_ID, enviandoA(10L));
+
+        assertThat(doc.getAprovadorSugerido()).isSameAs(sugerido);
+        // ele recebe o aviso "enviado a você" -- e só esse; os demais, o aviso de sempre
+        verify(notificacaoService).criar(eq(sugerido), eq(TipoNotificacaoEnum.APROVACAO_PENDENTE), contains("enviado a você"), eq(DOC_ID), any());
+        verify(notificacaoService, never()).criar(eq(sugerido), any(), contains("aguarda a aprovação"), anyLong(), any());
+        verify(notificacaoService).criar(eq(outro), any(), contains("aguarda a aprovação"), eq(DOC_ID), any());
+    }
+
+    // A sugestão não restringe: o documento continua podendo ser decidido por qualquer Aprovador da OM (DocumentoAcessoServiceTest), e sem
+    // sugestão tudo segue como sempre.
+    @Test
+    void semSugestaoNinguemFicaSugeridoETodosOsAprovadoresSaoAvisados() {
+        var doc = documentoEm(NAO_PUBLICADO, RASCUNHO);
+        var a1 = aprovadorDaOm(10L, "A1", 1L);
+        when(usuarioRepository.findByOmIdAndPapel(1L, PapelEnum.APR_OM)).thenReturn(List.of(a1));
+
+        service.changeStatus(DOC_ID, enviandoA(null));
+
+        assertThat(doc.getAprovadorSugerido()).isNull();
+        verify(notificacaoService).criar(eq(a1), any(), contains("aguarda a aprovação"), eq(DOC_ID), any());
+    }
+
+    @Test
+    void naoSeSugereQuemNaoPodeAprovarNaOmDoDocumento() {
+        documentoEm(NAO_PUBLICADO, RASCUNHO);
+        var deOutraOm = aprovadorDaOm(10L, "De outra OM", 99L);
+        var semOPapel = comPapel(11L, "Só elaborador", PapelEnum.ELB);
+        semOPapel.setAtivo(true);
+        var desativado = aprovadorDaOm(12L, "Desativado", 1L);
+        desativado.setAtivo(false);
+        when(usuarioRepository.findById(10L)).thenReturn(Optional.of(deOutraOm));
+        when(usuarioRepository.findById(11L)).thenReturn(Optional.of(semOPapel));
+        when(usuarioRepository.findById(12L)).thenReturn(Optional.of(desativado));
+
+        for (long id : new long[]{10L, 11L, 12L}) {
+            org.assertj.core.api.Assertions.assertThatThrownBy(() -> service.changeStatus(DOC_ID, enviandoA(id)))
+                    .isInstanceOf(intraer.fablegis.domain.handlers.exceptions.StatusCannotBeUpdatedException.class)
+                    .hasMessageContaining("Aprovador da OM");
+        }
+    }
+
+    @Test
+    void devolverOuAprovarLimpaOAprovadorSugerido() {
+        var doc = documentoEm(NAO_PUBLICADO, MINUTA);
+        doc.setAprovadorSugerido(aprovadorDaOm(10L, "Sugerido", 1L));
+
+        service.changeStatus(DOC_ID, apenas(RASCUNHO));
+
+        assertThat(doc.getAprovadorSugerido()).isNull();
+    }
+
     @Test
     void pedirAnaliseDeRevogacaoTambemVaiParaQualquerAprovadorENaoMudaQuemAprovouOTexto() {
         var doc = documentoEm(PUBLICADO, SEM_ETAPA);

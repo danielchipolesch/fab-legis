@@ -521,6 +521,16 @@
           <template v-if="dialog.statusOpt?.descricao">{{ dialog.statusOpt.descricao }}</template>
           <template v-else>terá sua etapa alterada para <strong>{{ dialog.statusOpt?.rotuloDestino }}</strong>.</template>
         </q-card-section>
+        <!-- Sugerir a decisão a um Aprovador da OM: opcional e sem restrição -- qualquer aprovador da OM pode decidir, e a pessoa sugerida
+             só recebe um aviso e o destaque na fila dela. Se ela for transferida, nada trava. -->
+        <q-card-section v-if="aceitaAprovadorSugerido(dialog.statusOpt?.destino)" class="q-pt-none">
+          <q-select
+            v-model="dialog.aprovadorSugeridoId" :options="aprovadoresDaOm" option-label="rotulo" option-value="id"
+            emit-value map-options clearable outlined dense :loading="carregandoAprovadores"
+            label="Sugerir a decisão a um Aprovador da OM (opcional)" data-testid="aprovador-sugerido"
+            hint="Qualquer Aprovador da OM pode decidir; a pessoa escolhida recebe um aviso."
+          />
+        </q-card-section>
         <q-card-actions align="right" class="q-pb-md q-px-md">
           <q-btn flat label="Cancelar" :disable="alterandoStatus" v-close-popup />
           <q-btn
@@ -561,6 +571,9 @@ import StatusBadge from '@/components/common/StatusBadge.vue'
 import NovoDocumentoDialog from '@/components/common/NovoDocumentoDialog.vue'
 import { gerarPdf } from '@/services/pdfService.js'
 import { listEspeciesNormativas, normalizeEspecie } from '@/api/referencias.js'
+import { listAprovadoresDaOm } from '@/api/documentos.js'
+import { caixaAlta } from '@/utils/texto.js'
+import { aceitaAprovadorSugerido } from '@/utils/fluxoDocumento.js'
 import { SITUACAO_BCA_META, SITUACAO_LOCAL_META } from '@/utils/statusDocumento.js'
 import { rotaBuscaConteudo } from '@/utils/buscaTextual.js'
 import { regrasDoDocumento, moduloDe } from '@/regras/index.js'
@@ -829,10 +842,29 @@ function statusActions(doc) {
   }
 }
 
+const aprovadoresDaOm = ref([])
+const carregandoAprovadores = ref(false)
+
 function confirmarMudancaStatus(doc, opt) {
   dialog.target = doc
   dialog.statusOpt = opt
+  dialog.aprovadorSugeridoId = null
   dialog.status = true
+  if (aceitaAprovadorSugerido(opt.destino)) carregarAprovadores(doc.id)
+}
+
+// Os aprovadores da OM do documento, para a sugestão. Se não carregar, o envio segue sem sugestão (ela é opcional).
+async function carregarAprovadores(documentoId) {
+  aprovadoresDaOm.value = []
+  carregandoAprovadores.value = true
+  try {
+    const lista = await listAprovadoresDaOm(documentoId)
+    aprovadoresDaOm.value = lista.map(a => ({
+      id: a.id,
+      rotulo: a.postoGraduacaoBigrama && a.nomeGuerra ? `${a.postoGraduacaoBigrama} ${caixaAlta(a.nomeGuerra)}` : caixaAlta(a.nome),
+    }))
+  } catch { /* sem a lista, não há o que sugerir */ }
+  finally { carregandoAprovadores.value = false }
 }
 
 const alterandoStatus = ref(false)
@@ -848,7 +880,8 @@ async function executarMudancaStatus() {
 
   alterandoStatus.value = true
   try {
-    await store.changeStatus(alvo.id, opt.destino)
+    await store.changeStatus(alvo.id, opt.destino,
+      aceitaAprovadorSugerido(opt.destino) && dialog.aprovadorSugeridoId != null ? { aprovadorSugeridoId: dialog.aprovadorSugeridoId } : undefined)
     await fecharDialogStatus()
   } catch (e) {
     $q.notify({ type: 'negative', message: `Erro ao mudar situação: ${e?.message ?? 'erro desconhecido'}` })
@@ -903,7 +936,7 @@ async function executarClone() {
 
 const dialog = reactive({
   delete: false, status: false, clone: false,
-  target: null, statusOpt: null,
+  target: null, statusOpt: null, aprovadorSugeridoId: null,
 })
 
 function confirmarExclusao(doc) {

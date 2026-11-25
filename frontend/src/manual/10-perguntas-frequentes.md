@@ -10,7 +10,7 @@ A edição depende da **etapa** e de **quem você é** no documento:
 
 | Etapa | Quem edita |
 |---|---|
-| Rascunho, Em alteração | O autor e os coautores |
+| Rascunho, Em alteração | Os autores |
 | Minuta (em aprovação) | **Só** os Aprovadores da OM (nem o autor) |
 | Em publicação em diante, revogação, cancelado, arquivado, sem etapa | Ninguém |
 

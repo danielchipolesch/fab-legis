@@ -26,7 +26,7 @@ O que você vê e faz depende dos **papéis** que o administrador deu a você. Q
 
 | Papel | O que faz |
 |---|---|
-| **Elaborador** | Cria e edita os documentos de que é autor ou coautor e os envia para aprovação. Todo usuário tem este papel |
+| **Elaborador** | Cria e edita os documentos de que é autor e os envia para aprovação. Todo usuário tem este papel |
 | **Aprovador da OM** | Aprova, devolve aos autores ou arquiva os documentos da própria OM que aguardam aprovação |
 | **Publicador do BCA** | Só no CENDOC: registra a publicação e a revogação das espécies convencionais, de qualquer OM |
 | **Publicador do Boletim Interno** | Em qualquer OM: registra a publicação e a revogação das NPAs da própria OM |

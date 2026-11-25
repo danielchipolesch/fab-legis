@@ -22,6 +22,7 @@ import intraer.fablegis.application.dtos.itemAnexoParteNormativaDtos.NumeracaoEl
 import intraer.fablegis.application.dtos.itemAnexoParteNormativaDtos.SecoesSaveRequestDto;
 import intraer.fablegis.application.dtos.itemAnexoParteNormativaDtos.SecoesSaveResponseDto;
 import intraer.fablegis.application.dtos.usuarioDtos.CompartilharDocumentoRequestDto;
+import intraer.fablegis.application.dtos.usuarioDtos.UsuarioBuscaResponseDto;
 import intraer.fablegis.application.dtos.usuarioDtos.CompartilhamentoResponseDto;
 import intraer.fablegis.domain.entities.auditoria.AcaoAuditoriaEnum;
 import intraer.fablegis.domain.entities.estruturaDocumento.Documento;
@@ -199,9 +200,9 @@ public class DocumentoController {
         // 1 query pra página inteira (não 1 por linha) -- ver
         // DocumentoCompartilhamentoService.listarIdsCompartilhadosComUsuario.
         List<Long> idsDaPagina = resultado.getContent().stream().map(Documento::getId).toList();
-        Set<Long> coautorDe = compartilhamentoService.listarIdsCompartilhadosComUsuario(usuario.getId(), idsDaPagina);
+        Set<Long> autorDe = compartilhamentoService.listarIdsCompartilhadosComUsuario(usuario.getId(), idsDaPagina);
         return ResponseEntity.ok(resultado.map(doc -> DocumentoMapper.documentoToDocumentoSemAnexoTextualResponseDto(
-                doc, doc.getAutor().getId().equals(usuario.getId()) || coautorDe.contains(doc.getId()))));
+                doc, autorDe.contains(doc.getId()))));
     }
 
     // Filas das telas de Revisão (aguardando aprovação na OM de quem pergunta) e de Publicação (aguardando publicação, só o CENDOC) --
@@ -229,6 +230,14 @@ public class DocumentoController {
         Usuario usuario = AutenticacaoUtil.usuarioDe(authentication);
         return ResponseEntity.ok(documentoService.getResumo(
                 usuario.getId(), usuario.getOm().getId(), aba, busca, tipoDeEspecie, especieSigla));
+    }
+
+    // Os Aprovadores da OM do documento (contas ativas), para quem envia para aprovação poder SUGERIR a quem pede a decisão
+    // (DocumentoStatusRequestDto.aprovadorSugeridoId). Os nomes são de leitura aberta, como os autores nas filas.
+    @PreAuthorize("isAuthenticated()")
+    @GetMapping("{id}/aprovadores")
+    public ResponseEntity<List<UsuarioBuscaResponseDto>> aprovadoresDaOm(@PathVariable(value = "id") Long id) {
+        return ResponseEntity.ok(documentoStatusService.aprovadoresDaOm(id).stream().map(UsuarioBuscaResponseDto::from).toList());
     }
 
     @PreAuthorize("@documentoAcessoService.podeMudarStatus(#id, #request.situacaoLocal, authentication)")
@@ -446,7 +455,7 @@ public class DocumentoController {
         return ResponseEntity.noContent().build();
     }
 
-    // ─── Compartilhamento (coautoria) ──────────────────────────────────────────
+    // ─── Autoria (o recurso ainda se chama "compartilhamentos"): autores iguais; ver DocumentoCompartilhamentoService ─────────
 
     @PreAuthorize("@documentoAcessoService.podeCompartilhar(#id, authentication)")
     @GetMapping("{id}/compartilhamentos")
@@ -460,23 +469,25 @@ public class DocumentoController {
     public ResponseEntity<CompartilhamentoResponseDto> compartilhar(
             @PathVariable(value = "id") Long id,
             @RequestBody @Valid CompartilharDocumentoRequestDto request) {
-        CompartilhamentoResponseDto resultado = compartilhamentoService.compartilhar(id, request);
+        CompartilhamentoResponseDto resultado = compartilhamentoService.compartilhar(id, request, AutenticacaoUtil.usuarioAtual());
         DocumentoResponseSemAnexoTextualDto dto = DocumentoMapper.documentoToDocumentoSemAnexoTextualResponseDto(
                 documentoService.getById(id));
         logAuditoriaService.registrar(dto.idDocumento(), dto.codigoDocumento(), AcaoAuditoriaEnum.COMPARTILHOU,
-                "Compartilhado com " + resultado.nome());
+                "Autoria atribuída a " + resultado.nome());
         return ResponseEntity.status(HttpStatus.CREATED).body(resultado);
     }
 
-    @PreAuthorize("@documentoAcessoService.podeCompartilhar(#id, authentication)")
+    @PreAuthorize("@documentoAcessoService.podeDesvincular(#id, #usuarioId, authentication)")
     @DeleteMapping("{id}/compartilhamentos/{usuarioId}")
     public ResponseEntity<Void> removerCompartilhamento(
             @PathVariable(value = "id") Long id,
             @PathVariable(value = "usuarioId") Long usuarioId) {
-        compartilhamentoService.remover(id, usuarioId);
+        String nome = compartilhamentoService.desvincular(id, usuarioId);
         DocumentoResponseSemAnexoTextualDto dto = DocumentoMapper.documentoToDocumentoSemAnexoTextualResponseDto(
                 documentoService.getById(id));
-        logAuditoriaService.registrar(dto.idDocumento(), dto.codigoDocumento(), AcaoAuditoriaEnum.REMOVEU_COMPARTILHAMENTO, null);
+        boolean desvinculouSe = usuarioId.equals(AutenticacaoUtil.usuarioAtual().getId());
+        logAuditoriaService.registrar(dto.idDocumento(), dto.codigoDocumento(), AcaoAuditoriaEnum.DESVINCULOU,
+                desvinculouSe ? "Desvinculou-se do documento" : "Autor desvinculado: " + nome);
         return ResponseEntity.noContent().build();
     }
 

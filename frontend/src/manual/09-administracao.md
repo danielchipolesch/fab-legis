@@ -25,6 +25,10 @@ O CPF aparece parcialmente oculto nas telas (`111.***.***-35`).
 
 **A mudança vale na hora para a pessoa.** Ao conceder ou retirar um papel, trocar a OM ou desativar a conta, quem está usando o sistema recebe um aviso e a tela dela se ajusta sozinha, sem sair e entrar de novo: botões, menus e telas que ela ganhou ou perdeu mudam. Conta desativada tem a sessão encerrada.
 
+## Autoria dos documentos da OM
+
+Para o **Administrador da OM**. Os autores de um documento mudam com a movimentação de militares, e é o administrador da OM do documento quem mantém a autoria: na tela do documento (**Autores**, no editor e na visualização) ele **atribui a autoria a qualquer pessoa ou desvincula qualquer autor, a qualquer tempo e em qualquer etapa**, inclusive de um ato publicado — assim a alteração de um documento nunca depende dos autores originais. Ele também pode **atribuir a autoria a si mesmo**: o papel administrativo, sozinho, não dá direito de editar; é a autoria que dá. O documento nunca fica sem autor: desvincular o único autor é recusado. O **Administrador Geral não** atribui autoria (a função dele é cuidar dos administradores locais). Quem foi transferido de OM continua autor até ser desvinculado ou se desvincular, o que só pode fazer depois de sair da OM do documento. Cada atribuição e desvinculação fica na **Auditoria › Documentos**.
+
 ## Revisão periódica de acessos
 
 Quem tem um papel além do Elaborador precisa ter o acesso **reconfirmado**: a cada **6 meses**, ao **trocar de OM** e quando a conta fica **6 meses sem entrar**. O sistema calcula isso sozinho e mostra na coluna **Acesso** da lista de usuários, com um aviso e o filtro "só os pendentes". Ninguém precisa pedir.

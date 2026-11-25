@@ -105,7 +105,95 @@ class DocumentoAcessoServiceTest {
         when(regras.para(npa)).thenReturn(regrasDaNpa);
         doc.setEspecieNormativa(convencional);
         when(documentoRepository.findById(DOC_ID)).thenReturn(Optional.of(doc));
+        // Autoria = a lista de autores: quem criou o documento consta nela, igual a quem foi acrescentado (sem distinção).
+        when(compartilhamentoRepository.existsByDocumentoIdAndUsuarioId(DOC_ID, autor.getId())).thenReturn(true);
         when(compartilhamentoRepository.existsByDocumentoIdAndUsuarioId(DOC_ID, coautor.getId())).thenReturn(true);
+    }
+
+    // ─── Autoria: autores são iguais; o Administrador da OM do documento atribui e desvincula ──────────────────────────
+
+    @Test
+    void qualquerAutorAtribuiAutoriaMasQuemNaoEAutorNaoAtribui() {
+        assertThat(service.podeCompartilhar(DOC_ID, como(autor))).isTrue();
+        assertThat(service.podeCompartilhar(DOC_ID, como(coautor))).isTrue();
+        assertThat(service.podeCompartilhar(DOC_ID, como(estranho))).isFalse();
+        assertThat(service.podeCompartilhar(DOC_ID, como(aprovadorDaOm))).isFalse();
+    }
+
+    @Test
+    void oAdministradorDaOmDoDocumentoAtribuiAutoriaMesmoSemSerAutor() {
+        var admDaOm = usuario(20, OM_ID, PapelEnum.ADM_OM);
+        var admDeOutraOm = usuario(21, 99, PapelEnum.ADM_OM);
+
+        assertThat(service.podeAtribuirAutoria(DOC_ID, como(admDaOm))).isTrue();
+        assertThat(service.podeCompartilhar(DOC_ID, como(admDaOm))).isTrue();
+        // o Administrador de OUTRA OM não: a atribuição é do administrador local da OM do documento
+        assertThat(service.podeAtribuirAutoria(DOC_ID, como(admDeOutraOm))).isFalse();
+        assertThat(service.podeCompartilhar(DOC_ID, como(admDeOutraOm))).isFalse();
+    }
+
+    // A função do Administrador Geral é cuidar dos administradores locais -- não atribui autoria de documento.
+    @Test
+    void oAdministradorGeralNaoAtribuiAutoria() {
+        var admGeral = usuario(22, OM_ID, PapelEnum.ADM_GER);
+
+        assertThat(service.podeAtribuirAutoria(DOC_ID, como(admGeral))).isFalse();
+        assertThat(service.podeCompartilhar(DOC_ID, como(admGeral))).isFalse();
+        assertThat(service.podeDesvincular(DOC_ID, autor.getId(), como(admGeral))).isFalse();
+    }
+
+    // O papel de administrador não dá poder de editar: quem edita é só o autor -- o administrador atribui a autoria a si mesmo antes.
+    @Test
+    void oAdministradorDaOmNaoEditaSemSerAutor() {
+        doc.setSituacaoLocal(RASCUNHO);
+        var admDaOm = usuario(20, OM_ID, PapelEnum.ADM_OM);
+        admDaOm.setPapeis(EnumSet.of(PapelEnum.ADM_OM, PapelEnum.ELB));
+
+        assertThat(podeEditar(admDaOm)).isFalse();
+
+        when(compartilhamentoRepository.existsByDocumentoIdAndUsuarioId(DOC_ID, admDaOm.getId())).thenReturn(true);
+        assertThat(podeEditar(admDaOm)).isTrue();
+    }
+
+    @Test
+    void oAdministradorDaOmDesvinculaQualquerAutor() {
+        var admDaOm = usuario(20, OM_ID, PapelEnum.ADM_OM);
+        var admDeOutraOm = usuario(21, 99, PapelEnum.ADM_OM);
+
+        assertThat(service.podeDesvincular(DOC_ID, autor.getId(), como(admDaOm))).isTrue();
+        assertThat(service.podeDesvincular(DOC_ID, coautor.getId(), como(admDaOm))).isTrue();
+        assertThat(service.podeDesvincular(DOC_ID, coautor.getId(), como(admDeOutraOm))).isFalse();
+    }
+
+    // Um autor não desvincula outro autor; só a si mesmo -- e só depois de sair da OM do documento.
+    @Test
+    void oAutorSoSeDesvinculaDepoisDeSairDaOmDoDocumento() {
+        var transferido = usuario(30, 99, PapelEnum.ELB);
+        when(compartilhamentoRepository.existsByDocumentoIdAndUsuarioId(DOC_ID, transferido.getId())).thenReturn(true);
+
+        assertThat(service.podeDesvincular(DOC_ID, transferido.getId(), como(transferido))).isTrue();
+        // não desvincula outro autor
+        assertThat(service.podeDesvincular(DOC_ID, autor.getId(), como(transferido))).isFalse();
+        // quem ainda é da OM do documento não se desvincula (a opção nem aparece)
+        assertThat(service.podeDesvincular(DOC_ID, autor.getId(), como(autor))).isFalse();
+        assertThat(service.podeDesvincular(DOC_ID, coautor.getId(), como(coautor))).isFalse();
+    }
+
+    @Test
+    void quemNaoEAutorNaoTemOQueDesvincular() {
+        var estranhoDeFora = usuario(31, 99, PapelEnum.ELB);
+        assertThat(service.podeDesvincular(DOC_ID, estranhoDeFora.getId(), como(estranhoDeFora))).isFalse();
+    }
+
+    // A autoria é da pessoa: transferida para outra OM, ela continua editando o documento da OM de origem.
+    @Test
+    void oAutorTransferidoParaOutraOmContinuaEditando() {
+        doc.setSituacaoLocal(RASCUNHO);
+        var transferido = usuario(30, 99, PapelEnum.ELB);
+        when(compartilhamentoRepository.existsByDocumentoIdAndUsuarioId(DOC_ID, transferido.getId())).thenReturn(true);
+
+        assertThat(podeEditar(transferido)).isTrue();
+        assertThat(service.podeCompartilhar(DOC_ID, como(transferido))).isTrue();
     }
 
     private static RegrasDaEspecieNormativa regrasDe(PapelEnum quemPublica, boolean usoInterno) {

@@ -22,6 +22,10 @@ public record DocumentoFilaResponseDto(
 
         // Autor primeiro, seguido dos coautores (ver DocumentoCompartilhamento) --
         // nomes completos, mesma fonte que já aparece no resto do sistema.
-        List<String> autores
+        List<String> autores,
+
+        // Só na fila de revisão: o Aprovador da OM a quem o autor sugeriu a decisão (ver Documento.aprovadorSugerido); nulos se ninguém.
+        Long aprovadorSugeridoId,
+        String aprovadorSugeridoNome
 ) {
 }

@@ -59,7 +59,7 @@
     />
 
     <!-- Dialog de compartilhamento (coautoria) -->
-    <CompartilharDialog v-if="documentoId" v-model="compartilharDialogOpen" :documento-id="documentoId" />
+    <CompartilharDialog v-if="documentoId" v-model="compartilharDialogOpen" :documento-id="documentoId" :om-do-documento-id="documento?.om_id" />
 
     <!-- Coluna principal: topbar + área de edição -->
     <div class="editor-main column">
@@ -115,7 +115,7 @@
         <q-btn round flat color="primary" @click="compartilharDialogOpen = true">
           <q-icon name="mdi-account-multiple-plus-outline" size="22px" />
           <q-badge v-if="presencaOutros.length" floating color="deep-orange" rounded />
-          <q-tooltip anchor="bottom middle" self="top middle">Compartilhar</q-tooltip>
+          <q-tooltip anchor="bottom middle" self="top middle">Autores do documento</q-tooltip>
         </q-btn>
 
         <q-btn

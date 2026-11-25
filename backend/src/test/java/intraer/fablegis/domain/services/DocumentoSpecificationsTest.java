@@ -126,11 +126,11 @@ class DocumentoSpecificationsTest {
         Predicate naoMeus = mock(Predicate.class);
         Predicate resultado = mock(Predicate.class);
         when(situacao.in(DocumentoSpecifications.SITUACOES_EM_TRAMITACAO)).thenReturn(emEtapaDeTrabalho);
-        // "meus" = autor OU coautor (a mesma aba "meus"): um OR entre "sou o autor" e "estou entre os coautores".
-        Predicate souOAutor = mock(Predicate.class);
-        when(cb.equal(org.mockito.ArgumentMatchers.<jakarta.persistence.criteria.Expression<?>>any(), org.mockito.ArgumentMatchers.eq(7L)))
-                .thenReturn(souOAutor);
-        when(cb.or(org.mockito.ArgumentMatchers.any(Predicate.class), org.mockito.ArgumentMatchers.any(Predicate.class))).thenReturn(meus);
+        // "meus" = estou na lista de autores do documento (a mesma aba "meus"; quem criou o documento consta nela): o id do documento
+        // entre os ids em que a pessoa é autora.
+        Path<Object> id = mock(Path.class);
+        when(root.get("id")).thenReturn(id);
+        when(id.in(org.mockito.ArgumentMatchers.<jakarta.persistence.criteria.Expression<?>>any())).thenReturn(meus);
         when(cb.not(meus)).thenReturn(naoMeus);
         when(cb.and(emEtapaDeTrabalho, naoMeus)).thenReturn(resultado);
 

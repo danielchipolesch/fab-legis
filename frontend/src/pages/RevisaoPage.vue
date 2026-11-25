@@ -20,7 +20,7 @@
 
     <q-card flat bordered>
       <q-table
-        :rows="documentos"
+        :rows="fila"
         :columns="columns"
         row-key="id"
         :loading="carregando"
@@ -33,7 +33,18 @@
 
         <template #body-cell-status="props">
           <q-td :props="props">
-            <StatusBadge :situacao-bca="props.row.situacao_bca" :situacao-local="props.row.situacao_local" />
+            <div class="row items-center justify-center" style="gap:4px">
+              <StatusBadge :situacao-bca="props.row.situacao_bca" :situacao-local="props.row.situacao_local" />
+            </div>
+            <!-- O autor sugeriu a decisão a um Aprovador: só um destaque -- qualquer aprovador da OM decide. Em linha própria, para não
+                 apertar as situações nem as ações da linha. -->
+            <div v-if="rotuloDoAprovadorSugerido(props.row, auth.usuario?.id)" class="q-mt-xs">
+              <q-badge
+                rounded :color="props.row.aprovador_sugerido_id == auth.usuario?.id ? 'deep-orange' : 'grey-7'"
+                :label="rotuloDoAprovadorSugerido(props.row, auth.usuario?.id)" data-testid="aprovador-sugerido-fila"
+                style="white-space:normal;max-width:100%"
+              />
+            </div>
           </q-td>
         </template>
 
@@ -140,18 +151,24 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useQuasar } from 'quasar'
 import { useDocumentosStore } from '@/stores/documentos.js'
+import { useAuthStore } from '@/stores/auth.js'
 import * as documentosApi from '@/api/documentos.js'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import { caixaAlta } from '@/utils/texto.js'
-import { destinoDeAprovacao, destinoDeDevolucao, podeArquivar, DESTINO_DE_ARQUIVAMENTO } from '@/utils/fluxoDocumento.js'
+import {
+  destinoDeAprovacao, destinoDeDevolucao, podeArquivar, DESTINO_DE_ARQUIVAMENTO, rotuloDoAprovadorSugerido, filaComOsMeusPrimeiro,
+} from '@/utils/fluxoDocumento.js'
 
 const $q = useQuasar()
 const store = useDocumentosStore()
+const auth = useAuthStore()
 
 const documentos = ref([])
+// O que foi enviado a mim vem primeiro.
+const fila = computed(() => filaComOsMeusPrimeiro(documentos.value, auth.usuario?.id))
 const carregando = ref(false)
 
 const columns = [
