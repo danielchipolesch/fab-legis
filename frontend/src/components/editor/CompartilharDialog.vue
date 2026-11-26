@@ -21,20 +21,23 @@
       </q-card-section>
 
       <q-card-section v-else>
-        <q-form class="row items-start" style="gap:8px" @submit.prevent="adicionar">
+        <!-- Busca várias pessoas, que ficam como "fichas"; um só botão atribui a autoria a todas as selecionadas. -->
+        <q-form @submit.prevent="adicionar">
           <q-select
-            v-model="selecionado"
+            v-model="selecionados"
             :options="opcoes"
             option-label="rotulo"
             option-value="id"
-            label="Atribuir autoria: buscar por nome de guerra ou nome completo"
+            label="Buscar pessoas por nome de guerra ou nome completo"
             outlined
             dense
+            multiple
+            use-chips
+            use-input
             emit-value
             map-options
-            use-input
             input-debounce="300"
-            class="col"
+            data-testid="buscar-autores"
             @filter="filtrar"
             :loading="buscando"
             :error="!!erro"
@@ -48,7 +51,16 @@
               </q-item>
             </template>
           </q-select>
-          <q-btn color="primary" unelevated icon="mdi-plus" :disable="!selecionado" :loading="adicionando" type="submit" style="height:40px" />
+          <div class="row items-center justify-end q-mt-sm" style="gap:8px">
+            <span v-if="selecionados.length" class="text-caption text-grey-7">
+              {{ selecionados.length }} {{ selecionados.length === 1 ? 'pessoa selecionada' : 'pessoas selecionadas' }}
+            </span>
+            <q-btn
+              unelevated no-caps color="primary" icon="mdi-account-plus-outline"
+              :label="selecionados.length > 1 ? 'Adicionar autores' : 'Adicionar autor'"
+              :disable="!selecionados.length" :loading="adicionando" type="submit" data-testid="adicionar-autores"
+            />
+          </div>
         </q-form>
       </q-card-section>
 
@@ -117,16 +129,33 @@ const semAcesso = ref(false)
 const adicionando = ref(false)
 const compartilhamentos = ref([])
 
+// Quem já foi escolhido continua nas opções mesmo que a busca mude (senão a ficha perde o nome); quem já é autor não é oferecido.
 const candidatos = ref([])
-const selecionado = ref(null)
+const escolhidos = ref(new Map())
+const selecionados = ref([])
 const termoBusca = ref('')
 const buscando = ref(false)
 
-const opcoes = computed(() => candidatos.value.map(c => ({
-  id: c.id,
-  cpf: c.cpf,
-  rotulo: `${c.postoGraduacaoBigrama && c.nomeGuerra ? `${c.postoGraduacaoBigrama} ${caixaAlta(c.nomeGuerra)}` : caixaAlta(c.nome)} — ${c.omSigla ?? ''} (${ocultarCpf(c.cpf)})`,
-})))
+const rotuloDe = (c) =>
+  `${c.postoGraduacaoBigrama && c.nomeGuerra ? `${c.postoGraduacaoBigrama} ${caixaAlta(c.nomeGuerra)}` : caixaAlta(c.nome)} — ${c.omSigla ?? ''} (${ocultarCpf(c.cpf)})`
+
+const opcoes = computed(() => {
+  const jaSaoAutores = new Set(compartilhamentos.value.map(a => String(a.usuarioId)))
+  const todos = new Map(escolhidos.value)
+  candidatos.value.forEach(c => todos.set(c.id, c))
+  return [...todos.values()]
+    .filter(c => !jaSaoAutores.has(String(c.id)))
+    .map(c => ({ id: c.id, cpf: c.cpf, rotulo: rotuloDe(c) }))
+})
+
+watch(selecionados, (ids) => {
+  const mapa = new Map()
+  ids.forEach(id => {
+    const c = candidatos.value.find(x => x.id === id) ?? escolhidos.value.get(id)
+    if (c) mapa.set(id, c)
+  })
+  escolhidos.value = mapa
+})
 
 async function carregar() {
   semAcesso.value = false
@@ -141,8 +170,9 @@ async function carregar() {
 
 watch(() => props.modelValue, (aberto) => {
   if (aberto) {
-    selecionado.value = null
+    selecionados.value = []
     candidatos.value = []
+    erro.value = ''
     carregar()
   }
 })
@@ -160,23 +190,31 @@ function filtrar(val, update, abort) {
 
 async function adicionar() {
   erro.value = ''
-  const escolhido = candidatos.value.find(c => c.id === selecionado.value)
-  if (!escolhido) {
-    erro.value = 'Selecione uma pessoa na lista'
+  const pessoas = selecionados.value.map(id => escolhidos.value.get(id)).filter(Boolean)
+  if (!pessoas.length) {
+    erro.value = 'Selecione ao menos uma pessoa na lista'
     return
   }
   adicionando.value = true
-  try {
-    await api.compartilharDocumento(props.documentoId, escolhido.cpf)
-    selecionado.value = null
-    candidatos.value = []
-    await carregar()
-    $q.notify({ type: 'positive', message: 'Autoria atribuída.' })
-  } catch (e) {
-    erro.value = e?.message ?? 'Erro ao atribuir a autoria'
-  } finally {
-    adicionando.value = false
+  const falhas = []
+  const falharam = new Set()
+  let atribuidas = 0
+  for (const p of pessoas) {
+    try {
+      await api.compartilharDocumento(props.documentoId, p.cpf)
+      atribuidas++
+    } catch (e) {
+      falharam.add(p.id)
+      falhas.push(`${caixaAlta(p.nomeGuerra || p.nome)}: ${e?.message ?? 'erro desconhecido'}`)
+    }
   }
+  // Quem deu certo sai da seleção; quem falhou fica, com o motivo, para tentar de novo.
+  selecionados.value = selecionados.value.filter(id => falharam.has(id))
+  candidatos.value = []
+  await carregar()
+  adicionando.value = false
+  if (atribuidas) $q.notify({ type: 'positive', message: atribuidas === 1 ? 'Autoria atribuída.' : `Autoria atribuída a ${atribuidas} pessoas.` })
+  if (falhas.length) erro.value = falhas.join(' · ')
 }
 
 // O Administrador da OM atribui a autoria a si mesmo (para poder editar): a mesma chamada, com o próprio CPF.

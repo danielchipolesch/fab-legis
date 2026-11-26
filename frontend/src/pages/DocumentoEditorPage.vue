@@ -112,7 +112,7 @@
           <q-tooltip anchor="bottom middle" self="top middle">Técnica legislativa (LC 95/1998)</q-tooltip>
         </q-btn>
 
-        <q-btn round flat color="primary" @click="compartilharDialogOpen = true">
+        <q-btn v-if="podeVerAutoria" round flat color="primary" data-testid="autores" @click="compartilharDialogOpen = true">
           <q-icon name="mdi-account-multiple-plus-outline" size="22px" />
           <q-badge v-if="presencaOutros.length" floating color="deep-orange" rounded />
           <q-tooltip anchor="bottom middle" self="top middle">Autores do documento</q-tooltip>
@@ -631,6 +631,15 @@ const regras = computed(() => regrasDoDocumento(documento.value))
 
 // "Elaborado por" (autor e coautores) e "Aprovado por" (quem aprovou) saem do documento: refaz a leitura quando a coautoria
 // muda (ao fechar o diálogo de compartilhamento) e quando a etapa ou quem aprovou mudam.
+// O botão "Autores" só existe para quem pode usá-lo (autor do documento ou Administrador da OM dele): quem edita como
+// aprovador, por exemplo, não o vê. O servidor responde (403 = sem acesso).
+const podeVerAutoria = ref(false)
+watch(documentoId, async (id) => {
+  podeVerAutoria.value = false
+  if (!id) return
+  try { podeVerAutoria.value = await documentsApi.podeVerAutores(id) } catch { podeVerAutoria.value = false }
+}, { immediate: true })
+
 watch(compartilharDialogOpen, (aberto) => {
   if (!aberto && regras.value.ehNpa && documentoId.value) carregarCamposNpa()
 })

@@ -52,12 +52,12 @@ O documento é salvo automaticamente. Se duas pessoas editam o mesmo documento a
 
 ## Autores do documento
 
-Quem criou o documento e quem foi acrescentado depois são **autores, todos iguais**: editam e excluem (no Rascunho) o documento, enviam para aprovação e **atribuem a autoria a outras pessoas** (botão **Autores**; procure a pessoa pelo **nome de guerra** ou nome completo). Não há "coautor" com menos direitos.
+Quem criou o documento e quem foi acrescentado depois são **autores, todos iguais**: editam e excluem (no Rascunho) o documento, enviam para aprovação e **atribuem a autoria a outras pessoas** (botão **Autores**: procure as pessoas pelo **nome de guerra** ou nome completo, escolha uma ou várias — elas aparecem como fichas — e clique em **Adicionar autor(es)**). Não há "coautor" com menos direitos.
 
 - **A autoria é sua, não da OM.** Se você for transferido para outra OM, continua sendo autor e continua editando o documento.
 - **Quem desvincula um autor** (a qualquer tempo) é o **Administrador da OM do documento**, em qualquer etapa (inclusive num ato já publicado) — é a saída quando os autores originais já não estão na OM. Ele também pode atribuir a autoria a si mesmo, para passar a editar. O Administrador Geral não faz isso.
 - **Desvincular-se:** depois de sair da OM do documento, você pode se desvincular dele (**Autores › Desvincular-me do documento**). Enquanto ainda for da OM do documento, a opção não aparece: peça ao Administrador da OM. Se você for o **único** autor, o sistema não deixa: "não é possível desvincular: esta é a única pessoa atribuída como elaboradora" — atribua a autoria a outra pessoa antes.
-- Quem não é autor vê o documento normalmente, mas não vê nem atribui a lista de autores.
+- Quem não é autor (nem Administrador da OM do documento) vê o documento normalmente, mas o botão **Autores** nem aparece para ele.
 
 ## Anexos
 
