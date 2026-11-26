@@ -52,7 +52,7 @@ O documento é salvo automaticamente. Se duas pessoas editam o mesmo documento a
 
 ## Autores do documento
 
-Quem criou o documento e quem foi acrescentado depois são **autores, todos iguais**: editam e excluem (no Rascunho) o documento, enviam para aprovação e **atribuem a autoria a outras pessoas** (botão **Autores**: procure as pessoas pelo **nome de guerra** ou nome completo, escolha uma ou várias — elas aparecem como fichas — e clique em **Adicionar autor(es)**). Não há "coautor" com menos direitos.
+Quem criou o documento (o **autor**) e quem foi acrescentado depois (os **coautores**) têm **os mesmos direitos, sem distinção**: editam e excluem (no Rascunho) o documento, enviam para aprovação e **adicionam coautores** (botão **Autores**: procure as pessoas pelo **nome de guerra** ou nome completo, escolha uma ou várias — elas aparecem como fichas — e clique em **Adicionar Coautor**).
 
 - **A autoria é sua, não da OM.** Se você for transferido para outra OM, continua sendo autor e continua editando o documento.
 - **Quem desvincula um autor** (a qualquer tempo) é o **Administrador da OM do documento**, em qualquer etapa (inclusive num ato já publicado) — é a saída quando os autores originais já não estão na OM. Ele também pode atribuir a autoria a si mesmo, para passar a editar. O Administrador Geral não faz isso.

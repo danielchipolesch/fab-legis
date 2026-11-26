@@ -481,14 +481,17 @@ export async function listCompartilhamentos(documentoId) {
 
 // Quem vê a lista de autores (e, portanto, o botão "Autores"): os autores do documento e o Administrador da OM dele.
 // O servidor é quem sabe: 403 = sem acesso, e a tela esconde o botão em vez de abrir um diálogo que só explica.
-export async function podeVerAutores(documentoId) {
+export async function listarAutoresSePuder(documentoId) {
   try {
-    await http.get(`/documentos/${documentoId}/compartilhamentos`)
-    return true
+    return await http.get(`/documentos/${documentoId}/compartilhamentos`)
   } catch (e) {
-    if (e?.status === 403) return false
+    if (e?.status === 403) return null
     throw e
   }
+}
+
+export async function podeVerAutores(documentoId) {
+  return (await listarAutoresSePuder(documentoId)) !== null
 }
 
 export async function compartilharDocumento(documentoId, cpf) {

@@ -114,7 +114,7 @@
 
         <q-btn v-if="podeVerAutoria" round flat color="primary" data-testid="autores" @click="compartilharDialogOpen = true">
           <q-icon name="mdi-account-multiple-plus-outline" size="22px" />
-          <q-badge v-if="presencaOutros.length" floating color="deep-orange" rounded />
+          <q-badge v-if="totalDeAutores" floating :color="presencaOutros.length ? 'deep-orange' : 'primary'" :label="totalDeAutores" class="flex flex-center" style="width:18px;height:18px;min-width:18px;padding:0;border-radius:50%;font-size:11px" data-testid="total-de-autores" />
           <q-tooltip anchor="bottom middle" self="top middle">Autores do documento</q-tooltip>
         </q-btn>
 
@@ -395,7 +395,7 @@ function iniciarPresenca() {
     // cobre o estado contínuo.
     for (const p of outros) {
       if (!antes.has(p.usuarioId)) {
-        $q.notify({ type: 'info', icon: 'mdi-account-multiple-outline', position: 'top-right',
+        $q.notify({ type: 'info', icon: 'mdi-account-multiple-outline', position: 'bottom-right',
           message: `${p.nome} começou a editar este documento agora.` })
       }
     }
@@ -633,14 +633,18 @@ const regras = computed(() => regrasDoDocumento(documento.value))
 // muda (ao fechar o diálogo de compartilhamento) e quando a etapa ou quem aprovou mudam.
 // O botão "Autores" só existe para quem pode usá-lo (autor do documento ou Administrador da OM dele): quem edita como
 // aprovador, por exemplo, não o vê. O servidor responde (403 = sem acesso).
-const podeVerAutoria = ref(false)
-watch(documentoId, async (id) => {
-  podeVerAutoria.value = false
-  if (!id) return
-  try { podeVerAutoria.value = await documentsApi.podeVerAutores(id) } catch { podeVerAutoria.value = false }
-}, { immediate: true })
+// A lista de autores também diz se há outras pessoas no documento: nesse caso o botão leva umum selo com o total de autores e coautores, como o de uma notificação.
+const autoresDoDocumento = ref(null)   // null = sem acesso à lista
+const podeVerAutoria = computed(() => autoresDoDocumento.value !== null)
+const totalDeAutores = computed(() => (autoresDoDocumento.value ?? []).length)
+async function carregarAutores() {
+  if (!documentoId.value) { autoresDoDocumento.value = null; return }
+  try { autoresDoDocumento.value = await documentsApi.listarAutoresSePuder(documentoId.value) } catch { autoresDoDocumento.value = null }
+}
+watch(documentoId, () => { autoresDoDocumento.value = null; carregarAutores() }, { immediate: true })
 
 watch(compartilharDialogOpen, (aberto) => {
+  if (!aberto) carregarAutores()
   if (!aberto && regras.value.ehNpa && documentoId.value) carregarCamposNpa()
 })
 watch(

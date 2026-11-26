@@ -91,7 +91,7 @@ const routes = [
     path: '/usuarios',
     name: 'usuarios',
     component: () => import('@/pages/UsuariosPage.vue'),
-    meta: { title: 'Gestão de Usuários', requiresAdmin: true, manual: 'administracao#manter-usuarios' },
+    meta: { title: 'Manter Usuários', requiresAdmin: true, manual: 'administracao#manter-usuarios' },
   },
   {
     path: '/habilitacao-de-documentos',

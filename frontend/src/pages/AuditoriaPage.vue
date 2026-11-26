@@ -1,5 +1,13 @@
 <template>
   <q-page class="q-pa-xl">
+    <q-breadcrumbs active-color="primary" style="font-size:13px" class="q-mb-md">
+      <template #separator>
+        <q-icon name="mdi-chevron-right" size="16px" color="primary" />
+      </template>
+      <q-breadcrumbs-el :to="{ name: 'home' }" icon="mdi-home" />
+      <q-breadcrumbs-el label="Área de Trabalho" :to="{ name: 'home' }" />
+      <q-breadcrumbs-el label="Auditoria" />
+    </q-breadcrumbs>
 
     <div class="row items-center justify-between q-mb-xl">
       <div>

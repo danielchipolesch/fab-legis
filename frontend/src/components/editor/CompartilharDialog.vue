@@ -8,9 +8,9 @@
         <q-btn icon="mdi-close" flat round dense v-close-popup />
       </q-card-section>
       <div class="text-caption text-grey-7 q-px-md q-pb-sm">
-        Todos os autores são iguais: editam este documento (nas etapas em que o texto muda) e, enquanto ele estiver
-        em Rascunho, também podem excluí-lo. Qualquer autor pode atribuir a autoria a outra pessoa. A autoria é da pessoa,
-        não da OM: quem for transferido continua autor. Quem desvincula um autor é o Administrador da OM do documento
+        Autor e coautores têm exatamente os mesmos direitos: editam este documento (nas etapas em que o texto muda) e, enquanto ele estiver
+        em Rascunho, também podem excluí-lo. Qualquer um deles pode adicionar um coautor. A autoria é da pessoa,
+        não da OM: quem for transferido continua com o acesso. Quem desvincula um autor é o Administrador da OM do documento
         — ou o próprio autor, ao se desvincular de si mesmo, depois de sair da OM do documento.
       </div>
       <q-separator />
@@ -24,11 +24,12 @@
         <!-- Busca várias pessoas, que ficam como "fichas"; um só botão atribui a autoria a todas as selecionadas. -->
         <q-form @submit.prevent="adicionar">
           <q-select
+            ref="campoBusca"
             v-model="selecionados"
             :options="opcoes"
             option-label="rotulo"
             option-value="id"
-            label="Buscar pessoas por nome de guerra ou nome completo"
+            label="Buscar coautores por nome de guerra ou nome completo"
             outlined
             dense
             multiple
@@ -38,6 +39,8 @@
             map-options
             input-debounce="300"
             data-testid="buscar-autores"
+            behavior="menu"
+            @update:model-value="fecharLista"
             @filter="filtrar"
             :loading="buscando"
             :error="!!erro"
@@ -57,7 +60,7 @@
             </span>
             <q-btn
               unelevated no-caps color="primary" icon="mdi-account-plus-outline"
-              :label="selecionados.length > 1 ? 'Adicionar autores' : 'Adicionar autor'"
+              :label="selecionados.length > 1 ? 'Adicionar Coautores' : 'Adicionar Coautor'"
               :disable="!selecionados.length" :loading="adicionando" type="submit" data-testid="adicionar-autores"
             />
           </div>
@@ -134,6 +137,13 @@ const candidatos = ref([])
 const escolhidos = ref(new Map())
 const selecionados = ref([])
 const termoBusca = ref('')
+const campoBusca = ref(null)
+
+// Ao escolher alguém a lista fecha e o texto digitado some: o campo volta a mostrar só as fichas, sem nada por cima.
+function fecharLista() {
+  campoBusca.value?.updateInputValue?.('', true)
+  campoBusca.value?.hidePopup()
+}
 const buscando = ref(false)
 
 const rotuloDe = (c) =>
@@ -213,7 +223,7 @@ async function adicionar() {
   candidatos.value = []
   await carregar()
   adicionando.value = false
-  if (atribuidas) $q.notify({ type: 'positive', message: atribuidas === 1 ? 'Autoria atribuída.' : `Autoria atribuída a ${atribuidas} pessoas.` })
+  if (atribuidas) $q.notify({ type: 'positive', message: atribuidas === 1 ? 'Coautor adicionado.' : `${atribuidas} coautores adicionados.` })
   if (falhas.length) erro.value = falhas.join(' · ')
 }
 
