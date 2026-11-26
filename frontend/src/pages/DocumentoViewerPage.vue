@@ -447,9 +447,8 @@ import { gerarTextoSugeridoPortaria } from '@/utils/textoSugeridoPortaria.js'
 import { resolverUrlsArmazenadas } from '@/utils/urlsArmazenadas.js'
 import BotaoBaixarVersao from '@/components/common/BotaoBaixarVersao.vue'
 import CompartilharDialog from '@/components/editor/CompartilharDialog.vue'
-import { ehAdministradorDaOmDoDocumento } from '@/utils/autoria.js'
 import { regrasDoDocumento, moduloDoDocumento } from '@/regras/index.js'
-import { getSubstituicao } from '@/api/documentos.js'
+import { getSubstituicao, podeVerAutores } from '@/api/documentos.js'
 import { itensRenumeracaoUnico } from '@/utils/numbering.js'
 import {
   ehAlteracaoPublicada, temVersaoVigente, temVersaoEmTramitacao, versaoPadrao, eventoDoHistorico, podeSubstituir, ehAprovadorDaOm,
@@ -476,10 +475,14 @@ const documentoId = computed(() => route.params.id)
 const documento   = computed(() => docStore.getById(documentoId.value))
 // As regras da espécie do documento (regras/index.js): o que a tela mostra varia por espécie.
 const regras      = computed(() => regrasDoDocumento(documento.value))
-// O botão "Autores" é de quem elabora (todo usuário é Elaborador) e do Administrador da OM do documento.
+// O botão "Autores" só existe para quem pode usá-lo: os autores do documento e o Administrador da OM dele (o servidor responde).
 const autoresDialogOpen = ref(false)
-const podeVerAutoria = computed(() => !!documento.value
-  && (auth.isElaborador || ehAdministradorDaOmDoDocumento(auth.usuario, documento.value.om_id)))
+const podeVerAutoria = ref(false)
+watch(documentoId, async (id) => {
+  podeVerAutoria.value = false
+  if (!id) return
+  try { podeVerAutoria.value = await podeVerAutores(id) } catch { podeVerAutoria.value = false }
+}, { immediate: true })
 
 // Versão exibida no iframe: a em tramitação (se houver) é a padrão; senão, a vigente. O PDF só
 // é buscado com a seção aberta: a versão em tramitação é renderizada na hora pelo backend quando

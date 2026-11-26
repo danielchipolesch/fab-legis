@@ -272,10 +272,14 @@ async function aoDocumento(aviso) {
   }
   // O documento que a pessoa tem aberto mudou de etapa: o visualizador lê do cache (refeito aqui) e o editor aplica só a etapa nova (o texto em
   // edição não é tocado) -- os botões e o modo somente leitura se ajustam na hora.
+  // O aviso também chega quando só a autoria muda (alguém adicionou ou desvinculou um coautor): o toast só vale se a etapa mudou de fato.
+  const antes = documentosStore.getById(aviso.id)
+  const etapaAntes = antes ? `${antes.situacao_local}|${antes.situacao_bca}` : null
   try {
     await editorStore.aplicarEtapaDoServidor(aviso.id)
-    await documentosStore.fetchDocumento(aviso.id)
-    $q.notify({ type: 'info', icon: 'mdi-swap-horizontal', position: 'bottom-right', message: 'Este documento mudou de etapa.' })
+    const depois = await documentosStore.fetchDocumento(aviso.id)
+    const mudouDeEtapa = !depois || etapaAntes == null || etapaAntes !== `${depois.situacao_local}|${depois.situacao_bca}`
+    if (mudouDeEtapa) $q.notify({ type: 'info', icon: 'mdi-swap-horizontal', position: 'bottom-right', message: 'Este documento mudou de etapa.' })
   } catch {
     // Sem a leitura de agora, a tela segue como estava; o próximo aviso ou uma ação da pessoa a corrige.
   }

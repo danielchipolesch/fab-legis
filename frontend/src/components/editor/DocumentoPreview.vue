@@ -157,7 +157,9 @@
         <div
           v-for="item in tocItems"
           :key="item.id"
-          :class="['toc-row', item.kind]"
+          :class="['toc-row', item.kind, { 'toc-link': !String(item.id).startsWith('__') }]"
+          data-testid="sumario-linha"
+          @click="!String(item.id).startsWith('__') && rolarAte(item.id, false)"
         >
           <span class="toc-lbl">{{ item.label }}</span>
           <span class="toc-dots"></span>
@@ -286,7 +288,9 @@ const props = defineProps({
   selectedElementId: { type: String, default: null },
 })
 
-watch(() => props.selectedElementId, async (id) => {
+// Rola o contêiner da prévia até o elemento (sem mexer na janela). `centralizar`: o elemento selecionado no editor fica no meio;
+// o link do sumário o deixa no alto, perto do que se lê primeiro.
+async function rolarAte(id, centralizar) {
   if (!id) return
   await nextTick()
   const el = document.getElementById('prev-' + id)
@@ -303,10 +307,12 @@ watch(() => props.selectedElementId, async (id) => {
 
   const containerRect = container.getBoundingClientRect()
   const elRect = el.getBoundingClientRect()
-  const targetTop = container.scrollTop + elRect.top - containerRect.top
-                    - containerRect.height / 2 + elRect.height / 2
+  const deslocamento = centralizar ? containerRect.height / 2 - elRect.height / 2 : 16
+  const targetTop = container.scrollTop + elRect.top - containerRect.top - deslocamento
   container.scrollTo({ top: targetTop, behavior: 'smooth' })
-})
+}
+
+watch(() => props.selectedElementId, (id) => rolarAte(id, true))
 
 // ─── Scaling: ResizeObserver + CSS zoom ──────────────────
 const A4_W      = 794      // A4 width em px @ 96 dpi
@@ -1053,6 +1059,8 @@ const anexosDocumento = computed(() =>
 .toc-row.toc-artigo      { padding-left: 28px; }
 .toc-row.toc-figuras-hdr { font-weight: bold; text-transform: uppercase; margin-top: 10px; }
 .toc-row.toc-figura      { padding-left: 16px; font-style: italic; }
+.toc-row.toc-link { cursor: pointer; }
+.toc-row.toc-link:hover .toc-lbl { text-decoration: underline; }
 .toc-lbl  { flex-shrink: 0; max-width: 80%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .toc-dots { flex-grow: 1; border-bottom: 1px dotted #999; margin: 0 6px 3px; min-width: 16px; }
 .toc-pg   { flex-shrink: 0; min-width: 72px; text-align: right; color: #333; }

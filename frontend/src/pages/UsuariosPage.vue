@@ -1,9 +1,17 @@
 <template>
   <q-page class="q-pa-xl">
+    <q-breadcrumbs active-color="primary" style="font-size:13px" class="q-mb-md">
+      <template #separator>
+        <q-icon name="mdi-chevron-right" size="16px" color="primary" />
+      </template>
+      <q-breadcrumbs-el :to="{ name: 'home' }" icon="mdi-home" />
+      <q-breadcrumbs-el label="Área de Trabalho" :to="{ name: 'home' }" />
+      <q-breadcrumbs-el label="Manter Usuários" />
+    </q-breadcrumbs>
 
     <div class="row items-center justify-between q-mb-xl">
       <div>
-        <h1 class="text-h5 text-weight-bold text-primary q-my-none">Gestão de Usuários</h1>
+        <h1 class="text-h5 text-weight-bold text-primary q-my-none">Manter Usuários</h1>
         <p class="text-body2 text-grey-7 q-mb-none">
           Cadastro e administração dos usuários com acesso autorizado ao sistema
         </p>
@@ -55,7 +63,7 @@
         </template>
 
         <template #body-cell-om="props">
-          <q-td :props="props">{{ props.row.omNome }}</q-td>
+          <q-td :props="props">{{ props.row.omSigla ? `${props.row.omNome} (${props.row.omSigla})` : props.row.omNome }}</q-td>
         </template>
 
         <template #body-cell-papeis="props">
