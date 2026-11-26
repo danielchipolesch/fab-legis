@@ -1,5 +1,36 @@
 # Changelog
 
+## [0.5.0](https://github.com/danielchipolesch/fab-legis/compare/v0.4.0...v0.5.0) (2026-11-26)
+
+
+### Features
+
+* **acesso:** Administrador da OM também no CENDOC, papéis ocultos e revisão que some ([c1a77ff](https://github.com/danielchipolesch/fab-legis/commit/c1a77ffacdb6e5ac74cfb65801a3589058025056))
+* **acesso:** Administrador da OM também no CENDOC, papéis ocultos e revisão que some ([606bc10](https://github.com/danielchipolesch/fab-legis/commit/606bc1084c6995fcc5465ea64bff23a3bbdd3067))
+* **ao-vivo:** documentos, acesso e habilitacao se atualizam por SSE ([02e5d78](https://github.com/danielchipolesch/fab-legis/commit/02e5d78601f007e222a18eb9b27aa6c5c8cff010))
+* **ao-vivo:** documentos, acesso e habilitacao se atualizam por SSE, sem recarregar a pagina ([9aebefb](https://github.com/danielchipolesch/fab-legis/commit/9aebefbfab77cf7d86122f06f03dfc386e9f4e9d))
+* **armazenamento:** armazenamento de objetos em SeaweedFS, com o AWS SDK v2 ([29f8e96](https://github.com/danielchipolesch/fab-legis/commit/29f8e96621d7dd17675a7dd21ab5b6da5ac0c434))
+* **armazenamento:** armazenamento de objetos em SeaweedFS, com o AWS SDK v2 ([e50abf6](https://github.com/danielchipolesch/fab-legis/commit/e50abf61372901ea5f534b58488abc748fa25715))
+* **autoria:** autores iguais, Administrador da OM atribui e desvincula, aprovador sugerido ([8d05875](https://github.com/danielchipolesch/fab-legis/commit/8d0587505c160f1316014e67526141fe9404a568))
+* **autoria:** autores iguais, Administrador da OM desvincula, aprovador sugerido ([d2ad999](https://github.com/danielchipolesch/fab-legis/commit/d2ad999582be4517f95c69db905f6d0cf9637196))
+* **autoria:** botao Autores so para quem tem acesso e selecao multipla de autores ([3bddb80](https://github.com/danielchipolesch/fab-legis/commit/3bddb804facbbeac8d170e5dfaa0ba3f2ddb5fec))
+* **ciclo:** Rascunho só vira Minuta ao enviar para aprovação; Minuta é a aprovação (some o Em revisão) e nasce o Arquivado ([57a9496](https://github.com/danielchipolesch/fab-legis/commit/57a9496f41cec884a9868361353bd0123ee1ed6c)), closes [#33](https://github.com/danielchipolesch/fab-legis/issues/33)
+* **ciclo:** Rascunho só vira Minuta ao enviar para aprovação; Minuta é a aprovação e nasce o Arquivado ([0999b37](https://github.com/danielchipolesch/fab-legis/commit/0999b374d1b92a97725ba5c2d1bb6fe0535bd3d8))
+* **ui:** autoria com coautores, breadcrumbs, sumário clicável e ajustes ([71e48c9](https://github.com/danielchipolesch/fab-legis/commit/71e48c96bf71673eb85ce805559c5c3c4de76098))
+* **ui:** coautor, selo de autores, breadcrumbs, sumario clicavel na previa e ajustes ([24c910b](https://github.com/danielchipolesch/fab-legis/commit/24c910b5cfcbfb4b59b82161a29c50c80d7e3862))
+
+
+### Bug Fixes
+
+* **deps:** Spring Boot 4.1.3 e nota de atualizacao do JDK ([e84663f](https://github.com/danielchipolesch/fab-legis/commit/e84663f6b6e4f0b2bb2f7c80ac5ff3593bfd7811))
+* **deps:** Spring Boot 4.1.3 e nota de atualização do JDK ([350b7a6](https://github.com/danielchipolesch/fab-legis/commit/350b7a673b425e6a59ca32c4573e0f8e2f114d29))
+* **exportacao:** rótulo do artigo sem negrito ([4a80008](https://github.com/danielchipolesch/fab-legis/commit/4a800082ba056689be9938daec591fcdf122e716))
+* **exportacao:** rótulo do artigo sem negrito no PDF, HTML e prévia ([a068af7](https://github.com/danielchipolesch/fab-legis/commit/a068af7152c80fee38eb7ab04c0417a45ae340f4))
+* **habilitacao:** le so os ids antes de regravar, para nao dar 409 ([baf3498](https://github.com/danielchipolesch/fab-legis/commit/baf349879b8248b31342a884deeb6803c1c71913))
+* **previa:** figura da NPA não vaza mais da moldura; CSS e imagens compartilhados ([c139dd4](https://github.com/danielchipolesch/fab-legis/commit/c139dd4afeb97ed7a520c69404c345c173221539))
+* **previa:** figura da NPA não vaza mais da moldura; CSS e imagens compartilhados ([b4568af](https://github.com/danielchipolesch/fab-legis/commit/b4568af4c9996c7362ea801d7248812eb5800784))
+* **revisao:** destaque do aprovador sugerido em linha propria na fila ([4d766ba](https://github.com/danielchipolesch/fab-legis/commit/4d766ba864abeb8aac330e90e9afd6fe88ab9d8c))
+
 ## [0.4.0](https://github.com/danielchipolesch/fab-legis/compare/v0.3.0...v0.4.0) (2026-11-02)
 
 
